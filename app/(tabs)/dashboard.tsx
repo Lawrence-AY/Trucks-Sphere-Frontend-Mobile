@@ -188,7 +188,7 @@ export default function DashboardScreen() {
       </View>
 
       {/* Active Deliveries */}
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Deliveries</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Deliveries </Text>
       {recentDeliveries.map((d, i) => (
         <RecentDeliveryCard key={d.id || i} item={d} />
       ))}

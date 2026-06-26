@@ -70,6 +70,8 @@ export default function VendorsScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => router.push(`/screens/vendor-details?id=${item.id}&name=${encodeURIComponent(item.name || 'Vendor')}`)}
+            activeOpacity={0.85}
           >
             <View style={styles.cardLeft}>
               <View style={[styles.avatar, { backgroundColor: colors.accent + '15' }]}>

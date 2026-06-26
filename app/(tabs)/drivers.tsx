@@ -44,9 +44,7 @@ const getVendorName = (vendorId: string): string => {
 const stepEmoji: Record<string, string> = {
   origin: '🏭',
   weigh_in: '⚖️',
-  loading: '🔄',
   weigh_out: '⚖️',
-  in_transit: '🚛',
   arrived_site: '🏗️',
   received: '✅',
 };
@@ -87,9 +85,7 @@ export default function DriversScreen() {
       const type = s.type;
       const isCompleted = type === 'origin' ? true :
         type === 'weigh_in' ? !!delivery.weighInWeight :
-        type === 'loading' ? !!delivery.weighInWeight :
         type === 'weigh_out' ? !!delivery.weighOutWeight :
-        type === 'in_transit' ? !!delivery.weighOutWeight :
         type === 'arrived_site' ? !!delivery.deliveredAt :
         type === 'received' ? !!delivery.receivedAt : false;
       return { type, completed: isCompleted, label: s.label, icon: s.icon, color: s.color };
@@ -180,7 +176,8 @@ export default function DriversScreen() {
               const isLast = idx === journeySteps.length - 1;
 
               return (
-                <View key={step.type} style={styles.vTimelineRow}>                  <View style={styles.vTimelineLeft}>
+                <View key={step.type} style={styles.vTimelineRow}>
+                  <View style={styles.vTimelineLeft}>
                     <View style={[styles.vTimelineDot, { backgroundColor: dotColor }]}>
                       {isCompleted && <Text style={styles.vCheckmark}>✓</Text>}
                       {isCurrent && <Text style={styles.vCurrentIcon}>●</Text>}
@@ -226,13 +223,6 @@ export default function DriversScreen() {
               {(item as any).totalTrips || 0}
             </Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Trips</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.text }]}>
-              {(item as any).rating || '—'}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Rating</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>

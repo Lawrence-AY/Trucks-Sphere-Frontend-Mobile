@@ -15,7 +15,7 @@ import type { UserRole } from '../../store/types';
 type TabName = string;
 
 // All users see these 5 bottom tabs
-const BOTTOM_TABS: TabName[] = ['dashboard', 'active', 'vendors', 'drivers', 'search'];
+const BOTTOM_TABS: TabName[] = ['dashboard', 'active', 'vendors', 'drivers', 'orders'];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'dashboard', label: 'Dashboard', family: 'MaterialIcons' },
@@ -152,6 +152,7 @@ export default function TabsLayout() {
             />
           );
         })}
+        <Tabs.Screen name="search" options={{ href: null }} />
       </Tabs>
 
       {/* Hamburger Menu Modal */}
@@ -191,15 +192,15 @@ export default function TabsLayout() {
               </View>
             </View>
 
-            {/* Menu Items */}
-            <ScrollView style={styles.menuItems}>
+            {/* Menu Items - centered vertically */}
+            <ScrollView style={styles.menuItems} contentContainerStyle={styles.menuItemsContent}>
               {filteredMenu.map((item) => (
                 <TouchableOpacity
                   key={item.route}
                   style={styles.menuItem}
                   onPress={() => handleNav(item.route)}
                 >
-                  <Ionicons name={item.icon} size={22} color={colors.textSecondary} />
+                  <Ionicons name={item.icon} size={22} color={colors.text} />
                   <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -275,26 +276,27 @@ const styles = StyleSheet.create({
   menuUserEmail: { fontSize: 12, marginBottom: Spacing.md },
   menuRoleBadge: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs, borderRadius: Radius.full },
   menuRoleText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  menuItems: { flex: 1, paddingTop: Spacing.xs },
+  menuItems: { flex: 1 },
+  menuItemsContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: Spacing.xl },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.xl,
     gap: Spacing.md,
   },
-  menuItemText: { fontSize: 15, fontWeight: '500' },
+  menuItemText: { fontSize: 16, fontWeight: '600' },
   menuLogout: {
     padding: Spacing.xl,
     borderTopWidth: 1,
-    paddingBottom: Spacing['3xl'],
+    paddingBottom: Spacing['4xl'],
   },
   menuLogoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
   },
-  menuLogoutText: { fontSize: 15, fontWeight: '600' },
+  menuLogoutText: { fontSize: 16, fontWeight: '600' },
 });

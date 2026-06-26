@@ -16,7 +16,6 @@ const NAVY = '#1B2A4A';
 const FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'at_quarry', label: 'At Quarry' },
-  { key: 'in_transit', label: 'In Transit' },
   { key: 'delivered', label: 'Delivered' },
 ];
 
@@ -24,8 +23,8 @@ const FILTERS = [
 function categorizeDeliveryStatus(checkpoints: any[]): string {
   const types = new Set(checkpoints.map((cp: any) => cp.type));
   if (types.has('received')) return 'delivered';
-  if (types.has('in_transit') || types.has('weigh_out')) return 'in_transit';
-  if (types.has('loading') || types.has('weigh_in')) return 'at_quarry';
+  if (types.has('weigh_out')) return 'in_transit';
+  if (types.has('weigh_in')) return 'at_quarry';
   return 'assigned';
 }
 
@@ -118,7 +117,6 @@ export default function ActiveScreen() {
     // Filter by status category
     if (activeFilter !== 'all') {
       if (activeFilter === 'at_quarry' && d._category !== 'at_quarry') return false;
-      if (activeFilter === 'in_transit' && d._category !== 'in_transit') return false;
       if (activeFilter === 'delivered' && d._category !== 'delivered') return false;
     }
     // Search

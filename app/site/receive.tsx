@@ -11,6 +11,7 @@ export default function ReceiveScreen() {
   const [search, setSearch] = useState('');
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<any>(null);
+  const [deliveryNote, setDeliveryNote] = useState('');
 
   const pending = MOCK_DELIVERIES.filter(d => d.status === 'in_transit')
     .filter(d =>
@@ -42,6 +43,19 @@ export default function ReceiveScreen() {
             <Text style={styles.rTime}>{new Date().toLocaleString()}</Text>
             <Text style={styles.rBarcode}>||| ||| ||| ||| ||| ||| |||</Text>
             <Text style={styles.rThanks}>Site Operator</Text>
+            {/* Delivery Note from Site */}
+            <View style={styles.noteWrap}>
+              <Text style={styles.noteLabel}>Delivery Note:</Text>
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Add a note about this delivery..."
+                placeholderTextColor="#999"
+                value={deliveryNote}
+                onChangeText={setDeliveryNote}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
           </View>
         </View>
 
@@ -168,4 +182,17 @@ const styles = StyleSheet.create({
   rTime: { textAlign: 'center', fontSize: 10, color: '#999', marginTop: 2 },
   rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: 8 },
   rThanks: { textAlign: 'center', fontSize: 12, color: '#666', marginTop: 4, fontStyle: 'italic' },
+  noteWrap: { marginTop: 12, borderTopWidth: 1, borderTopColor: '#DDD', paddingTop: 8 },
+  noteLabel: { fontSize: 11, fontWeight: '700', color: '#333', marginBottom: 4 },
+  noteInput: {
+    fontSize: 12,
+    color: '#333',
+    borderWidth: 1,
+    borderColor: '#DDD',
+    borderRadius: 6,
+    padding: 8,
+    minHeight: 60,
+    textAlignVertical: 'top',
+    backgroundColor: '#FAFAFA',
+  },
 });

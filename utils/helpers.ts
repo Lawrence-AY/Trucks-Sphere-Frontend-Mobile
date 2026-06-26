@@ -215,9 +215,7 @@ export interface CheckpointConfig {
 export const checkpointConfig: Record<string, CheckpointConfig> = {
   origin: { icon: 'home', label: 'Origin', color: '#1B2A4A' },
   weigh_in: { icon: 'arrow-down-circle', label: 'Weigh-In', color: '#3B82F6' },
-  loading: { icon: 'cube', label: 'Loading', color: '#F59E0B' },
   weigh_out: { icon: 'arrow-up-circle', label: 'Weigh-Out', color: '#8B5CF6' },
-  in_transit: { icon: 'navigate', label: 'In Transit', color: '#F59E0B' },
   arrived_site: { icon: 'location', label: 'Arrived at Site', color: '#3B82F6' },
   received: { icon: 'checkmark-circle', label: 'Received', color: '#10B981' },
 };
@@ -226,15 +224,13 @@ export const checkpointConfig: Record<string, CheckpointConfig> = {
 export const JOURNEY_STEPS: { type: string; label: string; icon: string; color: string }[] = [
   { type: 'origin', label: 'Origin', icon: 'home', color: '#1B2A4A' },
   { type: 'weigh_in', label: 'Weigh-In', icon: 'arrow-down-circle', color: '#3B82F6' },
-  { type: 'loading', label: 'Loading', icon: 'cube', color: '#F59E0B' },
   { type: 'weigh_out', label: 'Weigh-Out', icon: 'arrow-up-circle', color: '#8B5CF6' },
-  { type: 'in_transit', label: 'In Transit', icon: 'navigate', color: '#F59E0B' },
   { type: 'arrived_site', label: 'Arrived at Site', icon: 'location', color: '#3B82F6' },
   { type: 'received', label: 'Received', icon: 'checkmark-circle', color: '#10B981' },
 ];
 
 // Checkpoint type enum
-export type CheckpointType = 'origin' | 'weigh_in' | 'weigh_out' | 'loading' | 'in_transit' | 'arrived_site' | 'received';
+export type CheckpointType = 'origin' | 'weigh_in' | 'weigh_out' | 'arrived_site' | 'received';
 
 /** Determine the current step index based on completed checkpoints */
 export function getCurrentStepIndex(checkpoints: { type: string; }[]): number {
