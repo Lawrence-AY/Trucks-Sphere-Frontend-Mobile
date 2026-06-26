@@ -121,7 +121,7 @@ export default function DashboardScreen() {
       >
         <View style={styles.welcomeArea}>
           <View>
-            <Text style={[styles.welcomeGreeting, { color: colors.textSecondary }]}>Welcome back,</Text>
+             
             <Text style={[styles.userName, { color: colors.text }]}>
               {user?.displayName || user?.email?.split('@')[0] || 'User'}
             </Text>
@@ -141,7 +141,7 @@ export default function DashboardScreen() {
       {/* Welcome */}
       <View style={styles.welcomeArea}>
         <View>
-          <Text style={[styles.welcomeGreeting, { color: colors.textSecondary }]}>Welcome back,</Text>
+           
           <Text style={[styles.userName, { color: colors.text }]}>
             {user?.displayName || user?.email?.split('@')[0] || 'User'}
           </Text>
@@ -204,7 +204,7 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
+  content: { padding: Spacing.lg, paddingBottom: Spacing['3xl'] },
   welcomeArea: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: Spacing.xl,
