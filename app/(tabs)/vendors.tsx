@@ -119,6 +119,37 @@ export default function VendorsScreen() {
             </View>
           ) : null
         }
+<<<<<<< HEAD
+=======
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => router.push(`/screens/vendor-details?id=${item.id}&name=${encodeURIComponent(item.name || 'Vendor')}`)}
+            activeOpacity={0.85}
+          >
+            <View style={styles.cardLeft}>
+              <View style={[styles.avatar, { backgroundColor: colors.accent + '15' }]}>
+                <Text style={[styles.avatarText, { color: colors.accent }]}>
+                  {(item.name || '').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                </Text>
+              </View>
+              <View style={styles.cardInfo}>
+                <Text style={[styles.cardName, { color: colors.text }]}>{item.name}</Text>
+                <Text style={[styles.cardPhone, { color: colors.textSecondary }]}>{item.phone}</Text>
+              </View>
+            </View>
+            <View style={styles.cardRight}>
+              <Text style={[styles.fleetStat, { color: colors.text }]}>
+                {getDriverCount(item.id)} drivers
+              </Text>
+              <View style={[
+                styles.statusDot,
+                { backgroundColor: item.status === 'active' ? '#16A34A' : '#94A3B8' },
+              ]} />
+            </View>
+          </TouchableOpacity>
+        )}
+>>>>>>> 1ffdc9493852547939d2de1b5c275b73fa3a2afd
       />
     </View>
   );

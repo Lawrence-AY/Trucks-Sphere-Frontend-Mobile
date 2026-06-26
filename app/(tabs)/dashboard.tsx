@@ -240,14 +240,7 @@ export default function DashboardScreen() {
       </ScrollView>
 
       {/* Active Deliveries */}
-      <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Deliveries</Text>
-        {recentDeliveries.length > 0 && (
-          <TouchableOpacity onPress={() => router.push('/(tabs)/active')}>
-            <Text style={[styles.viewAll, { color: colors.primary }]}>View All</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Deliveries </Text>
       {recentDeliveries.map((d, i) => (
         <RecentDeliveryCard key={d.id || i} item={d} />
       ))}
