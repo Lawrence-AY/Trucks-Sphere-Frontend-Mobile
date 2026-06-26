@@ -2,6 +2,7 @@ export interface User {
   uid: string;
   email: string;
   displayName: string;
+  name?: string;
   role: UserRole;
   phone?: string;
   photoURL?: string;
@@ -31,7 +32,7 @@ export interface Driver {
   email?: string;
   licenseNumber: string;
   licenseExpiry: string;
-  status: 'active' | 'inactive' | 'suspended';
+  status: 'active' | 'inactive' | 'suspended' | 'on_trip';
   vendorId?: string;
   assignedTruckId?: string;
   photoURL?: string;
@@ -42,15 +43,19 @@ export interface Driver {
 
 export interface Vehicle {
   id: string;
+  plate?: string;
   plateNumber: string;
   model: string;
   make: string;
   year: number;
   color: string;
   capacity: number; // tons
-  status: 'active' | 'in_maintenance' | 'out_of_service';
+  status: 'active' | 'inactive' | 'on_trip' | 'in_maintenance' | 'out_of_service';
   vendorId?: string;
+  vendorName?: string;
   assignedDriverId?: string;
+  driverName?: string;
+  axles?: number;
   insuranceExpiry: string;
   lastInspection: string;
   createdAt: string;
@@ -98,6 +103,7 @@ export interface PurchaseOrder {
   vendorId: string;
   vendorName: string;
   materialId: string;
+  material?: string;
   materialName: string;
   quantity: number;
   unit: string;
@@ -125,14 +131,18 @@ export interface DeliveryOrder {
   driverId: string;
   driverName: string;
   vehicleId: string;
+  truckPlate?: string;
   plateNumber: string;
   materialId: string;
+  material?: string;
   materialName: string;
+  quantity?: number;
   quantityOrdered: number;
   quantityDelivered: number;
   quarryId: string;
   quarryName: string;
   siteId: string;
+  siteLocation?: string;
   siteName: string;
   status: 'assigned' | 'in_transit' | 'at_quarry' | 'loaded' | 'in_transit_to_site' | 'delivered' | 'cancelled';
   weighInId?: string;
@@ -160,6 +170,11 @@ export interface WeighRecord {
   deliveryOrderId: string;
   jobId: string;
   type: 'weigh_in' | 'weigh_out';
+  status?: 'pending' | 'weighed_in' | 'weighed_out' | 'completed';
+  truckPlate?: string;
+  driverName?: string;
+  material?: string;
+  weightIn?: number;
   weight: number;
   unit: string;
   location: string;

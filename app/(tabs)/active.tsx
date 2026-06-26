@@ -1,59 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
-<<<<<<< HEAD
 import { fetchDeliveryOrders } from '../../services/api';
-import { formatEAT, getStatusColor, formatStatus } from '../../utils/helpers';
-=======
-import { fetchCheckpoints, fetchDeliveryOrders } from '../../services/api';
-import { formatEAT, JOURNEY_STEPS } from '../../utils/helpers';
-
-const NAVY = '#1B2A4A';
-
-// Status filter options
-const FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'at_quarry', label: 'At Quarry' },
-  { key: 'delivered', label: 'Delivered' },
-];
-
-/** Determine the status category from checkpoints */
-function categorizeDeliveryStatus(checkpoints: any[]): string {
-  const types = new Set(checkpoints.map((cp: any) => cp.type));
-  if (types.has('received')) return 'delivered';
-  if (types.has('weigh_out')) return 'in_transit';
-  if (types.has('weigh_in')) return 'at_quarry';
-  return 'assigned';
-}
-
-/** Get status color based on checkpoint type */
-function getCheckpointColor(type: string, isCompleted: boolean, isCurrent: boolean): string {
-  if (isCompleted) return '#16A34A'; // green
-  if (isCurrent) return '#3B82F6'; // blue
-  return '#CBD5E1'; // gray
-}
-
-function getCheckpointIcon(type: string, isCompleted: boolean, isCurrent: boolean): string {
-  if (isCompleted) return 'checkmark-circle';
-  if (isCurrent) return 'time';
-  return 'ellipse-outline';
-}
-
-/** Find current step index */
-function getCurrentStep(checkpoints: any[]): number {
-  const completedTypes = new Set(checkpoints.map((cp: any) => cp.type));
-  for (let i = JOURNEY_STEPS.length - 1; i >= 0; i--) {
-    if (completedTypes.has(JOURNEY_STEPS[i].type)) return i;
-  }
-  return -1;
-}
->>>>>>> 1ffdc9493852547939d2de1b5c275b73fa3a2afd
+import { formatEAT, formatStatus, getStatusColor } from '../../utils/helpers';
 
 export default function ActiveScreen() {
   const colors = useTheme();
@@ -68,9 +28,10 @@ export default function ActiveScreen() {
       setDeliveries(data || []);
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -82,7 +43,6 @@ export default function ActiveScreen() {
     loadData();
   };
 
-<<<<<<< HEAD
   const filtered = deliveries.filter((d) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -92,37 +52,6 @@ export default function ActiveScreen() {
       (d.plateNumber || '').toLowerCase().includes(q) ||
       (d.materialName || '').toLowerCase().includes(q)
     );
-=======
-  // Build enriched delivery list
-  const enrichedDeliveries = useMemo(() => {
-    return deliveries.map((d: any) => {
-      const checkpoints = checkpointMap[d.id] || [];
-      const category = categorizeDeliveryStatus(checkpoints);
-      return {
-        ...d,
-        checkpoints,
-        _category: category,
-      };
-    });
-  }, [deliveries, checkpointMap]);
-
-  const filtered = enrichedDeliveries.filter(d => {
-    // Filter by status category
-    if (activeFilter !== 'all') {
-      if (activeFilter === 'at_quarry' && d._category !== 'at_quarry') return false;
-      if (activeFilter === 'delivered' && d._category !== 'delivered') return false;
-    }
-    // Search
-    if (search) {
-      const s = search.toLowerCase();
-      return (
-        d.jobId?.toLowerCase().includes(s) ||
-        d.driverName?.toLowerCase().includes(s) ||
-        d.plateNumber?.toLowerCase().includes(s)
-      );
-    }
-    return true;
->>>>>>> 1ffdc9493852547939d2de1b5c275b73fa3a2afd
   });
 
   const activeDeliveries = filtered.filter((d) => d.status !== 'delivered');
@@ -132,6 +61,7 @@ export default function ActiveScreen() {
     const isCompleted = item.status === 'delivered';
     const netWt = item.netWeight || (item.weighInWeight && item.weighOutWeight
       ? (item.weighInWeight - item.weighOutWeight).toFixed(1) : null);
+    const statusColor = getStatusColor(item.status);
 
     return (
       <TouchableOpacity
@@ -141,11 +71,11 @@ export default function ActiveScreen() {
       >
         <View style={styles.cardTop}>
           <View style={styles.cardTopLeft}>
-            <View style={[styles.cardIcon, { backgroundColor: getStatusColor(item.status) + '12' }]}>
+            <View style={[styles.cardIcon, { backgroundColor: `${statusColor}12` }]}>
               <Ionicons
                 name={isCompleted ? 'checkmark-circle' : 'navigate-circle'}
                 size={20}
-                color={getStatusColor(item.status)}
+                color={statusColor}
               />
             </View>
             <View>
@@ -153,9 +83,9 @@ export default function ActiveScreen() {
               <Text style={[styles.plate, { color: colors.textSecondary }]}>{item.plateNumber}</Text>
             </View>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
-            <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
-            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.statusText, { color: statusColor }]}>
               {formatStatus(item.status).toUpperCase()}
             </Text>
           </View>
@@ -173,7 +103,7 @@ export default function ActiveScreen() {
           <View style={styles.cardRow}>
             <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
             <Text style={[styles.cardText, { color: colors.textSecondary }]}>
-              {item.quarryName} → {item.siteName}
+              {item.quarryName} to {item.siteName}
             </Text>
           </View>
           {netWt && (
@@ -203,7 +133,6 @@ export default function ActiveScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Ionicons name="search" size={18} color={colors.textSecondary} />
         <TextInput
@@ -230,14 +159,14 @@ export default function ActiveScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
             {section.data.map((item: any) => (
-              <View key={item.id}>{renderItem({ item })}</View>
+              <View key={item.id || item.jobId}>{renderItem({ item })}</View>
             ))}
           </View>
         )}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '10' }]}>
+              <View style={[styles.emptyIcon, { backgroundColor: `${colors.primary}10` }]}>
                 <Ionicons name="car-outline" size={40} color={colors.primary} />
               </View>
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No deliveries found</Text>

@@ -10,7 +10,7 @@ export default function TruckHistoryScreen() {
   const colors = useTheme();
 
   const truck = MOCK_TRUCKS.find(t => t.id === id);
-  const trips = MOCK_WEIGHMENTS.filter(w => w.truckPlate === (truck?.plate || plate));
+  const trips = MOCK_WEIGHMENTS.filter(w => w.truckPlate === (truck?.plate || truck?.plateNumber || plate));
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
@@ -18,7 +18,7 @@ export default function TruckHistoryScreen() {
         <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.profileTop}>
             <View style={[styles.plateCircle, { backgroundColor: colors.accent + '15' }]}>
-              <Text style={[styles.plateText, { color: colors.accent }]}>{truck.plate}</Text>
+              <Text style={[styles.plateText, { color: colors.accent }]}>{truck.plate || truck.plateNumber}</Text>
             </View>
             <View style={styles.profileInfo}>
               <Text style={[styles.profileName, { color: colors.text }]}>{truck.model}</Text>
@@ -64,7 +64,7 @@ export default function TruckHistoryScreen() {
             <View style={styles.tripTop}>
               <Text style={[styles.tripJob, { color: colors.accent }]}>{trip.id}</Text>
               <Text style={[styles.tripStatus, { color: trip.status === 'completed' ? '#16A34A' : '#2563EB' }]}>
-                {trip.status.replace('_', ' ')}
+                {(trip.status || trip.type).replace('_', ' ')}
               </Text>
             </View>
             <View style={styles.tripRow}>

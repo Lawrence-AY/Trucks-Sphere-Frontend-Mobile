@@ -21,7 +21,7 @@ export default function WeighInScreen() {
 
   const available = MOCK_DRIVERS.filter(d => d.status === 'active' || d.status === 'on_trip')
     .map(d => {
-      const truck = MOCK_TRUCKS.find(t => t.driverName === d.name);
+      const truck = MOCK_TRUCKS.find(t => t.assignedDriverId === d.id || t.driverName === d.name);
       return { ...d, truck };
     })
     .filter(item => {
@@ -29,7 +29,7 @@ export default function WeighInScreen() {
       const q = searchQuery.toLowerCase();
       return item.name.toLowerCase().includes(q) ||
         item.phone.includes(q) ||
-        (item.truck?.plate || '').toLowerCase().includes(q);
+        (item.truck?.plate || item.truck?.plateNumber || '').toLowerCase().includes(q);
     });
 
   const handleSelectDriver = (driver: any) => {
@@ -64,7 +64,7 @@ export default function WeighInScreen() {
       date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
       driver: selectedDriver?.name || '',
-      truck: selectedTruck?.plate || '',
+      truck: selectedTruck?.plate || selectedTruck?.plateNumber || '',
       material,
       weightIn: Number(weightIn),
       jobId: `WB-${Date.now().toString(36).toUpperCase()}`,
@@ -247,7 +247,7 @@ export default function WeighInScreen() {
           <View style={styles.verifyDivider} />
           <View style={styles.verifyRow}>
             <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Truck</Text>
-            <Text style={[styles.vValue, { color: colors.text, fontWeight: '700' }]}>{selectedTruck?.plate}</Text>
+            <Text style={[styles.vValue, { color: colors.text, fontWeight: '700' }]}>{selectedTruck?.plate || selectedTruck?.plateNumber}</Text>
           </View>
           <View style={styles.verifyRow}>
             <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Model</Text>

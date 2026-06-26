@@ -15,7 +15,7 @@ export default function TrucksScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const filtered = MOCK_TRUCKS.filter((t) =>
-    (t.plate || '').toLowerCase().includes((search || '').toLowerCase()) ||
+    (t.plate || t.plateNumber || '').toLowerCase().includes((search || '').toLowerCase()) ||
     (t.model || '').toLowerCase().includes((search || '').toLowerCase())
   );
 
@@ -51,11 +51,11 @@ export default function TrucksScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => router.push(`/screens/truck-history?id=${item.id}&plate=${encodeURIComponent(item.plate)}`)}
+            onPress={() => router.push(`/screens/truck-history?id=${item.id}&plate=${encodeURIComponent(item.plate || item.plateNumber)}`)}
           >
             <View style={styles.cardTop}>
               <View style={[styles.plateBadge, { backgroundColor: colors.accent + '15' }]}>
-                <Text style={[styles.plateText, { color: colors.accent }]}>{item.plate}</Text>
+                <Text style={[styles.plateText, { color: colors.accent }]}>{item.plate || item.plateNumber}</Text>
               </View>
               <StatusBadge status={item.status} colors={colors} />
             </View>

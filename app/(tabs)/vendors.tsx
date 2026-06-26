@@ -1,14 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
 import { fetchVendors } from '../../services/api';
-import { getStatusColor, formatStatus } from '../../utils/helpers';
+import { formatStatus, getStatusColor } from '../../utils/helpers';
 
 export default function VendorsScreen() {
   const colors = useTheme();
@@ -23,9 +28,10 @@ export default function VendorsScreen() {
       setVendors(data || []);
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -47,42 +53,46 @@ export default function VendorsScreen() {
     );
   });
 
-  const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.surface }]}
-      activeOpacity={0.7}
-      onPress={() => router.push(`/screens/vendor-detail?id=${item.id}&name=${encodeURIComponent(item.name)}`)}
-    >
-      <View style={styles.cardTop}>
-        <View style={[styles.avatar, { backgroundColor: '#F59E0B15' }]}>
-          <Text style={[styles.avatarText, { color: '#F59E0B' }]}>
-            {item.name?.charAt(0)?.toUpperCase() || 'V'}
-          </Text>
+  const renderItem = ({ item }: { item: any }) => {
+    const statusColor = getStatusColor(item.status);
+
+    return (
+      <TouchableOpacity
+        style={[styles.card, { backgroundColor: colors.surface }]}
+        activeOpacity={0.7}
+        onPress={() => router.push(`/screens/vendor-detail?id=${item.id}&name=${encodeURIComponent(item.name || 'Vendor')}`)}
+      >
+        <View style={styles.cardTop}>
+          <View style={[styles.avatar, { backgroundColor: '#F59E0B15' }]}>
+            <Text style={[styles.avatarText, { color: '#F59E0B' }]}>
+              {item.name?.charAt(0)?.toUpperCase() || 'V'}
+            </Text>
+          </View>
+          <View style={styles.cardInfo}>
+            <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
+            <Text style={[styles.phone, { color: colors.textSecondary }]}>{item.phone}</Text>
+            {item.email && (
+              <Text style={[styles.email, { color: colors.textSecondary }]}>{item.email}</Text>
+            )}
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {formatStatus(item.status).toUpperCase()}
+            </Text>
+          </View>
         </View>
-        <View style={styles.cardInfo}>
-          <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
-          <Text style={[styles.phone, { color: colors.textSecondary }]}>{item.phone}</Text>
-          {item.email && (
-            <Text style={[styles.email, { color: colors.textSecondary }]}>{item.email}</Text>
-          )}
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {formatStatus(item.status).toUpperCase()}
-          </Text>
-        </View>
-      </View>
-      {item.fleetSize !== undefined && (
-        <View style={styles.cardFooter}>
-          <Ionicons name="car-outline" size={13} color={colors.textSecondary} />
-          <Text style={[styles.fleetText, { color: colors.textSecondary }]}>
-            Fleet: {item.fleetSize} truck{item.fleetSize !== 1 ? 's' : ''}
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
+        {item.fleetSize !== undefined && (
+          <View style={styles.cardFooter}>
+            <Ionicons name="car-outline" size={13} color={colors.textSecondary} />
+            <Text style={[styles.fleetText, { color: colors.textSecondary }]}>
+              Fleet: {item.fleetSize} truck{item.fleetSize !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -119,37 +129,6 @@ export default function VendorsScreen() {
             </View>
           ) : null
         }
-<<<<<<< HEAD
-=======
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => router.push(`/screens/vendor-details?id=${item.id}&name=${encodeURIComponent(item.name || 'Vendor')}`)}
-            activeOpacity={0.85}
-          >
-            <View style={styles.cardLeft}>
-              <View style={[styles.avatar, { backgroundColor: colors.accent + '15' }]}>
-                <Text style={[styles.avatarText, { color: colors.accent }]}>
-                  {(item.name || '').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-                </Text>
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={[styles.cardName, { color: colors.text }]}>{item.name}</Text>
-                <Text style={[styles.cardPhone, { color: colors.textSecondary }]}>{item.phone}</Text>
-              </View>
-            </View>
-            <View style={styles.cardRight}>
-              <Text style={[styles.fleetStat, { color: colors.text }]}>
-                {getDriverCount(item.id)} drivers
-              </Text>
-              <View style={[
-                styles.statusDot,
-                { backgroundColor: item.status === 'active' ? '#16A34A' : '#94A3B8' },
-              ]} />
-            </View>
-          </TouchableOpacity>
-        )}
->>>>>>> 1ffdc9493852547939d2de1b5c275b73fa3a2afd
       />
     </View>
   );

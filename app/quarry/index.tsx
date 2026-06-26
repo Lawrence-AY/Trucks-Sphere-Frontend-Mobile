@@ -65,7 +65,7 @@ export default function QuarryScreen() {
           >
             <View style={styles.recordTop}>
               <Text style={[styles.recordPlate, { color: colors.accent }]}>{item.truckPlate}</Text>
-              <StatusBadge status={item.status} />
+              <StatusBadge status={item.status || 'pending'} />
             </View>
             <View style={styles.recordRow}>
               <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
