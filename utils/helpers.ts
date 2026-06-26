@@ -226,9 +226,7 @@ export const checkpointConfig: Record<string, CheckpointConfig> = {
 export const JOURNEY_STEPS: { type: string; label: string; icon: string; color: string }[] = [
   { type: 'origin', label: 'Origin', icon: 'home', color: '#1B2A4A' },
   { type: 'weigh_in', label: 'Weigh-In', icon: 'arrow-down-circle', color: '#3B82F6' },
-  { type: 'loading', label: 'Loading', icon: 'cube', color: '#F59E0B' },
   { type: 'weigh_out', label: 'Weigh-Out', icon: 'arrow-up-circle', color: '#8B5CF6' },
-  { type: 'in_transit', label: 'In Transit', icon: 'navigate', color: '#F59E0B' },
   { type: 'arrived_site', label: 'Arrived at Site', icon: 'location', color: '#3B82F6' },
   { type: 'received', label: 'Received', icon: 'checkmark-circle', color: '#10B981' },
 ];

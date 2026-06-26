@@ -10,7 +10,7 @@ import { Spacing, Radius } from '../../constants/theme';
 import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT, getStatusColor, formatStatus } from '../../utils/helpers';
 
-export default function ActiveScreen() {
+export default function HistoryScreen() {
   const colors = useTheme();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,53 +37,41 @@ export default function ActiveScreen() {
     loadData();
   };
 
-  const filtered = deliveries.filter((d) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      (d.jobId || '').toLowerCase().includes(q) ||
-      (d.driverName || '').toLowerCase().includes(q) ||
-      (d.plateNumber || '').toLowerCase().includes(q) ||
-      (d.materialName || '').toLowerCase().includes(q)
-    );
-  });
-
-  const activeDeliveries = filtered.filter((d) => d.status !== 'delivered');
-  const completedDeliveries = filtered.filter((d) => d.status === 'delivered');
+  const completed = deliveries
+    .filter((d) => d.status === 'delivered')
+    .filter((d) => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return (
+        (d.jobId || '').toLowerCase().includes(q) ||
+        (d.driverName || '').toLowerCase().includes(q) ||
+        (d.plateNumber || '').toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
 
   const renderItem = ({ item }: { item: any }) => {
-    const isCompleted = item.status === 'delivered';
     const netWt = item.netWeight || (item.weighInWeight && item.weighOutWeight
       ? (item.weighInWeight - item.weighOutWeight).toFixed(1) : null);
 
     return (
       <TouchableOpacity
-        style={[styles.card, { backgroundColor: colors.surface, opacity: isCompleted ? 0.75 : 1 }]}
+        style={[styles.card, { backgroundColor: colors.surface }]}
         onPress={() => router.push(`/screens/delivery-note?id=${item.jobId}`)}
         activeOpacity={0.7}
       >
         <View style={styles.cardTop}>
-          <View style={styles.cardTopLeft}>
-            <View style={[styles.cardIcon, { backgroundColor: getStatusColor(item.status) + '12' }]}>
-              <Ionicons
-                name={isCompleted ? 'checkmark-circle' : 'navigate-circle'}
-                size={20}
-                color={getStatusColor(item.status)}
-              />
-            </View>
-            <View>
-              <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
-              <Text style={[styles.plate, { color: colors.textSecondary }]}>{item.plateNumber}</Text>
-            </View>
+          <View style={[styles.cardIcon, { backgroundColor: '#10B98112' }]}>
+            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
-            <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
-            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-              {formatStatus(item.status).toUpperCase()}
-            </Text>
+          <View style={styles.cardInfo}>
+            <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
+            <Text style={[styles.plate, { color: colors.textSecondary }]}>{item.plateNumber}</Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: '#10B98115' }]}>
+            <Text style={[styles.statusText, { color: '#10B981' }]}>DONE</Text>
           </View>
         </View>
-
         <View style={styles.cardBody}>
           <View style={styles.cardRow}>
             <Ionicons name="person-outline" size={13} color={colors.textSecondary} />
@@ -93,22 +81,13 @@ export default function ActiveScreen() {
             <Ionicons name="cube-outline" size={13} color={colors.textSecondary} />
             <Text style={[styles.cardText, { color: colors.textSecondary }]}>{item.materialName}</Text>
           </View>
-          <View style={styles.cardRow}>
-            <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
-            <Text style={[styles.cardText, { color: colors.textSecondary }]}>
-              {item.quarryName} → {item.siteName}
-            </Text>
-          </View>
           {netWt && (
             <View style={styles.cardRow}>
               <Ionicons name="speedometer-outline" size={13} color={colors.textSecondary} />
-              <Text style={[styles.cardText, { color: colors.textSecondary }]}>
-                Net: {netWt} t
-              </Text>
+              <Text style={[styles.cardText, { color: colors.textSecondary }]}>Net: {netWt} t</Text>
             </View>
           )}
         </View>
-
         <Text style={[styles.cardTime, { color: colors.textTertiary }]}>
           {formatEAT(item.updatedAt || item.createdAt)}
         </Text>
@@ -116,22 +95,13 @@ export default function ActiveScreen() {
     );
   };
 
-  const sections: { title: string; data: any[] }[] = [];
-  if (activeDeliveries.length > 0) {
-    sections.push({ title: `Active (${activeDeliveries.length})`, data: activeDeliveries });
-  }
-  if (completedDeliveries.length > 0) {
-    sections.push({ title: `Completed (${completedDeliveries.length})`, data: completedDeliveries });
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Ionicons name="search" size={18} color={colors.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by job, driver, plate..."
+          placeholder="Search completed deliveries..."
           placeholderTextColor={colors.textTertiary}
           value={search}
           onChangeText={setSearch}
@@ -144,28 +114,21 @@ export default function ActiveScreen() {
       </View>
 
       <FlatList
-        data={sections}
-        keyExtractor={(s) => s.title}
+        data={completed}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item: section }) => (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
-            {section.data.map((item: any) => (
-              <View key={item.id}>{renderItem({ item })}</View>
-            ))}
-          </View>
-        )}
+        renderItem={renderItem}
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '10' }]}>
-                <Ionicons name="car-outline" size={40} color={colors.primary} />
+              <View style={[styles.emptyIcon, { backgroundColor: '#10B98110' }]}>
+                <Ionicons name="time-outline" size={40} color="#10B981" />
               </View>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No deliveries found</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No completed deliveries</Text>
               <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                {search ? 'Try a different search term' : 'All deliveries are completed'}
+                Completed deliveries will appear here
               </Text>
             </View>
           ) : null
@@ -185,8 +148,6 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14 },
   list: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  section: { marginBottom: Spacing.lg },
-  sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: Spacing.md },
   card: {
     borderRadius: Radius.lg,
     padding: Spacing.lg,
@@ -197,15 +158,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  cardTopLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   cardIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  cardInfo: { flex: 1 },
   jobId: { fontSize: 14, fontWeight: '700' },
   plate: { fontSize: 12, marginTop: 1 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  statusBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
   statusText: { fontSize: 10, fontWeight: '700' },
-  cardBody: { gap: 5 },
+  cardBody: { gap: 5, marginTop: Spacing.md },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   cardText: { fontSize: 13 },
   cardTime: { fontSize: 11, marginTop: Spacing.sm },

@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Alert, ScrollView, Share } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { MOCK_DELIVERIES } from '../../store/mockData';
+import { formatEAT } from '../../utils/helpers';
 
 export default function ReceiveScreen() {
   const colors = useTheme();
@@ -21,44 +22,74 @@ export default function ReceiveScreen() {
 
   if (step === 1 && selected) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.receiptCard, { backgroundColor: '#FFFDF7', borderColor: '#E5E0D0' }]}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
+        <View style={[styles.receiptCard, { backgroundColor: colors.surface }]}>
           <View style={styles.receiptHeader}>
-            <Ionicons name="document-text" size={28} color="#333" />
-            <Text style={styles.receiptTitle}>DELIVERY NOTE</Text>
-            <View style={styles.receiptLine} />
+            <View style={[styles.receiptIcon, { backgroundColor: '#10B98112' }]}>
+              <Ionicons name="document-text" size={28} color="#10B981" />
+            </View>
+            <Text style={[styles.receiptTitle, { color: colors.text }]}>DELIVERY NOTE</Text>
+            <Text style={[styles.receiptSub, { color: colors.textSecondary }]}>Received & Confirmed</Text>
           </View>
+
+          <View style={styles.receiptDivider} />
+
           <View style={styles.receiptBody}>
-            <Text style={styles.rHead}>Site: {selected.siteLocation}</Text>
-            <Text style={styles.rSub}>Job: {selected.jobId}</Text>
-            <Text style={styles.rDash}>- - - - - - - - - - - - - - - -</Text>
-            <RRow label="Vendor" value={selected.vendorName} />
-            <RRow label="Driver" value={selected.driverName} />
-            <RRow label="Truck" value={selected.truckPlate} />
-            <RRow label="Material" value={selected.material} />
-            <RRow label="Qty" value={`${selected.quantity}T`} />
-            <Text style={styles.rDash}>- - - - - - - - - - - - - - - -</Text>
-            <Text style={styles.rFooter}>✓ RECEIVED & CONFIRMED</Text>
-            <Text style={styles.rTime}>{new Date().toLocaleString()}</Text>
-            <Text style={styles.rBarcode}>||| ||| ||| ||| ||| ||| |||</Text>
-            <Text style={styles.rThanks}>Site Operator</Text>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Job ID</Text>
+              <Text style={[styles.rValue, { color: colors.text, fontWeight: '700' }]}>{selected.jobId}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Site</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{selected.siteLocation}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Vendor</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{selected.vendorName}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Driver</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{selected.driverName}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Truck</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{selected.truckPlate}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Material</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{selected.material}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Quantity</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{selected.quantity}T</Text>
+            </View>
+
+            <View style={styles.receiptDivider} />
+
+            <View style={styles.confirmedBadge}>
+              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+              <Text style={styles.confirmedText}>RECEIVED & CONFIRMED</Text>
+            </View>
+            <Text style={[styles.receiptTime, { color: colors.textTertiary }]}>
+              {new Date().toLocaleString()}
+            </Text>
           </View>
         </View>
 
         <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.accent }]} onPress={() => setStep(0)}>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#10B981' }]} onPress={() => { setStep(0); setSelected(null); }}>
             <Ionicons name="add-circle" size={20} color="#FFF" />
             <Text style={styles.actionBtnText}>New Receive</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: '#16A34A' }]}
+            style={[styles.actionBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.push(`/screens/delivery-note?id=${selected.jobId}`)}
           >
             <Ionicons name="share-outline" size={20} color="#FFF" />
             <Text style={styles.actionBtnText}>Share Note</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -89,32 +120,45 @@ export default function ReceiveScreen() {
         data={pending}
         keyExtractor={(item) => item.jobId}
         contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="download-outline" size={48} color={colors.textTertiary} />
+            <View style={[styles.emptyIcon, { backgroundColor: '#10B98110' }]}>
+              <Ionicons name="download-outline" size={40} color="#10B981" />
+            </View>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No pending deliveries</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+              In-transit deliveries will appear here
+            </Text>
           </View>
         }
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[styles.itemCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[styles.itemCard, { backgroundColor: colors.surface }]}
             onPress={() => { setSelected(item); setStep(1); }}
+            activeOpacity={0.7}
           >
             <View style={styles.itemTop}>
-              <Text style={[styles.itemJob, { color: colors.accent }]}>{item.jobId}</Text>
+              <View style={[styles.itemBadge, { backgroundColor: '#10B98112' }]}>
+                <Ionicons name="navigate" size={14} color="#10B981" />
+                <Text style={[styles.itemStatus, { color: '#10B981' }]}>IN TRANSIT</Text>
+              </View>
               <Text style={[styles.itemPlate, { color: colors.text }]}>{item.truckPlate}</Text>
             </View>
-            <View style={styles.itemRow}>
-              <Ionicons name="cube-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.itemText, { color: colors.textSecondary }]}>{item.material} — {item.quantity}T</Text>
-            </View>
-            <View style={styles.itemRow}>
-              <Ionicons name="business-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.itemText, { color: colors.textSecondary }]}>{item.vendorName}</Text>
-            </View>
-            <View style={styles.itemRow}>
-              <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.itemText, { color: colors.textSecondary }]}>{item.siteLocation}</Text>
+            <Text style={[styles.itemJob, { color: colors.text }]}>{item.jobId}</Text>
+            <View style={styles.itemDetails}>
+              <View style={styles.itemRow}>
+                <Ionicons name="cube-outline" size={14} color={colors.textSecondary} />
+                <Text style={[styles.itemText, { color: colors.textSecondary }]}>{item.material} — {item.quantity}T</Text>
+              </View>
+              <View style={styles.itemRow}>
+                <Ionicons name="business-outline" size={14} color={colors.textSecondary} />
+                <Text style={[styles.itemText, { color: colors.textSecondary }]}>{item.vendorName}</Text>
+              </View>
+              <View style={styles.itemRow}>
+                <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                <Text style={[styles.itemText, { color: colors.textSecondary }]}>{item.siteLocation}</Text>
+              </View>
             </View>
           </TouchableOpacity>
         )}
@@ -123,15 +167,9 @@ export default function ReceiveScreen() {
   );
 }
 
-const RRow = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.rRow}>
-    <Text style={styles.rLabel}>{label}</Text>
-    <Text style={styles.rValue}>{value}</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   stepHeader: { padding: Spacing.lg, paddingBottom: Spacing.sm },
   stepTitle: { fontSize: 20, fontWeight: '700' },
   stepSub: { fontSize: 13, marginTop: 4 },
@@ -142,30 +180,37 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 14 },
   list: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  itemCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.sm },
-  itemTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
-  itemJob: { fontSize: 14, fontWeight: '700' },
+  itemCard: {
+    borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.sm,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  },
+  itemTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  itemBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
+  itemStatus: { fontSize: 10, fontWeight: '700' },
   itemPlate: { fontSize: 13, fontWeight: '600' },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: 4 },
+  itemJob: { fontSize: 15, fontWeight: '700', marginBottom: Spacing.sm },
+  itemDetails: { gap: 4 },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   itemText: { fontSize: 13 },
-  empty: { alignItems: 'center', marginTop: 60 },
-  emptyText: { fontSize: 15, marginTop: Spacing.md },
-  actionRow: { flexDirection: 'row', gap: Spacing.md, padding: Spacing.lg },
+  empty: { alignItems: 'center', paddingVertical: 80, gap: Spacing.sm },
+  emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+  emptyText: { fontSize: 16, fontWeight: '600' },
+  emptySubtext: { fontSize: 13, textAlign: 'center' },
+  actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm },
   actionBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
-  receiptCard: { borderWidth: 1.5, borderRadius: Radius.md, padding: Spacing.xl, marginHorizontal: Spacing.lg, marginTop: Spacing.lg },
+  // Receipt
+  receiptCard: { borderRadius: Radius.lg, padding: Spacing.xl, marginBottom: Spacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 4 },
   receiptHeader: { alignItems: 'center', marginBottom: Spacing.md },
-  receiptTitle: { fontSize: 16, fontWeight: '800', color: '#333', letterSpacing: 1, marginTop: 4 },
-  receiptLine: { width: '80%', height: 1, backgroundColor: '#DDD', marginTop: Spacing.sm },
-  receiptBody: { padding: Spacing.sm },
-  rHead: { fontSize: 14, fontWeight: '700', color: '#333', textAlign: 'center' },
-  rSub: { fontSize: 11, color: '#666', textAlign: 'center', marginBottom: 4 },
-  rDash: { textAlign: 'center', color: '#999', marginVertical: 4, fontSize: 12 },
-  rRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
-  rLabel: { fontSize: 12, color: '#666' },
-  rValue: { fontSize: 13, color: '#333' },
-  rFooter: { textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#16A34A', marginTop: 8 },
-  rTime: { textAlign: 'center', fontSize: 10, color: '#999', marginTop: 2 },
-  rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: 8 },
-  rThanks: { textAlign: 'center', fontSize: 12, color: '#666', marginTop: 4, fontStyle: 'italic' },
+  receiptIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+  receiptTitle: { fontSize: 16, fontWeight: '800', letterSpacing: 1 },
+  receiptSub: { fontSize: 12, marginTop: 2 },
+  receiptDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.md },
+  receiptBody: { gap: 8 },
+  receiptRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  rLabel: { fontSize: 13 },
+  rValue: { fontSize: 13 },
+  confirmedBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.md },
+  confirmedText: { fontSize: 14, fontWeight: '800', color: '#10B981', letterSpacing: 0.5 },
+  receiptTime: { textAlign: 'center', fontSize: 11 },
 });

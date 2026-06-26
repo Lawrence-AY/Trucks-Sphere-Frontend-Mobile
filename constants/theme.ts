@@ -6,12 +6,12 @@ export const Colors = {
     success: '#10B981',
     warning: '#F59E0B',
     danger: '#EF4444',
-    background: '#F8FAFC',
+    background: '#F0F2F5',
     surface: '#FFFFFF',
     text: '#1E293B',
     textSecondary: '#64748B',
     textMuted: '#94A3B8',
-    textTertiary: '#94A3B8',  // alias
+    textTertiary: '#94A3B8',
     border: '#E2E8F0',
     borderLight: '#F1F5F9',
     receiptBg: '#FFFDF7',
@@ -22,6 +22,9 @@ export const Colors = {
     badgeVendor: '#F59E0B',
     overlay: 'rgba(0,0,0,0.5)',
     inputBg: '#F1F5F9',
+    cardShadow: 'rgba(0,0,0,0.06)',
+    gradientStart: '#1B2A4A',
+    gradientEnd: '#2D4A7A',
   },
   dark: {
     primary: '#2D4A7A',
@@ -46,6 +49,9 @@ export const Colors = {
     badgeVendor: '#FBBF24',
     overlay: 'rgba(0,0,0,0.7)',
     inputBg: '#334155',
+    cardShadow: 'rgba(0,0,0,0.2)',
+    gradientStart: '#2D4A7A',
+    gradientEnd: '#1B2A4A',
   },
 };
 

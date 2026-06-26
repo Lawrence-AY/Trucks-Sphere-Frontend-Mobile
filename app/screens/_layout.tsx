@@ -20,6 +20,7 @@ export default function ScreensLayout() {
       <Stack.Screen name="purchase-order" options={{ title: 'Purchase Order' }} />
       <Stack.Screen name="driver-history" options={{ title: 'Driver History' }} />
       <Stack.Screen name="truck-history" options={{ title: 'Truck History' }} />
+      <Stack.Screen name="vendor-detail" options={{ title: 'Vendor Details' }} />
     </Stack>
   );
 }

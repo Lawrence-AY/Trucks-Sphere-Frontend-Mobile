@@ -3,24 +3,23 @@ import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
   TextInput,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { fetchDrivers } from '../../services/api';
+import { fetchVehicles } from '../../services/api';
 import { getStatusColor, formatStatus } from '../../utils/helpers';
 
-export default function DriversScreen() {
+export default function TrucksScreen() {
   const colors = useTheme();
-  const [drivers, setDrivers] = useState<any[]>([]);
+  const [trucks, setTrucks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
 
   const loadData = async () => {
     try {
-      const data = await fetchDrivers();
-      setDrivers(data || []);
+      const data = await fetchVehicles();
+      setTrucks(data || []);
     } catch (e) {
       console.error(e);
     }
@@ -37,13 +36,13 @@ export default function DriversScreen() {
     loadData();
   };
 
-  const filtered = drivers.filter((d) => {
+  const filtered = trucks.filter((t) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
-      (d.name || '').toLowerCase().includes(q) ||
-      (d.phone || '').includes(q) ||
-      (d.licenseNumber || '').toLowerCase().includes(q)
+      (t.plateNumber || '').toLowerCase().includes(q) ||
+      (t.model || '').toLowerCase().includes(q) ||
+      (t.make || '').toLowerCase().includes(q)
     );
   });
 
@@ -51,19 +50,15 @@ export default function DriversScreen() {
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.surface }]}
       activeOpacity={0.7}
-      onPress={() => router.push(`/screens/driver-history?id=${item.id}&name=${encodeURIComponent(item.name)}`)}
     >
       <View style={styles.cardTop}>
-        <View style={[styles.avatar, { backgroundColor: '#10B98115' }]}>
-          <Text style={[styles.avatarText, { color: '#10B981' }]}>
-            {item.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'D'}
-          </Text>
+        <View style={[styles.avatar, { backgroundColor: '#D9770615' }]}>
+          <Ionicons name="car" size={22} color="#D97706" />
         </View>
         <View style={styles.cardInfo}>
-          <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
-          <Text style={[styles.phone, { color: colors.textSecondary }]}>{item.phone}</Text>
-          <Text style={[styles.license, { color: colors.textSecondary }]}>
-            License: {item.licenseNumber}
+          <Text style={[styles.plate, { color: colors.text }]}>{item.plateNumber}</Text>
+          <Text style={[styles.model, { color: colors.textSecondary }]}>
+            {item.make} {item.model} ({item.year})
           </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
@@ -73,14 +68,20 @@ export default function DriversScreen() {
           </Text>
         </View>
       </View>
-          {item.totalTrips !== undefined && (
-        <View style={styles.cardFooter}>
-          <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
-          <Text style={[styles.tripText, { color: colors.textSecondary }]}>
-            {item.totalTrips} trip{item.totalTrips !== 1 ? 's' : ''}
+      <View style={styles.cardFooter}>
+        <View style={styles.footerItem}>
+          <Ionicons name="speedometer-outline" size={13} color={colors.textSecondary} />
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+            {item.capacity}T capacity
           </Text>
         </View>
-      )}
+        {item.color && (
+          <View style={styles.footerItem}>
+            <View style={[styles.colorDot, { backgroundColor: item.color.toLowerCase() }]} />
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>{item.color}</Text>
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 
@@ -90,7 +91,7 @@ export default function DriversScreen() {
         <Ionicons name="search" size={18} color={colors.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search drivers..."
+          placeholder="Search by plate, model..."
           placeholderTextColor={colors.textTertiary}
           value={search}
           onChangeText={setSearch}
@@ -112,10 +113,10 @@ export default function DriversScreen() {
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: '#10B98110' }]}>
-                <Ionicons name="people-outline" size={40} color="#10B981" />
+              <View style={[styles.emptyIcon, { backgroundColor: '#D9770610' }]}>
+                <Ionicons name="car-outline" size={40} color="#D97706" />
               </View>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No drivers found</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No trucks found</Text>
             </View>
           ) : null
         }
@@ -145,18 +146,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 14, fontWeight: '700' },
+  avatar: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   cardInfo: { flex: 1 },
-  name: { fontSize: 15, fontWeight: '700' },
-  phone: { fontSize: 13, marginTop: 1 },
-  license: { fontSize: 12, marginTop: 1 },
+  plate: { fontSize: 15, fontWeight: '700' },
+  model: { fontSize: 13, marginTop: 1 },
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 10, fontWeight: '700' },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  tripText: { fontSize: 13 },
-  ratingText: { fontSize: 13 },
+  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg, marginTop: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  footerItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  footerText: { fontSize: 13 },
+  colorDot: { width: 10, height: 10, borderRadius: 5 },
   empty: { alignItems: 'center', paddingVertical: 80, gap: Spacing.sm },
   emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
   emptyText: { fontSize: 16, fontWeight: '600' },

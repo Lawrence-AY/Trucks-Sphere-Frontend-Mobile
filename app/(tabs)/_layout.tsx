@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+
 import { Tabs, useRouter } from 'expo-router';
 import {
   Platform, StyleSheet, View, Text, Animated, Dimensions,
@@ -46,7 +47,7 @@ const getTabIcon = (name: string, focused: boolean, color: string) => {
 const HAMBURGER_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string; roles: UserRole[] }[] = [
   { label: 'Dashboard', icon: 'grid-outline', route: '/', roles: ['management', 'operator_quarry', 'operator_site', 'vendor'] },
   { label: 'Weigh-In', icon: 'download-outline', route: '/quarry/weigh-in', roles: ['operator_quarry'] },
-  { label: 'Weigh-Out', icon: 'upload-outline', route: '/quarry/weigh-out', roles: ['operator_quarry'] },
+  { label: 'Weigh-Out', icon: 'arrow-up-circle-outline', route: '/quarry/weigh-out', roles: ['operator_quarry'] },
   { label: 'Receive', icon: 'checkmark-circle-outline', route: '/site/receive', roles: ['operator_site'] },
   { label: 'History', icon: 'time-outline', route: '/(tabs)/history', roles: ['management', 'operator_quarry', 'operator_site'] },
   { label: 'Profile', icon: 'person-outline', route: '/(tabs)/profile', roles: ['management', 'operator_quarry', 'operator_site', 'vendor'] },
@@ -106,7 +107,7 @@ export default function TabsLayout() {
     <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: colors.accent,
+          tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textSecondary,
           tabBarShowLabel: false,
           tabBarStyle: [
@@ -115,7 +116,7 @@ export default function TabsLayout() {
               backgroundColor: colors.surface,
               borderTopColor: colors.border,
               paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
-              height: Platform.OS === 'ios' ? 56 + insets.bottom : 56,
+              height: Platform.OS === 'ios' ? 60 + insets.bottom : 60,
             },
           ],
           headerStyle: { backgroundColor: colors.surface },
@@ -124,7 +125,11 @@ export default function TabsLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <TouchableOpacity onPress={toggleMenu} style={styles.headerBtn}>
-              <Ionicons name="menu-outline" size={24} color={colors.text} />
+              <View style={[styles.headerAvatar, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={[styles.headerAvatarText, { color: colors.primary }]}>
+                  {(user?.displayName || 'U').charAt(0).toUpperCase()}
+                </Text>
+              </View>
             </TouchableOpacity>
           ),
           headerLeft: Platform.OS === 'ios'
@@ -143,9 +148,9 @@ export default function TabsLayout() {
                 tabBarIcon: ({ color, focused }) => (
                   <View style={[
                     styles.tabIconWrap,
-                    focused && { backgroundColor: colors.accent + '15' },
+                    focused && { backgroundColor: colors.primary + '12' },
                   ]}>
-                    {getTabIcon(tabName, focused, focused ? colors.accent : colors.textSecondary)}
+                    {getTabIcon(tabName, focused, focused ? colors.primary : colors.textSecondary)}
                   </View>
                 ),
               }}
@@ -173,8 +178,8 @@ export default function TabsLayout() {
           >
             {/* User Section */}
             <View style={[styles.menuUser, { borderBottomColor: colors.border }]}>
-              <View style={[styles.menuAvatar, { backgroundColor: colors.accent + '20' }]}>
-                <Text style={[styles.menuAvatarText, { color: colors.accent }]}>
+              <View style={[styles.menuAvatar, { backgroundColor: colors.primary }]}>
+                <Text style={styles.menuAvatarText}>
                   {(user?.displayName || 'U').charAt(0).toUpperCase()}
                 </Text>
               </View>
@@ -184,8 +189,9 @@ export default function TabsLayout() {
               <Text style={[styles.menuUserEmail, { color: colors.textSecondary }]} numberOfLines={1}>
                 {user?.email || ''}
               </Text>
-              <View style={[styles.menuRoleBadge, { backgroundColor: colors.accent + '15' }]}>
-                <Text style={[styles.menuRoleText, { color: colors.accent }]}>
+              <View style={[styles.menuRoleBadge, { backgroundColor: colors.primary + '10' }]}>
+                <Ionicons name="shield-checkmark" size={12} color={colors.primary} />
+                <Text style={[styles.menuRoleText, { color: colors.primary }]}>
                   {getRoleLabel(role)}
                 </Text>
               </View>
@@ -196,10 +202,12 @@ export default function TabsLayout() {
               {filteredMenu.map((item) => (
                 <TouchableOpacity
                   key={item.route}
-                  style={styles.menuItem}
+                  style={[styles.menuItem, { borderBottomColor: colors.borderLight }]}
                   onPress={() => handleNav(item.route)}
                 >
-                  <Ionicons name={item.icon} size={22} color={colors.textSecondary} />
+                  <View style={[styles.menuItemIcon, { backgroundColor: colors.primary + '08' }]}>
+                    <Ionicons name={item.icon} size={20} color={colors.primary} />
+                  </View>
                   <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -208,7 +216,7 @@ export default function TabsLayout() {
             {/* Logout */}
             <View style={[styles.menuLogout, { borderTopColor: colors.border }]}>
               <TouchableOpacity style={styles.menuLogoutBtn} onPress={handleLogout}>
-                <Ionicons name="log-out-outline" size={22} color={colors.danger} />
+                <Ionicons name="log-out-outline" size={20} color={colors.danger} />
                 <Text style={[styles.menuLogoutText, { color: colors.danger }]}>Logout</Text>
               </TouchableOpacity>
             </View>
@@ -222,15 +230,15 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     borderTopWidth: 0.5,
-    paddingTop: 4,
-    paddingHorizontal: 4,
+    paddingTop: 6,
+    paddingHorizontal: 8,
     elevation: 0,
     shadowOpacity: 0,
   },
   tabIconWrap: {
-    width: 42,
-    height: 30,
-    borderRadius: 8,
+    width: 44,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -238,6 +246,14 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     paddingRight: Spacing.md,
   },
+  headerAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerAvatarText: { fontSize: 14, fontWeight: '700' },
   // Menu overlay
   backdrop: {
     ...StyleSheet.absoluteFill,
@@ -270,10 +286,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.md,
   },
-  menuAvatarText: { fontSize: 24, fontWeight: '800' },
+  menuAvatarText: { fontSize: 24, fontWeight: '800', color: '#FFF' },
   menuUserName: { fontSize: 17, fontWeight: '700', marginBottom: 2 },
   menuUserEmail: { fontSize: 12, marginBottom: Spacing.md },
-  menuRoleBadge: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs, borderRadius: Radius.full },
+  menuRoleBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs, borderRadius: Radius.full,
+  },
   menuRoleText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
   menuItems: { flex: 1, paddingTop: Spacing.xs },
   menuItem: {
@@ -282,6 +301,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
     gap: Spacing.md,
+    borderBottomWidth: 1,
+  },
+  menuItemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   menuItemText: { fontSize: 15, fontWeight: '500' },
   menuLogout: {

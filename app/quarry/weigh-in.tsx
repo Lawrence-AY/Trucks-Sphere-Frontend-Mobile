@@ -1,24 +1,24 @@
 import { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, FlatList,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_DRIVERS, MOCK_TRUCKS, MOCK_WEIGHMENTS } from '../../store/mockData';
+import { MOCK_DRIVERS, MOCK_TRUCKS } from '../../store/mockData';
 
 export default function WeighInScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  const [step, setStep] = useState(0); // 0: search, 1: verify, 2: weigh, 3: receipt
+  const [step, setStep] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDriver, setSelectedDriver] = useState<any>(null);
   const [selectedTruck, setSelectedTruck] = useState<any>(null);
   const [weightIn, setWeightIn] = useState('');
+  const [material, setMaterial] = useState('Ballast');
 
-  // Filter available drivers/trucks
   const available = MOCK_DRIVERS.filter(d => d.status === 'active' || d.status === 'on_trip')
     .map(d => {
       const truck = MOCK_TRUCKS.find(t => t.driverName === d.name);
@@ -40,7 +40,7 @@ export default function WeighInScreen() {
 
   const handleCaptureWeight = () => {
     if (!weightIn || isNaN(Number(weightIn)) || Number(weightIn) <= 0) {
-      Alert.alert('Error', 'Please enter a valid weight');
+      Alert.alert('Invalid Weight', 'Please enter a valid weight value');
       return;
     }
     setStep(3);
@@ -52,9 +52,10 @@ export default function WeighInScreen() {
     setSelectedTruck(null);
     setWeightIn('');
     setSearchQuery('');
+    setMaterial('Ballast');
   };
 
-  // Step 3: Receipt view
+  // Step 3: Receipt
   if (step === 3) {
     const receiptData = {
       station: 'Athi River Quarry',
@@ -64,52 +65,80 @@ export default function WeighInScreen() {
       time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
       driver: selectedDriver?.name || '',
       truck: selectedTruck?.plate || '',
-      material: 'Ballast',
+      material,
       weightIn: Number(weightIn),
       jobId: `WB-${Date.now().toString(36).toUpperCase()}`,
     };
 
     return (
       <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
-        {/* Receipt Card - Supermarket Style */}
-        <View style={[styles.receipt, { backgroundColor: '#FFFDF7', borderColor: '#E5E0D0' }]}>
+        <View style={[styles.receiptCard, { backgroundColor: colors.surface }]}>
           <View style={styles.receiptHeader}>
-            <Ionicons name="scale" size={28} color="#333" />
-            <Text style={styles.receiptTitle}>WEIGHBRIDGE TICKET</Text>
-            <View style={styles.receiptLine} />
+            <View style={[styles.receiptIcon, { backgroundColor: colors.primary + '12' }]}>
+              <Ionicons name="scale" size={28} color={colors.primary} />
+            </View>
+            <Text style={[styles.receiptTitle, { color: colors.text }]}>WEIGHBRIDGE TICKET</Text>
+            <Text style={[styles.receiptSub, { color: colors.textSecondary }]}>Weigh-In Complete</Text>
           </View>
 
+          <View style={styles.receiptDivider} />
+
           <View style={styles.receiptBody}>
-            <Text style={styles.rHead}>{receiptData.station}</Text>
-            <Text style={styles.rSub}>Code: {receiptData.stationCode}</Text>
-            <Text style={styles.rDash}>- - - - - - - - - - - - - - - -</Text>
-            <ReceiptRow label="Job ID" value={receiptData.jobId} bold />
-            <ReceiptRow label="Operator" value={receiptData.operator} />
-            <ReceiptRow label="Date" value={receiptData.date} />
-            <ReceiptRow label="Time" value={receiptData.time} />
-            <Text style={styles.rDash}>- - - - - - - - - - - - - - - -</Text>
-            <ReceiptRow label="Driver" value={receiptData.driver} />
-            <ReceiptRow label="Truck" value={receiptData.truck} />
-            <ReceiptRow label="Material" value={receiptData.material} />
-            <Text style={styles.rDash}>- - - - - - - - - - - - - - - -</Text>
-            <View style={styles.weightRow}>
-              <Text style={styles.weightLabel}>GROSS WEIGHT</Text>
-              <Text style={styles.weightValue}>{receiptData.weightIn.toFixed(1)} T</Text>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Station</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{receiptData.station}</Text>
             </View>
-            <Text style={styles.rDash}>- - - - - - - - - - - - - - - -</Text>
-            <Text style={styles.rFooter}>WEIGH-IN COMPLETE</Text>
-            <Text style={styles.rTime}>{receiptData.date} {receiptData.time}</Text>
-            <Text style={styles.rBarcode}>||| ||| ||| ||| ||| |||</Text>
-            <Text style={styles.rThanks}>Thank you</Text>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Code</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{receiptData.stationCode}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Job ID</Text>
+              <Text style={[styles.rValue, { color: colors.text, fontWeight: '700' }]}>{receiptData.jobId}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Operator</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{receiptData.operator}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Date</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{receiptData.date}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Time</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{receiptData.time}</Text>
+            </View>
+
+            <View style={styles.receiptDivider} />
+
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Driver</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{receiptData.driver}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Truck</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{receiptData.truck}</Text>
+            </View>
+            <View style={styles.receiptRow}>
+              <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Material</Text>
+              <Text style={[styles.rValue, { color: colors.text }]}>{receiptData.material}</Text>
+            </View>
+
+            <View style={styles.receiptDivider} />
+
+            <View style={styles.weightDisplay}>
+              <Text style={[styles.weightLabel, { color: colors.textSecondary }]}>GROSS WEIGHT</Text>
+              <Text style={[styles.weightValue, { color: colors.primary }]}>{receiptData.weightIn.toFixed(1)} T</Text>
+            </View>
           </View>
         </View>
 
         <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.accent }]} onPress={handleReset}>
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={handleReset}>
             <Ionicons name="add-circle" size={20} color="#FFF" />
             <Text style={styles.actionBtnText}>New Weigh-In</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16A34A' }]} onPress={() => {
+          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#10B981' }]} onPress={() => {
             router.push(`/screens/weigh-receipt?id=${receiptData.jobId}&weightIn=${receiptData.weightIn}&driver=${encodeURIComponent(receiptData.driver)}&truck=${receiptData.truck}`);
           }}>
             <Ionicons name="share-outline" size={20} color="#FFF" />
@@ -149,28 +178,43 @@ export default function WeighInScreen() {
           data={available}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={[styles.driverCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              style={[styles.driverCard, { backgroundColor: colors.surface }]}
               onPress={() => handleSelectDriver(item)}
+              activeOpacity={0.7}
             >
               <View style={styles.driverInfo}>
-                <View style={[styles.avatar, { backgroundColor: colors.accent + '15' }]}>
-                  <Text style={[styles.avatarText, { color: colors.accent }]}>
+                <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
+                  <Text style={[styles.avatarText, { color: colors.primary }]}>
                     {item.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                   </Text>
                 </View>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.driverName, { color: colors.text }]}>{item.name}</Text>
                   <Text style={[styles.driverDetail, { color: colors.textSecondary }]}>{item.phone}</Text>
                   {item.truck && (
-                    <Text style={[styles.truckInfo, { color: colors.accent }]}>🚛 {item.truck.plate} — {item.truck.model}</Text>
+                    <View style={styles.truckBadge}>
+                      <Ionicons name="car" size={12} color={colors.primary} />
+                      <Text style={[styles.truckInfo, { color: colors.primary }]}>
+                        {item.truck.plate} — {item.truck.model}
+                      </Text>
+                    </View>
                   )}
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '10' }]}>
+                <Ionicons name="people-outline" size={36} color={colors.primary} />
+              </View>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No drivers found</Text>
+            </View>
+          }
         />
       </View>
     );
@@ -179,37 +223,44 @@ export default function WeighInScreen() {
   // Step 1: Verify & Capture Weight
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
-      <View style={[styles.verifyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.verifyTitle, { color: colors.text }]}>Verify Driver & Truck</Text>
-        <View style={styles.verifyRow}>
-          <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Driver</Text>
-          <Text style={[styles.vValue, { color: colors.text }]}>{selectedDriver?.name}</Text>
+      <View style={[styles.verifyCard, { backgroundColor: colors.surface }]}>
+        <View style={styles.verifyHeader}>
+          <View style={[styles.verifyIcon, { backgroundColor: colors.primary + '12' }]}>
+            <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+          </View>
+          <Text style={[styles.verifyTitle, { color: colors.text }]}>Verify Details</Text>
         </View>
-        <View style={styles.verifyRow}>
-          <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Phone</Text>
-          <Text style={[styles.vValue, { color: colors.text }]}>{selectedDriver?.phone}</Text>
-        </View>
-        <View style={styles.verifyRow}>
-          <Text style={[styles.vLabel, { color: colors.textSecondary }]}>License</Text>
-          <Text style={[styles.vValue, { color: colors.text }]}>{selectedDriver?.licenseNumber}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.verifyRow}>
-          <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Truck</Text>
-          <Text style={[styles.vValue, { color: colors.text, fontWeight: '700' }]}>{selectedTruck?.plate}</Text>
-        </View>
-        <View style={styles.verifyRow}>
-          <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Model</Text>
-          <Text style={[styles.vValue, { color: colors.text }]}>{selectedTruck?.model}</Text>
-        </View>
-        <View style={styles.verifyRow}>
-          <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Capacity</Text>
-          <Text style={[styles.vValue, { color: colors.text }]}>{selectedTruck?.capacity}T</Text>
+
+        <View style={styles.verifyBody}>
+          <View style={styles.verifyRow}>
+            <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Driver</Text>
+            <Text style={[styles.vValue, { color: colors.text }]}>{selectedDriver?.name}</Text>
+          </View>
+          <View style={styles.verifyRow}>
+            <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Phone</Text>
+            <Text style={[styles.vValue, { color: colors.text }]}>{selectedDriver?.phone}</Text>
+          </View>
+          <View style={styles.verifyRow}>
+            <Text style={[styles.vLabel, { color: colors.textSecondary }]}>License</Text>
+            <Text style={[styles.vValue, { color: colors.text }]}>{selectedDriver?.licenseNumber}</Text>
+          </View>
+          <View style={styles.verifyDivider} />
+          <View style={styles.verifyRow}>
+            <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Truck</Text>
+            <Text style={[styles.vValue, { color: colors.text, fontWeight: '700' }]}>{selectedTruck?.plate}</Text>
+          </View>
+          <View style={styles.verifyRow}>
+            <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Model</Text>
+            <Text style={[styles.vValue, { color: colors.text }]}>{selectedTruck?.model}</Text>
+          </View>
+          <View style={styles.verifyRow}>
+            <Text style={[styles.vLabel, { color: colors.textSecondary }]}>Capacity</Text>
+            <Text style={[styles.vValue, { color: colors.text }]}>{selectedTruck?.capacity}T</Text>
+          </View>
         </View>
       </View>
 
-      {/* Material selection + Weight input */}
-      <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.inputCard, { backgroundColor: colors.surface }]}>
         <Text style={[styles.inputTitle, { color: colors.text }]}>Capture Weight</Text>
 
         <View style={styles.inputGroup}>
@@ -217,7 +268,8 @@ export default function WeighInScreen() {
           <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.background }]}>
             <TextInput
               style={[styles.input, { color: colors.text }]}
-              defaultValue="Ballast"
+              value={material}
+              onChangeText={setMaterial}
               placeholderTextColor={colors.textTertiary}
             />
           </View>
@@ -225,49 +277,38 @@ export default function WeighInScreen() {
 
         <View style={styles.inputGroup}>
           <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Gross Weight (Tons)</Text>
-          <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.background }]}>
+          <View style={[styles.inputWrap, { borderColor: colors.primary, backgroundColor: colors.background }]}>
             <TextInput
-              style={[styles.input, { color: colors.text, fontSize: 22, fontWeight: '800' }]}
+              style={[styles.input, { color: colors.text, fontSize: 24, fontWeight: '800' }]}
               placeholder="0.0"
               placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               value={weightIn}
               onChangeText={setWeightIn}
             />
+            <Text style={[styles.inputSuffix, { color: colors.textSecondary }]}>T</Text>
           </View>
         </View>
       </View>
 
-      {/* Action buttons */}
       <View style={styles.actionRow}>
         <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.accent }]}
+          style={[styles.actionBtn, { backgroundColor: colors.primary }]}
           onPress={handleCaptureWeight}
         >
           <Ionicons name="checkmark-circle" size={20} color="#FFF" />
           <Text style={styles.actionBtnText}>Complete Weigh-In</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
-          onPress={handleReset}
-        >
-          <Text style={[styles.actionBtnTextAlt, { color: colors.textSecondary }]}>Cancel</Text>
-        </TouchableOpacity>
       </View>
+      <TouchableOpacity
+        style={[styles.cancelBtn, { borderColor: colors.border }]}
+        onPress={handleReset}
+      >
+        <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
-
-// Fix: import missing TextInput and FlatList at top - they're already imported from react-native
-import { TextInput as RNTextInput, FlatList } from 'react-native'; // alias to avoid confusion
-import { TextInput as TInput } from 'react-native';
-
-const ReceiptRow = ({ label, value, bold }: { label: string; value: string; bold?: boolean }) => (
-  <View style={styles.rRow}>
-    <Text style={styles.rLabel}>{label}</Text>
-    <Text style={[styles.rValue, bold && { fontWeight: '800' }]}>{value}</Text>
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -285,48 +326,52 @@ const styles = StyleSheet.create({
   list: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   driverCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.sm,
+    borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.sm,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   driverInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: Spacing.md },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 14, fontWeight: '700' },
   driverName: { fontSize: 15, fontWeight: '600' },
   driverDetail: { fontSize: 13 },
-  truckInfo: { fontSize: 12, fontWeight: '600', marginTop: 4 },
-  verifyCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  verifyTitle: { fontSize: 16, fontWeight: '700', marginBottom: Spacing.md },
+  truckBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  truckInfo: { fontSize: 12, fontWeight: '600' },
+  verifyCard: { borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  verifyHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  verifyIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  verifyTitle: { fontSize: 16, fontWeight: '700' },
+  verifyBody: {},
   verifyRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   vLabel: { fontSize: 13 },
   vValue: { fontSize: 14 },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.sm },
-  inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
+  verifyDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.sm },
+  inputCard: { borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   inputTitle: { fontSize: 16, fontWeight: '700', marginBottom: Spacing.md },
   inputGroup: { marginBottom: Spacing.md },
   inputLabel: { fontSize: 13, fontWeight: '600', marginBottom: Spacing.xs },
-  inputWrap: { borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, height: 48, justifyContent: 'center' },
-  input: { fontSize: 15 },
+  inputWrap: { borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, height: 48, flexDirection: 'row', alignItems: 'center' },
+  input: { flex: 1, fontSize: 15 },
+  inputSuffix: { fontSize: 14, fontWeight: '600', marginLeft: 4 },
   actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm },
   actionBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
-  actionBtnTextAlt: { fontSize: 14, fontWeight: '600' },
-
-  // Receipt styles (supermarket-style)
-  receipt: { borderWidth: 1.5, borderRadius: Radius.md, padding: Spacing.xl, marginBottom: Spacing.lg },
+  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.sm },
+  cancelText: { fontSize: 14, fontWeight: '600' },
+  // Receipt
+  receiptCard: { borderRadius: Radius.lg, padding: Spacing.xl, marginBottom: Spacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 4 },
   receiptHeader: { alignItems: 'center', marginBottom: Spacing.md },
-  receiptTitle: { fontSize: 16, fontWeight: '800', color: '#333', letterSpacing: 1, marginTop: 4 },
-  receiptLine: { width: '80%', height: 1, backgroundColor: '#DDD', marginTop: Spacing.sm },
-  receiptBody: { padding: Spacing.sm },
-  rHead: { fontSize: 14, fontWeight: '700', color: '#333', textAlign: 'center' },
-  rSub: { fontSize: 11, color: '#666', textAlign: 'center', marginBottom: 4 },
-  rDash: { textAlign: 'center', color: '#999', marginVertical: 4, fontSize: 12 },
-  rRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
-  rLabel: { fontSize: 12, color: '#666' },
-  rValue: { fontSize: 13, color: '#333' },
-  weightRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-  weightLabel: { fontSize: 14, fontWeight: '700', color: '#333' },
-  weightValue: { fontSize: 20, fontWeight: '800', color: '#2563EB' },
-  rFooter: { textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#16A34A', marginTop: 8 },
-  rTime: { textAlign: 'center', fontSize: 10, color: '#999', marginTop: 2 },
-  rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: 8 },
-  rThanks: { textAlign: 'center', fontSize: 12, color: '#666', marginTop: 4, fontStyle: 'italic' },
+  receiptIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+  receiptTitle: { fontSize: 16, fontWeight: '800', letterSpacing: 1 },
+  receiptSub: { fontSize: 12, marginTop: 2 },
+  receiptDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.md },
+  receiptBody: { gap: 8 },
+  receiptRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  rLabel: { fontSize: 13 },
+  rValue: { fontSize: 13 },
+  weightDisplay: { alignItems: 'center', paddingVertical: Spacing.md },
+  weightLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 1 },
+  weightValue: { fontSize: 28, fontWeight: '800', marginTop: 4 },
+  empty: { alignItems: 'center', paddingVertical: 60, gap: Spacing.sm },
+  emptyIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { fontSize: 15, fontWeight: '600' },
 });

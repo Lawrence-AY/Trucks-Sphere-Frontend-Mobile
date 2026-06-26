@@ -17,6 +17,11 @@ const MOCK_VENDORS: any[] = [
 // Base URL for backend API
 const API_BASE = 'http://localhost:3000/api';
 
+function buildApiUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${API_BASE}${url.startsWith('/') ? url : `/${url}`}`;
+}
+
 // Checkpoint type in mock data
 interface Checkpoint {
   id: string;
@@ -209,7 +214,7 @@ const realApi: ApiClient = {
     const token = useAuthStore.getState().user?.uid || (await getStoredToken()) || undefined;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(url, { method: 'GET', headers });
+    const res = await fetch(buildApiUrl(url), { method: 'GET', headers });
     if (res.status === 401) useAuthStore.getState().logout();
     if (!res.ok) throw { status: res.status, message: `HTTP ${res.status}` };
     return { data: await res.json() as T };
@@ -218,7 +223,7 @@ const realApi: ApiClient = {
     const token = useAuthStore.getState().user?.uid || (await getStoredToken()) || undefined;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(url, { method: 'POST', headers, body: body ? JSON.stringify(body) : undefined });
+    const res = await fetch(buildApiUrl(url), { method: 'POST', headers, body: body ? JSON.stringify(body) : undefined });
     if (res.status === 401) useAuthStore.getState().logout();
     if (!res.ok) throw { status: res.status, message: `HTTP ${res.status}` };
     return { data: await res.json() as T };
@@ -227,14 +232,14 @@ const realApi: ApiClient = {
     const token = useAuthStore.getState().user?.uid || (await getStoredToken()) || undefined;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(url, { method: 'PUT', headers, body: body ? JSON.stringify(body) : undefined });
+    const res = await fetch(buildApiUrl(url), { method: 'PUT', headers, body: body ? JSON.stringify(body) : undefined });
     return { data: await res.json() as T };
   },
   async delete<T>(url: string): Promise<{ data: T }> {
     const token = useAuthStore.getState().user?.uid || (await getStoredToken()) || undefined;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(url, { method: 'DELETE', headers });
+    const res = await fetch(buildApiUrl(url), { method: 'DELETE', headers });
     return { data: await res.json() as T };
   },
 };

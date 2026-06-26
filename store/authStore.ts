@@ -3,6 +3,23 @@ import api from '../services/api';
 import { User } from './types';
 import { saveAuthData, getAuthData, clearAuthData } from '../services/database';
 
+const RESTORE_TIMEOUT_MS = 8000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 const MOCK_USERS: Record<string, { displayName: string; role: string }> = {
   'admin@truck.com': { displayName: 'James Admin', role: 'management' },
   'quarry@truck.com': { displayName: 'Peter Quarry', role: 'operator_quarry' },
@@ -92,11 +109,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   restoreSession: async () => {
     set({ isLoading: true });
     try {
-      const stored = await getAuthData();
+      const stored = await withTimeout(getAuthData(), RESTORE_TIMEOUT_MS, 'Auth storage');
       if (stored.token) {
         // Try backend validation
         try {
-          const res = await api.get('/auth/profile');
+          const res = await withTimeout(api.get('/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile');
           const user: User = res.data.user;
           set({ user, isLoading: false, isAuthenticated: true });
           return;
@@ -111,7 +128,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
           }
         }
       }
-    } catch {}
+    } catch (error) {
+      console.warn('Session restore failed:', error);
+    }
     set({ user: null, isLoading: false, isAuthenticated: false });
   },
 

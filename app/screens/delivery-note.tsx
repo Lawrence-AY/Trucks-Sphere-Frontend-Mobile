@@ -132,7 +132,7 @@ ${formatEAT(delivery.createdAt)}`;
         </View>
       )}
 
-      {error && !loading && (
+      {Boolean(error) && !loading && (
         <View style={styles.errorWrap}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.danger} />
           <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
@@ -262,7 +262,7 @@ ${formatEAT(delivery.createdAt)}`;
                         ]}>
                           {step.label}
                         </Text>
-                        {isCompleted && matchingCp?.location && (
+                        {isCompleted && Boolean(matchingCp?.location) && (
                           <View style={[styles.locationBadge, { backgroundColor: '#16A34A15' }]}>
                             <Text style={styles.locationBadgeText}>{matchingCp.location.split(',')[0]}</Text>
                           </View>
@@ -282,7 +282,7 @@ ${formatEAT(delivery.createdAt)}`;
                           <Text style={[styles.timelineTime, { color: colors.textMuted }]}>
                             <Ionicons name="time-outline" size={11} /> {formatEAT(matchingCp.timestamp)}
                           </Text>
-                          {matchingCp.notes && (
+                          {Boolean(matchingCp.notes) && (
                             <Text style={[styles.timelineNotes, { color: colors.textMuted }]}>
                               📝 {matchingCp.notes}
                             </Text>
@@ -312,14 +312,14 @@ ${formatEAT(delivery.createdAt)}`;
           <View style={styles.infoCardsRow}>
             {delivery && (
               <>
-                {delivery.driverName && (
+                {Boolean(delivery.driverName) && (
                   <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={styles.infoCardHeader}>
                       <Ionicons name="person-circle" size={20} color={NAVY} />
                       <Text style={[styles.infoCardTitle, { color: colors.text }]}>Driver</Text>
                     </View>
                     <Text style={[styles.infoCardValue, { color: colors.text }]}>{delivery.driverName}</Text>
-                    {delivery.driverPhone && (
+                    {Boolean(delivery.driverPhone) && (
                       <Text style={[styles.infoCardSub, { color: colors.textSecondary }]}>
                         <Ionicons name="call-outline" size={11} /> {delivery.driverPhone}
                       </Text>
@@ -327,14 +327,14 @@ ${formatEAT(delivery.createdAt)}`;
                   </View>
                 )}
 
-                {delivery.plateNumber && (
+                {Boolean(delivery.plateNumber) && (
                   <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={styles.infoCardHeader}>
                       <Ionicons name="car" size={20} color={NAVY} />
                       <Text style={[styles.infoCardTitle, { color: colors.text }]}>Truck</Text>
                     </View>
                     <Text style={[styles.infoCardValue, { color: colors.text }]}>{delivery.plateNumber}</Text>
-                    {delivery.vehicleModel && (
+                    {Boolean(delivery.vehicleModel) && (
                       <Text style={[styles.infoCardSub, { color: colors.textSecondary }]}>
                         {delivery.vehicleModel}
                       </Text>
@@ -342,14 +342,14 @@ ${formatEAT(delivery.createdAt)}`;
                   </View>
                 )}
 
-                {delivery.poNumber && (
+                {Boolean(delivery.poNumber) && (
                   <View style={[styles.infoCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={styles.infoCardHeader}>
                       <Ionicons name="document-text" size={20} color={NAVY} />
                       <Text style={[styles.infoCardTitle, { color: colors.text }]}>Purchase Order</Text>
                     </View>
                     <Text style={[styles.infoCardValue, { color: colors.text }]}>{delivery.poNumber}</Text>
-                    {delivery.vendorName && (
+                    {Boolean(delivery.vendorName) && (
                       <Text style={[styles.infoCardSub, { color: colors.textSecondary }]}>
                         {delivery.vendorName}
                       </Text>
@@ -379,7 +379,7 @@ ${formatEAT(delivery.createdAt)}`;
                   <Text style={[styles.tripDetail, { color: colors.textSecondary }]}>
                     Driver: {trip.driverName} · {trip.plateNumber}
                   </Text>
-                  {trip.netWeight && (
+                  {Boolean(trip.netWeight) && (
                     <Text style={[styles.tripDetail, { color: colors.textSecondary }]}>
                       Net: {trip.netWeight} tonnes
                     </Text>

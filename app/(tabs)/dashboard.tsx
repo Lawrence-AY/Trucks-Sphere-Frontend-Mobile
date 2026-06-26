@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +11,9 @@ import { useAuthStore } from '../../store/authStore';
 import {
   fetchDrivers, fetchVehicles, fetchPurchaseOrders, fetchDeliveryOrders,
 } from '../../services/api';
-import { formatEAT, getStatusColor, formatStatus } from '../../utils/helpers';
+import { formatEAT, getStatusColor, formatStatus, getRoleLabel } from '../../utils/helpers';
+
+const { width } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const { user } = useAuthStore();
@@ -46,7 +49,6 @@ export default function DashboardScreen() {
 
       setStats({ activeDrivers, activeTrucks, pendingOrders, activeDeliveries });
 
-      // Show latest active deliveries
       const pending = (deliveries || [])
         .filter((d: any) => d.status !== 'delivered')
         .sort((a: any, b: any) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
@@ -67,11 +69,11 @@ export default function DashboardScreen() {
 
   const MetricCard = ({ icon, label, value, color, onPress }: any) => (
     <TouchableOpacity
-      style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.metricCard, { backgroundColor: colors.surface }]}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View style={[styles.metricIconWrap, { backgroundColor: color + '15' }]}>
+      <View style={[styles.metricIconWrap, { backgroundColor: color + '12' }]}>
         <Ionicons name={icon} size={22} color={color} />
       </View>
       <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
@@ -81,37 +83,52 @@ export default function DashboardScreen() {
 
   const RecentDeliveryCard = ({ item }: any) => (
     <TouchableOpacity
-      style={[styles.deliveryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.deliveryCard, { backgroundColor: colors.surface }]}
       onPress={() => router.push(`/screens/delivery-note?id=${item.jobId}`)}
+      activeOpacity={0.7}
     >
       <View style={styles.deliveryTop}>
-        <Text style={[styles.jobId, { color: colors.accent }]}>{item.jobId}</Text>
+        <View style={styles.deliveryTopLeft}>
+          <View style={[styles.deliveryIcon, { backgroundColor: colors.primary + '10' }]}>
+            <Ionicons name="document-text" size={16} color={colors.primary} />
+          </View>
+          <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
+        </View>
         <View style={[
           styles.statusBadge,
-          { backgroundColor: (getStatusColor(item.status)) + '15' },
+          { backgroundColor: getStatusColor(item.status) + '15' },
         ]}>
+          <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
           <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
             {formatStatus(item.status).toUpperCase()}
           </Text>
         </View>
       </View>
       <View style={styles.deliveryInfo}>
-        <Text style={[styles.deliveryDetail, { color: colors.textSecondary }]}>
-          {item.driverName} · {item.plateNumber}
-        </Text>
-        <Text style={[styles.deliveryDetail, { color: colors.textSecondary }]}>
-          {item.materialName} · {item.quarryName} → {item.siteName}
-        </Text>
+        <View style={styles.deliveryDetailRow}>
+          <Ionicons name="person-outline" size={13} color={colors.textSecondary} />
+          <Text style={[styles.deliveryDetail, { color: colors.textSecondary }]}>
+            {item.driverName} · {item.plateNumber}
+          </Text>
+        </View>
+        <View style={styles.deliveryDetailRow}>
+          <Ionicons name="cube-outline" size={13} color={colors.textSecondary} />
+          <Text style={[styles.deliveryDetail, { color: colors.textSecondary }]}>
+            {item.materialName}
+          </Text>
+        </View>
+        <View style={styles.deliveryDetailRow}>
+          <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
+          <Text style={[styles.deliveryDetail, { color: colors.textSecondary }]}>
+            {item.quarryName} → {item.siteName}
+          </Text>
+        </View>
         <Text style={[styles.deliveryTime, { color: colors.textTertiary }]}>
           {formatEAT(item.updatedAt || item.createdAt)}
         </Text>
       </View>
     </TouchableOpacity>
   );
-
-  // Derive todayWeighments and todayDeliveries for display
-  const todayWeighments = '—';
-  const todayDeliveries = '—';
 
   if (loading) {
     return (
@@ -121,13 +138,17 @@ export default function DashboardScreen() {
       >
         <View style={styles.welcomeArea}>
           <View>
-             
+            <Text style={[styles.greeting, { color: colors.textSecondary }]}>Welcome back,</Text>
             <Text style={[styles.userName, { color: colors.text }]}>
               {user?.displayName || user?.email?.split('@')[0] || 'User'}
             </Text>
           </View>
         </View>
-        <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading dashboard...</Text>
+        <View style={styles.loadingSkeleton}>
+          {[1, 2, 3, 4].map((i) => (
+            <View key={i} style={[styles.skeletonCard, { backgroundColor: colors.surface }]} />
+          ))}
+        </View>
       </ScrollView>
     );
   }
@@ -141,14 +162,15 @@ export default function DashboardScreen() {
       {/* Welcome */}
       <View style={styles.welcomeArea}>
         <View>
-           
+          <Text style={[styles.greeting, { color: colors.textSecondary }]}>Welcome back,</Text>
           <Text style={[styles.userName, { color: colors.text }]}>
             {user?.displayName || user?.email?.split('@')[0] || 'User'}
           </Text>
         </View>
-        <View style={[styles.roleBadge, { backgroundColor: colors.accent + '15' }]}>
-          <Text style={[styles.roleText, { color: colors.accent }]}>
-            {role.replace('_', ' ').toUpperCase()}
+        <View style={[styles.roleBadge, { backgroundColor: colors.primary + '10' }]}>
+          <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
+          <Text style={[styles.roleText, { color: colors.primary }]}>
+            {getRoleLabel(role).toUpperCase()}
           </Text>
         </View>
       </View>
@@ -159,14 +181,15 @@ export default function DashboardScreen() {
           icon="car"
           label="Active Trucks"
           value={stats.activeTrucks}
-          color={colors.accent}
-          onPress={() => router.push('/(tabs)/trucks')}
+          color="#1B2A4A"
+          onPress={() => router.push('/trucks')}
+
         />
         <MetricCard
           icon="people"
           label="Active Drivers"
           value={stats.activeDrivers}
-          color="#16A34A"
+          color="#10B981"
           onPress={() => router.push('/(tabs)/drivers')}
         />
       </View>
@@ -187,15 +210,54 @@ export default function DashboardScreen() {
         />
       </View>
 
+      {/* Quick Actions */}
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickActionsRow}>
+        <TouchableOpacity style={[styles.quickAction, { backgroundColor: colors.surface }]} onPress={() => router.push('/(tabs)/active')}>
+          <View style={[styles.qaIcon, { backgroundColor: '#3B82F615' }]}>
+            <Ionicons name="location" size={22} color="#3B82F6" />
+          </View>
+          <Text style={[styles.qaLabel, { color: colors.text }]}>Track</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.quickAction, { backgroundColor: colors.surface }]} onPress={() => router.push('/(tabs)/orders')}>
+          <View style={[styles.qaIcon, { backgroundColor: '#10B98115' }]}>
+            <Ionicons name="add-circle" size={22} color="#10B981" />
+          </View>
+          <Text style={[styles.qaLabel, { color: colors.text }]}>New Order</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.quickAction, { backgroundColor: colors.surface }]} onPress={() => router.push('/(tabs)/drivers')}>
+          <View style={[styles.qaIcon, { backgroundColor: '#8B5CF615' }]}>
+            <Ionicons name="people" size={22} color="#8B5CF6" />
+          </View>
+          <Text style={[styles.qaLabel, { color: colors.text }]}>Drivers</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.quickAction, { backgroundColor: colors.surface }]} onPress={() => router.push('/(tabs)/search')}>
+          <View style={[styles.qaIcon, { backgroundColor: '#F59E0B15' }]}>
+            <Ionicons name="search" size={22} color="#F59E0B" />
+          </View>
+          <Text style={[styles.qaLabel, { color: colors.text }]}>Search</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
       {/* Active Deliveries */}
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Deliveries</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Deliveries</Text>
+        {recentDeliveries.length > 0 && (
+          <TouchableOpacity onPress={() => router.push('/(tabs)/active')}>
+            <Text style={[styles.viewAll, { color: colors.primary }]}>View All</Text>
+          </TouchableOpacity>
+        )}
+      </View>
       {recentDeliveries.map((d, i) => (
         <RecentDeliveryCard key={d.id || i} item={d} />
       ))}
       {recentDeliveries.length === 0 && (
         <View style={styles.emptyDeliveries}>
-          <Ionicons name="checkmark-circle" size={32} color="#16A34A" />
+          <View style={[styles.emptyIcon, { backgroundColor: '#10B98115' }]}>
+            <Ionicons name="checkmark-circle" size={32} color="#10B981" />
+          </View>
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>All deliveries completed</Text>
+          <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>No active deliveries at the moment</Text>
         </View>
       )}
     </ScrollView>
@@ -204,33 +266,80 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: Spacing['3xl'] },
+  content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   welcomeArea: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: Spacing.xl,
+    alignItems: 'center', marginBottom: Spacing['2xl'],
   },
-  welcomeGreeting: { fontSize: 14 },
+  greeting: { fontSize: 14 },
   userName: { fontSize: 22, fontWeight: '800', marginTop: 2 },
-  roleBadge: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: Radius.full },
-  roleText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  loadingText: { textAlign: 'center', marginTop: Spacing['4xl'], fontSize: 14 },
+  roleBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    borderRadius: Radius.full,
+  },
+  roleText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  loadingSkeleton: { gap: Spacing.md },
+  skeletonCard: { height: 80, borderRadius: Radius.lg, opacity: 0.5 },
   metricsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
   metricCard: {
-    flex: 1, borderRadius: Radius.lg, borderWidth: 1,
-    padding: Spacing.lg, alignItems: 'center',
+    flex: 1,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   metricIconWrap: { width: 44, height: 44, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
   metricValue: { fontSize: 24, fontWeight: '800' },
   metricLabel: { fontSize: 11, textAlign: 'center', marginTop: 2 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: Spacing.md, marginTop: Spacing.md },
-  deliveryCard: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.sm },
-  deliveryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  jobId: { fontSize: 13, fontWeight: '700' },
-  statusBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radius.full },
+  sectionHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginTop: Spacing.md, marginBottom: Spacing.md,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: '700' },
+  viewAll: { fontSize: 13, fontWeight: '600' },
+  quickActionsRow: { marginBottom: Spacing.lg, marginTop: Spacing.sm },
+  quickAction: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    marginRight: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  qaIcon: { width: 48, height: 48, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+  qaLabel: { fontSize: 12, fontWeight: '600' },
+  deliveryCard: {
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  deliveryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  deliveryTopLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  deliveryIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  jobId: { fontSize: 14, fontWeight: '700' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 10, fontWeight: '700' },
-  deliveryInfo: { gap: 4 },
+  deliveryInfo: { gap: 6 },
+  deliveryDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   deliveryDetail: { fontSize: 13 },
-  deliveryTime: { fontSize: 11 },
-  emptyDeliveries: { alignItems: 'center', paddingVertical: Spacing['2xl'], gap: Spacing.sm },
-  emptyText: { fontSize: 14 },
+  deliveryTime: { fontSize: 11, marginTop: 2 },
+  emptyDeliveries: { alignItems: 'center', paddingVertical: Spacing['3xl'], gap: Spacing.sm },
+  emptyIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+  emptyText: { fontSize: 15, fontWeight: '600' },
+  emptySubtext: { fontSize: 13 },
 });

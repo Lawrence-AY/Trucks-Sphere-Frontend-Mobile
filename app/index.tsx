@@ -1,43 +1,33 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRouter, useSegments } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
-import { Colors } from '../constants/theme';
 
-export default function Index() {
+export default function IndexScreen() {
   const { isAuthenticated, isLoading } = useAuthStore();
-  const router = useRouter();
-  const segments = useSegments();
 
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
-
-    if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (isAuthenticated && !inTabsGroup) {
+    if (isAuthenticated) {
       router.replace('/(tabs)/dashboard');
+    } else {
+      router.replace('/(auth)/login');
     }
   }, [isAuthenticated, isLoading]);
 
-  if (isLoading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.light.primary} />
-      </View>
-    );
-  }
-
-  return null;
+  return (
+    <View style={styles.container}>
+      <ActivityIndicator size="large" color="#1B2A4A" />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  loading: {
+  container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.light.background,
+    backgroundColor: '#F8FAFC',
   },
 });

@@ -1,21 +1,33 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as ExpoSplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 import { Colors } from '../constants/theme';
 import Toast from 'react-native-toast-message';
 
+void ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
+
 export default function RootLayout() {
-  const { restoreSession, isLoading } = useAuthStore();
+  const { restoreSession } = useAuthStore();
 
   useEffect(() => {
-    restoreSession();
+    void restoreSession();
+  }, [restoreSession]);
+
+  const handleRootLayout = useCallback(() => {
+    void ExpoSplashScreen.hideAsync().catch((error) => {
+      console.warn('Failed to hide native splash screen:', error);
+    });
   }, []);
 
   return (
-    <GestureHandlerRootView style={[styles.container, { backgroundColor: Colors.light.background }]}>
+    <GestureHandlerRootView
+      onLayout={handleRootLayout}
+      style={[styles.container, { backgroundColor: Colors.light.background }]}
+    >
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
