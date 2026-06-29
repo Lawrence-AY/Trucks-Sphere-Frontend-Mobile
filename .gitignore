@@ -6,3 +6,6 @@ expo-env.d.ts
 # @end expo-cli
 node_modules
 .env
+expo-8082.err.log
+expo-8082.out.log
+expo.err.log
