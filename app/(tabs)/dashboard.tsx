@@ -1,338 +1,212 @@
-import { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl,
-  Dimensions,
-} from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
+import { fetchDeliveryOrders, fetchDrivers, fetchPurchaseOrders, fetchVehicles } from '../../services/api';
+import { formatEAT, getRoleLabel } from '../../utils/helpers';
 import {
-  fetchDrivers, fetchVehicles, fetchPurchaseOrders, fetchDeliveryOrders,
-} from '../../services/api';
-import { formatEAT, getStatusColor, formatStatus, getRoleLabel } from '../../utils/helpers';
-
-const { width } = Dimensions.get('window');
+  CommandHeader,
+  DataCard,
+  DetailRow,
+  EmptyState,
+  MetricTile,
+  PageShell,
+  ProgressBar,
+  SectionTitle,
+  StatusPill,
+} from '../../components/EnterpriseUI';
 
 export default function DashboardScreen() {
-  const { user } = useAuthStore();
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState({
-    activeDrivers: 0,
-    activeTrucks: 0,
-    pendingOrders: 0,
-    activeDeliveries: 0,
-  });
-  const [recentDeliveries, setRecentDeliveries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const role = user?.role || 'management';
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [deliveries, setDeliveries] = useState<any[]>([]);
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [drivers, vehicles, orders, deliveries] = await Promise.all([
+      const [driverData, vehicleData, orderData, deliveryData] = await Promise.all([
         fetchDrivers(),
         fetchVehicles(),
         fetchPurchaseOrders(),
         fetchDeliveryOrders(),
       ]);
-
-      const activeDrivers = (drivers || []).filter((d: any) => d.status === 'active').length;
-      const activeTrucks = (vehicles || []).filter((t: any) => t.status === 'active').length;
-      const pendingOrders = (orders || []).filter(
-        (o: any) => o.status === 'pending' || o.status === 'in_progress'
-      ).length;
-      const activeDeliveries = (deliveries || []).filter((d: any) => d.status !== 'delivered').length;
-
-      setStats({ activeDrivers, activeTrucks, pendingOrders, activeDeliveries });
-
-      const pending = (deliveries || [])
-        .filter((d: any) => d.status !== 'delivered')
-        .sort((a: any, b: any) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
-        .slice(0, 3);
-      setRecentDeliveries(pending);
-    } catch (e) {
-      console.error('Dashboard load error:', e);
+      setDrivers(driverData || []);
+      setVehicles(vehicleData || []);
+      setOrders(orderData || []);
+      setDeliveries(deliveryData || []);
+    } catch (error) {
+      console.error('Dashboard load error:', error);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
     }
-    setRefreshing(false);
-    setLoading(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const onRefresh = () => loadData();
+  const stats = useMemo(() => {
+    const active = deliveries.filter((item) => !['delivered', 'completed', 'cancelled'].includes(item.status));
+    const delivered = deliveries.filter((item) => item.status === 'delivered');
+    const discrepancy = deliveries.filter((item) => {
+      const net = Number(item.netWeight || 0);
+      return net > 0 && (net < 19 || net > 23);
+    });
+    const ordered = orders.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    const deliveredQty = deliveries.reduce((sum, item) => sum + Number(item.quantityDelivered || 0), 0);
+    return {
+      pending: orders.filter((item) => ['pending', 'approved', 'in_progress'].includes(item.status)).length,
+      inTransit: active.filter((item) => ['in_transit', 'at_quarry', 'assigned'].includes(item.status)).length,
+      deliveredToday: delivered.length,
+      reconciled: delivered.filter((item) => item.netWeight).length,
+      discrepancies: discrepancy.length,
+      activeDrivers: drivers.filter((item) => item.status === 'active').length,
+      activeVehicles: vehicles.filter((item) => item.status === 'active').length,
+      completion: ordered ? Math.min(100, Math.round((deliveredQty / ordered) * 100)) : 0,
+    };
+  }, [deliveries, drivers, orders, vehicles]);
 
-  const MetricCard = ({ icon, label, value, color, onPress }: any) => (
-    <TouchableOpacity
-      style={[styles.metricCard, { backgroundColor: colors.surface }]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.metricIconWrap, { backgroundColor: color + '12' }]}>
-        <Ionicons name={icon} size={22} color={color} />
-      </View>
-      <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
-      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>{label}</Text>
-    </TouchableOpacity>
-  );
+  const recentDeliveries = useMemo(() => {
+    return [...deliveries]
+      .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
+      .slice(0, 4);
+  }, [deliveries]);
 
-  const RecentDeliveryCard = ({ item }: any) => (
-    <TouchableOpacity
-      style={[styles.deliveryCard, { backgroundColor: colors.surface }]}
-      onPress={() => router.push(`/screens/delivery-note?id=${item.jobId}`)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.deliveryTop}>
-        <View style={styles.deliveryTopLeft}>
-          <View style={[styles.deliveryIcon, { backgroundColor: colors.primary + '10' }]}>
-            <Ionicons name="document-text" size={16} color={colors.primary} />
-          </View>
-          <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
-        </View>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: getStatusColor(item.status) + '15' },
-        ]}>
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {formatStatus(item.status).toUpperCase()}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.deliveryInfo}>
-        <View style={styles.deliveryDetailRow}>
-          <Ionicons name="person-outline" size={13} color={colors.textSecondary} />
-          <Text style={[styles.deliveryDetail, { color: colors.textSecondary }]}>
-            {item.driverName} · {item.plateNumber}
-          </Text>
-        </View>
-        <View style={styles.deliveryDetailRow}>
-          <Ionicons name="cube-outline" size={13} color={colors.textSecondary} />
-          <Text style={[styles.deliveryDetail, { color: colors.textSecondary }]}>
-            {item.materialName}
-          </Text>
-        </View>
-        <View style={styles.deliveryDetailRow}>
-          <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
-          <Text style={[styles.deliveryDetail, { color: colors.textSecondary }]}>
-            {item.quarryName} → {item.siteName}
-          </Text>
-        </View>
-        <Text style={[styles.deliveryTime, { color: colors.textTertiary }]}>
-          {formatEAT(item.updatedAt || item.createdAt)}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-
-  if (loading) {
-    return (
-      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-      >
-        <View style={styles.welcomeArea}>
-          <View>
-            <Text style={[styles.greeting, { color: colors.textSecondary }]}>Welcome back,</Text>
-            <Text style={[styles.userName, { color: colors.text }]}>
-              {user?.displayName || user?.email?.split('@')[0] || 'User'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.loadingSkeleton}>
-          {[1, 2, 3, 4].map((i) => (
-            <View key={i} style={[styles.skeletonCard, { backgroundColor: colors.surface }]} />
-          ))}
-        </View>
-      </ScrollView>
-    );
-  }
+  const role = getRoleLabel(user?.role || 'management');
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-    >
-      {/* Welcome */}
-      <View style={styles.welcomeArea}>
-        <View>
-          <Text style={[styles.greeting, { color: colors.textSecondary }]}>Welcome back,</Text>
-          <Text style={[styles.userName, { color: colors.text }]}>
-            {user?.displayName || user?.email?.split('@')[0] || 'User'}
-          </Text>
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+      <CommandHeader
+        eyebrow="Operations command"
+        title="Control tower"
+        subtitle={`${user?.displayName || 'Operator'} · ${role}`}
+        right={
+          <View style={[styles.signal, { backgroundColor: `${colors.success}18` }]}>
+            <View style={[styles.signalDot, { backgroundColor: colors.success }]} />
+            <Text style={[styles.signalText, { color: colors.success }]}>Live</Text>
+          </View>
+        }
+      />
+
+      <View style={styles.metricGrid}>
+        <View style={styles.metricRow}>
+          <MetricTile icon="file-tray-full" label="Pending deliveries" value={stats.pending} tone={colors.warning} onPress={() => router.push('/(tabs)/orders')} />
+          <MetricTile icon="navigate-circle" label="In transit" value={stats.inTransit} tone={colors.primary} onPress={() => router.push('/(tabs)/active')} />
         </View>
-        <View style={[styles.roleBadge, { backgroundColor: colors.primary + '10' }]}>
-          <Ionicons name="shield-checkmark" size={14} color={colors.primary} />
-          <Text style={[styles.roleText, { color: colors.primary }]}>
-            {getRoleLabel(role).toUpperCase()}
-          </Text>
+        <View style={styles.metricRow}>
+          <MetricTile icon="checkmark-done-circle" label="Delivered today" value={stats.deliveredToday} tone={colors.success} />
+          <MetricTile icon="alert-circle" label="Weight flags" value={stats.discrepancies} tone={colors.danger} />
         </View>
       </View>
 
-      {/* Metrics */}
-      <View style={styles.metricsRow}>
-        <MetricCard
-          icon="car"
-          label="Active Trucks"
-          value={stats.activeTrucks}
-          color="#1B2A4A"
-          onPress={() => router.push('/trucks')}
-
-        />
-        <MetricCard
-          icon="people"
-          label="Active Drivers"
-          value={stats.activeDrivers}
-          color="#10B981"
-          onPress={() => router.push('/(tabs)/drivers')}
-        />
-      </View>
-      <View style={styles.metricsRow}>
-        <MetricCard
-          icon="document-text"
-          label="Pending Orders"
-          value={stats.pendingOrders}
-          color="#D97706"
-          onPress={() => router.push('/(tabs)/orders')}
-        />
-        <MetricCard
-          icon="navigate"
-          label="Active Deliveries"
-          value={stats.activeDeliveries}
-          color="#7C3AED"
-          onPress={() => router.push('/(tabs)/active')}
-        />
-      </View>
-
-      {/* Quick Actions */}
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickActionsRow}>
-        <TouchableOpacity style={[styles.quickAction, { backgroundColor: colors.surface }]} onPress={() => router.push('/(tabs)/active')}>
-          <View style={[styles.qaIcon, { backgroundColor: '#3B82F615' }]}>
-            <Ionicons name="location" size={22} color="#3B82F6" />
+      <DataCard>
+        <View style={styles.cardHead}>
+          <View>
+            <Text style={[styles.cardEyebrow, { color: colors.accent }]}>Purchase order throughput</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>{stats.completion}% complete</Text>
           </View>
-          <Text style={[styles.qaLabel, { color: colors.text }]}>Track</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.quickAction, { backgroundColor: colors.surface }]} onPress={() => router.push('/(tabs)/orders')}>
-          <View style={[styles.qaIcon, { backgroundColor: '#10B98115' }]}>
-            <Ionicons name="add-circle" size={22} color="#10B981" />
-          </View>
-          <Text style={[styles.qaLabel, { color: colors.text }]}>New Order</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.quickAction, { backgroundColor: colors.surface }]} onPress={() => router.push('/(tabs)/drivers')}>
-          <View style={[styles.qaIcon, { backgroundColor: '#8B5CF615' }]}>
-            <Ionicons name="people" size={22} color="#8B5CF6" />
-          </View>
-          <Text style={[styles.qaLabel, { color: colors.text }]}>Drivers</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.quickAction, { backgroundColor: colors.surface }]} onPress={() => router.push('/(tabs)/search')}>
-          <View style={[styles.qaIcon, { backgroundColor: '#F59E0B15' }]}>
-            <Ionicons name="search" size={22} color="#F59E0B" />
-          </View>
-          <Text style={[styles.qaLabel, { color: colors.text }]}>Search</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      {/* Active Deliveries */}
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Deliveries </Text>
-      {recentDeliveries.map((d, i) => (
-        <RecentDeliveryCard key={d.id || i} item={d} />
-      ))}
-      {recentDeliveries.length === 0 && (
-        <View style={styles.emptyDeliveries}>
-          <View style={[styles.emptyIcon, { backgroundColor: '#10B98115' }]}>
-            <Ionicons name="checkmark-circle" size={32} color="#10B981" />
-          </View>
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>All deliveries completed</Text>
-          <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>No active deliveries at the moment</Text>
+          <Ionicons name="analytics" size={24} color={colors.primary} />
         </View>
+        <ProgressBar value={stats.completion} color={colors.accent} />
+        <View style={styles.compactStats}>
+          <Text style={[styles.compactStat, { color: colors.textSecondary }]}>{stats.activeDrivers} active drivers</Text>
+          <Text style={[styles.compactStat, { color: colors.textSecondary }]}>{stats.activeVehicles} active vehicles</Text>
+          <Text style={[styles.compactStat, { color: colors.textSecondary }]}>{stats.reconciled} reconciled</Text>
+        </View>
+      </DataCard>
+
+      <SectionTitle title="Quick actions" />
+      <View style={styles.actionRow}>
+        {[
+          { icon: 'add-circle', label: 'New order', route: '/(tabs)/orders', color: colors.primary },
+          { icon: 'scale', label: 'Weighbridge', route: '/quarry/weigh-in', color: colors.accent },
+          { icon: 'scan', label: 'Receive', route: '/site/receive', color: colors.success },
+          { icon: 'search', label: 'Search', route: '/(tabs)/search', color: colors.warning },
+        ].map((item) => (
+          <TouchableOpacity key={item.label} style={[styles.action, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => router.push(item.route as any)}>
+            <Ionicons name={item.icon as any} size={22} color={item.color} />
+            <Text style={[styles.actionText, { color: colors.textSecondary }]}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <SectionTitle
+        title="Recent movement"
+        action={
+          <TouchableOpacity onPress={() => router.push('/(tabs)/active')}>
+            <Text style={[styles.link, { color: colors.primary }]}>View all</Text>
+          </TouchableOpacity>
+        }
+      />
+      {loading ? (
+        <DataCard>
+          <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading operational feed...</Text>
+        </DataCard>
+      ) : recentDeliveries.length ? (
+        recentDeliveries.map((item) => (
+          <DataCard key={item.id} onPress={() => router.push(`/screens/delivery-note?id=${item.jobId}`)}>
+            <View style={styles.deliveryHead}>
+              <View>
+                <Text style={[styles.deliveryId, { color: colors.text }]}>{item.jobId}</Text>
+                <Text style={[styles.deliveryMeta, { color: colors.textMuted }]}>{item.poNumber || 'Unlinked PO'}</Text>
+              </View>
+              <StatusPill status={item.status} compact />
+            </View>
+            <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No vehicle'}`} />
+            <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || item.quantity || 0} tonnes`} />
+            <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} -> ${item.siteName || 'Destination'}`} />
+            <Text style={[styles.timestamp, { color: colors.textTertiary }]}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
+          </DataCard>
+        ))
+      ) : (
+        <EmptyState icon="checkmark-circle-outline" title="No active movement" subtitle="All visible deliveries are currently settled." />
       )}
-    </ScrollView>
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  welcomeArea: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: Spacing['2xl'],
+  signal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 999,
   },
-  greeting: { fontSize: 14 },
-  userName: { fontSize: 22, fontWeight: '800', marginTop: 2 },
-  roleBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-  },
-  roleText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  loadingSkeleton: { gap: Spacing.md },
-  skeletonCard: { height: 80, borderRadius: Radius.lg, opacity: 0.5 },
-  metricsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
-  metricCard: {
+  signalDot: { width: 8, height: 8, borderRadius: 4 },
+  signalText: { fontSize: 12, fontWeight: '900' },
+  metricGrid: { gap: Spacing.md },
+  metricRow: { flexDirection: 'row', gap: Spacing.md },
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardEyebrow: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  cardTitle: { fontSize: 21, fontWeight: '900', marginTop: 4 },
+  compactStats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  compactStat: { fontSize: 12, fontWeight: '700' },
+  actionRow: { flexDirection: 'row', gap: Spacing.sm },
+  action: {
     flex: 1,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
+    minHeight: 76,
+    borderWidth: 1,
+    borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    justifyContent: 'center',
+    gap: 7,
   },
-  metricIconWrap: { width: 44, height: 44, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  metricValue: { fontSize: 24, fontWeight: '800' },
-  metricLabel: { fontSize: 11, textAlign: 'center', marginTop: 2 },
-  sectionHeader: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginTop: Spacing.md, marginBottom: Spacing.md,
-  },
-  sectionTitle: { fontSize: 16, fontWeight: '700' },
-  viewAll: { fontSize: 13, fontWeight: '600' },
-  quickActionsRow: { marginBottom: Spacing.lg, marginTop: Spacing.sm },
-  quickAction: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.lg,
-    marginRight: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  qaIcon: { width: 48, height: 48, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  qaLabel: { fontSize: 12, fontWeight: '600' },
-  deliveryCard: {
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  deliveryTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  deliveryTopLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  deliveryIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  jobId: { fontSize: 14, fontWeight: '700' },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 10, fontWeight: '700' },
-  deliveryInfo: { gap: 6 },
-  deliveryDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  deliveryDetail: { fontSize: 13 },
-  deliveryTime: { fontSize: 11, marginTop: 2 },
-  emptyDeliveries: { alignItems: 'center', paddingVertical: Spacing['3xl'], gap: Spacing.sm },
-  emptyIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  emptyText: { fontSize: 15, fontWeight: '600' },
-  emptySubtext: { fontSize: 13 },
+  actionText: { fontSize: 11, fontWeight: '800', textAlign: 'center' },
+  link: { fontSize: 13, fontWeight: '900' },
+  loadingText: { fontSize: 13, fontWeight: '700' },
+  deliveryHead: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md },
+  deliveryId: { fontSize: 16, fontWeight: '900' },
+  deliveryMeta: { fontSize: 12, marginTop: 2, fontWeight: '700' },
+  timestamp: { fontSize: 11, fontWeight: '700' },
 });

@@ -1,163 +1,98 @@
-import { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
-  TextInput,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 import { fetchVehicles } from '../../services/api';
-import { getStatusColor, formatStatus } from '../../utils/helpers';
+import { formatDate } from '../../utils/helpers';
+import {
+  CommandHeader,
+  DataCard,
+  DetailRow,
+  EmptyState,
+  MetricTile,
+  PageShell,
+  SearchField,
+  SectionTitle,
+  StatusPill,
+} from '../../components/EnterpriseUI';
 
 export default function TrucksScreen() {
   const colors = useTheme();
   const [trucks, setTrucks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const loadData = async () => {
+    setRefreshing(true);
     try {
-      const data = await fetchVehicles();
-      setTrucks(data || []);
-    } catch (e) {
-      console.error(e);
+      setTrucks((await fetchVehicles()) || []);
+    } catch (error) {
+      console.error('Trucks load error:', error);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadData();
-  };
+  const filtered = useMemo(() => {
+    const query = search.toLowerCase();
+    return trucks.filter((item) => !query || [item.plateNumber, item.registrationNumber, item.make, item.model]
+      .some((value) => String(value || '').toLowerCase().includes(query)));
+  }, [search, trucks]);
 
-  const filtered = trucks.filter((t) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      (t.plateNumber || '').toLowerCase().includes(q) ||
-      (t.model || '').toLowerCase().includes(q) ||
-      (t.make || '').toLowerCase().includes(q)
-    );
-  });
-
-  const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.surface }]}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardTop}>
-        <View style={[styles.avatar, { backgroundColor: '#D9770615' }]}>
-          <Ionicons name="car" size={22} color="#D97706" />
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={[styles.plate, { color: colors.text }]}>{item.plateNumber}</Text>
-          <Text style={[styles.model, { color: colors.textSecondary }]}>
-            {item.make} {item.model} ({item.year})
-          </Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {formatStatus(item.status).toUpperCase()}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.cardFooter}>
-        <View style={styles.footerItem}>
-          <Ionicons name="speedometer-outline" size={13} color={colors.textSecondary} />
-          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-            {item.capacity}T capacity
-          </Text>
-        </View>
-        {item.color && (
-          <View style={styles.footerItem}>
-            <View style={[styles.colorDot, { backgroundColor: item.color.toLowerCase() }]} />
-            <Text style={[styles.footerText, { color: colors.textSecondary }]}>{item.color}</Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+  const capacity = trucks.reduce((sum, item) => sum + Number(item.capacity || 0), 0);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by plate, model..."
-          placeholderTextColor={colors.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+      <CommandHeader eyebrow="Fleet assets" title="Vehicles" subtitle={`${Math.round(capacity)} tonnes total registered capacity`} />
+      <View style={styles.metricRow}>
+        <MetricTile icon="car" label="Active vehicles" value={trucks.filter((item) => item.status === 'active').length} tone={colors.success} />
+        <MetricTile icon="construct" label="Unavailable" value={trucks.filter((item) => item.status !== 'active').length} tone={colors.warning} />
       </View>
+      <SearchField value={search} onChangeText={setSearch} placeholder="Search plate, make, model..." />
+      <SectionTitle title={`${filtered.length} vehicle records`} />
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-        showsVerticalScrollIndicator={false}
-        renderItem={renderItem}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: '#D9770610' }]}>
-                <Ionicons name="car-outline" size={40} color="#D97706" />
+      {loading ? (
+        <DataCard><Text style={[styles.muted, { color: colors.textMuted }]}>Loading vehicles...</Text></DataCard>
+      ) : filtered.length ? (
+        filtered.map((item) => (
+          <DataCard key={item.id}>
+            <View style={styles.cardHead}>
+              <View style={[styles.avatar, { backgroundColor: `${colors.warning}18` }]}>
+                <Text style={[styles.avatarText, { color: colors.warning }]}>
+                  {(item.plateNumber || item.registrationNumber || 'TR').slice(0, 2)}
+                </Text>
               </View>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No trucks found</Text>
+              <View style={styles.cardCopy}>
+                <Text style={[styles.title, { color: colors.text }]}>{item.plateNumber || item.registrationNumber}</Text>
+                <Text style={[styles.subtle, { color: colors.textMuted }]}>{item.make} {item.model} {item.year ? `· ${item.year}` : ''}</Text>
+              </View>
+              <StatusPill status={item.status || 'active'} compact />
             </View>
-          ) : null
-        }
-      />
-    </View>
+            <DetailRow icon="speedometer-outline" value={`${item.capacity || 0} tonnes capacity`} />
+            <DetailRow icon="business-outline" value={item.vendorName || item.vendorId || 'Vendor not linked'} />
+            <DetailRow icon="document-text-outline" value={`Insurance ${item.insuranceExpiry ? formatDate(item.insuranceExpiry) : 'not recorded'}`} />
+          </DataCard>
+        ))
+      ) : (
+        <EmptyState icon="car-outline" title="No vehicles found" subtitle="Try another search term." />
+      )}
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: Spacing.lg, marginTop: Spacing.md,
-    borderRadius: Radius.md, borderWidth: 1,
-    paddingHorizontal: Spacing.md, height: 44, gap: Spacing.sm,
-  },
-  searchInput: { flex: 1, fontSize: 14 },
-  list: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  card: {
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  avatar: { width: 44, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  cardInfo: { flex: 1 },
-  plate: { fontSize: 15, fontWeight: '700' },
-  model: { fontSize: 13, marginTop: 1 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 10, fontWeight: '700' },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg, marginTop: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  footerItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  footerText: { fontSize: 13 },
-  colorDot: { width: 10, height: 10, borderRadius: 5 },
-  empty: { alignItems: 'center', paddingVertical: 80, gap: Spacing.sm },
-  emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  emptyText: { fontSize: 16, fontWeight: '600' },
+  metricRow: { flexDirection: 'row', gap: Spacing.md },
+  muted: { fontSize: 13, fontWeight: '700' },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  avatar: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 16, fontWeight: '900' },
+  cardCopy: { flex: 1 },
+  title: { fontSize: 16, fontWeight: '900' },
+  subtle: { fontSize: 12, fontWeight: '700', marginTop: 2 },
 });

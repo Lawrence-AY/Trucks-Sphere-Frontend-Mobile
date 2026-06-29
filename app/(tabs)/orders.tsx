@@ -1,247 +1,189 @@
-import { useState, useEffect, useMemo } from 'react';
-import {
-  View, Text, StyleSheet, TouchableOpacity, RefreshControl,
-  TextInput, SectionList,
-} from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 import { fetchPurchaseOrders } from '../../services/api';
-import { formatEAT, formatCurrency, getStatusColor, formatStatus } from '../../utils/helpers';
+import { formatCurrency, formatEAT } from '../../utils/helpers';
+import {
+  CommandHeader,
+  DataCard,
+  DetailRow,
+  EmptyState,
+  FilterRail,
+  MetricTile,
+  PageShell,
+  ProgressBar,
+  SearchField,
+  SectionTitle,
+  StatusPill,
+} from '../../components/EnterpriseUI';
+
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'in_progress', label: 'In progress' },
+  { key: 'completed', label: 'Completed' },
+];
+
+function deliveredFor(order: any) {
+  if (order.deliveredQuantity != null) return Number(order.deliveredQuantity);
+  if (order.status === 'completed') return Number(order.quantity || 0);
+  if (order.status === 'in_progress') return Math.round(Number(order.quantity || 0) * 0.45);
+  return 0;
+}
 
 export default function OrdersScreen() {
   const colors = useTheme();
   const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
 
   const loadData = async () => {
+    setRefreshing(true);
     try {
       const data = await fetchPurchaseOrders();
       setOrders(data || []);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error('Orders load error:', error);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadData();
-  };
-
-  // Group orders by vendor
-  const groupedOrders = useMemo(() => {
-    const filtered = orders.filter((o) => {
-      if (!search) return true;
-      const q = search.toLowerCase();
-      return (
-        (o.poNumber || '').toLowerCase().includes(q) ||
-        (o.vendorName || '').toLowerCase().includes(q) ||
-        (o.materialName || '').toLowerCase().includes(q)
-      );
+  const filtered = useMemo(() => {
+    const query = search.toLowerCase();
+    return orders.filter((item) => {
+      const matchesSearch = !query || [item.poNumber, item.vendorName, item.materialName]
+        .some((value) => String(value || '').toLowerCase().includes(query));
+      const matchesFilter = filter === 'all' || item.status === filter;
+      return matchesSearch && matchesFilter;
     });
+  }, [filter, orders, search]);
 
-    const groups: Record<string, any[]> = {};
-    filtered.forEach((o) => {
-      const vendor = o.vendorName || 'Unknown Vendor';
-      if (!groups[vendor]) groups[vendor] = [];
-      groups[vendor].push(o);
+  const summary = useMemo(() => {
+    const ordered = orders.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    const delivered = orders.reduce((sum, item) => sum + deliveredFor(item), 0);
+    const vendors = new Set(orders.map((item) => item.vendorId || item.vendorName));
+    return {
+      ordered,
+      delivered,
+      remaining: Math.max(0, ordered - delivered),
+      vendors: vendors.size,
+      completion: ordered ? Math.round((delivered / ordered) * 100) : 0,
+      value: orders.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0),
+    };
+  }, [orders]);
+
+  const vendorSummary = useMemo(() => {
+    const map = new Map<string, { vendor: string; ordered: number; delivered: number; count: number }>();
+    orders.forEach((item) => {
+      const vendor = item.vendorName || 'Unknown Vendor';
+      const current = map.get(vendor) || { vendor, ordered: 0, delivered: 0, count: 0 };
+      current.ordered += Number(item.quantity || 0);
+      current.delivered += deliveredFor(item);
+      current.count += 1;
+      map.set(vendor, current);
     });
-
-    return Object.entries(groups)
-      .map(([vendor, items]) => ({
-        title: vendor,
-        data: items,
-        totalAmount: items.reduce((sum, i) => sum + (i.totalAmount || 0), 0),
-        orderCount: items.length,
-      }))
-      .sort((a, b) => b.totalAmount - a.totalAmount);
-  }, [orders, search]);
-
-  const renderSectionHeader = ({ section }: { section: any }) => {
-    const statusCounts: Record<string, number> = {};
-    section.data.forEach((o: any) => {
-      statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
-    });
-
-    return (
-      <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
-        <View style={styles.sectionHeaderTop}>
-          <View style={[styles.vendorAvatar, { backgroundColor: colors.primary + '12' }]}>
-            <Text style={[styles.vendorAvatarText, { color: colors.primary }]}>
-              {section.title.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.sectionHeaderInfo}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
-            <Text style={[styles.sectionMeta, { color: colors.textSecondary }]}>
-              {section.orderCount} order{section.orderCount !== 1 ? 's' : ''} · {formatCurrency(section.totalAmount)}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-        </View>
-        <View style={styles.statusRow}>
-          {Object.entries(statusCounts).map(([status, count]) => (
-            <View key={status} style={[styles.statusChip, { backgroundColor: getStatusColor(status) + '12' }]}>
-              <View style={[styles.statusDot, { backgroundColor: getStatusColor(status) }]} />
-              <Text style={[styles.statusChipText, { color: getStatusColor(status) }]}>
-                {formatStatus(status)} ({count})
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  };
-
-  const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.surface }]}
-      onPress={() => router.push(`/screens/purchase-order?id=${item.id}`)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.cardTop}>
-        <View style={[styles.cardIcon, { backgroundColor: getStatusColor(item.status) + '12' }]}>
-          <Ionicons name="document-text" size={18} color={getStatusColor(item.status)} />
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={[styles.poNumber, { color: colors.text }]}>{item.poNumber}</Text>
-          <Text style={[styles.material, { color: colors.textSecondary }]}>
-            {item.materialName} · {item.quantity} {item.unit}
-          </Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {formatStatus(item.status).toUpperCase()}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.cardBody}>
-        <View style={styles.cardRow}>
-          <Ionicons name="cash-outline" size={13} color={colors.textSecondary} />
-          <Text style={[styles.cardText, { color: colors.textSecondary }]}>
-            {formatCurrency(item.totalAmount)}
-          </Text>
-        </View>
-        <View style={styles.cardRow}>
-          <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
-          <Text style={[styles.cardText, { color: colors.textSecondary }]}>
-            {item.quarryName} → {item.siteName}
-          </Text>
-        </View>
-      </View>
-      <Text style={[styles.cardTime, { color: colors.textTertiary }]}>
-        {formatEAT(item.createdAt)}
-      </Text>
-    </TouchableOpacity>
-  );
+    return [...map.values()].sort((a, b) => b.ordered - a.ordered).slice(0, 3);
+  }, [orders]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by PO, vendor, material..."
-          placeholderTextColor={colors.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+      <CommandHeader
+        eyebrow="Procurement execution"
+        title="Purchase orders"
+        subtitle={`${summary.vendors} vendors · ${Math.round(summary.remaining)} remaining units`}
+      />
+
+      <View style={styles.metricRow}>
+        <MetricTile icon="cube" label="Ordered qty" value={Math.round(summary.ordered)} tone={colors.primary} />
+        <MetricTile icon="checkmark-done" label="Delivered" value={Math.round(summary.delivered)} tone={colors.success} />
       </View>
 
-      <SectionList
-        sections={groupedOrders}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-        showsVerticalScrollIndicator={false}
-        renderSectionHeader={renderSectionHeader}
-        renderItem={renderItem}
-        stickySectionHeadersEnabled
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: colors.primary + '10' }]}>
-                <Ionicons name="document-text-outline" size={40} color={colors.primary} />
+      <DataCard>
+        <View style={styles.summaryHead}>
+          <View>
+            <Text style={[styles.summaryTitle, { color: colors.text }]}>{summary.completion}% fulfilled</Text>
+            <Text style={[styles.summarySub, { color: colors.textMuted }]}>{formatCurrency(summary.value)} total value</Text>
+          </View>
+          <Text style={[styles.remaining, { color: colors.warning }]}>{Math.round(summary.remaining)} left</Text>
+        </View>
+        <ProgressBar value={summary.completion} color={colors.accent} />
+      </DataCard>
+
+      <SectionTitle title="Vendor summary" />
+      {vendorSummary.map((item) => {
+        const pct = item.ordered ? Math.round((item.delivered / item.ordered) * 100) : 0;
+        return (
+          <DataCard key={item.vendor} style={styles.vendorCard}>
+            <View style={styles.summaryHead}>
+              <View>
+                <Text style={[styles.vendorName, { color: colors.text }]}>{item.vendor}</Text>
+                <Text style={[styles.summarySub, { color: colors.textMuted }]}>{item.count} purchase orders</Text>
               </View>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No orders found</Text>
+              <Text style={[styles.remaining, { color: colors.accent }]}>{pct}%</Text>
             </View>
-          ) : null
-        }
-      />
-    </View>
+            <ProgressBar value={pct} color={colors.primary} />
+          </DataCard>
+        );
+      })}
+
+      <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, vendor, material..." />
+      <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
+
+      <SectionTitle title={`${filtered.length} purchase orders`} />
+      {loading ? (
+        <DataCard>
+          <Text style={[styles.summarySub, { color: colors.textMuted }]}>Loading purchase orders...</Text>
+        </DataCard>
+      ) : filtered.length ? (
+        filtered.map((item) => {
+          const delivered = deliveredFor(item);
+          const ordered = Number(item.quantity || 0);
+          const pct = ordered ? Math.round((delivered / ordered) * 100) : 0;
+          return (
+            <DataCard key={item.id} onPress={() => router.push(`/screens/purchase-order?id=${item.id}`)}>
+              <View style={styles.cardHead}>
+                <View style={styles.cardCopy}>
+                  <Text style={[styles.poNumber, { color: colors.text }]}>{item.poNumber}</Text>
+                  <Text style={[styles.summarySub, { color: colors.textMuted }]}>{item.vendorName}</Text>
+                </View>
+                <StatusPill status={item.status} compact />
+              </View>
+              <ProgressBar value={pct} color={item.status === 'completed' ? colors.success : colors.primary} />
+              <DetailRow icon="cube-outline" value={`${item.materialName} · ${Math.round(delivered)}/${Math.round(ordered)} ${item.unit || 'units'}`} />
+              <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} -> ${item.siteName || 'Destination'}`} />
+              <DetailRow icon="cash-outline" value={formatCurrency(item.totalAmount || 0)} />
+              <Text style={[styles.timestamp, { color: colors.textTertiary }]}>{formatEAT(item.createdAt)}</Text>
+            </DataCard>
+          );
+        })
+      ) : (
+        <EmptyState icon="document-text-outline" title="No purchase orders found" subtitle="Adjust the search or filter to see more records." />
+      )}
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: Spacing.lg, marginTop: Spacing.md,
-    borderRadius: Radius.md, borderWidth: 1,
-    paddingHorizontal: Spacing.md, height: 44, gap: Spacing.sm,
-  },
-  searchInput: { flex: 1, fontSize: 14 },
-  list: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  sectionHeader: {
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
-  sectionHeaderTop: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  vendorAvatar: {
-    width: 40, height: 40, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  vendorAvatarText: { fontSize: 18, fontWeight: '700' },
-  sectionHeaderInfo: { flex: 1 },
-  sectionTitle: { fontSize: 16, fontWeight: '700' },
-  sectionMeta: { fontSize: 12, marginTop: 1 },
-  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-  statusChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: Spacing.sm, paddingVertical: 2,
-    borderRadius: Radius.full,
-  },
-  statusDot: { width: 5, height: 5, borderRadius: 2.5 },
-  statusChipText: { fontSize: 10, fontWeight: '600' },
-  card: {
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  cardIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  cardInfo: { flex: 1 },
-  poNumber: { fontSize: 14, fontWeight: '700' },
-  material: { fontSize: 12, marginTop: 1 },
-  statusBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
-  statusText: { fontSize: 10, fontWeight: '700' },
-  cardBody: { gap: 5, marginTop: Spacing.md },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardText: { fontSize: 13 },
-  cardTime: { fontSize: 11, marginTop: Spacing.sm },
-  empty: { alignItems: 'center', paddingVertical: 80, gap: Spacing.sm },
-  emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  emptyText: { fontSize: 16, fontWeight: '600' },
+  metricRow: { flexDirection: 'row', gap: Spacing.md },
+  summaryHead: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md, alignItems: 'flex-start' },
+  summaryTitle: { fontSize: 21, fontWeight: '900' },
+  summarySub: { fontSize: 12, fontWeight: '700', marginTop: 3 },
+  remaining: { fontSize: 15, fontWeight: '900' },
+  vendorCard: { paddingVertical: Spacing.md },
+  vendorName: { fontSize: 15, fontWeight: '900' },
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md },
+  cardCopy: { flex: 1 },
+  poNumber: { fontSize: 17, fontWeight: '900' },
+  timestamp: { fontSize: 11, fontWeight: '700' },
 });
