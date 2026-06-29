@@ -3,6 +3,7 @@ import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
 import { fetchPurchaseOrders } from '../../services/api';
 import { formatCurrency, formatEAT } from '../../utils/helpers';
 import {
@@ -36,6 +37,7 @@ function deliveredFor(order: any) {
 
 export default function OrdersScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [orders, setOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ export default function OrdersScreen() {
     setRefreshing(true);
     try {
       const data = await fetchPurchaseOrders();
-      setOrders(data || []);
+      setOrders(user?.role === 'vendor' ? (data || []).filter((item: any) => item.vendorId === (user.vendorId || 'v1')) : data || []);
     } catch (error) {
       console.error('Orders load error:', error);
     } finally {
@@ -57,7 +59,7 @@ export default function OrdersScreen() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.role, user?.vendorId]);
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
 import { fetchVehicles } from '../../services/api';
 import { formatDate } from '../../utils/helpers';
 import {
@@ -18,6 +19,7 @@ import {
 
 export default function TrucksScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [trucks, setTrucks] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,8 @@ export default function TrucksScreen() {
   const loadData = async () => {
     setRefreshing(true);
     try {
-      setTrucks((await fetchVehicles()) || []);
+      const data = (await fetchVehicles()) || [];
+      setTrucks(user?.role === 'vendor' ? data.filter((item: any) => item.vendorId === (user.vendorId || 'v1')) : data);
     } catch (error) {
       console.error('Trucks load error:', error);
     } finally {
@@ -37,7 +40,7 @@ export default function TrucksScreen() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.role, user?.vendorId]);
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();

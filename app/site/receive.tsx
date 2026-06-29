@@ -119,7 +119,7 @@ export default function ReceiveScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push(`/screens/delivery-note?id=${selected.jobId}`)}
+            onPress={() => router.push(`/screens/job-details?id=${selected.jobId}`)}
           >
             <Ionicons name="share-outline" size={20} color="#FFF" />
             <Text style={styles.actionBtnText}>Share Note</Text>

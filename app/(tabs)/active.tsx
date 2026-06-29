@@ -3,6 +3,7 @@ import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
 import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import {
@@ -43,6 +44,7 @@ function isFlagged(item: any) {
 
 export default function ActiveScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,10 @@ export default function ActiveScreen() {
     setRefreshing(true);
     try {
       const data = await fetchDeliveryOrders();
-      setDeliveries(data || []);
+      const visible = user?.role === 'vendor'
+        ? (data || []).filter((item: any) => item.vendorId === (user.vendorId || 'v1'))
+        : data || [];
+      setDeliveries(visible);
     } catch (error) {
       console.error('Active deliveries load error:', error);
     } finally {
@@ -64,7 +69,7 @@ export default function ActiveScreen() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.role, user?.vendorId]);
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
@@ -111,7 +116,7 @@ export default function ActiveScreen() {
           const progress = progressForDelivery(item);
           const flagged = isFlagged(item);
           return (
-            <DataCard key={item.id} onPress={() => router.push(`/screens/delivery-note?id=${item.jobId}`)}>
+            <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}`)}>
               <View style={styles.cardTop}>
                 <View style={styles.cardTitleWrap}>
                   <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>

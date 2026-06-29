@@ -111,7 +111,7 @@ export default function DriverHistoryScreen() {
                       marginBottom: isLast ? 8 : 4,
                     },
                   ]}
-                  onPress={() => router.push(`/screens/delivery-note?id=${trip.id}`)}
+                  onPress={() => router.push(`/screens/job-details?id=${trip.jobId}`)}
                   activeOpacity={0.7}
                 >
                   {/* Trip Header */}

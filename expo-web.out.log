@@ -1,0 +1,7 @@
+
+> truck-app-frontend@1.0.0 web
+> expo start --web --port 8081
+
+Starting project at C:\Users\Omnibook_1\Desktop\Trucksphere\Trucks-Sphere-Frontend-Mobile
+› Port 8081 is being used by another process
+› Skipping dev server

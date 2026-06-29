@@ -17,6 +17,8 @@ export default function ScreensLayout() {
     >
       <Stack.Screen name="weigh-receipt" options={{ title: 'Weighment Receipt' }} />
       <Stack.Screen name="delivery-note" options={{ title: 'Delivery Note' }} />
+      <Stack.Screen name="job-details" options={{ title: 'Job Details' }} />
+      <Stack.Screen name="material-details" options={{ title: 'Material Details' }} />
       <Stack.Screen name="purchase-order" options={{ title: 'Purchase Order' }} />
       <Stack.Screen name="vendor-details" options={{ title: 'Vendor Details' }} />
       <Stack.Screen name="driver-history" options={{ headerShown: false }} />

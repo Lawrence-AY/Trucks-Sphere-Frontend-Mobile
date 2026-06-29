@@ -94,6 +94,13 @@ export const Typography = {
 };
 
 export const TAB_CONFIG = {
+  admin: [
+    { name: 'dashboard', label: 'Dashboard', icon: 'grid-outline' as const },
+    { name: 'materials', label: 'Materials', icon: 'cube-outline' as const },
+    { name: 'drivers', label: 'Drivers', icon: 'people-outline' as const },
+    { name: 'trucks', label: 'Vehicles', icon: 'car-outline' as const },
+    { name: 'profile', label: 'Profile', icon: 'person-outline' as const },
+  ],
   management: [
     { name: 'dashboard', label: 'Dashboard', icon: 'grid-outline' as const },
     { name: 'drivers', label: 'Drivers', icon: 'people-outline' as const },
@@ -120,6 +127,7 @@ export const TAB_CONFIG = {
 };
 
 export const ROLES = {
+  ADMIN: 'admin',
   MANAGEMENT: 'management',
   OPERATOR_QUARRY: 'operator_quarry',
   OPERATOR_SITE: 'operator_site',

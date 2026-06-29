@@ -205,7 +205,7 @@ Created: ${formatEAT(order.createdAt)}`;
                   <TouchableOpacity
                     key={d.id}
                     style={[styles.deliveryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                    onPress={() => router.push(`/screens/delivery-note?id=${d.jobId}`)}
+                    onPress={() => router.push(`/screens/job-details?id=${d.jobId}`)}
                   >
                     <View style={styles.deliveryHeader}>
                       <Text style={[styles.deliveryJob, { color: colors.accent }]}>#{i + 1} · {d.jobId}</Text>

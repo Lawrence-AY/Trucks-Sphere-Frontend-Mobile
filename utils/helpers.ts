@@ -118,6 +118,7 @@ export function getStatusColor(status: string): string {
     completed: '#10B981',
     cancelled: '#EF4444',
     delivered: '#10B981',
+    delayed: '#EF4444',
     assigned: '#3B82F6',
     in_transit: '#F59E0B',
     at_quarry: '#8B5CF6',
@@ -197,6 +198,7 @@ export function generateReceiptText(data: {
 // Get role label
 export function getRoleLabel(role: string): string {
   const labels: Record<string, string> = {
+    admin: 'Admin',
     management: 'Management',
     operator_quarry: 'Quarry Operator',
     operator_site: 'Site Operator',

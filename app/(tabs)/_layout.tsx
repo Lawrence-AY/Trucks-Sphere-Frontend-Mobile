@@ -16,13 +16,13 @@ import type { UserRole } from '../../store/types';
 type TabName = string;
 
 // All users see these 5 bottom tabs
-const BOTTOM_TABS: TabName[] = ['dashboard', 'active', 'vendors', 'drivers', 'orders'];
+const BOTTOM_TABS: TabName[] = ['dashboard', 'active', 'materials', 'drivers', 'orders'];
 const HIDDEN_TABS: TabName[] = ['search', 'history', 'profile', 'trucks'];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'dashboard', label: 'Dashboard', family: 'MaterialIcons' },
   active: { icon: 'activity', label: 'Active', family: 'Feather' },
-  vendors: { icon: 'briefcase', label: 'Vendors', family: 'Ionicons' },
+  materials: { icon: 'cube', label: 'Materials', family: 'Ionicons' },
   drivers: { icon: 'people', label: 'Drivers', family: 'Ionicons' },
   search: { icon: 'search', label: 'Search', family: 'Ionicons' },
   history: { icon: 'time', label: 'History', family: 'Ionicons' },
@@ -46,14 +46,15 @@ const getTabIcon = (name: string, focused: boolean, color: string) => {
 };
 
 const HAMBURGER_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string; roles: UserRole[] }[] = [
-  { label: 'Dashboard', icon: 'grid-outline', route: '/', roles: ['management', 'operator_quarry', 'operator_site', 'vendor'] },
+  { label: 'Dashboard', icon: 'grid-outline', route: '/', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'] },
+  { label: 'Materials', icon: 'cube-outline', route: '/(tabs)/materials', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'] },
   { label: 'Weigh-In', icon: 'download-outline', route: '/quarry/weigh-in', roles: ['operator_quarry'] },
   { label: 'Weigh-Out', icon: 'arrow-up-circle-outline', route: '/quarry/weigh-out', roles: ['operator_quarry'] },
   { label: 'Receive', icon: 'checkmark-circle-outline', route: '/site/receive', roles: ['operator_site'] },
-  { label: 'History', icon: 'time-outline', route: '/(tabs)/history', roles: ['management', 'operator_quarry', 'operator_site'] },
-  { label: 'Profile', icon: 'person-outline', route: '/(tabs)/profile', roles: ['management', 'operator_quarry', 'operator_site', 'vendor'] },
-  { label: 'Trucks', icon: 'car-outline', route: '/(tabs)/trucks', roles: ['management'] },
-  { label: 'Orders', icon: 'document-text-outline', route: '/(tabs)/orders', roles: ['management', 'vendor'] },
+  { label: 'History', icon: 'time-outline', route: '/(tabs)/history', roles: ['admin', 'management', 'operator_quarry', 'operator_site'] },
+  { label: 'Profile', icon: 'person-outline', route: '/(tabs)/profile', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'] },
+  { label: 'Trucks', icon: 'car-outline', route: '/(tabs)/trucks', roles: ['admin', 'management'] },
+  { label: 'Orders', icon: 'document-text-outline', route: '/(tabs)/orders', roles: ['admin', 'management', 'vendor'] },
 ];
 
 export default function TabsLayout() {

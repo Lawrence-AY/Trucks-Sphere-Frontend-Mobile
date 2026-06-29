@@ -3,6 +3,7 @@ import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
+import { useAuthStore } from '../../store/authStore';
 import { fetchDrivers } from '../../services/api';
 import { formatDate } from '../../utils/helpers';
 import {
@@ -19,6 +20,7 @@ import {
 
 export default function DriversScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [drivers, setDrivers] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,8 @@ export default function DriversScreen() {
   const loadData = async () => {
     setRefreshing(true);
     try {
-      setDrivers((await fetchDrivers()) || []);
+      const data = (await fetchDrivers()) || [];
+      setDrivers(user?.role === 'vendor' ? data.filter((item: any) => item.vendorId === (user.vendorId || 'v1')) : data);
     } catch (error) {
       console.error('Drivers load error:', error);
     } finally {
@@ -38,7 +41,7 @@ export default function DriversScreen() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.role, user?.vendorId]);
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();

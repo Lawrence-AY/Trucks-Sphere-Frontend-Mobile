@@ -57,7 +57,7 @@ export default function HistoryScreen() {
     return (
       <TouchableOpacity
         style={[styles.card, { backgroundColor: colors.surface }]}
-        onPress={() => router.push(`/screens/delivery-note?id=${item.jobId}`)}
+        onPress={() => router.push(`/screens/job-details?id=${item.jobId}`)}
         activeOpacity={0.7}
       >
         <View style={styles.cardTop}>

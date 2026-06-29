@@ -148,7 +148,7 @@ export default function SearchScreen() {
         router.push(`/screens/purchase-order?id=${item.id}`);
         break;
       case 'delivery':
-        router.push(`/screens/delivery-note?id=${item.jobId}`);
+        router.push(`/screens/job-details?id=${item.jobId}`);
         break;
       case 'driver':
         router.push(`/screens/driver-history?id=${item.id}&name=${encodeURIComponent(item.name || '')}`);
