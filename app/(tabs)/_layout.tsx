@@ -2,8 +2,8 @@ import { useCallback, useRef, useState } from 'react';
 
 import { Tabs, useRouter } from 'expo-router';
 import {
-  Platform, StyleSheet, View, Text, Animated, Dimensions,
-  TouchableOpacity, ScrollView, Pressable,
+  Platform, StyleSheet, View, Text, Animated, useWindowDimensions,
+  TouchableOpacity, ScrollView, Pressable, Modal, ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ type TabName = string;
 
 // All users see these 5 bottom tabs
 const BOTTOM_TABS: TabName[] = ['dashboard', 'active', 'vendors', 'drivers', 'orders'];
+const HIDDEN_TABS: TabName[] = ['search', 'history', 'profile', 'trucks'];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'dashboard', label: 'Dashboard', family: 'MaterialIcons' },
@@ -60,28 +61,32 @@ export default function TabsLayout() {
   const colors = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = useState(false);
-  const slideAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current;
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutSuccess, setLogoutSuccess] = useState(false);
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const screenWidth = Dimensions.get('window').width;
-  const menuWidth = screenWidth * 0.72;
+  const menuWidth = Math.min(screenWidth * 0.86, 360);
 
   const role = (user?.role || 'management') as UserRole;
 
   const toggleMenu = useCallback(() => {
     if (menuOpen) {
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: screenWidth, duration: 250, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: menuWidth, duration: 250, useNativeDriver: true }),
         Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
       ]).start(() => setMenuOpen(false));
     } else {
       setMenuOpen(true);
+      slideAnim.setValue(menuWidth);
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: screenWidth - menuWidth, duration: 250, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
         Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
       ]).start();
     }
-  }, [menuOpen, slideAnim, fadeAnim, screenWidth, menuWidth]);
+  }, [menuOpen, slideAnim, fadeAnim, menuWidth]);
 
   const handleNav = (route: string) => {
     toggleMenu();
@@ -91,12 +96,21 @@ export default function TabsLayout() {
     }, 300);
   };
 
+  const requestLogout = () => {
+    setConfirmLogout(true);
+  };
+
   const handleLogout = async () => {
-    toggleMenu();
-    setTimeout(async () => {
-      await logout();
+    setLoggingOut(true);
+    await logout();
+    setLoggingOut(false);
+    setConfirmLogout(false);
+    setLogoutSuccess(true);
+    setMenuOpen(false);
+    setTimeout(() => {
+      setLogoutSuccess(false);
       router.replace('/(auth)/login');
-    }, 300);
+    }, 900);
   };
 
   const filteredMenu = HAMBURGER_ITEMS.filter(
@@ -109,14 +123,15 @@ export default function TabsLayout() {
         screenOptions={{
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textSecondary,
-          tabBarShowLabel: false,
+          tabBarShowLabel: true,
+          tabBarLabelStyle: styles.tabBarLabel,
           tabBarStyle: [
             styles.tabBar,
             {
               backgroundColor: colors.surface,
               borderTopColor: colors.border,
-              paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
-              height: Platform.OS === 'ios' ? 60 + insets.bottom : 60,
+              paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
+              height: Platform.OS === 'ios' ? 72 + insets.bottom : 72,
             },
           ],
           headerStyle: { backgroundColor: colors.surface },
@@ -125,10 +140,8 @@ export default function TabsLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <TouchableOpacity onPress={toggleMenu} style={styles.headerBtn}>
-              <View style={[styles.headerAvatar, { backgroundColor: colors.primary + '15' }]}>
-                <Text style={[styles.headerAvatarText, { color: colors.primary }]}>
-                  {(user?.displayName || 'U').charAt(0).toUpperCase()}
-                </Text>
+              <View style={[styles.headerMenuIcon, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="menu-outline" size={24} color={colors.primary} />
               </View>
             </TouchableOpacity>
           ),
@@ -145,6 +158,7 @@ export default function TabsLayout() {
               name={tabName}
               options={{
                 title: config?.label || tabName,
+                tabBarLabel: config?.label || tabName,
                 tabBarIcon: ({ color, focused }) => (
                   <View style={[
                     styles.tabIconWrap,
@@ -157,7 +171,13 @@ export default function TabsLayout() {
             />
           );
         })}
-        <Tabs.Screen name="search" options={{ href: null }} />
+        {HIDDEN_TABS.map((tabName) => (
+          <Tabs.Screen
+            key={tabName}
+            name={tabName}
+            options={{ href: null }}
+          />
+        ))}
       </Tabs>
 
       {/* Hamburger Menu Modal */}
@@ -171,28 +191,28 @@ export default function TabsLayout() {
               styles.menuPanel,
               {
                 width: menuWidth,
-                backgroundColor: colors.surface,
+                backgroundColor: '#0B1726',
                 transform: [{ translateX: slideAnim }],
                 paddingTop: insets.top + Spacing.lg,
               },
             ]}
           >
             {/* User Section */}
-            <View style={[styles.menuUser, { borderBottomColor: colors.border }]}>
-              <View style={[styles.menuAvatar, { backgroundColor: colors.primary }]}>
+            <View style={styles.menuUser}>
+              <View style={styles.menuAvatar}>
                 <Text style={styles.menuAvatarText}>
                   {(user?.displayName || 'U').charAt(0).toUpperCase()}
                 </Text>
               </View>
-              <Text style={[styles.menuUserName, { color: colors.text }]} numberOfLines={1}>
+              <Text style={styles.menuUserName} numberOfLines={1}>
                 {user?.displayName || 'User'}
               </Text>
-              <Text style={[styles.menuUserEmail, { color: colors.textSecondary }]} numberOfLines={1}>
+              <Text style={styles.menuUserEmail} numberOfLines={1}>
                 {user?.email || ''}
               </Text>
-              <View style={[styles.menuRoleBadge, { backgroundColor: colors.primary + '10' }]}>
-                <Ionicons name="shield-checkmark" size={12} color={colors.primary} />
-                <Text style={[styles.menuRoleText, { color: colors.primary }]}>
+              <View style={styles.menuRoleBadge}>
+                <Ionicons name="shield-checkmark" size={12} color="#3ED9D6" />
+                <Text style={styles.menuRoleText}>
                   {getRoleLabel(role)}
                 </Text>
               </View>
@@ -203,25 +223,64 @@ export default function TabsLayout() {
               {filteredMenu.map((item) => (
                 <TouchableOpacity
                   key={item.route}
-                  style={[styles.menuItem, { borderBottomColor: colors.borderLight }]}
+                  style={styles.menuItem}
                   onPress={() => handleNav(item.route)}
                 >
-                  <Ionicons name={item.icon} size={22} color={colors.text} />
-                  <Text style={[styles.menuItemText, { color: colors.text }]}>{item.label}</Text>
+                  <Ionicons name={item.icon} size={22} color="#D5E2F0" />
+                  <Text style={styles.menuItemText}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
             {/* Logout */}
-            <View style={[styles.menuLogout, { borderTopColor: colors.border }]}>
-              <TouchableOpacity style={styles.menuLogoutBtn} onPress={handleLogout}>
-                <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-                <Text style={[styles.menuLogoutText, { color: colors.danger }]}>Logout</Text>
+            <View style={styles.menuLogout}>
+              <TouchableOpacity style={styles.menuLogoutBtn} onPress={requestLogout}>
+                <Ionicons name="log-out-outline" size={20} color="#FF6B6B" />
+                <Text style={styles.menuLogoutText}>Logout</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
         </View>
       )}
+
+      <Modal visible={confirmLogout} transparent animationType="fade" onRequestClose={() => setConfirmLogout(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.logoutDialog}>
+            <View style={styles.logoutIcon}>
+              <Ionicons name="log-out-outline" size={34} color="#FF6B6B" />
+            </View>
+            <Text style={styles.logoutTitle}>Logout</Text>
+            <Text style={styles.logoutMessage}>Are you sure you want to logout?</Text>
+            <View style={styles.logoutActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setConfirmLogout(false)}
+                disabled={loggingOut}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, loggingOut && styles.confirmBtnDisabled]}
+                onPress={handleLogout}
+                disabled={loggingOut}
+              >
+                {loggingOut ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.confirmText}>Logout</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {logoutSuccess ? (
+        <View style={styles.successToast}>
+          <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
+          <Text style={styles.successToastText}>Logged out successfully</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -229,14 +288,20 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     borderTopWidth: 0.5,
-    paddingTop: 6,
-    paddingHorizontal: 8,
+    paddingTop: 7,
+    paddingHorizontal: 4,
     elevation: 0,
     shadowOpacity: 0,
   },
+  tabBarLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 1,
+    letterSpacing: 0,
+  },
   tabIconWrap: {
-    width: 44,
-    height: 32,
+    width: 42,
+    height: 30,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -245,14 +310,13 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     paddingRight: Spacing.md,
   },
-  headerAvatar: {
+  headerMenuIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerAvatarText: { fontSize: 14, fontWeight: '700' },
   // Menu overlay
   backdrop: {
     ...StyleSheet.absoluteFill,
@@ -276,6 +340,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing['2xl'],
     paddingHorizontal: Spacing.xl,
     borderBottomWidth: 1,
+    borderBottomColor: 'rgba(151, 184, 212, 0.14)',
   },
   menuAvatar: {
     width: 56,
@@ -284,15 +349,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
+    backgroundColor: '#147DFF',
   },
   menuAvatarText: { fontSize: 24, fontWeight: '800', color: '#FFF' },
-  menuUserName: { fontSize: 17, fontWeight: '700', marginBottom: 2 },
-  menuUserEmail: { fontSize: 12, marginBottom: Spacing.md },
+  menuUserName: { fontSize: 17, fontWeight: '800', marginBottom: 2, color: '#F8FAFC' },
+  menuUserEmail: { fontSize: 12, marginBottom: Spacing.md, color: '#91A7BC' },
   menuRoleBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs, borderRadius: Radius.full,
+    backgroundColor: 'rgba(62, 217, 214, 0.12)',
   },
-  menuRoleText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
+  menuRoleText: { fontSize: 10, fontWeight: '800', letterSpacing: 0, color: '#3ED9D6' },
   menuItems: { flex: 1 },
   menuItemsContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: Spacing.xl },
   menuItem: {
@@ -302,6 +369,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     gap: Spacing.md,
     borderBottomWidth: 1,
+    borderBottomColor: 'rgba(151, 184, 212, 0.09)',
   },
   menuItemIcon: {
     width: 36,
@@ -310,11 +378,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuItemText: { fontSize: 16, fontWeight: '600' },
+  menuItemText: { fontSize: 16, fontWeight: '700', color: '#D5E2F0' },
   menuLogout: {
     padding: Spacing.xl,
     borderTopWidth: 1,
     paddingBottom: Spacing['4xl'],
+    borderTopColor: 'rgba(151, 184, 212, 0.14)',
   },
   menuLogoutBtn: {
     flexDirection: 'row',
@@ -322,6 +391,102 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     paddingVertical: Spacing.lg,
+    borderRadius: Radius.md,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
   },
-  menuLogoutText: { fontSize: 16, fontWeight: '600' },
+  menuLogoutText: { fontSize: 16, fontWeight: '800', color: '#FF6B6B' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 8, 16, 0.78)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  logoutDialog: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 18,
+    padding: Spacing.xl,
+    backgroundColor: '#132235',
+    borderWidth: 1,
+    borderColor: 'rgba(151, 184, 212, 0.16)',
+    alignItems: 'center',
+  },
+  logoutIcon: {
+    width: 66,
+    height: 66,
+    borderRadius: 22,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  logoutTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  logoutMessage: {
+    color: '#AFC1D2',
+    fontSize: 14,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  logoutActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    width: '100%',
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: '#24364A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: {
+    color: '#E6F3FF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  confirmBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmBtnDisabled: {
+    opacity: 0.72,
+  },
+  confirmText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  successToast: {
+    position: 'absolute',
+    left: Spacing.xl,
+    right: Spacing.xl,
+    bottom: 96,
+    minHeight: 56,
+    borderRadius: Radius.md,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 12,
+  },
+  successToastText: {
+    color: '#1E293B',
+    fontSize: 14,
+    fontWeight: '800',
+  },
 });

@@ -1,26 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Animated,
-  Dimensions,
+  ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
-import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
-
-const { width } = Dimensions.get('window');
+import { Radius, Spacing } from '../../constants/theme';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('admin@truck.com');
-  const [password, setPassword] = useState('password');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
   const { login, isLoading, isAuthenticated, restoreSession, clearError, error } = useAuthStore();
-  const colors = useTheme();
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(30))[0];
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(22)).current;
+  const driftAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     restoreSession();
@@ -28,7 +33,14 @@ export default function LoginScreen() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start();
-  }, []);
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(driftAnim, { toValue: 1, duration: 2600, useNativeDriver: true }),
+        Animated.timing(driftAnim, { toValue: 0, duration: 2600, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [driftAnim, fadeAnim, restoreSession, slideAnim]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -37,8 +49,8 @@ export default function LoginScreen() {
   }, [isAuthenticated]);
 
   const handleLogin = async () => {
-    if (!email.trim()) {
-      setLocalError('Please enter your email');
+    if (!username.trim()) {
+      setLocalError('Please enter your username');
       return;
     }
     if (!password.trim()) {
@@ -50,193 +62,371 @@ export default function LoginScreen() {
     clearError();
 
     try {
-      await login(email.trim(), password);
+      await login(username.trim(), password);
     } catch (err: any) {
-      setLocalError(err.message || 'Invalid credentials. Try: admin@truck.com / password');
+      setLocalError(err.message || 'Invalid credentials. Try admin / password');
     }
   };
+
+  const truckDrift = driftAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-10, 12],
+  });
 
   const displayError = localError || error;
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.primary }]}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Decorative top gradient area */}
-      <View style={styles.topSection}>
-        <View style={styles.logoArea}>
-          <View style={styles.logoCircle}>
-            <Ionicons name="car" size={36} color="#FFF" />
-          </View>
-          <Text style={styles.appName}>TruckSphere</Text>
-          <Text style={styles.tagline}>Fleet Management System</Text>
-        </View>
-      </View>
-
-      {/* Bottom card */}
-      <Animated.View
-        style={[
-          styles.bottomCard,
-          {
-            backgroundColor: colors.surface,
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Welcome Back</Text>
-        <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-          Sign in to continue
-        </Text>
-
-        {displayError ? (
-          <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={16} color="#DC2626" />
-            <Text style={styles.errorText}>{displayError}</Text>
+        <Animated.View
+          style={[
+            styles.panel,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={styles.brand}>
+            <View style={styles.logoMark}>
+              <Text style={styles.logoLetters}>TS</Text>
+            </View>
+            <Text style={styles.brandName}>
+              TRUCK<Text style={styles.brandAccent}>SPHERE</Text>
+            </Text>
+            <Text style={styles.tagline}>Operations command center</Text>
           </View>
-        ) : null}
 
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Email</Text>
-          <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
-            <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              placeholder="Enter email"
-              placeholderTextColor={colors.textMuted}
-              value={email}
-              onChangeText={(v) => { setEmail(v); setLocalError(''); }}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              editable={!isLoading}
-            />
-          </View>
-        </View>
+          <Animated.View style={[styles.illustration, { transform: [{ translateX: truckDrift }] }]}>
+            <Ionicons name="bus" size={46} color="#3ED9D6" />
+            <View style={styles.routeLine} />
+            <View style={styles.routeDot} />
+            <View style={[styles.routeDot, styles.routeDotEnd]} />
+          </Animated.View>
 
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Password</Text>
-          <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
-            <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              placeholder="Enter password"
-              placeholderTextColor={colors.textMuted}
-              value={password}
-              onChangeText={(v) => { setPassword(v); setLocalError(''); }}
-              secureTextEntry={!showPassword}
-              editable={!isLoading}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={18}
-                color={colors.textSecondary}
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.subtitle}>Sign in to continue managing fleet operations.</Text>
+
+          {displayError ? (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle-outline" size={17} color="#FF8A8A" />
+              <Text style={styles.errorText}>{displayError}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Username</Text>
+            <View style={styles.inputWrap}>
+              <Ionicons name="person-outline" size={18} color="#8EA4BA" />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your username"
+                placeholderTextColor="#6D8196"
+                value={username}
+                onChangeText={(value) => {
+                  setUsername(value);
+                  setLocalError('');
+                }}
+                autoCapitalize="none"
+                editable={!isLoading}
               />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputWrap}>
+              <Ionicons name="lock-closed-outline" size={18} color="#8EA4BA" />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                placeholderTextColor="#6D8196"
+                value={password}
+                onChangeText={(value) => {
+                  setPassword(value);
+                  setLocalError('');
+                }}
+                secureTextEntry={!showPassword}
+                editable={!isLoading}
+              />
+              <TouchableOpacity onPress={() => setShowPassword((current) => !current)}>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#AFC1D2" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.formRow}>
+            <TouchableOpacity style={styles.remember} onPress={() => setRememberMe((current) => !current)}>
+              <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
+                {rememberMe ? <Ionicons name="checkmark" size={13} color="#06111F" /> : null}
+              </View>
+              <Text style={styles.rowText}>Remember me</Text>
+            </TouchableOpacity>
+            <TouchableOpacity>
+              <Text style={styles.linkText}>Forgot password?</Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        <TouchableOpacity
-          style={[styles.loginBtn, { backgroundColor: colors.primary, opacity: isLoading ? 0.7 : 1 }]}
-          onPress={handleLogin}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFF" size="small" />
-          ) : (
-            <Text style={styles.loginBtnText}>Sign In</Text>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.loginBtn, isLoading && styles.disabledBtn]}
+            onPress={handleLogin}
+            disabled={isLoading}
+            activeOpacity={0.85}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.loginBtnText}>Login</Text>
+            )}
+          </TouchableOpacity>
 
-        <Text style={[styles.hint, { color: colors.textMuted }]}>
-          Demo: admin@truck.com / password
-        </Text>
-      </Animated.View>
+          <TouchableOpacity style={styles.biometricBtn} activeOpacity={0.85}>
+            <Ionicons name="finger-print-outline" size={20} color="#3ED9D6" />
+            <Text style={styles.biometricText}>Biometric login</Text>
+          </TouchableOpacity>
+
+          <View style={styles.metaRow}>
+            <Text style={styles.metaText}>Need access? Contact Admin</Text>
+            <Text style={styles.metaText}>v1.0.0</Text>
+          </View>
+        </Animated.View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  topSection: {
-    flex: 0.4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 60,
+  container: {
+    flex: 1,
+    backgroundColor: '#06111F',
   },
-  logoArea: { alignItems: 'center' },
-  logoCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  content: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  panel: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+    borderRadius: 28,
+    padding: Spacing.xl,
+    backgroundColor: 'rgba(12, 28, 45, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(151, 184, 212, 0.16)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 22 },
+    shadowOpacity: 0.28,
+    shadowRadius: 30,
+    elevation: 14,
+  },
+  brand: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  logoMark: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: '#31E7D0',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(62, 217, 214, 0.08)',
   },
-  appName: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#FFF',
-    letterSpacing: -0.5,
+  logoLetters: {
+    color: '#2EA8FF',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  brandName: {
+    color: '#FFFFFF',
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  brandAccent: {
+    color: '#2EA8FF',
   },
   tagline: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: '#9DB0C4',
+    marginTop: 5,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  illustration: {
+    height: 76,
+    borderRadius: Radius.lg,
+    backgroundColor: 'rgba(15, 42, 69, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(62, 217, 214, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.xl,
+    overflow: 'hidden',
+  },
+  routeLine: {
+    position: 'absolute',
+    left: 42,
+    right: 42,
+    bottom: 18,
+    height: 2,
+    backgroundColor: 'rgba(46, 168, 255, 0.45)',
+  },
+  routeDot: {
+    position: 'absolute',
+    left: 38,
+    bottom: 14,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#31E7D0',
+  },
+  routeDotEnd: {
+    left: undefined,
+    right: 38,
+    backgroundColor: '#2EA8FF',
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  subtitle: {
+    color: '#9DB0C4',
+    fontSize: 13,
+    lineHeight: 19,
     marginTop: Spacing.xs,
+    marginBottom: Spacing.xl,
   },
-  bottomCard: {
-    flex: 0.6,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: Spacing['2xl'],
-    paddingTop: Spacing['3xl'],
-    paddingBottom: Spacing['4xl'],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  cardTitle: { fontSize: 24, fontWeight: '800' },
-  cardSubtitle: { fontSize: 14, marginTop: Spacing.xs, marginBottom: Spacing['2xl'] },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     padding: Spacing.md,
-    borderRadius: Radius.sm,
-    backgroundColor: '#FEE2E2',
+    borderRadius: Radius.md,
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.24)',
     marginBottom: Spacing.lg,
   },
-  errorText: { color: '#DC2626', fontSize: 13, flex: 1 },
-  inputGroup: { marginBottom: Spacing.lg },
-  label: { fontSize: 13, fontWeight: '600', marginBottom: Spacing.xs },
+  errorText: {
+    color: '#FFB4B4',
+    fontSize: 13,
+    flex: 1,
+  },
+  inputGroup: {
+    marginBottom: Spacing.lg,
+  },
+  label: {
+    color: '#D5E2F0',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: Spacing.xs,
+    textTransform: 'uppercase',
+  },
   inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    height: 52,
     borderRadius: Radius.md,
     borderWidth: 1,
+    borderColor: 'rgba(151, 184, 212, 0.22)',
+    backgroundColor: 'rgba(4, 17, 31, 0.68)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    height: 50,
+  },
+  input: {
+    flex: 1,
+    color: '#F8FAFC',
+    fontSize: 15,
+  },
+  formRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  remember: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.sm,
   },
-  input: { flex: 1, fontSize: 15 },
-  loginBtn: {
-    height: 50,
-    borderRadius: Radius.md,
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#678098',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.sm,
-    shadowColor: '#1B2A4A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  loginBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  hint: { fontSize: 11, textAlign: 'center', marginTop: Spacing.md },
+  checkboxActive: {
+    backgroundColor: '#31E7D0',
+    borderColor: '#31E7D0',
+  },
+  rowText: {
+    color: '#D5E2F0',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  linkText: {
+    color: '#2EA8FF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  loginBtn: {
+    height: 52,
+    borderRadius: Radius.md,
+    backgroundColor: '#147DFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#147DFF',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.32,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  disabledBtn: {
+    opacity: 0.72,
+  },
+  loginBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  biometricBtn: {
+    height: 48,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(62, 217, 214, 0.24)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  biometricText: {
+    color: '#E6F3FF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  metaText: {
+    color: '#91A7BC',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

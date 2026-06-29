@@ -4285,3 +4285,553 @@
 {"_e":"metro:bundling:progress","_t":1782480716200,"id":"a","progress":0.942806321747449,"total":1344,"current":1305}
 {"_e":"metro:bundling:progress","_t":1782480716300,"id":"a","progress":0.9501464487409734,"total":1426,"current":1390}
 {"_e":"metro:bundling:failed","_t":1782480716399,"id":"a","message":"SyntaxError: C:\\Users\\Omnibook_1\\Desktop\\Trucksphere\\Trucks-Sphere-Frontend-Mobile\\app\\(tabs)\\active.tsx: Unexpected token (10:1)\n\n   8 | import { useTheme } from '../../hooks/useTheme';\n   9 | import { Spacing, Radius } from '../../constants/theme';\n> 10 | <<<<<<< HEAD\n     |  ^\n  11 | import { fetchDeliveryOrders } from '../../services/api';\n  12 | import { formatEAT, getStatusColor, formatStatus } from '../../utils/helpers';\n  13 | =======","importStack":null,"filename":"app\\(tabs)\\active.tsx","targetModuleName":null,"originModulePath":null}
+{"_e":"root:init","_t":1782482690577,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782482690580,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782482690585,"mode":"development","files":["../..\\..\\.env"],"env":{}}
+{"_e":"devserver:start","_t":1782482691366,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782482692472,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782482703410,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"metro:bundling:started","_t":1782482708100,"id":"1","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782482708102,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782482708118,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782482708218,"id":"1","progress":0.1322314049586777,"total":11,"current":4}
+{"_e":"metro:bundling:progress","_t":1782482708338,"id":"1","progress":0.1322314049586777,"total":22,"current":8}
+{"_e":"metro:bundling:progress","_t":1782482708443,"id":"1","progress":0.1322314049586777,"total":82,"current":14}
+{"_e":"metro:bundling:progress","_t":1782482708599,"id":"1","progress":0.1322314049586777,"total":83,"current":14}
+{"_e":"metro:bundling:progress","_t":1782482708709,"id":"1","progress":0.1322314049586777,"total":160,"current":23}
+{"_e":"metro:bundling:progress","_t":1782482708810,"id":"1","progress":0.1322314049586777,"total":193,"current":28}
+{"_e":"metro:bundling:progress","_t":1782482708961,"id":"1","progress":0.1322314049586777,"total":195,"current":34}
+{"_e":"metro:bundling:progress","_t":1782482709064,"id":"1","progress":0.1322314049586777,"total":234,"current":47}
+{"_e":"metro:bundling:progress","_t":1782482709184,"id":"1","progress":0.1322314049586777,"total":252,"current":65}
+{"_e":"metro:bundling:progress","_t":1782482709751,"id":"1","progress":0.1322314049586777,"total":311,"current":74}
+{"_e":"metro:bundling:progress","_t":1782482710409,"id":"1","progress":0.1322314049586777,"total":311,"current":75}
+{"_e":"metro:bundling:progress","_t":1782482710512,"id":"1","progress":0.1322314049586777,"total":316,"current":78}
+{"_e":"metro:bundling:progress","_t":1782482710622,"id":"1","progress":0.1322314049586777,"total":320,"current":81}
+{"_e":"metro:bundling:progress","_t":1782482710750,"id":"1","progress":0.1322314049586777,"total":321,"current":84}
+{"_e":"metro:bundling:progress","_t":1782482710861,"id":"1","progress":0.1322314049586777,"total":325,"current":88}
+{"_e":"metro:bundling:progress","_t":1782482711011,"id":"1","progress":0.1322314049586777,"total":325,"current":91}
+{"_e":"metro:bundling:progress","_t":1782482711117,"id":"1","progress":0.1322314049586777,"total":326,"current":91}
+{"_e":"metro:bundling:progress","_t":1782482711228,"id":"1","progress":0.1322314049586777,"total":326,"current":96}
+{"_e":"metro:bundling:progress","_t":1782482711347,"id":"1","progress":0.1322314049586777,"total":326,"current":99}
+{"_e":"metro:bundling:progress","_t":1782482711456,"id":"1","progress":0.1322314049586777,"total":326,"current":105}
+{"_e":"metro:bundling:progress","_t":1782482711566,"id":"1","progress":0.1322314049586777,"total":329,"current":109}
+{"_e":"metro:bundling:progress","_t":1782482711662,"id":"1","progress":0.1322314049586777,"total":331,"current":113}
+{"_e":"metro:bundling:progress","_t":1782482711769,"id":"1","progress":0.1322314049586777,"total":334,"current":115}
+{"_e":"metro:bundling:progress","_t":1782482711872,"id":"1","progress":0.1322314049586777,"total":339,"current":119}
+{"_e":"metro:bundling:progress","_t":1782482711972,"id":"1","progress":0.13416035694970252,"total":344,"current":126}
+{"_e":"metro:bundling:progress","_t":1782482712087,"id":"1","progress":0.14826925617650943,"total":348,"current":134}
+{"_e":"metro:bundling:progress","_t":1782482712193,"id":"1","progress":0.14826925617650943,"total":357,"current":136}
+{"_e":"metro:bundling:progress","_t":1782482712304,"id":"1","progress":0.1555864197530864,"total":360,"current":142}
+{"_e":"metro:bundling:progress","_t":1782482712441,"id":"1","progress":0.15781572527678736,"total":365,"current":145}
+{"_e":"metro:bundling:progress","_t":1782482712545,"id":"1","progress":0.16435354273192113,"total":370,"current":150}
+{"_e":"metro:bundling:progress","_t":1782482712647,"id":"1","progress":0.16517486916983615,"total":374,"current":152}
+{"_e":"metro:bundling:progress","_t":1782482712752,"id":"1","progress":0.16517486916983615,"total":379,"current":154}
+{"_e":"metro:bundling:progress","_t":1782482712882,"id":"1","progress":0.1676483352966706,"total":381,"current":156}
+{"_e":"metro:bundling:progress","_t":1782482712987,"id":"1","progress":0.17324771799018668,"total":382,"current":159}
+{"_e":"metro:bundling:progress","_t":1782482713087,"id":"1","progress":0.18367346938775508,"total":385,"current":165}
+{"_e":"metro:bundling:progress","_t":1782482713190,"id":"1","progress":0.21666524944237678,"total":391,"current":182}
+{"_e":"metro:bundling:progress","_t":1782482713291,"id":"1","progress":0.22675736961451246,"total":399,"current":190}
+{"_e":"metro:bundling:progress","_t":1782482713398,"id":"1","progress":0.22935305309434825,"total":403,"current":193}
+{"_e":"metro:bundling:progress","_t":1782482713507,"id":"1","progress":0.22984246844385559,"total":413,"current":198}
+{"_e":"metro:bundling:progress","_t":1782482713610,"id":"1","progress":0.22984246844385559,"total":430,"current":201}
+{"_e":"metro:bundling:progress","_t":1782482713715,"id":"1","progress":0.24313533946356897,"total":434,"current":214}
+{"_e":"metro:bundling:progress","_t":1782482713828,"id":"1","progress":0.24313533946356897,"total":448,"current":217}
+{"_e":"metro:bundling:progress","_t":1782482713929,"id":"1","progress":0.2533370042428503,"total":451,"current":227}
+{"_e":"metro:bundling:progress","_t":1782482714055,"id":"1","progress":0.26793165013875686,"total":454,"current":235}
+{"_e":"metro:bundling:progress","_t":1782482714158,"id":"1","progress":0.2725939058171745,"total":475,"current":248}
+{"_e":"metro:bundling:progress","_t":1782482714259,"id":"1","progress":0.2744801414240084,"total":481,"current":252}
+{"_e":"metro:bundling:progress","_t":1782482714361,"id":"1","progress":0.2887390024276441,"total":482,"current":259}
+{"_e":"metro:bundling:progress","_t":1782482714472,"id":"1","progress":0.3109324459347321,"total":486,"current":271}
+{"_e":"metro:bundling:progress","_t":1782482714653,"id":"1","progress":0.311946333627076,"total":487,"current":272}
+{"_e":"metro:bundling:progress","_t":1782482714950,"id":"1","progress":0.31424427307110125,"total":487,"current":273}
+{"_e":"metro:bundling:progress","_t":1782482715103,"id":"1","progress":0.31424427307110125,"total":511,"current":276}
+{"_e":"metro:bundling:progress","_t":1782482715205,"id":"1","progress":0.31424427307110125,"total":542,"current":280}
+{"_e":"metro:bundling:progress","_t":1782482715305,"id":"1","progress":0.31424427307110125,"total":549,"current":292}
+{"_e":"metro:bundling:progress","_t":1782482715427,"id":"1","progress":0.31424427307110125,"total":555,"current":306}
+{"_e":"metro:bundling:progress","_t":1782482715526,"id":"1","progress":0.32477743091686906,"total":558,"current":318}
+{"_e":"metro:bundling:progress","_t":1782482715992,"id":"1","progress":0.325367547764528,"total":561,"current":320}
+{"_e":"metro:bundling:progress","_t":1782482716056,"id":"1","progress":0.32740427235551484,"total":561,"current":321}
+{"_e":"metro:bundling:progress","_t":1782482716160,"id":"1","progress":0.3574647966182358,"total":567,"current":339}
+{"_e":"metro:bundling:progress","_t":1782482716261,"id":"1","progress":0.4079932019407363,"total":573,"current":366}
+{"_e":"metro:bundling:progress","_t":1782482716363,"id":"1","progress":0.4246430920706818,"total":577,"current":376}
+{"_e":"metro:bundling:progress","_t":1782482716592,"id":"1","progress":0.4353278775640344,"total":582,"current":384}
+{"_e":"metro:bundling:progress","_t":1782482716734,"id":"1","progress":0.43759816251579453,"total":582,"current":385}
+{"_e":"metro:bundling:progress","_t":1782482716838,"id":"1","progress":0.4391602262536676,"total":587,"current":389}
+{"_e":"metro:bundling:progress","_t":1782482716942,"id":"1","progress":0.4391602262536676,"total":599,"current":394}
+{"_e":"metro:bundling:progress","_t":1782482717041,"id":"1","progress":0.4391602262536676,"total":610,"current":398}
+{"_e":"metro:bundling:progress","_t":1782482717143,"id":"1","progress":0.4391602262536676,"total":624,"current":403}
+{"_e":"metro:bundling:progress","_t":1782482717260,"id":"1","progress":0.4391602262536676,"total":629,"current":407}
+{"_e":"metro:bundling:progress","_t":1782482717361,"id":"1","progress":0.4391602262536676,"total":633,"current":414}
+{"_e":"metro:bundling:progress","_t":1782482717463,"id":"1","progress":0.4391602262536676,"total":640,"current":423}
+{"_e":"metro:bundling:progress","_t":1782482717568,"id":"1","progress":0.44860783571588003,"total":642,"current":430}
+{"_e":"metro:bundling:progress","_t":1782482717679,"id":"1","progress":0.44860783571588003,"total":652,"current":434}
+{"_e":"metro:bundling:progress","_t":1782482717789,"id":"1","progress":0.44860783571588003,"total":661,"current":438}
+{"_e":"metro:bundling:progress","_t":1782482717896,"id":"1","progress":0.44860783571588003,"total":665,"current":439}
+{"_e":"metro:bundling:progress","_t":1782482718007,"id":"1","progress":0.44860783571588003,"total":672,"current":444}
+{"_e":"metro:bundling:progress","_t":1782482718123,"id":"1","progress":0.44860783571588003,"total":675,"current":448}
+{"_e":"metro:bundling:progress","_t":1782482718230,"id":"1","progress":0.44860783571588003,"total":678,"current":454}
+{"_e":"metro:bundling:progress","_t":1782482718380,"id":"1","progress":0.4576124567474049,"total":680,"current":460}
+{"_e":"metro:bundling:progress","_t":1782482718482,"id":"1","progress":0.4694047548215455,"total":686,"current":470}
+{"_e":"metro:bundling:progress","_t":1782482718584,"id":"1","progress":0.483584357246664,"total":696,"current":484}
+{"_e":"metro:bundling:progress","_t":1782482718689,"id":"1","progress":0.4959333465582225,"total":710,"current":500}
+{"_e":"metro:bundling:progress","_t":1782482718793,"id":"1","progress":0.4959333465582225,"total":729,"current":508}
+{"_e":"metro:bundling:progress","_t":1782482718899,"id":"1","progress":0.5010947099480151,"total":736,"current":521}
+{"_e":"metro:bundling:progress","_t":1782482719022,"id":"1","progress":0.5154503616042078,"total":741,"current":532}
+{"_e":"metro:bundling:progress","_t":1782482719135,"id":"1","progress":0.5282139810053093,"total":743,"current":540}
+{"_e":"metro:bundling:progress","_t":1782482719240,"id":"1","progress":0.53409932813935,"total":743,"current":543}
+{"_e":"metro:bundling:progress","_t":1782482719348,"id":"1","progress":0.5400172810746872,"total":743,"current":546}
+{"_e":"metro:bundling:progress","_t":1782482719451,"id":"1","progress":0.545967839811321,"total":743,"current":549}
+{"_e":"metro:bundling:progress","_t":1782482719552,"id":"1","progress":0.545967839811321,"total":755,"current":556}
+{"_e":"metro:bundling:progress","_t":1782482719651,"id":"1","progress":0.5504061799236594,"total":771,"current":572}
+{"_e":"metro:bundling:progress","_t":1782482719752,"id":"1","progress":0.5673553939733857,"total":774,"current":583}
+{"_e":"metro:bundling:progress","_t":1782482719857,"id":"1","progress":0.5690981840566328,"total":798,"current":602}
+{"_e":"metro:bundling:progress","_t":1782482720033,"id":"1","progress":0.592305628488436,"total":803,"current":618}
+{"_e":"metro:bundling:progress","_t":1782482720232,"id":"1","progress":0.5942240260294133,"total":803,"current":619}
+{"_e":"metro:bundling:progress","_t":1782482720339,"id":"1","progress":0.5961455252640704,"total":803,"current":620}
+{"_e":"metro:bundling:progress","_t":1782482720440,"id":"1","progress":0.668511391198956,"total":817,"current":668}
+{"_e":"metro:bundling:progress","_t":1782482720540,"id":"1","progress":0.6937863592461985,"total":844,"current":703}
+{"_e":"metro:bundling:progress","_t":1782482720640,"id":"1","progress":0.7395598605212886,"total":857,"current":737}
+{"_e":"metro:bundling:progress","_t":1782482720747,"id":"1","progress":0.7395598605212886,"total":884,"current":760}
+{"_e":"metro:bundling:progress","_t":1782482720930,"id":"1","progress":0.745428234282067,"total":893,"current":771}
+{"_e":"metro:bundling:progress","_t":1782482720971,"id":"1","progress":0.7473631542581407,"total":893,"current":772}
+{"_e":"metro:bundling:progress","_t":1782482721085,"id":"1","progress":0.7481477698501274,"total":896,"current":775}
+{"_e":"metro:bundling:progress","_t":1782482721185,"id":"1","progress":0.7554198732458125,"total":940,"current":817}
+{"_e":"metro:bundling:progress","_t":1782482721285,"id":"1","progress":0.7891301531523143,"total":994,"current":883}
+{"_e":"metro:bundling:progress","_t":1782482721389,"id":"1","progress":0.7891301531523143,"total":1099,"current":967}
+{"_e":"metro:bundling:progress","_t":1782482721489,"id":"1","progress":0.856506942921764,"total":1154,"current":1068}
+{"_e":"metro:bundling:progress","_t":1782482721589,"id":"1","progress":0.8847470815115593,"total":1246,"current":1172}
+{"_e":"metro:bundling:progress","_t":1782482721689,"id":"1","progress":0.9079946600641162,"total":1316,"current":1254}
+{"_e":"metro:bundling:progress","_t":1782482721789,"id":"1","progress":0.956241679066489,"total":1356,"current":1326}
+{"_e":"metro:bundling:progress","_t":1782482721889,"id":"1","progress":0.956241679066489,"total":1442,"current":1393}
+{"_e":"metro:bundling:progress","_t":1782482722000,"id":"1","progress":0.999,"total":1474,"current":1474}
+{"_e":"metro:bundling:done","_t":1782482722085,"id":"1","total":1474,"ms":13984.4196}
+{"_e":"metro:client_log","_t":1782482723148,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782482723149,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782482723312,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782482723313,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782482724026,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782482727633,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782482727634,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782482727634,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782482727648,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"root:init","_t":1782713822102,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782713822105,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782713822109,"mode":"development","files":["../..\\..\\.env"],"env":{}}
+{"_e":"devserver:start","_t":1782713822827,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782713823610,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782713834568,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"metro:bundling:started","_t":1782713852212,"id":"1","platform":"android","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782713852213,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713852220,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713852322,"id":"1","progress":0.09679012345679013,"total":45,"current":14}
+{"_e":"metro:bundling:progress","_t":1782713852402,"id":"1","progress":0.1111111111111111,"total":45,"current":15}
+{"_e":"metro:bundling:progress","_t":1782713852539,"id":"1","progress":0.12279932792753304,"total":117,"current":41}
+{"_e":"metro:bundling:progress","_t":1782713852643,"id":"1","progress":0.12279932792753304,"total":317,"current":98}
+{"_e":"metro:bundling:progress","_t":1782713852743,"id":"1","progress":0.12279932792753304,"total":348,"current":114}
+{"_e":"metro:bundling:progress","_t":1782713852843,"id":"1","progress":0.21618154423967162,"total":428,"current":199}
+{"_e":"metro:bundling:progress","_t":1782713852943,"id":"1","progress":0.27047954695845783,"total":523,"current":272}
+{"_e":"metro:bundling:progress","_t":1782713853054,"id":"1","progress":0.3311295783317944,"total":570,"current":328}
+{"_e":"metro:bundling:progress","_t":1782713853172,"id":"1","progress":0.5148528419632317,"total":616,"current":442}
+{"_e":"metro:bundling:progress","_t":1782713853273,"id":"1","progress":0.5274361387922964,"total":621,"current":451}
+{"_e":"metro:bundling:progress","_t":1782713853376,"id":"1","progress":0.5646087141775029,"total":712,"current":535}
+{"_e":"metro:bundling:progress","_t":1782713853480,"id":"1","progress":0.58129072543618,"total":825,"current":629}
+{"_e":"metro:bundling:progress","_t":1782713853580,"id":"1","progress":0.58129072543618,"total":891,"current":671}
+{"_e":"metro:bundling:progress","_t":1782713853681,"id":"1","progress":0.5920897506925208,"total":950,"current":731}
+{"_e":"metro:bundling:progress","_t":1782713853781,"id":"1","progress":0.6293456268881477,"total":987,"current":783}
+{"_e":"metro:bundling:progress","_t":1782713853889,"id":"1","progress":0.7117039808891923,"total":1004,"current":847}
+{"_e":"metro:bundling:progress","_t":1782713854012,"id":"1","progress":0.7117039808891923,"total":1066,"current":883}
+{"_e":"metro:bundling:progress","_t":1782713854114,"id":"1","progress":0.7117039808891923,"total":1127,"current":938}
+{"_e":"metro:bundling:progress","_t":1782713854214,"id":"1","progress":0.7773817939929781,"total":1158,"current":1021}
+{"_e":"metro:bundling:progress","_t":1782713854320,"id":"1","progress":0.7773817939929781,"total":1225,"current":1061}
+{"_e":"metro:bundling:progress","_t":1782713854436,"id":"1","progress":0.7773817939929781,"total":1245,"current":1082}
+{"_e":"metro:bundling:progress","_t":1782713854540,"id":"1","progress":0.819622682587692,"total":1257,"current":1138}
+{"_e":"metro:bundling:progress","_t":1782713854640,"id":"1","progress":0.819622682587692,"total":1337,"current":1192}
+{"_e":"metro:bundling:progress","_t":1782713854749,"id":"1","progress":0.8202956678978147,"total":1368,"current":1239}
+{"_e":"metro:bundling:progress","_t":1782713854858,"id":"1","progress":0.8339379700698166,"total":1371,"current":1252}
+{"_e":"metro:bundling:progress","_t":1782713854964,"id":"1","progress":0.8609054886111163,"total":1386,"current":1286}
+{"_e":"metro:bundling:progress","_t":1782713855066,"id":"1","progress":0.8944581893024812,"total":1438,"current":1360}
+{"_e":"metro:bundling:progress","_t":1782713855166,"id":"1","progress":0.9381872823212851,"total":1465,"current":1419}
+{"_e":"metro:bundling:progress","_t":1782713855267,"id":"1","progress":0.9381872823212851,"total":1600,"current":1534}
+{"_e":"metro:bundling:progress","_t":1782713855366,"id":"1","progress":0.9381872823212851,"total":1720,"current":1628}
+{"_e":"metro:bundling:progress","_t":1782713855466,"id":"1","progress":0.9676451087596054,"total":1778,"current":1749}
+{"_e":"metro:bundling:progress","_t":1782713855567,"id":"1","progress":0.9714677872941486,"total":1879,"current":1852}
+{"_e":"metro:bundling:done","_t":1782713855754,"id":"1","total":1879,"ms":3540.9534}
+{"_e":"metro:bundling:started","_t":1782713877329,"id":"2","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782713877329,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713877333,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713877435,"id":"2","progress":0.14792899408284024,"total":52,"current":20}
+{"_e":"metro:bundling:progress","_t":1782713877538,"id":"2","progress":0.14792899408284024,"total":113,"current":20}
+{"_e":"metro:bundling:progress","_t":1782713877649,"id":"2","progress":0.14792899408284024,"total":176,"current":37}
+{"_e":"metro:bundling:progress","_t":1782713877749,"id":"2","progress":0.14792899408284024,"total":228,"current":48}
+{"_e":"metro:bundling:progress","_t":1782713877850,"id":"2","progress":0.14792899408284024,"total":265,"current":78}
+{"_e":"metro:bundling:progress","_t":1782713877956,"id":"2","progress":0.14792899408284024,"total":286,"current":92}
+{"_e":"metro:bundling:progress","_t":1782713878061,"id":"2","progress":0.14792899408284024,"total":301,"current":103}
+{"_e":"metro:bundling:progress","_t":1782713878161,"id":"2","progress":0.14792899408284024,"total":305,"current":114}
+{"_e":"metro:bundling:progress","_t":1782713878261,"id":"2","progress":0.15192560912125266,"total":313,"current":122}
+{"_e":"metro:bundling:progress","_t":1782713878361,"id":"2","progress":0.21102539062499998,"total":320,"current":147}
+{"_e":"metro:bundling:progress","_t":1782713878461,"id":"2","progress":0.270886768578366,"total":342,"current":178}
+{"_e":"metro:bundling:progress","_t":1782713878566,"id":"2","progress":0.270886768578366,"total":402,"current":191}
+{"_e":"metro:bundling:progress","_t":1782713878666,"id":"2","progress":0.29391711334000964,"total":439,"current":238}
+{"_e":"metro:bundling:progress","_t":1782713878766,"id":"2","progress":0.31777449164757965,"total":463,"current":261}
+{"_e":"metro:bundling:progress","_t":1782713878868,"id":"2","progress":0.3525390625,"total":480,"current":285}
+{"_e":"metro:bundling:progress","_t":1782713878971,"id":"2","progress":0.36486480971329455,"total":495,"current":299}
+{"_e":"metro:bundling:progress","_t":1782713879088,"id":"2","progress":0.36486480971329455,"total":530,"current":316}
+{"_e":"metro:bundling:progress","_t":1782713879189,"id":"2","progress":0.36486480971329455,"total":568,"current":340}
+{"_e":"metro:bundling:progress","_t":1782713879289,"id":"2","progress":0.38460843160793734,"total":595,"current":369}
+{"_e":"metro:bundling:progress","_t":1782713879393,"id":"2","progress":0.3971000251952633,"total":630,"current":397}
+{"_e":"metro:bundling:progress","_t":1782713879494,"id":"2","progress":0.44512324456616753,"total":655,"current":437}
+{"_e":"metro:bundling:progress","_t":1782713879594,"id":"2","progress":0.4654183205977102,"total":686,"current":468}
+{"_e":"metro:bundling:progress","_t":1782713879695,"id":"2","progress":0.5032507853020673,"total":702,"current":498}
+{"_e":"metro:bundling:progress","_t":1782713879796,"id":"2","progress":0.5032507853020673,"total":756,"current":525}
+{"_e":"metro:bundling:progress","_t":1782713879898,"id":"2","progress":0.5032507853020673,"total":793,"current":556}
+{"_e":"metro:bundling:progress","_t":1782713880001,"id":"2","progress":0.6030193568053651,"total":810,"current":629}
+{"_e":"metro:bundling:progress","_t":1782713880103,"id":"2","progress":0.6277661124473799,"total":833,"current":660}
+{"_e":"metro:bundling:progress","_t":1782713880207,"id":"2","progress":0.6556955439210159,"total":841,"current":681}
+{"_e":"metro:bundling:progress","_t":1782713880315,"id":"2","progress":0.6615874826423329,"total":852,"current":693}
+{"_e":"metro:bundling:progress","_t":1782713880415,"id":"2","progress":0.738859981351539,"total":883,"current":759}
+{"_e":"metro:bundling:progress","_t":1782713880518,"id":"2","progress":0.7760308466916025,"total":907,"current":799}
+{"_e":"metro:bundling:progress","_t":1782713880620,"id":"2","progress":0.8088315904874346,"total":924,"current":831}
+{"_e":"metro:bundling:progress","_t":1782713880722,"id":"2","progress":0.8319882355000788,"total":956,"current":872}
+{"_e":"metro:bundling:progress","_t":1782713880822,"id":"2","progress":0.8479494058256793,"total":998,"current":919}
+{"_e":"metro:bundling:progress","_t":1782713880925,"id":"2","progress":0.8479494058256793,"total":1025,"current":935}
+{"_e":"metro:bundling:progress","_t":1782713881024,"id":"2","progress":0.8511209049131903,"total":1046,"current":965}
+{"_e":"metro:bundling:progress","_t":1782713881125,"id":"2","progress":0.8511209049131903,"total":1095,"current":995}
+{"_e":"metro:bundling:progress","_t":1782713881227,"id":"2","progress":0.8511209049131903,"total":1140,"current":1031}
+{"_e":"metro:bundling:progress","_t":1782713881330,"id":"2","progress":0.8511209049131903,"total":1169,"current":1072}
+{"_e":"metro:bundling:progress","_t":1782713881429,"id":"2","progress":0.8511209049131903,"total":1220,"current":1106}
+{"_e":"metro:bundling:progress","_t":1782713881530,"id":"2","progress":0.8808035106460971,"total":1236,"current":1160}
+{"_e":"metro:bundling:progress","_t":1782713881632,"id":"2","progress":0.8808035106460971,"total":1285,"current":1189}
+{"_e":"metro:bundling:progress","_t":1782713881731,"id":"2","progress":0.8808035106460971,"total":1309,"current":1220}
+{"_e":"metro:bundling:progress","_t":1782713881833,"id":"2","progress":0.9207372806463829,"total":1335,"current":1281}
+{"_e":"metro:bundling:progress","_t":1782713881937,"id":"2","progress":0.9603999999999999,"total":1350,"current":1323}
+{"_e":"metro:bundling:progress","_t":1782713882040,"id":"2","progress":0.9713070934545089,"total":1384,"current":1364}
+{"_e":"metro:bundling:progress","_t":1782713882141,"id":"2","progress":0.9713070934545089,"total":1427,"current":1394}
+{"_e":"metro:bundling:progress","_t":1782713882242,"id":"2","progress":0.9713070934545089,"total":1466,"current":1433}
+{"_e":"metro:bundling:progress","_t":1782713882354,"id":"2","progress":0.999,"total":1474,"current":1474}
+{"_e":"metro:bundling:done","_t":1782713882603,"id":"2","total":1474,"ms":5274.6123}
+{"_e":"metro:client_log","_t":1782713883311,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782713883577,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782713883578,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782713883579,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782713883580,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782713886226,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782713886226,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782713886227,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782713886228,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:bundling:started","_t":1782713906465,"id":"8","platform":"android","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782713906465,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713906469,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713906588,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713906656,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713906756,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713906859,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713906959,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713907059,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713907159,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782713907259,"id":"8","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782713907405,"id":"8","total":1,"ms":939.8187}
+{"_e":"metro:client_log","_t":1782713924388,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782713947993,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782713957126,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782713957565,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782713957565,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782713957566,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782713979091,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782713986072,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782713986901,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782713997650,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782713997825,"level":"warn","data":["API fetch failed for /checkpoints, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782713997826,"level":"warn","data":["API fetch failed for /weighbridge, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714009531,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714015535,"level":"warn","data":["API fetch failed for /vendors, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714020748,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714029749,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714030013,"level":"warn","data":["API fetch failed for /checkpoints, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714030013,"level":"warn","data":["API fetch failed for /weighbridge, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714342332,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714342339,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714342340,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714342340,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714470809,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714476677,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714476687,"level":"warn","data":["API fetch failed for /checkpoints, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714476687,"level":"warn","data":["API fetch failed for /weighbridge, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714584396,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:bundling:started","_t":1782714886331,"id":"15","platform":"android","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782714886331,"id":"15","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782714886472,"id":"15","total":1,"ms":141.5351}
+{"_e":"metro:client_log","_t":1782714916194,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782714926140,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714926192,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714926196,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714926206,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"metro:client_log","_t":1782714952420,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[Error: fetch failed: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:3000]"]}
+{"_e":"root:init","_t":1782718376092,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782718376094,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782718376098,"mode":"development","files":["../..\\..\\.env"],"env":{}}
+{"_e":"devserver:start","_t":1782718376577,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782718377084,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782718386281,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"metro:bundling:started","_t":1782718396152,"id":"2","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782718396153,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782718396166,"id":"2","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782718396320,"id":"2","progress":0.2304,"total":25,"current":12}
+{"_e":"metro:bundling:progress","_t":1782718396421,"id":"2","progress":0.2304,"total":128,"current":37}
+{"_e":"metro:bundling:progress","_t":1782718396521,"id":"2","progress":0.2304,"total":158,"current":64}
+{"_e":"metro:bundling:progress","_t":1782718396622,"id":"2","progress":0.2304,"total":205,"current":93}
+{"_e":"metro:bundling:progress","_t":1782718396722,"id":"2","progress":0.2304,"total":298,"current":111}
+{"_e":"metro:bundling:progress","_t":1782718396827,"id":"2","progress":0.2304,"total":313,"current":123}
+{"_e":"metro:bundling:progress","_t":1782718396939,"id":"2","progress":0.23863786497555822,"total":348,"current":170}
+{"_e":"metro:bundling:progress","_t":1782718397052,"id":"2","progress":0.3499718164885795,"total":404,"current":239}
+{"_e":"metro:bundling:progress","_t":1782718397152,"id":"2","progress":0.3499718164885795,"total":492,"current":269}
+{"_e":"metro:bundling:progress","_t":1782718397260,"id":"2","progress":0.3499718164885795,"total":498,"current":293}
+{"_e":"metro:bundling:progress","_t":1782718397363,"id":"2","progress":0.37852227028371643,"total":538,"current":331}
+{"_e":"metro:bundling:progress","_t":1782718397463,"id":"2","progress":0.47250362022784564,"total":563,"current":387}
+{"_e":"metro:bundling:progress","_t":1782718397564,"id":"2","progress":0.47963469171877127,"total":618,"current":428}
+{"_e":"metro:bundling:progress","_t":1782718397667,"id":"2","progress":0.5548006962007832,"total":631,"current":470}
+{"_e":"metro:bundling:progress","_t":1782718397767,"id":"2","progress":0.5548006962007832,"total":691,"current":486}
+{"_e":"metro:bundling:progress","_t":1782718397870,"id":"2","progress":0.5548006962007832,"total":704,"current":511}
+{"_e":"metro:bundling:progress","_t":1782718397971,"id":"2","progress":0.6334860474802165,"total":735,"current":585}
+{"_e":"metro:bundling:progress","_t":1782718398074,"id":"2","progress":0.6897073323191526,"total":761,"current":632}
+{"_e":"metro:bundling:progress","_t":1782718398175,"id":"2","progress":0.6897073323191526,"total":833,"current":677}
+{"_e":"metro:bundling:progress","_t":1782718398341,"id":"2","progress":0.6897073323191526,"total":847,"current":685}
+{"_e":"metro:bundling:progress","_t":1782718398348,"id":"2","progress":0.6897073323191526,"total":847,"current":686}
+{"_e":"metro:bundling:progress","_t":1782718398450,"id":"2","progress":0.7046053621556551,"total":878,"current":737}
+{"_e":"metro:bundling:progress","_t":1782718398552,"id":"2","progress":0.7206123456790124,"total":900,"current":764}
+{"_e":"metro:bundling:progress","_t":1782718398652,"id":"2","progress":0.7632645111933162,"total":926,"current":809}
+{"_e":"metro:bundling:progress","_t":1782718398857,"id":"2","progress":0.8163790696953092,"total":933,"current":843}
+{"_e":"metro:bundling:progress","_t":1782718398959,"id":"2","progress":0.8183170608703844,"total":933,"current":844}
+{"_e":"metro:bundling:progress","_t":1782718399058,"id":"2","progress":0.8193206536523945,"total":949,"current":859}
+{"_e":"metro:bundling:progress","_t":1782718399160,"id":"2","progress":0.8193206536523945,"total":988,"current":891}
+{"_e":"metro:bundling:progress","_t":1782718399267,"id":"2","progress":0.8296872436905303,"total":1021,"current":930}
+{"_e":"metro:bundling:progress","_t":1782718399366,"id":"2","progress":0.8785672638880236,"total":1037,"current":972}
+{"_e":"metro:bundling:progress","_t":1782718399482,"id":"2","progress":0.8785672638880236,"total":1097,"current":1019}
+{"_e":"metro:bundling:progress","_t":1782718399586,"id":"2","progress":0.8785672638880236,"total":1110,"current":1032}
+{"_e":"metro:bundling:progress","_t":1782718399687,"id":"2","progress":0.8785672638880236,"total":1201,"current":1080}
+{"_e":"metro:bundling:progress","_t":1782718399787,"id":"2","progress":0.8863533610945865,"total":1230,"current":1158}
+{"_e":"metro:bundling:progress","_t":1782718399887,"id":"2","progress":0.8863533610945865,"total":1315,"current":1223}
+{"_e":"metro:bundling:progress","_t":1782718399992,"id":"2","progress":0.9574673274715203,"total":1349,"current":1320}
+{"_e":"metro:bundling:progress","_t":1782718400092,"id":"2","progress":0.9574673274715203,"total":1417,"current":1383}
+{"_e":"metro:bundling:progress","_t":1782718400193,"id":"2","progress":0.9824149522979677,"total":1472,"current":1459}
+{"_e":"metro:bundling:failed","_t":1782718400217,"id":"2","message":"SyntaxError: C:\\Users\\Omnibook_1\\Desktop\\Trucksphere\\Trucks-Sphere-Frontend-Mobile\\app\\(tabs)\\drivers.tsx: Unexpected token (105:4)\n\n  103 |\n  104 |   const getJourneySteps = (delivery: any) => {\n> 105 |     if (!delivery) return [];\n      |     ^\n  106 |     return JOURNEY_STEPS.map((s, i) => {\n  107 |       const type = s.type;\n  108 |       const isCompleted = type === 'origin' ? true :","importStack":null,"filename":"app\\(tabs)\\drivers.tsx","targetModuleName":null,"originModulePath":null}
+{"_e":"metro:bundling:started","_t":1782718523065,"id":"4","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782718523065,"id":"4","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782718523068,"id":"4","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782718523168,"id":"4","progress":0.03453676873678441,"total":113,"current":21}
+{"_e":"metro:bundling:progress","_t":1782718523271,"id":"4","progress":0.04844211442045741,"total":209,"current":46}
+{"_e":"metro:bundling:progress","_t":1782718523372,"id":"4","progress":0.09960515064634576,"total":282,"current":89}
+{"_e":"metro:bundling:progress","_t":1782718523473,"id":"4","progress":0.14155474953435937,"total":303,"current":114}
+{"_e":"metro:bundling:progress","_t":1782718523574,"id":"4","progress":0.21928423435346517,"total":331,"current":155}
+{"_e":"metro:bundling:progress","_t":1782718523674,"id":"4","progress":0.3173973417972625,"total":355,"current":200}
+{"_e":"metro:bundling:progress","_t":1782718523774,"id":"4","progress":0.33504844450456917,"total":463,"current":268}
+{"_e":"metro:bundling:progress","_t":1782718523874,"id":"4","progress":0.4011111111111111,"total":510,"current":323}
+{"_e":"metro:bundling:progress","_t":1782718523974,"id":"4","progress":0.4011111111111111,"total":598,"current":371}
+{"_e":"metro:bundling:progress","_t":1782718524075,"id":"4","progress":0.4687751078906708,"total":685,"current":469}
+{"_e":"metro:bundling:progress","_t":1782718524181,"id":"4","progress":0.5136446164105206,"total":713,"current":511}
+{"_e":"metro:bundling:progress","_t":1782718524284,"id":"4","progress":0.5230865592788769,"total":813,"current":588}
+{"_e":"metro:bundling:progress","_t":1782718524426,"id":"4","progress":0.6634982036192113,"total":852,"current":694}
+{"_e":"metro:bundling:progress","_t":1782718524526,"id":"4","progress":0.7629566851974806,"total":901,"current":787}
+{"_e":"metro:bundling:progress","_t":1782718524626,"id":"4","progress":0.8186823029996992,"total":977,"current":884}
+{"_e":"metro:bundling:progress","_t":1782718524726,"id":"4","progress":0.8627551775147929,"total":1040,"current":966}
+{"_e":"metro:bundling:progress","_t":1782718524828,"id":"4","progress":0.8645149843517206,"total":1111,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782718524928,"id":"4","progress":0.8645149843517206,"total":1213,"current":1090}
+{"_e":"metro:bundling:progress","_t":1782718525028,"id":"4","progress":0.8651628143106054,"total":1274,"current":1185}
+{"_e":"metro:bundling:progress","_t":1782718525128,"id":"4","progress":0.9007942199433469,"total":1336,"current":1268}
+{"_e":"metro:bundling:progress","_t":1782718525228,"id":"4","progress":0.9640446704485371,"total":1378,"current":1353}
+{"_e":"metro:bundling:progress","_t":1782718525328,"id":"4","progress":0.9640446704485371,"total":1460,"current":1429}
+{"_e":"metro:bundling:failed","_t":1782718525359,"id":"4","message":"SyntaxError: C:\\Users\\Omnibook_1\\Desktop\\Trucksphere\\Trucks-Sphere-Frontend-Mobile\\app\\(tabs)\\drivers.tsx: Unexpected token (105:4)\n\n  103 |\n  104 |   const getJourneySteps = (delivery: any) => {\n> 105 |     if (!delivery) return [];\n      |     ^\n  106 |     return JOURNEY_STEPS.map((s, i) => {\n  107 |       const type = s.type;\n  108 |       const isCompleted = type === 'origin' ? true :","importStack":null,"filename":"app\\(tabs)\\drivers.tsx","targetModuleName":null,"originModulePath":null}
+{"_e":"metro:bundling:started","_t":1782718667367,"id":"6","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782718667368,"id":"6","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782718667372,"id":"6","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782718667471,"id":"6","progress":0.030540107455933642,"total":103,"current":18}
+{"_e":"metro:bundling:progress","_t":1782718667573,"id":"6","progress":0.03204541990550221,"total":162,"current":29}
+{"_e":"metro:bundling:progress","_t":1782718667680,"id":"6","progress":0.08571759024996747,"total":263,"current":77}
+{"_e":"metro:bundling:progress","_t":1782718667780,"id":"6","progress":0.11336711673412012,"total":297,"current":100}
+{"_e":"metro:bundling:progress","_t":1782718667882,"id":"6","progress":0.14489073881373568,"total":310,"current":118}
+{"_e":"metro:bundling:progress","_t":1782718667982,"id":"6","progress":0.20786947644607867,"total":329,"current":150}
+{"_e":"metro:bundling:progress","_t":1782718668082,"id":"6","progress":0.27614908481275907,"total":451,"current":237}
+{"_e":"metro:bundling:progress","_t":1782718668183,"id":"6","progress":0.33356518117451067,"total":490,"current":283}
+{"_e":"metro:bundling:progress","_t":1782718668288,"id":"6","progress":0.4034901070813337,"total":551,"current":350}
+{"_e":"metro:bundling:progress","_t":1782718668388,"id":"6","progress":0.4884481403251449,"total":631,"current":441}
+{"_e":"metro:bundling:progress","_t":1782718668502,"id":"6","progress":0.5411802557479396,"total":662,"current":487}
+{"_e":"metro:bundling:progress","_t":1782718668602,"id":"6","progress":0.5411802557479396,"total":769,"current":553}
+{"_e":"metro:bundling:progress","_t":1782718668739,"id":"6","progress":0.6542835031875218,"total":811,"current":656}
+{"_e":"metro:bundling:progress","_t":1782718668840,"id":"6","progress":0.6542835031875218,"total":845,"current":682}
+{"_e":"metro:bundling:progress","_t":1782718668940,"id":"6","progress":0.8121990487816595,"total":901,"current":812}
+{"_e":"metro:bundling:progress","_t":1782718669041,"id":"6","progress":0.8293014506944265,"total":985,"current":897}
+{"_e":"metro:bundling:progress","_t":1782718669141,"id":"6","progress":0.8825687022320001,"total":1057,"current":993}
+{"_e":"metro:bundling:progress","_t":1782718669242,"id":"6","progress":0.8825687022320001,"total":1152,"current":1050}
+{"_e":"metro:bundling:progress","_t":1782718669346,"id":"6","progress":0.8825687022320001,"total":1204,"current":1091}
+{"_e":"metro:bundling:progress","_t":1782718669447,"id":"6","progress":0.8825687022320001,"total":1235,"current":1157}
+{"_e":"metro:bundling:progress","_t":1782718669547,"id":"6","progress":0.8912615856790351,"total":1323,"current":1249}
+{"_e":"metro:bundling:progress","_t":1782718669647,"id":"6","progress":0.9594832598064361,"total":1368,"current":1340}
+{"_e":"metro:bundling:progress","_t":1782718669748,"id":"6","progress":0.9594832598064361,"total":1461,"current":1431}
+{"_e":"metro:bundling:done","_t":1782718669973,"id":"6","total":1461,"ms":2605.4513}
+{"_e":"metro:client_log","_t":1782718670325,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782718670326,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782718670486,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782718670486,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782718670487,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782718673099,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718673099,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718673099,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718673100,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718677653,"level":"warn","data":["Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"]}
+{"_e":"metro:client_log","_t":1782718710694,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718710694,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718710694,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718710694,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718710949,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718715635,"level":"warn","data":["API fetch failed for /vendors, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718715664,"level":"warn","data":["An error occurred in the <CellRenderer> component.\n\nConsider adding an error boundary to your tree to customize error handling behavior.\nVisit https://react.dev/link/error-boundaries to learn more about error boundaries.\n"]}
+{"_e":"metro:client_log","_t":1782718715736,"level":"error","data":["[ReferenceError: getDriverCount is not defined]","\n\n\u001b[1mCode: vendors.tsx\u001b[22m\n\u001b[0m \u001b[90m 138 |\u001b[39m             \u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mView\u001b[39m\u001b[33m>\u001b[39m\n \u001b[90m 139 |\u001b[39m             \u001b[33m<\u001b[39m\u001b[33mView\u001b[39m style\u001b[33m=\u001b[39m{styles\u001b[33m.\u001b[39mcardRight}\u001b[33m>\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 140 |\u001b[39m               \u001b[33m<\u001b[39m\u001b[33mText\u001b[39m style\u001b[33m=\u001b[39m{[styles\u001b[33m.\u001b[39mfleetStat\u001b[33m,\u001b[39m { color\u001b[33m:\u001b[39m colors\u001b[33m.\u001b[39mtext }]}\u001b[33m>\u001b[39m\n \u001b[90m     |\u001b[39m                                                                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 141 |\u001b[39m                 {getDriverCount(item\u001b[33m.\u001b[39mid)} drivers\n \u001b[90m 142 |\u001b[39m               \u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mText\u001b[39m\u001b[33m>\u001b[39m\n \u001b[90m 143 |\u001b[39m               \u001b[33m<\u001b[39m\u001b[33mView\u001b[39m style\u001b[33m=\u001b[39m{[\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[90m  FlatList.props.renderItem (app\\(tabs)\\vendors.tsx:140:71)\u001b[39m","\n\n\u001b[1mCode: vendors.tsx\u001b[22m\n\u001b[0m \u001b[90m 103 |\u001b[39m       \u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mView\u001b[39m\u001b[33m>\u001b[39m\n \u001b[90m 104 |\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 105 |\u001b[39m       \u001b[33m<\u001b[39m\u001b[33mFlatList\u001b[39m\n \u001b[90m     |\u001b[39m       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 106 |\u001b[39m         data\u001b[33m=\u001b[39m{filtered}\n \u001b[90m 107 |\u001b[39m         keyExtractor\u001b[33m=\u001b[39m{(item) \u001b[33m=>\u001b[39m item\u001b[33m.\u001b[39mid}\n \u001b[90m 108 |\u001b[39m         contentContainerStyle\u001b[33m=\u001b[39m{styles\u001b[33m.\u001b[39mlist}\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[90m  VendorsScreen (app\\(tabs)\\vendors.tsx:105:7)\u001b[39m\n\u001b[90m  TabsLayout (app\\(tabs)\\_layout.tsx:108:7)\u001b[39m\n\u001b[90m  RootLayout (app\\_layout.tsx:32:7)\u001b[39m"]}
+{"_e":"metro:bundling:started","_t":1782718728746,"id":"n","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782718728749,"id":"n","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782718728871,"id":"n","total":1,"ms":124.3012}
+{"_e":"metro:client_log","_t":1782718729294,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782718729294,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782718729313,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782718729314,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782718729413,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782718731781,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718731781,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718731781,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718731781,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718737981,"level":"warn","data":["API fetch failed for /vendors, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718737993,"level":"warn","data":["An error occurred in the <CellRenderer> component.\n\nConsider adding an error boundary to your tree to customize error handling behavior.\nVisit https://react.dev/link/error-boundaries to learn more about error boundaries.\n"]}
+{"_e":"metro:client_log","_t":1782718738036,"level":"error","data":["[ReferenceError: getDriverCount is not defined]","\n\n\u001b[1mCode: vendors.tsx\u001b[22m\n\u001b[0m \u001b[90m 138 |\u001b[39m             \u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mView\u001b[39m\u001b[33m>\u001b[39m\n \u001b[90m 139 |\u001b[39m             \u001b[33m<\u001b[39m\u001b[33mView\u001b[39m style\u001b[33m=\u001b[39m{styles\u001b[33m.\u001b[39mcardRight}\u001b[33m>\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 140 |\u001b[39m               \u001b[33m<\u001b[39m\u001b[33mText\u001b[39m style\u001b[33m=\u001b[39m{[styles\u001b[33m.\u001b[39mfleetStat\u001b[33m,\u001b[39m { color\u001b[33m:\u001b[39m colors\u001b[33m.\u001b[39mtext }]}\u001b[33m>\u001b[39m\n \u001b[90m     |\u001b[39m                                                                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 141 |\u001b[39m                 {getDriverCount(item\u001b[33m.\u001b[39mid)} drivers\n \u001b[90m 142 |\u001b[39m               \u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mText\u001b[39m\u001b[33m>\u001b[39m\n \u001b[90m 143 |\u001b[39m               \u001b[33m<\u001b[39m\u001b[33mView\u001b[39m style\u001b[33m=\u001b[39m{[\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[90m  FlatList.props.renderItem (app\\(tabs)\\vendors.tsx:140:71)\u001b[39m","\n\n\u001b[1mCode: vendors.tsx\u001b[22m\n\u001b[0m \u001b[90m 103 |\u001b[39m       \u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mView\u001b[39m\u001b[33m>\u001b[39m\n \u001b[90m 104 |\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 105 |\u001b[39m       \u001b[33m<\u001b[39m\u001b[33mFlatList\u001b[39m\n \u001b[90m     |\u001b[39m       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 106 |\u001b[39m         data\u001b[33m=\u001b[39m{filtered}\n \u001b[90m 107 |\u001b[39m         keyExtractor\u001b[33m=\u001b[39m{(item) \u001b[33m=>\u001b[39m item\u001b[33m.\u001b[39mid}\n \u001b[90m 108 |\u001b[39m         contentContainerStyle\u001b[33m=\u001b[39m{styles\u001b[33m.\u001b[39mlist}\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[90m  VendorsScreen (app\\(tabs)\\vendors.tsx:105:7)\u001b[39m\n\u001b[90m  TabsLayout (app\\(tabs)\\_layout.tsx:108:7)\u001b[39m\n\u001b[90m  RootLayout (app\\_layout.tsx:32:7)\u001b[39m"]}
+{"_e":"metro:client_log","_t":1782718810867,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718810867,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718810868,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782718810868,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:bundling:started","_t":1782719015158,"id":"10","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782719015159,"id":"10","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782719015321,"id":"10","total":1,"ms":162.2927}
+{"_e":"metro:client_log","_t":1782719015770,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782719015771,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782719015789,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782719015789,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782719015887,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782719018264,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719018264,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719018264,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719018265,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719021256,"level":"warn","data":["API fetch failed for /vendors, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719031392,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719530950,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719645389,"level":"warn","data":["An error occurred in the <ForwardRef> component.\n\nConsider adding an error boundary to your tree to customize error handling behavior.\nVisit https://react.dev/link/error-boundaries to learn more about error boundaries.\n"]}
+{"_e":"metro:client_log","_t":1782719645452,"level":"error","data":["[Error: Cannot use `href` and `tabBarButton` together.]","\n\n\u001b[1mCode: TabsClient.js\u001b[22m\n\u001b[0m \u001b[90m 16 |\u001b[39m             \u001b[36mconst\u001b[39m { href\u001b[33m,\u001b[39m \u001b[33m...\u001b[39moptions } \u001b[33m=\u001b[39m screen\u001b[33m.\u001b[39moptions\u001b[33m;\u001b[39m\n \u001b[90m 17 |\u001b[39m             \u001b[36mif\u001b[39m (options\u001b[33m.\u001b[39mtabBarButton) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 18 |\u001b[39m                 \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'Cannot use `href` and `tabBarButton` together.'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 19 |\u001b[39m             }\n \u001b[90m 20 |\u001b[39m             \u001b[36mreturn\u001b[39m {\n \u001b[90m 21 |\u001b[39m                 \u001b[33m...\u001b[39mscreen\u001b[33m,\u001b[39m\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[2m\u001b[90m  screens.map$argument_0 (node_modules\\expo-router\\build\\layouts\\TabsClient.js:18:23)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  Array.map (<anonymous>)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  <anonymous> (node_modules\\expo-router\\build\\layouts\\TabsClient.js:14:20)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  <anonymous> (node_modules\\expo-router\\build\\layouts\\withLayoutContext.js:122:39)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  callComponent.react_stack_bottom_frame (node_modules\\react-dom\\cjs\\react-dom-client.development.js:25904:20)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  renderWithHooks (node_modules\\react-dom\\cjs\\react-dom-client.development.js:7662:22)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  updateForwardRef (node_modules\\react-dom\\cjs\\react-dom-client.development.js:9724:19)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  beginWork (node_modules\\react-dom\\cjs\\react-dom-client.development.js:12117:18)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  runWithFiberInDEV (node_modules\\react-dom\\cjs\\react-dom-client.development.js:871:30)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  performUnitOfWork (node_modules\\react-dom\\cjs\\react-dom-client.development.js:17641:22)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  workLoopSync (node_modules\\react-dom\\cjs\\react-dom-client.development.js:17469:41)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  renderRootSync (node_modules\\react-dom\\cjs\\react-dom-client.development.js:17450:11)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  performWorkOnRoot (node_modules\\react-dom\\cjs\\react-dom-client.development.js:16583:35)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  performSyncWorkOnRoot (node_modules\\react-dom\\cjs\\react-dom-client.development.js:18972:7)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  flushSyncWorkAcrossRoots_impl (node_modules\\react-dom\\cjs\\react-dom-client.development.js:18814:21)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  flushSyncWork$1 (node_modules\\react-dom\\cjs\\react-dom-client.development.js:16898:12)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  scheduleRefresh (node_modules\\react-dom\\cjs\\react-dom-client.development.js:113:9)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  mountedRootsSnapshot.forEach$argument_0 (node_modules\\react-refresh\\cjs\\react-refresh-runtime.development.js:265:17)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  Set.forEach (<anonymous>)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  performReactRefresh (node_modules\\react-refresh\\cjs\\react-refresh-runtime.development.js:254:26)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  Refresh.performReactRefresh (node_modules\\expo\\src\\async-require\\setupFastRefresh.ts:24:25)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  setTimeout$argument_0 (node_modules\\@expo\\cli\\build\\metro-require\\require.js:425:29)\u001b[39m\u001b[22m","\n\n\u001b[1mCode: _layout.tsx\u001b[22m\n\u001b[0m \u001b[90m 108 |\u001b[39m   \u001b[36mreturn\u001b[39m (\n \u001b[90m 109 |\u001b[39m     \u001b[33m<\u001b[39m\u001b[33mView\u001b[39m style\u001b[33m=\u001b[39m{{ flex\u001b[33m:\u001b[39m \u001b[35m1\u001b[39m }}\u001b[33m>\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 110 |\u001b[39m       \u001b[33m<\u001b[39m\u001b[33mTabs\u001b[39m\n \u001b[90m     |\u001b[39m       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 111 |\u001b[39m         screenOptions\u001b[33m=\u001b[39m{{\n \u001b[90m 112 |\u001b[39m           tabBarActiveTintColor\u001b[33m:\u001b[39m colors\u001b[33m.\u001b[39mprimary\u001b[33m,\u001b[39m\n \u001b[90m 113 |\u001b[39m           tabBarInactiveTintColor\u001b[33m:\u001b[39m colors\u001b[33m.\u001b[39mtextSecondary\u001b[33m,\u001b[39m\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[90m  TabsLayout (app\\(tabs)\\_layout.tsx:110:7)\u001b[39m\n\u001b[90m  RootLayout (app\\_layout.tsx:24:9)\u001b[39m"]}
+{"_e":"root:init","_t":1782719735778,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782719735779,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782719735781,"mode":"development","files":["../..\\..\\.env"],"env":{}}
+{"_e":"root:init","_t":1782719800091,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782719800092,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782719800095,"mode":"development","files":["../..\\..\\.env"],"env":{}}
+{"_e":"devserver:start","_t":1782719800510,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782719801034,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782719810082,"atlas":false,"workers":8,"host":"::","port":8082}
+{"_e":"metro:bundling:started","_t":1782719854070,"id":"1f","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782719854070,"id":"1f","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782719854246,"id":"1f","total":1,"ms":176.338}
+{"_e":"metro:client_log","_t":1782719854716,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782719854717,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782719854735,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782719854736,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782719854832,"level":"warn","data":["An error occurred in the <ForwardRef> component.\n\nConsider adding an error boundary to your tree to customize error handling behavior.\nVisit https://react.dev/link/error-boundaries to learn more about error boundaries.\n"]}
+{"_e":"metro:client_log","_t":1782719854879,"level":"error","data":["[Error: Cannot use `href` and `tabBarButton` together.]","\n\n\u001b[1mCode: TabsClient.js\u001b[22m\n\u001b[0m \u001b[90m 16 |\u001b[39m             \u001b[36mconst\u001b[39m { href\u001b[33m,\u001b[39m \u001b[33m...\u001b[39moptions } \u001b[33m=\u001b[39m screen\u001b[33m.\u001b[39moptions\u001b[33m;\u001b[39m\n \u001b[90m 17 |\u001b[39m             \u001b[36mif\u001b[39m (options\u001b[33m.\u001b[39mtabBarButton) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 18 |\u001b[39m                 \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'Cannot use `href` and `tabBarButton` together.'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 19 |\u001b[39m             }\n \u001b[90m 20 |\u001b[39m             \u001b[36mreturn\u001b[39m {\n \u001b[90m 21 |\u001b[39m                 \u001b[33m...\u001b[39mscreen\u001b[33m,\u001b[39m\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[2m\u001b[90m  screens.map$argument_0 (node_modules\\expo-router\\build\\layouts\\TabsClient.js:18:23)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  Array.map (<anonymous>)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  <anonymous> (node_modules\\expo-router\\build\\layouts\\TabsClient.js:14:20)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  <anonymous> (node_modules\\expo-router\\build\\layouts\\withLayoutContext.js:122:39)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  callComponent.react_stack_bottom_frame (node_modules\\react-dom\\cjs\\react-dom-client.development.js:25904:20)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  renderWithHooks (node_modules\\react-dom\\cjs\\react-dom-client.development.js:7662:22)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  updateForwardRef (node_modules\\react-dom\\cjs\\react-dom-client.development.js:9724:19)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  beginWork (node_modules\\react-dom\\cjs\\react-dom-client.development.js:12117:18)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  runWithFiberInDEV (node_modules\\react-dom\\cjs\\react-dom-client.development.js:871:30)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  performUnitOfWork (node_modules\\react-dom\\cjs\\react-dom-client.development.js:17641:22)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  workLoopSync (node_modules\\react-dom\\cjs\\react-dom-client.development.js:17469:41)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  renderRootSync (node_modules\\react-dom\\cjs\\react-dom-client.development.js:17450:11)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  performWorkOnRoot (node_modules\\react-dom\\cjs\\react-dom-client.development.js:16583:35)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  performWorkOnRootViaSchedulerTask (node_modules\\react-dom\\cjs\\react-dom-client.development.js:18957:7)\u001b[39m\u001b[22m\n\u001b[2m\u001b[90m  performWorkUntilDeadline (node_modules\\scheduler\\cjs\\scheduler.development.js:45:48)\u001b[39m\u001b[22m","\n\n\u001b[1mCode: _layout.tsx\u001b[22m\n\u001b[0m \u001b[90m 108 |\u001b[39m   \u001b[36mreturn\u001b[39m (\n \u001b[90m 109 |\u001b[39m     \u001b[33m<\u001b[39m\u001b[33mView\u001b[39m style\u001b[33m=\u001b[39m{{ flex\u001b[33m:\u001b[39m \u001b[35m1\u001b[39m }}\u001b[33m>\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 110 |\u001b[39m       \u001b[33m<\u001b[39m\u001b[33mTabs\u001b[39m\n \u001b[90m     |\u001b[39m       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 111 |\u001b[39m         screenOptions\u001b[33m=\u001b[39m{{\n \u001b[90m 112 |\u001b[39m           tabBarActiveTintColor\u001b[33m:\u001b[39m colors\u001b[33m.\u001b[39mprimary\u001b[33m,\u001b[39m\n \u001b[90m 113 |\u001b[39m           tabBarInactiveTintColor\u001b[33m:\u001b[39m colors\u001b[33m.\u001b[39mtextSecondary\u001b[33m,\u001b[39m\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[90m  TabsLayout (app\\(tabs)\\_layout.tsx:110:7)\u001b[39m\n\u001b[90m  RootLayout (app\\_layout.tsx:32:7)\u001b[39m"]}
+{"_e":"metro:client_log","_t":1782719918526,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782719921080,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719957796,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719962501,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719962501,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719962501,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782719962501,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"root:init","_t":1782719996641,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782719996642,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782719996645,"mode":"development","files":["../..\\..\\.env"],"env":{}}
+{"_e":"devserver:start","_t":1782719996955,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782719997283,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782720006309,"atlas":false,"workers":8,"host":"::","port":8082}
+{"_e":"metro:bundling:started","_t":1782720195863,"id":"1u","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782720195863,"id":"1u","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782720195913,"id":"1u","total":1,"ms":50.1169}
+{"_e":"metro:client_log","_t":1782720196631,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782720196633,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782720196759,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782720196764,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782720197283,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782720199897,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720199897,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720199898,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720199898,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720255347,"level":"warn","data":["[Layout children]: No route named \"index\" exists in nested children:","[\"(auth)\", \"(tabs)\", \"quarry\", \"screens\", \"site\"]"]}
+{"_e":"metro:client_log","_t":1782720255472,"level":"warn","data":["[Layout children]: No route named \"index\" exists in nested children:","[\"(auth)\", \"(tabs)\", \"quarry\", \"screens\", \"site\"]"]}
+{"_e":"metro:client_log","_t":1782720256321,"level":"warn","data":["[Layout children]: No route named \"index\" exists in nested children:","[\"(auth)\", \"(tabs)\", \"quarry\", \"screens\", \"site\"]"]}
+{"_e":"metro:client_log","_t":1782720257880,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720257880,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720257880,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720257881,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:bundling:started","_t":1782720331635,"id":"20","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782720331636,"id":"20","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782720331848,"id":"20","total":1,"ms":212.1041}
+{"_e":"metro:client_log","_t":1782720332507,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782720332507,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782720332528,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782720332529,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782720332601,"level":"warn","data":["[Layout children]: No route named \"index\" exists in nested children:","[\"(auth)\", \"(tabs)\", \"quarry\", \"screens\", \"site\"]"]}
+{"_e":"metro:client_log","_t":1782720332636,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782720332653,"level":"warn","data":["[Layout children]: No route named \"index\" exists in nested children:","[\"(auth)\", \"(tabs)\", \"quarry\", \"screens\", \"site\"]"]}
+{"_e":"metro:client_log","_t":1782720332971,"level":"warn","data":["[Layout children]: No route named \"index\" exists in nested children:","[\"(auth)\", \"(tabs)\", \"quarry\", \"screens\", \"site\"]"]}
+{"_e":"metro:client_log","_t":1782720335027,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720335028,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720335028,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720335028,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720384998,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720384998,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720384999,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720384999,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:bundling:started","_t":1782720412138,"id":"26","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782720412138,"id":"26","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782720412277,"id":"26","total":1,"ms":139.3164}
+{"_e":"metro:client_log","_t":1782720412768,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782720412768,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782720412790,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782720412792,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782720412931,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782720415330,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720415330,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720415330,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720415331,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720441814,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720441831,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720441831,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720441831,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720636849,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720636879,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720636879,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720636879,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:bundling:started","_t":1782720651619,"id":"2c","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782720651620,"id":"2c","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782720651790,"id":"2c","total":1,"ms":170.5749}
+{"_e":"metro:client_log","_t":1782720652304,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782720652304,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782720652327,"level":"warn","data":["Require cycle: store/authStore.ts -> services/api.ts -> store/authStore.ts\n\nRequire cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle."]}
+{"_e":"metro:client_log","_t":1782720652328,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782720652434,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782720654363,"level":"warn","data":["Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"]}
+{"_e":"metro:client_log","_t":1782720654793,"level":"warn","data":["API fetch failed for /drivers, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720654793,"level":"warn","data":["API fetch failed for /vehicles, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720654807,"level":"warn","data":["API fetch failed for /purchase-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"metro:client_log","_t":1782720654807,"level":"warn","data":["API fetch failed for /delivery-orders, using mock fallback:","[TypeError: Failed to fetch]"]}
+{"_e":"root:init","_t":1782720890228,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782720890230,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782720890233,"mode":"development","files":["../..\\..\\.env"],"env":{}}
+{"_e":"devserver:start","_t":1782720890632,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782720891045,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782720898568,"atlas":false,"workers":8,"host":"::","port":8082}
+{"_e":"root:init","_t":1782721035410,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782721035411,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782721035414,"mode":"development","files":["../..\\..\\.env"],"env":{}}
+{"_e":"devserver:start","_t":1782721035704,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782721035991,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782721043681,"atlas":false,"workers":8,"host":"::","port":8082}

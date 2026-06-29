@@ -22,9 +22,13 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
 
 const MOCK_USERS: Record<string, { displayName: string; role: string }> = {
   'admin@truck.com': { displayName: 'James Admin', role: 'management' },
+  admin: { displayName: 'James Admin', role: 'management' },
   'quarry@truck.com': { displayName: 'Peter Quarry', role: 'operator_quarry' },
+  quarry: { displayName: 'Peter Quarry', role: 'operator_quarry' },
   'site@truck.com': { displayName: 'Anna Site', role: 'operator_site' },
+  site: { displayName: 'Anna Site', role: 'operator_site' },
   'vendor@truck.com': { displayName: 'John Vendor', role: 'vendor' },
+  vendor: { displayName: 'John Vendor', role: 'vendor' },
 };
 
 interface AuthStore {
@@ -32,7 +36,7 @@ interface AuthStore {
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
   clearError: () => void;
@@ -44,14 +48,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isAuthenticated: false,
   error: null,
 
-  login: async (email: string, password: string) => {
+  login: async (username: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
       let user: User;
+      const credential = username.trim().toLowerCase();
 
       try {
         // Try backend API first
-        const res = await api.post('/auth/login', { email, password });
+        const res = await api.post('/auth/login', { username: credential, email: credential, password });
         user = res.data.user;
         const token = res.data.token || res.data.user?.uid || `token_${Date.now()}`;
 
@@ -63,15 +68,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
         });
       } catch {
         // Fallback to mock for dev
-        const match = MOCK_USERS[email.toLowerCase()];
+        const match = MOCK_USERS[credential];
         if (!match || password.length < 4) {
-          throw new Error('Invalid email or password');
+          throw new Error('Invalid username or password');
         }
 
         const mockToken = `mock_token_${Date.now()}`;
         user = {
-          uid: `mock_${email}`,
-          email: email.toLowerCase(),
+          uid: `mock_${credential}`,
+          email: credential.includes('@') ? credential : `${credential}@truck.com`,
           displayName: match.displayName,
           role: match.role as any,
           phone: '',

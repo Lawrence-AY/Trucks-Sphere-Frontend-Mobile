@@ -1,19 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
   TextInput,
-  TouchableOpacity,
-  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Radius, Spacing } from '../../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
+import { Spacing, Radius } from '../../constants/theme';
 import { fetchVendors } from '../../services/api';
-import { formatStatus, getStatusColor } from '../../utils/helpers';
+import { getStatusColor, formatStatus } from '../../utils/helpers';
+import { MOCK_DRIVERS } from '../../store/mockData';
 
 export default function VendorsScreen() {
   const colors = useTheme();
@@ -28,10 +24,9 @@ export default function VendorsScreen() {
       setVendors(data || []);
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
+    setLoading(false);
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -53,46 +48,40 @@ export default function VendorsScreen() {
     );
   });
 
-  const renderItem = ({ item }: { item: any }) => {
-    const statusColor = getStatusColor(item.status);
+  const getDriverCount = (vendorId: string): number => {
+    return MOCK_DRIVERS.filter(d => d.vendorId === vendorId).length;
+  };
 
-    return (
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: colors.surface }]}
-        activeOpacity={0.7}
-        onPress={() => router.push(`/screens/vendor-detail?id=${item.id}&name=${encodeURIComponent(item.name || 'Vendor')}`)}
-      >
-        <View style={styles.cardTop}>
-          <View style={[styles.avatar, { backgroundColor: '#F59E0B15' }]}>
-            <Text style={[styles.avatarText, { color: '#F59E0B' }]}>
-              {item.name?.charAt(0)?.toUpperCase() || 'V'}
+  const renderItem = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      onPress={() => router.push(`/screens/vendor-detail?id=${item.id}&name=${encodeURIComponent(item.name || 'Vendor')}`)}
+      activeOpacity={0.85}
+    >
+      <View style={styles.cardRow}>
+        <View style={styles.cardLeft}>
+          <View style={[styles.avatar, { backgroundColor: colors.accent + '15' }]}>
+            <Text style={[styles.avatarText, { color: colors.accent }]}>
+              {(item.name || '').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
             </Text>
           </View>
           <View style={styles.cardInfo}>
-            <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
-            <Text style={[styles.phone, { color: colors.textSecondary }]}>{item.phone}</Text>
-            {item.email && (
-              <Text style={[styles.email, { color: colors.textSecondary }]}>{item.email}</Text>
-            )}
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.statusText, { color: statusColor }]}>
-              {formatStatus(item.status).toUpperCase()}
-            </Text>
+            <Text style={[styles.cardName, { color: colors.text }]}>{item.name}</Text>
+            <Text style={[styles.cardPhone, { color: colors.textSecondary }]}>{item.phone}</Text>
           </View>
         </View>
-        {item.fleetSize !== undefined && (
-          <View style={styles.cardFooter}>
-            <Ionicons name="car-outline" size={13} color={colors.textSecondary} />
-            <Text style={[styles.fleetText, { color: colors.textSecondary }]}>
-              Fleet: {item.fleetSize} truck{item.fleetSize !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
+        <View style={styles.cardRight}>
+          <Text style={[styles.fleetStat, { color: colors.text }]}>
+            {getDriverCount(item.id)} drivers
+          </Text>
+          <View style={[
+            styles.statusDot,
+            { backgroundColor: item.status === 'active' ? '#16A34A' : '#94A3B8' },
+          ]} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -148,24 +137,35 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.sm,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
   },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 18, fontWeight: '700' },
   cardInfo: { flex: 1 },
-  name: { fontSize: 15, fontWeight: '700' },
-  phone: { fontSize: 13, marginTop: 1 },
-  email: { fontSize: 12, marginTop: 1 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 10, fontWeight: '700' },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  fleetText: { fontSize: 13 },
+  cardName: { fontSize: 15, fontWeight: '700' },
+  cardPhone: { fontSize: 13, marginTop: 1 },
+  cardRight: {
+    alignItems: 'flex-end',
+    gap: Spacing.xs,
+  },
+  fleetStat: { fontSize: 12, fontWeight: '600' },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
   empty: { alignItems: 'center', paddingVertical: 80, gap: Spacing.sm },
   emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
   emptyText: { fontSize: 16, fontWeight: '600' },
