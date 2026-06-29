@@ -15,7 +15,6 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
   size = 'sm',
   showDot = true,
 }) => {
-  const colors = useTheme();
   const statusColor = getStatusColor(status);
   const label = formatStatus(status);
 
@@ -77,7 +76,8 @@ const styles = StyleSheet.create({
     marginRight: Spacing.xs,
   },
   label: {
-    fontWeight: '600',
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
 });
 

@@ -1,172 +1,108 @@
-import { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl,
-  TextInput,
-} from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
-import { fetchVendors } from '../../services/api';
-import { getStatusColor, formatStatus } from '../../utils/helpers';
-import { MOCK_DRIVERS } from '../../store/mockData';
+import { Spacing } from '../../constants/theme';
+import { fetchDrivers, fetchVendors, fetchVehicles } from '../../services/api';
+import {
+  CommandHeader,
+  DataCard,
+  DetailRow,
+  EmptyState,
+  MetricTile,
+  PageShell,
+  ProgressBar,
+  SearchField,
+  SectionTitle,
+  StatusPill,
+} from '../../components/EnterpriseUI';
 
 export default function VendorsScreen() {
   const colors = useTheme();
   const [vendors, setVendors] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const loadData = async () => {
+    setRefreshing(true);
     try {
-      const data = await fetchVendors();
-      setVendors(data || []);
-    } catch (e) {
-      console.error(e);
+      const [vendorData, driverData, vehicleData] = await Promise.all([fetchVendors(), fetchDrivers(), fetchVehicles()]);
+      setVendors(vendorData || []);
+      setDrivers(driverData || []);
+      setVehicles(vehicleData || []);
+    } catch (error) {
+      console.error('Vendors load error:', error);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
     }
-    setLoading(false);
-    setRefreshing(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadData();
-  };
-
-  const filtered = vendors.filter((v) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      (v.name || '').toLowerCase().includes(q) ||
-      (v.phone || '').includes(q) ||
-      (v.email || '').toLowerCase().includes(q)
-    );
-  });
-
-  const getDriverCount = (vendorId: string): number => {
-    return MOCK_DRIVERS.filter(d => d.vendorId === vendorId).length;
-  };
-
-  const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      onPress={() => router.push(`/screens/vendor-detail?id=${item.id}&name=${encodeURIComponent(item.name || 'Vendor')}`)}
-      activeOpacity={0.85}
-    >
-      <View style={styles.cardRow}>
-        <View style={styles.cardLeft}>
-          <View style={[styles.avatar, { backgroundColor: colors.accent + '15' }]}>
-            <Text style={[styles.avatarText, { color: colors.accent }]}>
-              {(item.name || '').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-            </Text>
-          </View>
-          <View style={styles.cardInfo}>
-            <Text style={[styles.cardName, { color: colors.text }]}>{item.name}</Text>
-            <Text style={[styles.cardPhone, { color: colors.textSecondary }]}>{item.phone}</Text>
-          </View>
-        </View>
-        <View style={styles.cardRight}>
-          <Text style={[styles.fleetStat, { color: colors.text }]}>
-            {getDriverCount(item.id)} drivers
-          </Text>
-          <View style={[
-            styles.statusDot,
-            { backgroundColor: item.status === 'active' ? '#16A34A' : '#94A3B8' },
-          ]} />
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  const filtered = useMemo(() => {
+    const query = search.toLowerCase();
+    return vendors.filter((item) => !query || [item.name, item.phone, item.email]
+      .some((value) => String(value || '').toLowerCase().includes(query)));
+  }, [search, vendors]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search vendors..."
-          placeholderTextColor={colors.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+      <CommandHeader eyebrow="External capacity" title="Vendors" subtitle="Vendors are managed entities, not app login users." />
+      <View style={styles.metricRow}>
+        <MetricTile icon="briefcase" label="Vendors" value={vendors.length} tone={colors.primary} />
+        <MetricTile icon="car" label="Linked vehicles" value={vehicles.length} tone={colors.accent} />
       </View>
+      <SearchField value={search} onChangeText={setSearch} placeholder="Search vendor, phone, email..." />
+      <SectionTitle title={`${filtered.length} vendor records`} />
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-        showsVerticalScrollIndicator={false}
-        renderItem={renderItem}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: '#F59E0B10' }]}>
-                <Ionicons name="briefcase-outline" size={40} color="#F59E0B" />
+      {loading ? (
+        <DataCard><Text style={[styles.muted, { color: colors.textMuted }]}>Loading vendors...</Text></DataCard>
+      ) : filtered.length ? (
+        filtered.map((item) => {
+          const vendorDrivers = drivers.filter((driver) => driver.vendorId === item.id).length;
+          const vendorVehicles = vehicles.filter((vehicle) => vehicle.vendorId === item.id).length;
+          const utilization = Math.min(100, Math.round(((vendorDrivers + vendorVehicles) / 10) * 100));
+          return (
+            <DataCard key={item.id} onPress={() => router.push(`/screens/vendor-detail?id=${item.id}&name=${encodeURIComponent(item.name || 'Vendor')}`)}>
+              <View style={styles.cardHead}>
+                <View style={[styles.avatar, { backgroundColor: `${colors.accent}18` }]}>
+                  <Text style={[styles.avatarText, { color: colors.accent }]}>
+                    {(item.name || 'V').split(' ').map((part: string) => part[0]).join('').slice(0, 2)}
+                  </Text>
+                </View>
+                <View style={styles.cardCopy}>
+                  <Text style={[styles.title, { color: colors.text }]}>{item.name}</Text>
+                  <Text style={[styles.subtle, { color: colors.textMuted }]}>{item.email || item.phone || 'No contact'}</Text>
+                </View>
+                <StatusPill status={item.status || 'active'} compact />
               </View>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No vendors found</Text>
-            </View>
-          ) : null
-        }
-      />
-    </View>
+              <ProgressBar value={utilization} color={colors.accent} />
+              <DetailRow icon="people-outline" value={`${vendorDrivers} drivers`} />
+              <DetailRow icon="car-outline" value={`${vendorVehicles} vehicles`} />
+              <DetailRow icon="call-outline" value={item.phone || 'No phone'} />
+            </DataCard>
+          );
+        })
+      ) : (
+        <EmptyState icon="briefcase-outline" title="No vendors found" subtitle="Try another search term." />
+      )}
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: Spacing.lg, marginTop: Spacing.md,
-    borderRadius: Radius.md, borderWidth: 1,
-    paddingHorizontal: Spacing.md, height: 44, gap: Spacing.sm,
-  },
-  searchInput: { flex: 1, fontSize: 14 },
-  list: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  card: {
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cardLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    flex: 1,
-  },
-  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 18, fontWeight: '700' },
-  cardInfo: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: '700' },
-  cardPhone: { fontSize: 13, marginTop: 1 },
-  cardRight: {
-    alignItems: 'flex-end',
-    gap: Spacing.xs,
-  },
-  fleetStat: { fontSize: 12, fontWeight: '600' },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  empty: { alignItems: 'center', paddingVertical: 80, gap: Spacing.sm },
-  emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  emptyText: { fontSize: 16, fontWeight: '600' },
+  metricRow: { flexDirection: 'row', gap: Spacing.md },
+  muted: { fontSize: 13, fontWeight: '700' },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  avatar: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 16, fontWeight: '900' },
+  cardCopy: { flex: 1 },
+  title: { fontSize: 16, fontWeight: '900' },
+  subtle: { fontSize: 12, fontWeight: '700', marginTop: 2 },
 });

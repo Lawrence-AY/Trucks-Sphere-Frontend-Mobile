@@ -1,36 +1,64 @@
-import { useEffect, useState } from 'react';
-import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
+import { Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders } from '../../services/api';
-import { formatEAT, formatStatus, getStatusColor } from '../../utils/helpers';
+import { formatEAT } from '../../utils/helpers';
+import {
+  CommandHeader,
+  DataCard,
+  DetailRow,
+  EmptyState,
+  FilterRail,
+  PageShell,
+  ProgressBar,
+  SearchField,
+  SectionTitle,
+  StatusPill,
+} from '../../components/EnterpriseUI';
+
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'active', label: 'Active' },
+  { key: 'weighbridge', label: 'Weighbridge' },
+  { key: 'delivered', label: 'Delivered' },
+  { key: 'flagged', label: 'Flagged' },
+];
+
+function progressForDelivery(item: any) {
+  if (item.status === 'delivered' || item.status === 'completed') return 100;
+  if (item.receivedAt) return 92;
+  if (item.deliveredAt || item.status === 'destination_weighbridge') return 78;
+  if (item.weighOutWeight || item.status === 'in_transit') return 58;
+  if (item.weighInWeight || item.status === 'at_quarry') return 38;
+  if (item.driverId || item.vehicleId || item.status === 'assigned') return 18;
+  return 8;
+}
+
+function isFlagged(item: any) {
+  const net = Number(item.netWeight || 0);
+  return net > 0 && (net < 19 || net > 23);
+}
 
 export default function ActiveScreen() {
   const colors = useTheme();
   const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
 
   const loadData = async () => {
+    setRefreshing(true);
     try {
       const data = await fetchDeliveryOrders();
       setDeliveries(data || []);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error('Active deliveries load error:', error);
     } finally {
-      setLoading(false);
       setRefreshing(false);
+      setLoading(false);
     }
   };
 
@@ -38,185 +66,106 @@ export default function ActiveScreen() {
     loadData();
   }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadData();
-  };
+  const filtered = useMemo(() => {
+    const query = search.toLowerCase();
+    return deliveries.filter((item) => {
+      const matchesSearch = !query || [
+        item.jobId,
+        item.poNumber,
+        item.driverName,
+        item.plateNumber,
+        item.vendorName,
+        item.materialName,
+      ].some((value) => String(value || '').toLowerCase().includes(query));
 
-  const filtered = deliveries.filter((d) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return (
-      (d.jobId || '').toLowerCase().includes(q) ||
-      (d.driverName || '').toLowerCase().includes(q) ||
-      (d.plateNumber || '').toLowerCase().includes(q) ||
-      (d.materialName || '').toLowerCase().includes(q)
-    );
-  });
+      if (!matchesSearch) return false;
+      if (filter === 'active') return !['delivered', 'completed', 'cancelled'].includes(item.status);
+      if (filter === 'weighbridge') return Boolean(item.weighInWeight || item.weighOutWeight || item.status?.includes('weigh'));
+      if (filter === 'delivered') return ['delivered', 'completed'].includes(item.status);
+      if (filter === 'flagged') return isFlagged(item);
+      return true;
+    });
+  }, [deliveries, filter, search]);
 
-  const activeDeliveries = filtered.filter((d) => d.status !== 'delivered');
-  const completedDeliveries = filtered.filter((d) => d.status === 'delivered');
-
-  const renderItem = ({ item }: { item: any }) => {
-    const isCompleted = item.status === 'delivered';
-    const netWt = item.netWeight || (item.weighInWeight && item.weighOutWeight
-      ? (item.weighInWeight - item.weighOutWeight).toFixed(1) : null);
-    const statusColor = getStatusColor(item.status);
-
-    return (
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: colors.surface, opacity: isCompleted ? 0.75 : 1 }]}
-        onPress={() => router.push(`/screens/delivery-note?id=${item.jobId}`)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.cardTop}>
-          <View style={styles.cardTopLeft}>
-            <View style={[styles.cardIcon, { backgroundColor: `${statusColor}12` }]}>
-              <Ionicons
-                name={isCompleted ? 'checkmark-circle' : 'navigate-circle'}
-                size={20}
-                color={statusColor}
-              />
-            </View>
-            <View>
-              <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
-              <Text style={[styles.plate, { color: colors.textSecondary }]}>{item.plateNumber}</Text>
-            </View>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15` }]}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.statusText, { color: statusColor }]}>
-              {formatStatus(item.status).toUpperCase()}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.cardBody}>
-          <View style={styles.cardRow}>
-            <Ionicons name="person-outline" size={13} color={colors.textSecondary} />
-            <Text style={[styles.cardText, { color: colors.textSecondary }]}>{item.driverName}</Text>
-          </View>
-          <View style={styles.cardRow}>
-            <Ionicons name="cube-outline" size={13} color={colors.textSecondary} />
-            <Text style={[styles.cardText, { color: colors.textSecondary }]}>{item.materialName}</Text>
-          </View>
-          <View style={styles.cardRow}>
-            <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
-            <Text style={[styles.cardText, { color: colors.textSecondary }]}>
-              {item.quarryName} to {item.siteName}
-            </Text>
-          </View>
-          {netWt && (
-            <View style={styles.cardRow}>
-              <Ionicons name="speedometer-outline" size={13} color={colors.textSecondary} />
-              <Text style={[styles.cardText, { color: colors.textSecondary }]}>
-                Net: {netWt} t
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <Text style={[styles.cardTime, { color: colors.textTertiary }]}>
-          {formatEAT(item.updatedAt || item.createdAt)}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
-
-  const sections: { title: string; data: any[] }[] = [];
-  if (activeDeliveries.length > 0) {
-    sections.push({ title: `Active (${activeDeliveries.length})`, data: activeDeliveries });
-  }
-  if (completedDeliveries.length > 0) {
-    sections.push({ title: `Completed (${completedDeliveries.length})`, data: completedDeliveries });
-  }
+  const activeCount = deliveries.filter((item) => !['delivered', 'completed', 'cancelled'].includes(item.status)).length;
+  const flaggedCount = deliveries.filter(isFlagged).length;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by job, driver, plate..."
-          placeholderTextColor={colors.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <FlatList
-        data={sections}
-        keyExtractor={(s) => s.title}
-        contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item: section }) => (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
-            {section.data.map((item: any) => (
-              <View key={item.id || item.jobId}>{renderItem({ item })}</View>
-            ))}
-          </View>
-        )}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: `${colors.primary}10` }]}>
-                <Ionicons name="car-outline" size={40} color={colors.primary} />
-              </View>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No deliveries found</Text>
-              <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                {search ? 'Try a different search term' : 'All deliveries are completed'}
-              </Text>
-            </View>
-          ) : null
-        }
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+      <CommandHeader
+        eyebrow="Delivery execution"
+        title="Active board"
+        subtitle={`${activeCount} in motion · ${flaggedCount} weight flags`}
       />
-    </View>
+
+      <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor..." />
+      <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
+
+      <SectionTitle title={`${filtered.length} deliveries`} />
+      {loading ? (
+        <DataCard>
+          <Text style={[styles.muted, { color: colors.textMuted }]}>Loading movement board...</Text>
+        </DataCard>
+      ) : filtered.length ? (
+        filtered.map((item) => {
+          const progress = progressForDelivery(item);
+          const flagged = isFlagged(item);
+          return (
+            <DataCard key={item.id} onPress={() => router.push(`/screens/delivery-note?id=${item.jobId}`)}>
+              <View style={styles.cardTop}>
+                <View style={styles.cardTitleWrap}>
+                  <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
+                  <Text style={[styles.subtle, { color: colors.textMuted }]}>{item.vendorName || item.poNumber}</Text>
+                </View>
+                <StatusPill status={flagged ? 'suspended' : item.status} compact />
+              </View>
+
+              <ProgressBar value={progress} color={flagged ? colors.danger : colors.accent} />
+
+              <View style={styles.detailGrid}>
+                <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
+                <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || item.quantity || 0} tonnes`} />
+                <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} -> ${item.siteName || 'Destination'}`} />
+                <DetailRow icon="scale-outline" value={`Net ${item.netWeight || 'pending'} t`} />
+              </View>
+
+              <View style={styles.cardFooter}>
+                <Text style={[styles.timestamp, { color: colors.textTertiary }]}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
+                <Text style={[styles.progressText, { color: flagged ? colors.danger : colors.accent }]}>
+                  {progress}% complete
+                </Text>
+              </View>
+            </DataCard>
+          );
+        })
+      ) : (
+        <EmptyState
+          icon="file-tray-outline"
+          title="No deliveries found"
+          subtitle={search ? 'Try a broader search or another filter.' : 'There are no matching deliveries on this board.'}
+        />
+      )}
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: Spacing.lg, marginTop: Spacing.md,
-    borderRadius: Radius.md, borderWidth: 1,
-    paddingHorizontal: Spacing.md, height: 44, gap: Spacing.sm,
+  muted: { fontSize: 13, fontWeight: '700' },
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
   },
-  searchInput: { flex: 1, fontSize: 14 },
-  list: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  section: { marginBottom: Spacing.lg },
-  sectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: Spacing.md },
-  card: {
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  cardTitleWrap: { flex: 1 },
+  jobId: { fontSize: 17, fontWeight: '900' },
+  subtle: { fontSize: 12, fontWeight: '700', marginTop: 3 },
+  detailGrid: { gap: 7 },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  cardTopLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  cardIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  jobId: { fontSize: 14, fontWeight: '700' },
-  plate: { fontSize: 12, marginTop: 1 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 10, fontWeight: '700' },
-  cardBody: { gap: 5 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  cardText: { fontSize: 13 },
-  cardTime: { fontSize: 11, marginTop: Spacing.sm },
-  empty: { alignItems: 'center', paddingVertical: 80, gap: Spacing.sm },
-  emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
-  emptyText: { fontSize: 16, fontWeight: '600' },
-  emptySubtext: { fontSize: 13, textAlign: 'center' },
+  timestamp: { fontSize: 11, fontWeight: '700' },
+  progressText: { fontSize: 11, fontWeight: '900' },
 });

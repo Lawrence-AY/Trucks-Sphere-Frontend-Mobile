@@ -7,6 +7,15 @@ import { Spacing, Radius } from '../../constants/theme';
 import { MOCK_DELIVERIES } from '../../store/mockData';
 import { formatEAT } from '../../utils/helpers';
 
+function RRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.rRow}>
+      <Text style={styles.rLabel}>{label}</Text>
+      <Text style={styles.rValue}>{value}</Text>
+    </View>
+  );
+}
+
 export default function ReceiveScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
@@ -240,15 +249,11 @@ const styles = StyleSheet.create({
   confirmedBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.md },
   confirmedText: { fontSize: 14, fontWeight: '800', color: '#10B981', letterSpacing: 0.5 },
   receiptTime: { textAlign: 'center', fontSize: 11 },
-  receiptTitle: { fontSize: 16, fontWeight: '800', color: '#333', letterSpacing: 1, marginTop: 4 },
   receiptLine: { width: '80%', height: 1, backgroundColor: '#DDD', marginTop: Spacing.sm },
-  receiptBody: { padding: Spacing.sm },
   rHead: { fontSize: 14, fontWeight: '700', color: '#333', textAlign: 'center' },
   rSub: { fontSize: 11, color: '#666', textAlign: 'center', marginBottom: 4 },
   rDash: { textAlign: 'center', color: '#999', marginVertical: 4, fontSize: 12 },
   rRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
-  rLabel: { fontSize: 12, color: '#666' },
-  rValue: { fontSize: 13, color: '#333' },
   rFooter: { textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#16A34A', marginTop: 8 },
   rTime: { textAlign: 'center', fontSize: 10, color: '#999', marginTop: 2 },
   rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: 8 },

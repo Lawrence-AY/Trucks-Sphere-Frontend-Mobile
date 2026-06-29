@@ -128,13 +128,13 @@ export default function TabsLayout() {
           tabBarStyle: [
             styles.tabBar,
             {
-              backgroundColor: colors.surface,
+              backgroundColor: '#091827',
               borderTopColor: colors.border,
               paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
               height: Platform.OS === 'ios' ? 72 + insets.bottom : 72,
             },
           ],
-          headerStyle: { backgroundColor: colors.surface },
+          headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700', fontSize: 17 },
           headerShadowVisible: false,
@@ -287,11 +287,14 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    borderTopWidth: 0.5,
+    borderTopWidth: 1,
     paddingTop: 7,
     paddingHorizontal: 4,
-    elevation: 0,
-    shadowOpacity: 0,
+    elevation: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
   },
   tabBarLabel: {
     fontSize: 10,
@@ -302,7 +305,7 @@ const styles = StyleSheet.create({
   tabIconWrap: {
     width: 42,
     height: 30,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
