@@ -252,9 +252,9 @@ export function EmptyState({
 const styles = StyleSheet.create({
   shell: { flex: 1 },
   shellContent: {
-    padding: Spacing.md,
+    padding: Spacing.sm,
     paddingBottom: Spacing['4xl'] + 24,
-    gap: Spacing.sm,
+    gap: 6,
   },
   commandHeader: {
     flexDirection: 'row',

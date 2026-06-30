@@ -84,7 +84,7 @@ export default function ManagementActiveScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader title="Active board" subtitle={`${activeCount} in motion`} />
+      <CommandHeader title="Active" subtitle={`${activeCount} deliveries`} />
       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor..." />
       <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
       <SectionTitle title={`${filtered.length} deliveries`} />

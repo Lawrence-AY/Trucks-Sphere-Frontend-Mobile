@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import {
-  Platform, StyleSheet, View, Text, TouchableOpacity, Animated, Pressable, useWindowDimensions, ScrollView,
+  Platform, StyleSheet, View, Text, TouchableOpacity, Animated, Pressable, useWindowDimensions, ScrollView, Modal, ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,15 +10,16 @@ import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 
-const BOTTOM_TABS = ['dashboard', 'active', 'drivers', 'trucks', 'orders', 'settings'];
+const BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
+const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings'];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'grid-outline', label: 'Dashboard', family: 'Ionicons' },
   drivers: { icon: 'people-outline', label: 'Drivers', family: 'Ionicons' },
   trucks: { icon: 'car-outline', label: 'Trucks', family: 'Ionicons' },
   orders: { icon: 'document-text-outline', label: 'Orders', family: 'Ionicons' },
-  settings: { icon: 'settings-outline', label: 'Settings', family: 'Ionicons' },
   active: { icon: 'pulse-outline', label: 'Active', family: 'Ionicons' },
+  materials: { icon: 'cube-outline', label: 'Materials', family: 'Ionicons' },
 };
 
 const getTabIcon = (name: string, color: string) => {
@@ -35,6 +36,9 @@ const getTabIcon = (name: string, color: string) => {
 };
 
 const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
+  { label: 'Drivers', icon: 'people-outline', route: '/management/drivers' },
+  { label: 'Trucks', icon: 'car-outline', route: '/management/trucks' },
+  { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
   { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
   { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
   { label: 'History', icon: 'time-outline', route: '/(tabs)/history' },
@@ -50,6 +54,8 @@ export default function ManagementLayout() {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const menuWidth = Math.min(screenWidth * 0.8, 320);
@@ -71,11 +77,23 @@ export default function ManagementLayout() {
   }, [menuOpen, slideAnim, fadeAnim, menuWidth]);
 
   const handleMenuNav = (route: string) => {
+    if (route === '__logout__') {
+      setConfirmLogout(true);
+      return;
+    }
     toggleMenu();
     setTimeout(() => {
-      if (route === '__logout__') { logout(); return; }
       router.push(route as any);
     }, 250);
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await logout();
+    setLoggingOut(false);
+    setConfirmLogout(false);
+    setMenuOpen(false);
+    router.replace('/(auth)/login' as any);
   };
 
   return (
@@ -133,6 +151,13 @@ export default function ManagementLayout() {
             />
           );
         })}
+        {HIDDEN_TABS.map((tabName) => (
+          <Tabs.Screen
+            key={tabName}
+            name={tabName}
+            options={{ href: null }}
+          />
+        ))}
       </Tabs>
 
       {/* Hamburger Drawer */}
@@ -149,7 +174,7 @@ export default function ManagementLayout() {
               <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B' }}>{user?.displayName || 'User'}</Text>
               <Text style={{ fontSize: 14, color: '#64748B' }}>{user?.email || ''}</Text>
               <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#1B2A4A12' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1B2A4A' }}>{getRoleLabel(user?.role || 'management')}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1B2A4A' }}>{getRoleLabel(user?.role || '')}</Text>
               </View>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
@@ -163,6 +188,39 @@ export default function ManagementLayout() {
           </Animated.View>
         </View>
       )}
+
+      {/* Logout Confirmation Modal */}
+      <Modal visible={confirmLogout} transparent animationType="fade" onRequestClose={() => setConfirmLogout(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.logoutDialog}>
+            <View style={styles.logoutIcon}>
+              <Ionicons name="log-out-outline" size={34} color="#EF4444" />
+            </View>
+            <Text style={styles.logoutTitle}>Logout</Text>
+            <Text style={styles.logoutMessage}>Are you sure you want to logout?</Text>
+            <View style={styles.logoutActions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setConfirmLogout(false)}
+                disabled={loggingOut}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, loggingOut && { opacity: 0.7 }]}
+                onPress={handleLogout}
+                disabled={loggingOut}
+              >
+                {loggingOut ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.confirmText}>Logout</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -177,4 +235,73 @@ const styles = StyleSheet.create({
   drawerAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   drawerItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 20 },
   drawerItemText: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  logoutDialog: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 18,
+    padding: Spacing.xl,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  logoutIcon: {
+    width: 66,
+    height: 66,
+    borderRadius: 22,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  logoutTitle: {
+    color: '#1E293B',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  logoutMessage: {
+    color: '#64748B',
+    fontSize: 14,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xl,
+    textAlign: 'center',
+  },
+  logoutActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    width: '100%',
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: {
+    color: '#1E293B',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  confirmBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
+  },
 });

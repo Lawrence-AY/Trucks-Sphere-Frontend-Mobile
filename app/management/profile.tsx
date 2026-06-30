@@ -17,7 +17,7 @@ export default function ManagementProfileScreen() {
 
   return (
     <PageShell>
-      <CommandHeader eyebrow="Account" title="Profile" subtitle={`Management · ${user?.displayName || 'User'}`} />
+      <CommandHeader eyebrow="Account" title="Profile" subtitle={`${getRoleLabel(user?.role || '')} · ${user?.displayName || 'User'}`} />
       <DataCard>
         <View style={{ alignItems: 'center', gap: Spacing.md }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#1B2A4A18', alignItems: 'center', justifyContent: 'center' }}>
