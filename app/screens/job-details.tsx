@@ -134,6 +134,7 @@ export default function JobDetailsScreen() {
 
   const progress = useMemo(() => progressForJob(job, checkpoints), [checkpoints, job]);
   const timelineCheckpoints = useMemo(() => checkpoints.filter((item) => item.type !== 'loading'), [checkpoints]);
+  const isWeight = useMemo(() => timelineCheckpoints.some((item) => item.weight !== undefined && item.weight !== null), [timelineCheckpoints]);
   const orderedQty = Number(job?.quantityOrdered || job?.quantity || 0);
   const deliveredQty = Number(job?.quantityDelivered || job?.netWeight || 0);
   const expectedNet = job?.netWeight || (job?.weighInWeight && job?.weighOutWeight ? job.weighInWeight - job.weighOutWeight : 0);
@@ -199,34 +200,8 @@ export default function JobDetailsScreen() {
         </View>
       </DataCard>
 
-      <View style={styles.metricRow}>
-        <MetricTile icon="cube" label="Planned" value={orderedQty || 'Pending'} tone={colors.primary} />
-        <MetricTile icon="scale" label="Net weight" value={formatWeight(expectedNet)} tone={colors.accent} />
-      </View>
-
-      <SectionTitle title="Dispatch" />
-      <DataCard>
-        <DetailRow icon="cube-outline" value={`${job.materialName || 'Material'} - ${orderedQty || 0} ${unit}`} />
-        <DetailRow icon="navigate-outline" value={`${job.quarryName || 'Origin'} -> ${job.siteName || 'Destination'}`} />
-        <DetailRow icon="time-outline" value={`Created ${formatMaybeDate(job.createdAt)}`} />
-        <DetailRow icon="refresh-outline" value={`Updated ${formatMaybeDate(job.updatedAt)}`} />
-      </DataCard>
-
-      <SectionTitle title="Weights And Reconciliation" />
-      <DataCard>
-        <View style={styles.weightGrid}>
-          <WeightCell label="Quarry in" value={formatWeight(job.weighInWeight)} />
-          <WeightCell label="Quarry out" value={formatWeight(job.weighOutWeight)} />
-          <WeightCell label="Net" value={formatWeight(expectedNet)} />
-          <WeightCell label="Site received" value={deliveredQty ? `${deliveredQty.toFixed(1)} ${unit}` : 'Pending'} />
-        </View>
-        <View style={[styles.reconciliationBand, { backgroundColor: `${varianceTone}14`, borderColor: `${varianceTone}55` }]}>
-          <Ionicons name={Math.abs(siteVariance) > 1 ? 'warning-outline' : 'checkmark-circle-outline'} size={18} color={varianceTone} />
-          <Text style={[styles.reconciliationText, { color: varianceTone }]}>
-            {deliveredQty ? `${siteVariance.toFixed(1)} ${unit} variance` : 'Awaiting site receipt for final reconciliation'}
-          </Text>
-        </View>
-      </DataCard>
+     
+     
 
       <SectionTitle title="Journey Timeline" />
       <DataCard>
