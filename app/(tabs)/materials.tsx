@@ -122,7 +122,7 @@ export default function MaterialsScreen() {
               {Math.round(totals.delivered)}/{Math.round(totals.ordered)} ordered units
             </Text>
           </View>
-          <Text style={[styles.remaining, { color: colors.warning }]}>{Math.round(totals.remaining)} left</Text>
+          <Text style={[styles.remaining, { color: colors.accent }]}>{totals.completion}%</Text>
         </View>
         <ProgressBar value={totals.completion} color={colors.primary} />
       </DataCard>

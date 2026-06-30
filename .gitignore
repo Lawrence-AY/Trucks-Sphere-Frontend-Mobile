@@ -9,3 +9,10 @@ node_modules
 expo-8082.err.log
 expo-8082.out.log
 expo.err.log
+/.expo
+./expo
+.expo/
+/.idea
+./idea
+.idea/
+.idea

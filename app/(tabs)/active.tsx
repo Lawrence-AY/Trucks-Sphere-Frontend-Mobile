@@ -31,7 +31,7 @@ function progressForDelivery(item: any) {
   if (item.status === 'delivered' || item.status === 'completed') return 100;
   if (item.receivedAt) return 92;
   if (item.deliveredAt || item.status === 'destination_weighbridge') return 78;
-  if (item.weighOutWeight || item.status === 'in_transit') return 58;
+  if (item.weighOutWeight || item.status === 'in_transit_to_site') return 58;
   if (item.weighInWeight || item.status === 'at_quarry') return 38;
   if (item.driverId || item.vehicleId || item.status === 'assigned') return 18;
   return 8;
@@ -99,8 +99,8 @@ export default function ActiveScreen() {
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
       <CommandHeader
         eyebrow="Delivery execution"
-        title="Active board"
-        subtitle={`${activeCount} in motion · ${flaggedCount} weight flags`}
+        title="Active"
+        subtitle={`${activeCount} deliveries · ${flaggedCount} weight flags`}
       />
 
       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor..." />
@@ -136,9 +136,6 @@ export default function ActiveScreen() {
 
               <View style={styles.cardFooter}>
                 <Text style={[styles.timestamp, { color: colors.textTertiary }]}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
-                <Text style={[styles.progressText, { color: flagged ? colors.danger : colors.accent }]}>
-                  {progress}% complete
-                </Text>
               </View>
             </DataCard>
           );

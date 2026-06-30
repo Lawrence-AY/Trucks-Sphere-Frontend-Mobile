@@ -144,7 +144,7 @@ export interface DeliveryOrder {
   siteId: string;
   siteLocation?: string;
   siteName: string;
-  status: 'assigned' | 'in_transit' | 'at_quarry' | 'loaded' | 'in_transit_to_site' | 'delivered' | 'cancelled';
+  status: 'assigned' | 'at_quarry' | 'loaded' | 'in_transit_to_site' | 'delivered' | 'cancelled';
   weighInId?: string;
   weighOutId?: string;
   weighInWeight?: number;
@@ -210,7 +210,7 @@ export interface SiteDelivery {
   plateNumber: string;
   materialName: string;
   quantity: number;
-  status: 'scheduled' | 'in_transit' | 'arrived' | 'received' | 'confirmed';
+  status: 'scheduled' | 'arrived' | 'received' | 'confirmed';
   scheduledAt: string;
   arrivedAt?: string;
   receivedAt?: string;
@@ -235,7 +235,7 @@ export interface Checkpoint {
   id: string;
   deliveryOrderId: string;
   jobId: string;
-  type: 'weigh_in' | 'weigh_out' | 'loading' | 'in_transit' | 'arrived_site' | 'received';
+  type: 'weigh_in' | 'weigh_out' | 'loading' | 'arrived_site' | 'received';
   timestamp: string;
   location: string;
   notes?: string;

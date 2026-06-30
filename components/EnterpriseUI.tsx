@@ -252,9 +252,9 @@ export function EmptyState({
 const styles = StyleSheet.create({
   shell: { flex: 1 },
   shellContent: {
-    padding: Spacing.lg,
+    padding: Spacing.sm,
     paddingBottom: Spacing['4xl'] + 24,
-    gap: Spacing.lg,
+    gap: 6,
   },
   commandHeader: {
     flexDirection: 'row',
@@ -264,19 +264,19 @@ const styles = StyleSheet.create({
   },
   commandCopy: { flex: 1 },
   eyebrow: {
-    fontSize: 11,
-    fontWeight: '900',
+    fontSize: 14,
+    fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0,
     marginBottom: 5,
   },
   commandTitle: {
-    fontSize: 27,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '700',
     letterSpacing: 0,
   },
   commandSubtitle: {
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 19,
     marginTop: 5,
   },
@@ -293,6 +293,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     height: '100%',
+    fontWeight: '400',
   },
   filterRail: {
     gap: Spacing.sm,
@@ -305,8 +306,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   filterText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '400',
   },
   metricTile: {
     flex: 1,
@@ -324,12 +325,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   metricValue: {
-    fontSize: 25,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '700',
   },
   metricLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '400',
   },
   statusPill: {
     alignSelf: 'flex-start',
@@ -362,7 +363,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   detailRow: {
     flexDirection: 'row',
@@ -371,8 +372,8 @@ const styles = StyleSheet.create({
   },
   detailText: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '400',
   },
   progressTrack: {
     height: 7,
@@ -397,11 +398,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   emptyTitle: {
-    fontSize: 17,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '700',
   },
   emptySubtitle: {
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
     lineHeight: 18,
   },

@@ -61,7 +61,19 @@ export default function IndexScreen() {
     if (isLoading) return;
 
     const timer = setTimeout(() => {
-      router.replace(isAuthenticated ? '/(tabs)/dashboard' : '/(auth)/login');
+      if (!isAuthenticated) {
+        router.replace('/(auth)/login');
+        return;
+      }
+      const role = useAuthStore.getState().user?.role ;
+      switch (role) {
+        case 'management': router.replace('/management/dashboard' as any); break;
+        case 'vendor': router.replace('/vendor/dashboard' as any); break;
+        case 'operator_site': router.replace('/operator-site/dashboard' as any); break;
+        case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
+        case 'admin': router.replace('/management/dashboard' as any); break;
+        default: router.replace('/management/dashboard' as any);
+      }
     }, 900);
 
     return () => clearTimeout(timer);

@@ -28,11 +28,15 @@ export default function RootLayout() {
       onLayout={handleRootLayout}
       style={[styles.container, { backgroundColor: Colors.light.background }]}
     >
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="management" options={{ headerShown: false }} />
+        <Stack.Screen name="vendor" options={{ headerShown: false }} />
+        <Stack.Screen name="operator-site" options={{ headerShown: false }} />
+        <Stack.Screen name="operator-quarry" options={{ headerShown: false }} />
         <Stack.Screen name="quarry" options={{ headerShown: false }} />
         <Stack.Screen name="site" options={{ headerShown: false }} />
         <Stack.Screen name="screens" options={{ headerShown: false }} />

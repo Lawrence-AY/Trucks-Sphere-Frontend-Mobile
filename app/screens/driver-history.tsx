@@ -3,7 +3,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_DRIVERS, MOCK_DELIVERIES, MOCK_TRUCKS } from '../../store/mockData';
+import { MOCK_DRIVERS, MOCK_DELIVERY_ORDERS, MOCK_TRUCKS } from '../../store/mockData';
 import { formatDate, formatTime, formatDateTime } from '../../utils/helpers';
 
 export default function DriverHistoryScreen() {
@@ -15,12 +15,11 @@ export default function DriverHistoryScreen() {
   const truck = driver?.assignedTruckId ? MOCK_TRUCKS.find(t => t.id === driver.assignedTruckId) : null;
 
   // Get trips (deliveries) for this driver
-  const trips = MOCK_DELIVERIES.filter(d => d.driverId === id)
+  const trips = MOCK_DELIVERY_ORDERS.filter(d => d.driverId === id)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const statusConfig: Record<string, { icon: string; color: string; label: string }> = {
     delivered: { icon: 'checkmark-done', color: '#53BDEB', label: 'Delivered' },
-    in_transit: { icon: 'checkmark', color: '#34B7F1', label: 'In Transit' },
     at_quarry: { icon: 'time', color: '#8696BB', label: 'At Quarry' },
     assigned: { icon: 'time', color: '#8696BB', label: 'Assigned' },
   };
@@ -145,8 +144,6 @@ export default function DriverHistoryScreen() {
                           <Ionicons name="checkmark" size={12} color="#53BDEB" />
                           <Ionicons name="checkmark" size={12} color="#53BDEB" style={{ marginLeft: -4 }} />
                         </>
-                      ) : trip.status === 'in_transit' ? (
-                        <Ionicons name="checkmark" size={12} color="#34B7F1" />
                       ) : (
                         <Ionicons name="time-outline" size={12} color="#8696BB" />
                       )}

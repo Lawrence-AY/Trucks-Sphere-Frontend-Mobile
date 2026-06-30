@@ -30,10 +30,8 @@ type IconName = keyof typeof Ionicons.glyphMap;
 const TIMELINE_LABELS: Record<string, { label: string; icon: IconName }> = {
   origin: { label: 'Job Created', icon: 'add-circle-outline' },
   weigh_in: { label: 'Quarry In Weight', icon: 'download-outline' },
-  loading: { label: 'Loading', icon: 'cube-outline' },
   weigh_out: { label: 'Quarry Out Weight', icon: 'arrow-up-circle-outline' },
-  in_transit: { label: 'In Transit', icon: 'navigate-outline' },
-  arrived_site: { label: 'Arrived at Site', icon: 'location-outline' },
+  arrived_site: { label: 'Arrived Site', icon: 'location-outline' },
   received: { label: 'Receipt Uploaded', icon: 'receipt-outline' },
 };
 
@@ -47,17 +45,29 @@ function formatWeight(value?: number | string, unit = 't') {
   return Number.isFinite(numeric) ? `${numeric.toFixed(1)} ${unit}` : String(value);
 }
 
+function formatJobCreatedMeta(job: any, driver: any, vehicle: any) {
+  const driverName = driver?.name || job?.driverName || 'Pending driver';
+  const plateNumber = vehicle?.plateNumber || vehicle?.plate || job?.plateNumber || 'Pending vehicle';
+  return `${formatMaybeDate(job?.createdAt)}\nDriver: ${driverName}\nVehicle: ${plateNumber}`;
+}
+
 function progressForJob(job: any, checkpoints: any[]) {
   if (!job) return 0;
   if (job.status === 'delivered' || job.status === 'completed') return 100;
   if (job.receivedAt || checkpoints.some((item) => item.type === 'received')) return 92;
-  if (job.deliveredAt || checkpoints.some((item) => item.type === 'arrived_site')) return 78;
   if (job.weighOutWeight || checkpoints.some((item) => item.type === 'weigh_out')) return 62;
-  if (checkpoints.some((item) => item.type === 'loading')) return 48;
   if (job.weighInWeight || checkpoints.some((item) => item.type === 'weigh_in')) return 34;
   if (job.driverId || job.vehicleId) return 18;
   return 8;
 }
+
+const CHECKPOINT_CONFIG: Record<string, { label: string; icon: IconName }> = {
+  weigh_in: { label: 'Weigh In', icon: 'download-outline' },
+  weigh_out: { label: 'Weigh Out', icon: 'arrow-up-circle-outline' },
+  loading: { label: 'Loading', icon: 'cube-outline' },
+  arrived_site: { label: 'Arrived at Site', icon: 'location-outline' },
+  received: { label: 'Received', icon: 'receipt-outline' },
+};
 
 export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -123,6 +133,8 @@ export default function JobDetailsScreen() {
   }, [id]);
 
   const progress = useMemo(() => progressForJob(job, checkpoints), [checkpoints, job]);
+  const timelineCheckpoints = useMemo(() => checkpoints.filter((item) => item.type !== 'loading'), [checkpoints]);
+  const isWeight = useMemo(() => timelineCheckpoints.some((item) => item.weight !== undefined && item.weight !== null), [timelineCheckpoints]);
   const orderedQty = Number(job?.quantityOrdered || job?.quantity || 0);
   const deliveredQty = Number(job?.quantityDelivered || job?.netWeight || 0);
   const expectedNet = job?.netWeight || (job?.weighInWeight && job?.weighOutWeight ? job.weighInWeight - job.weighOutWeight : 0);
@@ -167,7 +179,6 @@ export default function JobDetailsScreen() {
       <DataCard>
         <View style={styles.summaryHead}>
           <View style={styles.summaryCopy}>
-            <Text style={[styles.summaryTitle, { color: colors.text }]}>{progress}% complete</Text>
             <Text style={[styles.summarySub, { color: colors.textMuted }]}>
               {`${job.quarryName || 'Origin'} to ${job.siteName || 'Destination'}`}
             </Text>
@@ -189,81 +200,26 @@ export default function JobDetailsScreen() {
         </View>
       </DataCard>
 
-      <View style={styles.metricRow}>
-        <MetricTile icon="cube" label="Planned" value={orderedQty || 'Pending'} tone={colors.primary} />
-        <MetricTile icon="scale" label="Net weight" value={formatWeight(expectedNet)} tone={colors.accent} />
-      </View>
-
-      <SectionTitle title="Linked Records" />
-      <DataCard>
-        <HubRow icon="document-text-outline" label="Purchase Order" value={job.poNumber || purchaseOrder?.poNumber || 'Unlinked'} />
-        <HubRow icon="business-outline" label="Vendor" value={job.vendorName || purchaseOrder?.vendorName || 'Unassigned'} />
-        <HubRow icon="person-outline" label="Driver" value={driver?.name || job.driverName || 'Unassigned'} />
-        <HubRow icon="car-outline" label="Vehicle" value={vehicle?.plateNumber || job.plateNumber || 'Unassigned'} />
-      </DataCard>
-
-      <SectionTitle title="Dispatch" />
-      <DataCard>
-        <DetailRow icon="cube-outline" value={`${job.materialName || 'Material'} - ${orderedQty || 0} ${unit}`} />
-        <DetailRow icon="navigate-outline" value={`${job.quarryName || 'Origin'} -> ${job.siteName || 'Destination'}`} />
-        <DetailRow icon="time-outline" value={`Created ${formatMaybeDate(job.createdAt)}`} />
-        <DetailRow icon="refresh-outline" value={`Updated ${formatMaybeDate(job.updatedAt)}`} />
-      </DataCard>
-
-      <SectionTitle title="Weights And Reconciliation" />
-      <DataCard>
-        <View style={styles.weightGrid}>
-          <WeightCell label="Quarry in" value={formatWeight(job.weighInWeight)} />
-          <WeightCell label="Quarry out" value={formatWeight(job.weighOutWeight)} />
-          <WeightCell label="Net" value={formatWeight(expectedNet)} />
-          <WeightCell label="Site received" value={deliveredQty ? `${deliveredQty.toFixed(1)} ${unit}` : 'Pending'} />
-        </View>
-        <View style={[styles.reconciliationBand, { backgroundColor: `${varianceTone}14`, borderColor: `${varianceTone}55` }]}>
-          <Ionicons name={Math.abs(siteVariance) > 1 ? 'warning-outline' : 'checkmark-circle-outline'} size={18} color={varianceTone} />
-          <Text style={[styles.reconciliationText, { color: varianceTone }]}>
-            {deliveredQty ? `${siteVariance.toFixed(1)} ${unit} variance` : 'Awaiting site receipt for final reconciliation'}
-          </Text>
-        </View>
-        {weighments.map((item) => (
-          <DetailRow
-            key={item.id}
-            icon={item.type === 'weigh_in' ? 'download-outline' : 'arrow-up-circle-outline'}
-            value={`${formatStatus(item.type)} - ${formatWeight(item.weight)} at ${item.location}`}
-          />
-        ))}
-      </DataCard>
+     
+     
 
       <SectionTitle title="Journey Timeline" />
       <DataCard>
         <TimelineItem
           icon="add-circle-outline"
           title="Job Created"
-          meta={formatMaybeDate(job.createdAt)}
+          meta={formatJobCreatedMeta(job, driver, vehicle)}
           color={colors.primary}
           complete
         />
-        <TimelineItem
-          icon="person-add-outline"
-          title="Driver Assigned"
-          meta={job.driverName || 'Pending assignment'}
-          color={colors.accent}
-          complete={Boolean(job.driverName)}
-        />
-        <TimelineItem
-          icon="car-outline"
-          title="Vehicle Assigned"
-          meta={job.plateNumber || 'Pending assignment'}
-          color={colors.accent}
-          complete={Boolean(job.plateNumber)}
-        />
-        {checkpoints.map((item) => {
+        {timelineCheckpoints.map((item) => {
           const config = TIMELINE_LABELS[item.type] || { label: formatStatus(item.type), icon: 'ellipse-outline' as IconName };
           return (
             <TimelineItem
               key={item.id}
               icon={config.icon}
               title={config.label}
-              meta={`${formatMaybeDate(item.timestamp)} - ${item.location}`}
+              meta={isWeight ? `${formatWeight(item.weight)} at ${item.location} · ${formatMaybeDate(item.timestamp)}` : `${formatMaybeDate(item.timestamp)} - ${item.location}`}
               color={getStatusColor(item.type)}
               complete
             />
@@ -280,19 +236,6 @@ export default function JobDetailsScreen() {
         ) : null}
       </DataCard>
 
-      <SectionTitle title="Receipt Notes" />
-      <DataCard>
-        <DetailRow icon="person-outline" label="Receiver" value={job.receivedBy || 'Pending receipt'} />
-        <DetailRow icon="location-outline" label="Location" value={job.receivedLocation || job.siteName || 'Pending'} />
-        <DetailRow icon="calendar-outline" label="Received" value={formatMaybeDate(job.receivedAt || job.deliveredAt)} />
-      </DataCard>
-
-      <SectionTitle title="Attachments" />
-      <DataCard>
-        <AttachmentRow icon="image-outline" label="Quarry weighbridge photos" count={Number(Boolean(job.weighInPhoto)) + Number(Boolean(job.weighOutPhoto))} />
-        <AttachmentRow icon="document-attach-outline" label="Signed delivery notes" count={job.receivedAt ? 1 : 0} />
-        <AttachmentRow icon="folder-outline" label="Supporting documents" count={0} />
-      </DataCard>
 
       <SectionTitle title="Activity Log" />
       <DataCard>
@@ -356,27 +299,11 @@ function TimelineItem({
   );
 }
 
-function AttachmentRow({ icon, label, count }: { icon: IconName; label: string; count: number }) {
-  const colors = useTheme();
-  return (
-    <View style={styles.attachmentRow}>
-      <View style={styles.attachmentLabel}>
-        <Ionicons name={icon} size={17} color={colors.textMuted} />
-        <Text style={[styles.attachmentText, { color: colors.textSecondary }]}>{label}</Text>
-      </View>
-      <Text style={[styles.attachmentCount, { color: count ? colors.primary : colors.textMuted }]}>
-        {count ? `${count} file${count === 1 ? '' : 's'}` : 'None'}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   mutedStrong: { fontSize: 13, fontWeight: '800' },
   summaryHead: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md, alignItems: 'flex-start' },
   summaryCopy: { flex: 1 },
-  summaryTitle: { fontSize: 24, fontWeight: '900' },
   summarySub: { fontSize: 12, fontWeight: '700', marginTop: 4 },
   priorityBadge: { borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
   priorityText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
@@ -426,8 +353,4 @@ const styles = StyleSheet.create({
   timelineCopy: { flex: 1 },
   timelineTitle: { fontSize: 14, fontWeight: '900' },
   timelineMeta: { fontSize: 12, fontWeight: '700', marginTop: 3, lineHeight: 17 },
-  attachmentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md },
-  attachmentLabel: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  attachmentText: { flex: 1, fontSize: 13, fontWeight: '800' },
-  attachmentCount: { fontSize: 12, fontWeight: '900' },
 });
