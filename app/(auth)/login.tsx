@@ -1,3 +1,4 @@
+//login.tsx
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -23,12 +24,12 @@ export default function LoginScreen() {
   const { login, isLoading, isAuthenticated, restoreSession, clearError, error } = useAuthStore();
 
   useEffect(() => {
-    restoreSession();
+    // Skip restore to prevent stale session from affecting login
   }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
-      const role = useAuthStore.getState().user?.role || 'management';
+      const role = useAuthStore.getState().user?.role || '';
       switch (role) {
         case 'management':
         case 'admin': router.replace('/management/dashboard' as any); break;

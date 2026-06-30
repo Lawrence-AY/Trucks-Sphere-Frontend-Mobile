@@ -112,11 +112,7 @@ export default function MaterialDetailsScreen() {
 
   return (
     <PageShell>
-      <CommandHeader
-        eyebrow="Material operations"
-        title={material.name}
-        subtitle={`${orders.length} purchase orders - ${deliveries.length} jobs`}
-      />
+      
 
       <View style={styles.metricRow}>
         <MetricTile icon="document-text" label="Purchase orders" value={orders.length} tone={colors.primary} />

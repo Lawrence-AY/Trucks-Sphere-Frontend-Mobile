@@ -136,9 +136,6 @@ export default function ActiveScreen() {
 
               <View style={styles.cardFooter}>
                 <Text style={[styles.timestamp, { color: colors.textTertiary }]}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
-                <Text style={[styles.progressText, { color: flagged ? colors.danger : colors.accent }]}>
-                  {progress}% complete
-                </Text>
               </View>
             </DataCard>
           );

@@ -62,8 +62,7 @@ export default function VendorOrdersScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="My procurement" title="My orders" subtitle={`${orders.length} purchase orders`} />
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, material..." />
+       <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, material..." />
       <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
       <SectionTitle title={`${filtered.length} orders`} />
       {loading ? (

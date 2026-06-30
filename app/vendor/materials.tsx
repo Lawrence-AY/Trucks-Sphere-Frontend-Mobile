@@ -48,9 +48,8 @@ export default function VendorMaterialsScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Materials" title="My materials" subtitle="Materials linked to your purchase orders" />
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search material..." />
-      <SectionTitle title={`${materialCards.length} materials`} />
+       <SearchField value={search} onChangeText={setSearch} placeholder="Search material..." />
+     
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
       ) : materialCards.length ? (

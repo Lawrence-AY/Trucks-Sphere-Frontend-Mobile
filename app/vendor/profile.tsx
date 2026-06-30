@@ -10,7 +10,7 @@ export default function VendorProfileScreen() {
   const { user } = useAuthStore();
   return (
     <PageShell>
-      <CommandHeader eyebrow="Account" title="Profile" subtitle={`Vendor · ${user?.displayName || 'User'}`} />
+      <CommandHeader eyebrow="Account" title="Profile" subtitle={`${getRoleLabel(user?.role || '')} · ${user?.displayName || 'User'}`} />
       <DataCard>
         <View style={{ alignItems: 'center', gap: Spacing.md }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#1B2A4A18', alignItems: 'center', justifyContent: 'center' }}>
@@ -24,7 +24,7 @@ export default function VendorProfileScreen() {
       <DataCard>
         <DetailRow icon="person-outline" label="Name" value={user?.displayName || 'N/A'} />
         <DetailRow icon="mail-outline" label="Email" value={user?.email || 'N/A'} />
-        <DetailRow icon="shield-checkmark-outline" label="Role" value={getRoleLabel('vendor')} />
+        <DetailRow icon="shield-checkmark-outline" label="Role" value={getRoleLabel(user?.role || '')} />
         <DetailRow icon="id-card-outline" label="Vendor ID" value={user?.vendorId || 'N/A'} />
       </DataCard>
     </PageShell>

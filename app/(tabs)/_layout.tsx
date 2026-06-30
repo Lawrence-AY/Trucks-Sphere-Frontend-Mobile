@@ -73,7 +73,7 @@ export default function TabsLayout() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const menuWidth = Math.min(screenWidth * 0.86, 360);
 
-  const role = (user?.role || 'management') as UserRole;
+  const role = (user?.role || '') as UserRole;
 
   const toggleMenu = useCallback(() => {
     if (menuOpen) {
@@ -143,7 +143,7 @@ export default function TabsLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => router.push('/screens/issues' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+              <TouchableOpacity onPress={() => router.push('/screens/notifications' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
                 <Ionicons name="notifications-outline" size={22} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity onPress={toggleMenu} style={styles.headerBtn}>

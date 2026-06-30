@@ -27,9 +27,9 @@ export default function OperatorQuarryMaterialsScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Quarry stock" title="Materials" subtitle={`${materials.length} materials`} />
+      <CommandHeader title="Materials" subtitle={`${materials.length} items`} />
       <SearchField value={search} onChangeText={setSearch} placeholder="Search..." />
-      <SectionTitle title={`${filtered.length} materials`} />
+      <SectionTitle title={`${filtered.length} items`} />
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
       ) : filtered.length ? (

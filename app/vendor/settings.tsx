@@ -33,7 +33,7 @@ export default function VendorSettingsScreen() {
           <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'Vendor'}</Text>
           <Text style={{ fontSize: 14, color: colors.textMuted }}>{user?.email || ''}</Text>
           <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#1B2A4A18' }}>
-            <Text style={{ fontSize: 14, color: '#1B2A4A', fontWeight: '600' }}>{getRoleLabel('vendor')}</Text>
+            <Text style={{ fontSize: 14, color: '#1B2A4A', fontWeight: '600' }}>{getRoleLabel(user?.role || '')}</Text>
           </View>
         </View>
       </View>

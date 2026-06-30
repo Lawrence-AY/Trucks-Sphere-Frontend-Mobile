@@ -1,6 +1,4 @@
-import { useAuthStore } from '../store/authStore';
-import { getStoredToken } from './database';
-import axios from 'axios';
+import { getAuthData } from './database';
 import {  
   MOCK_DRIVERS, MOCK_TRUCKS, MOCK_MATERIALS,
   MOCK_PURCHASE_ORDERS, MOCK_DELIVERY_ORDERS, MOCK_WEIGHMENTS,
@@ -19,11 +17,44 @@ const MOCK_VENDORS_FULL = [
   { id: 'v5', name: 'Wanjiku Logistics', phone: '+254712345605', email: 'info@wanjikulogistics.co.ke', address: 'Nakuru Highway', status: 'inactive', fleetSize: 1, createdAt: '2026-05-05T12:00:00Z' },
 ];
 
-// ============== Firestore Live Data ==============
-// Firestore listeners disabled by default — connect via backend API.
-// Uncomment startFirestoreListeners() to enable direct Firestore access
-// (requires proper Firestore security rules).
+// Mock users for API login (duplicated from authStore to avoid circular import)
+const MOCK_USERS = {
+  admin: {
+    uid: "mock_admin",
+    email: "admin@truck.com",
+    displayName: "James Admin",
+    role: "admin",
+  },
+  management: {
+    uid: "mock_management",
+    email: "management@truck.com",
+    displayName: "Mary Management",
+    role: "management",
+  },
+  vendor: {
+    uid: "mock_vendor",
+    email: "vendor@truck.com",
+    displayName: "John Vendor",
+    role: "vendor",
+    vendorId: "v1",
+  },
+  site: {
+    uid: "mock_site",
+    email: "site@truck.com",
+    displayName: "Anna Site",
+    role: "operator_site",
+    siteId: "s1",
+  },
+  quarry: {
+    uid: "mock_quarry",
+    email: "quarry@truck.com",
+    displayName: "Peter Quarry",
+    role: "operator_quarry",
+    quarryId: "q1",
+  },
+};
 
+// ============== Firestore Live Data ==============
 let firestoreUnsubscribers: (() => void)[] = [];
 
 function startFirestoreListeners() {
@@ -249,7 +280,6 @@ export async function fetchSites(): Promise<any[]> {
 
 export async function fetchCheckpoints(params?: { jobId?: string; deliveryOrderId?: string }): Promise<any[]> {
   await delay();
-  // Return simplified checkpoints - in_transit removed
   const checkpoints = [
     { id: 'cp1', deliveryOrderId: 'do1', jobId: 'JOB-2026-0001', type: 'weigh_in', timestamp: '2026-06-25T07:30:00Z', location: 'Quarry Gate' },
     { id: 'cp2', deliveryOrderId: 'do1', jobId: 'JOB-2026-0001', type: 'loading', timestamp: '2026-06-25T08:30:00Z', location: 'Quarry Loading Bay' },
@@ -280,6 +310,28 @@ const api: ApiClient = {
     }
     await delay(50);
     const search = params?.search?.toLowerCase();
+
+    // --- FIX: Return the actual logged-in user from stored session ---
+    if (url.includes('/auth/profile')) {
+      try {
+        const stored = await getAuthData();
+        if (stored.userData) {
+          const user = JSON.parse(stored.userData);
+          return { data: { user } as any as T };
+        }
+      } catch {
+        // fall through to default
+      }
+      // Fallback if nothing is stored (should not happen)
+      const defaultUser = {
+        uid: 'mock',
+        email: 'admin@truck.com',
+        displayName: 'James Admin',
+        role: 'management',
+      };
+      return { data: { user: defaultUser } as any as T };
+    }
+
     if (url.includes('/vendors')) return { data: getCache('vendors') as any as T };
     if (url.includes('/drivers')) {
       let items = getCache('drivers');
@@ -290,9 +342,10 @@ const api: ApiClient = {
     if (url.includes('/materials')) return { data: getCache('materials') as any as T };
     if (url.includes('/purchase-orders') || url.includes('/orders')) return { data: getCache('orders') as any as T };
     if (url.includes('/delivery-orders') || url.includes('/deliveries')) return { data: getCache('deliveries') as any as T };
-    if (url.includes('/auth/profile')) return { data: { user: { uid: 'mock', email: 'admin@truck.com', displayName: 'James Admin', role: 'management' } } as any as T };
+
     return { data: { items: [] } as any as T };
   },
+
   async post<T>(_url: string, data?: any): Promise<{ data: T }> {
     try {
       if (API_BASE_URL) return { data: await backendRequest<T>('post', _url, data) };
@@ -300,30 +353,34 @@ const api: ApiClient = {
       console.warn(`Backend POST ${_url} failed, using mock fallback:`, error);
     }
     await delay(50);
-    if (_url.includes('/auth/login')) {
-      return { data: { token: 'mock_token', user: { uid: 'mock_user', email: data?.email || 'admin@truck.com', displayName: 'James Admin', role: 'management' } } as any as T };
+
+    if (_url.includes("/auth/login")) {
+      const username = (data?.username || data?.email || "")
+        .toLowerCase()
+        .trim();
+
+      // ✅ Type‑safe lookup: cast to keyof typeof MOCK_USERS
+      const user = MOCK_USERS[username as keyof typeof MOCK_USERS];
+      if (!user) {
+        throw new Error("Invalid credentials");
+      }
+      return {
+        data: {
+          token: `mock_token_${Date.now()}`,
+          user,
+        } as any as T,
+      };
     }
-    if (_url.includes('/delivery-orders') || _url.includes('/deliveries')) {
-      MOCK_DELIVERIES_CACHE = [data, ...MOCK_DELIVERIES_CACHE];
-      return { data: data as any as T };
-    }
+
     return { data: null as any as T };
   },
+
   async put<T>(_url: string, data?: any): Promise<{ data: T }> {
-    try {
-      if (API_BASE_URL) return { data: await backendRequest<T>('put', _url, data) };
-    } catch (error) {
-      console.warn(`Backend PUT ${_url} failed, using mock fallback:`, error);
-    }
     await delay(50);
     return { data: data as any as T };
   },
-  async delete<T>(url: string): Promise<{ data: T }> {
-    try {
-      if (API_BASE_URL) return { data: await backendRequest<T>('delete', url) };
-    } catch (error) {
-      console.warn(`Backend DELETE ${url} failed, using mock fallback:`, error);
-    }
+
+  async delete<T>(): Promise<{ data: T }> {
     await delay(50);
     return { data: null as any as T };
   },

@@ -31,7 +31,7 @@ export default function ManagementProfileScreen() {
       <DataCard>
         <DetailRow icon="person-outline" label="Name" value={user?.displayName || 'N/A'} />
         <DetailRow icon="mail-outline" label="Email" value={user?.email || 'N/A'} />
-        <DetailRow icon="shield-checkmark-outline" label="Role" value={getRoleLabel(user?.role || 'management')} />
+        <DetailRow icon="shield-checkmark-outline" label="Role" value={getRoleLabel(user?.role || '')} />
         <DetailRow icon="call-outline" label="Phone" value={user?.phone || 'Not set'} />
         <DetailRow icon="calendar-outline" label="Member since" value={user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'} />
       </DataCard>

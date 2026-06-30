@@ -123,7 +123,7 @@ export default function ManagementLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => router.push('/screens/issues' as any)} style={{ paddingHorizontal: 6, paddingVertical: 8 }}>
+              <TouchableOpacity onPress={() => router.push('/screens/notifications' as any)} style={{ paddingHorizontal: 6, paddingVertical: 8 }}>
                 <Ionicons name="notifications-outline" size={22} color="#1B2A4A" />
               </TouchableOpacity>
               <TouchableOpacity onPress={toggleMenu} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
@@ -137,7 +137,7 @@ export default function ManagementLayout() {
           const config = TAB_ICONS[tabName];
           return (
             <Tabs.Screen
-              key={tabName}
+              key={tabName} 
               name={tabName}
               options={{
                 title: config?.label || tabName,

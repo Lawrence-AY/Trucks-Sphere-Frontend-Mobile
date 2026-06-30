@@ -1,14 +1,26 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import {
-  Platform, StyleSheet, View, TouchableOpacity, Modal, Text, ActivityIndicator,
+  Platform,
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  Animated,
+  Pressable,
+  useWindowDimensions,
+  ScrollView,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
+import { getRoleLabel } from '../../utils/helpers';
 
 const BOTTOM_TABS = ['dashboard', 'weigh-in', 'weigh-out', 'materials'];
+const HIDDEN_TABS = ['profile', 'settings'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   dashboard: { icon: 'clipboard-outline', label: 'Queue' },
@@ -17,19 +29,59 @@ const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: s
   materials: { icon: 'cube-outline', label: 'Materials' },
 };
 
+// Menu items for quarry operator drawer
+const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
+  { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
+  { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
+  { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
+];
+
 export default function OperatorQuarryLayout() {
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [menuVisible, setMenuVisible] = useState(false);
+
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const menuWidth = Math.min(screenWidth * 0.8, 320);
+
+  const toggleMenu = useCallback(() => {
+    if (menuOpen) {
+      Animated.parallel([
+        Animated.timing(slideAnim, { toValue: menuWidth, duration: 200, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      ]).start(() => setMenuOpen(false));
+    } else {
+      setMenuOpen(true);
+      slideAnim.setValue(menuWidth);
+      Animated.parallel([
+        Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [menuOpen, slideAnim, fadeAnim, menuWidth]);
+
+  const handleMenuNav = (route: string) => {
+    if (route === '__logout__') {
+      setConfirmLogout(true);
+      return;
+    }
+    toggleMenu();
+    setTimeout(() => {
+      router.push(route as any);
+    }, 250);
+  };
 
   const handleLogout = async () => {
     setLoggingOut(true);
     await logout();
     setLoggingOut(false);
     setConfirmLogout(false);
+    setMenuOpen(false);
     router.replace('/(auth)/login' as any);
   };
 
@@ -60,11 +112,14 @@ export default function OperatorQuarryLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => router.push('/screens/issues' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+              <TouchableOpacity
+                onPress={() => router.push('/screens/notifications' as any)}
+                style={{ paddingHorizontal: 6, paddingVertical: 8 }}
+              >
                 <Ionicons name="notifications-outline" size={22} color="#1B2A4A" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-                <Ionicons name="menu-outline" size={23} color="#1B2A4A" />
+              <TouchableOpacity onPress={toggleMenu} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+                <Ionicons name="menu-outline" size={24} color="#1B2A4A" />
               </TouchableOpacity>
             </View>
           ),
@@ -88,59 +143,83 @@ export default function OperatorQuarryLayout() {
             />
           );
         })}
+        {HIDDEN_TABS.map((tabName) => (
+          <Tabs.Screen key={tabName} name={tabName} options={{ href: null }} />
+        ))}
       </Tabs>
 
-      <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
-        <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuVisible(false)}>
-          <View style={styles.miniBar}>
-            <MiniBarItem
-              icon="settings-outline"
-              label="Settings"
-              onPress={() => {
-                setMenuVisible(false);
-                router.push('/operator-quarry/settings' as any);
-              }}
-            />
-            <MiniBarItem
-              icon="person-outline"
-              label="Profile"
-              onPress={() => {
-                setMenuVisible(false);
-                router.push('/operator-quarry/profile' as any);
-              }}
-            />
-            <MiniBarItem
-              icon="time-outline"
-              label="History"
-              onPress={() => {
-                setMenuVisible(false);
-                router.push('/(tabs)/history' as any);
-              }}
-            />
-            <MiniBarItem
-              icon="chatbubble-ellipses-outline"
-              label="Issues"
-              onPress={() => {
-                setMenuVisible(false);
-                router.push('/screens/issues' as any);
-              }}
-            />
-            <View style={styles.menuDivider} />
-            <MiniBarItem
-              icon="log-out-outline"
-              label="Logout"
-              danger
-              onPress={() => {
-                setMenuVisible(false);
-                setConfirmLogout(true);
-              }}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      {/* Hamburger Drawer */}
+      {menuOpen && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: 'rgba(0,0,0,0.35)', opacity: fadeAnim },
+            ]}
+          >
+            <Pressable style={StyleSheet.absoluteFill} onPress={toggleMenu} />
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.drawer,
+              {
+                paddingTop: insets.top + 16,
+                backgroundColor: '#FFFFFF',
+                width: menuWidth,
+                transform: [{ translateX: slideAnim }],
+              },
+            ]}
+          >
+            <View style={styles.drawerUser}>
+              <View style={[styles.drawerAvatar, { backgroundColor: '#1B2A4A15' }]}>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: '#1B2A4A' }}>
+                  {(user?.displayName || 'U').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B' }}>
+                {user?.displayName || 'User'}
+              </Text>
+              <Text style={{ fontSize: 14, color: '#64748B' }}>{user?.email || ''}</Text>
+              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#1B2A4A12' }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1B2A4A' }}>
+                  {getRoleLabel(user?.role || '')}
+                </Text>
+              </View>
+            </View>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
+              {MENU_ITEMS.map((item) => (
+                <TouchableOpacity
+                  key={item.label}
+                  style={styles.drawerItem}
+                  onPress={() => handleMenuNav(item.route)}
+                >
+                  <Ionicons
+                    name={item.icon}
+                    size={20}
+                    color={item.label === 'Logout' ? '#EF4444' : '#1E293B'}
+                  />
+                  <Text
+                    style={[
+                      styles.drawerItemText,
+                      item.label === 'Logout' && { color: '#EF4444' },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      )}
 
       {/* Logout Confirmation Modal */}
-      <Modal visible={confirmLogout} transparent animationType="fade" onRequestClose={() => setConfirmLogout(false)}>
+      <Modal
+        visible={confirmLogout}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmLogout(false)}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.logoutDialog}>
             <View style={styles.logoutIcon}>
@@ -202,42 +281,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.12)',
-    alignItems: 'flex-end',
-    paddingTop: Platform.OS === 'ios' ? 56 : 46,
-    paddingRight: 10,
-  },
-  miniBar: {
-    width: 196,
-    borderRadius: Radius.lg,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingVertical: Spacing.sm,
-    elevation: 8,
+  drawer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  menuItem: {
-    minHeight: 44,
+  drawerUser: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  drawerAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  drawerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    paddingHorizontal: Spacing.lg,
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
-  menuText: {
+  drawerItemText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#1E293B',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  menuDivider: {
-    height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: Spacing.sm,
   },
   modalBackdrop: {
     flex: 1,

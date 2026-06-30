@@ -65,7 +65,7 @@ export default function IndexScreen() {
         router.replace('/(auth)/login');
         return;
       }
-      const role = useAuthStore.getState().user?.role || 'management';
+      const role = useAuthStore.getState().user?.role ;
       switch (role) {
         case 'management': router.replace('/management/dashboard' as any); break;
         case 'vendor': router.replace('/vendor/dashboard' as any); break;

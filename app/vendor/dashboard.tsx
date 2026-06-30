@@ -59,7 +59,7 @@ export default function VendorDashboardScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Vendor workspace" title="Vendor dashboard" subtitle={`${user?.displayName || 'Vendor'}`} />
+       
       <View style={styles.metricRow}>
         <MetricTile icon="document-text" label="My orders" value={orders.length} tone={colors.primary} />
         <MetricTile icon="people" label="My drivers" value={drivers.length} tone={colors.accent} />

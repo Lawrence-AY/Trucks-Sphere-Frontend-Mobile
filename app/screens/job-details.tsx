@@ -61,6 +61,14 @@ function progressForJob(job: any, checkpoints: any[]) {
   return 8;
 }
 
+const CHECKPOINT_CONFIG: Record<string, { label: string; icon: IconName }> = {
+  weigh_in: { label: 'Weigh In', icon: 'download-outline' },
+  weigh_out: { label: 'Weigh Out', icon: 'arrow-up-circle-outline' },
+  loading: { label: 'Loading', icon: 'cube-outline' },
+  arrived_site: { label: 'Arrived at Site', icon: 'location-outline' },
+  received: { label: 'Received', icon: 'receipt-outline' },
+};
+
 export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
@@ -170,7 +178,6 @@ export default function JobDetailsScreen() {
       <DataCard>
         <View style={styles.summaryHead}>
           <View style={styles.summaryCopy}>
-            <Text style={[styles.summaryTitle, { color: colors.text }]}>{progress}% complete</Text>
             <Text style={[styles.summarySub, { color: colors.textMuted }]}>
               {`${job.quarryName || 'Origin'} to ${job.siteName || 'Destination'}`}
             </Text>
@@ -219,13 +226,6 @@ export default function JobDetailsScreen() {
             {deliveredQty ? `${siteVariance.toFixed(1)} ${unit} variance` : 'Awaiting site receipt for final reconciliation'}
           </Text>
         </View>
-        {weighments.map((item) => (
-          <DetailRow
-            key={item.id}
-            icon={item.type === 'weigh_in' ? 'download-outline' : 'arrow-up-circle-outline'}
-            value={`${formatStatus(item.type)} - ${formatWeight(item.weight)} at ${item.location}`}
-          />
-        ))}
       </DataCard>
 
       <SectionTitle title="Journey Timeline" />
@@ -244,7 +244,7 @@ export default function JobDetailsScreen() {
               key={item.id}
               icon={config.icon}
               title={config.label}
-              meta={`${formatMaybeDate(item.timestamp)} - ${item.location}`}
+              meta={isWeight ? `${formatWeight(item.weight)} at ${item.location} · ${formatMaybeDate(item.timestamp)}` : `${formatMaybeDate(item.timestamp)} - ${item.location}`}
               color={getStatusColor(item.type)}
               complete
             />
@@ -324,27 +324,11 @@ function TimelineItem({
   );
 }
 
-function AttachmentRow({ icon, label, count }: { icon: IconName; label: string; count: number }) {
-  const colors = useTheme();
-  return (
-    <View style={styles.attachmentRow}>
-      <View style={styles.attachmentLabel}>
-        <Ionicons name={icon} size={17} color={colors.textMuted} />
-        <Text style={[styles.attachmentText, { color: colors.textSecondary }]}>{label}</Text>
-      </View>
-      <Text style={[styles.attachmentCount, { color: count ? colors.primary : colors.textMuted }]}>
-        {count ? `${count} file${count === 1 ? '' : 's'}` : 'None'}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   mutedStrong: { fontSize: 13, fontWeight: '800' },
   summaryHead: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md, alignItems: 'flex-start' },
   summaryCopy: { flex: 1 },
-  summaryTitle: { fontSize: 24, fontWeight: '900' },
   summarySub: { fontSize: 12, fontWeight: '700', marginTop: 4 },
   priorityBadge: { borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
   priorityText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
@@ -394,8 +378,4 @@ const styles = StyleSheet.create({
   timelineCopy: { flex: 1 },
   timelineTitle: { fontSize: 14, fontWeight: '900' },
   timelineMeta: { fontSize: 12, fontWeight: '700', marginTop: 3, lineHeight: 17 },
-  attachmentRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md },
-  attachmentLabel: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  attachmentText: { flex: 1, fontSize: 13, fontWeight: '800' },
-  attachmentCount: { fontSize: 12, fontWeight: '900' },
 });
