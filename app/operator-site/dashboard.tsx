@@ -43,8 +43,7 @@ export default function OperatorSiteDashboardScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Site operations" title="Schedule" subtitle={`${deliveries.length} deliveries`} />
-      <View style={styles.metricRow}>
+       <View style={styles.metricRow}>
         <MetricTile icon="calendar" label="Scheduled" value={scheduled.length} tone={colors.primary} />
         <MetricTile icon="checkmark-done" label="Arrived" value={arrived.length} tone={colors.success} />
       </View>

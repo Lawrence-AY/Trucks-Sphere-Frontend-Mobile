@@ -1,17 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_WEIGHMENTS } from '../../store/mockData';
+import { fetchWeighments } from '../../services/api';
 
 export default function HistoryScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'weigh_in' | 'weigh_out'>('all');
+  const [weighments, setWeighments] = useState<any[]>([]);
 
-  const filtered = MOCK_WEIGHMENTS.filter(w => {
+  useEffect(() => {
+    console.log('[History] Fetching weighments from backend...');
+    fetchWeighments().then(data => {
+      console.log('[History] Weighments loaded:', data.length, 'items', data);
+      setWeighments(data);
+    }).catch(err => console.error('[History] Failed to load weighments:', err));
+  }, []);
+
+  const filtered = weighments.filter(w => {
     const matchesSearch =
       !search ||
       (w.jobId || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -88,7 +97,7 @@ export default function HistoryScreen() {
                 </Text>
               </View>
               <Text style={[styles.weightText, { color: colors.text }]}>
-                {item.weight.toFixed(1)}T
+                {(item.weight || item.weightIn)?.toFixed(1)}T
               </Text>
             </View>
             <View style={styles.cardInfo}>

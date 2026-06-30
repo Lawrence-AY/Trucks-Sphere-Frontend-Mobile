@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   FlatList, Alert, TextInput,
@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_WEIGHMENTS } from '../../store/mockData';
+import { fetchWeighments } from '../../services/api';
 
 export default function WeighOutScreen() {
   const colors = useTheme();
@@ -15,10 +15,19 @@ export default function WeighOutScreen() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<any>(null);
   const [weightOut, setWeightOut] = useState('');
+  const [weighments, setWeighments] = useState<any[]>([]);
 
-  const pending = MOCK_WEIGHMENTS.filter(w => w.status === 'weighed_in' || w.status === 'pending')
+  useEffect(() => {
+    console.log('[WeighOut] Fetching weighments from backend...');
+    fetchWeighments().then(data => {
+      console.log('[WeighOut] Weighments loaded:', data.length, 'items', data);
+      setWeighments(data);
+    }).catch(err => console.error('[WeighOut] Failed to load weighments:', err));
+  }, []);
+
+  const pending = weighments.filter(w => w.status === 'weighed_in' || w.status === 'pending')
     .filter(w =>
-      (w.truckPlate || '').toLowerCase().includes((search || '').toLowerCase()) ||
+      (w.truckPlate || w.plateNumber || '').toLowerCase().includes((search || '').toLowerCase()) ||
       (w.driverName || '').toLowerCase().includes((search || '').toLowerCase()) ||
       (w.id || '').toLowerCase().includes((search || '').toLowerCase())
     );

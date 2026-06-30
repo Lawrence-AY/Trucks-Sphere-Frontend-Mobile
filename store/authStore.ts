@@ -20,48 +20,12 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   }
 }
 
-const MOCK_USERS = {
-  admin: {
-    uid: "mock_admin",
-    email: "admin@truck.com",
-    displayName: "James Admin",
-    role: "admin",
-  },
-  management: {
-    uid: "mock_management",
-    email: "management@truck.com",
-    displayName: "Mary Management",
-    role: "management",
-  },
-  vendor: {
-    uid: "mock_vendor",
-    email: "vendor@truck.com",
-    displayName: "John Vendor",
-    role: "vendor",
-    vendorId: "v1",
-  },
-  site: {
-    uid: "mock_site",
-    email: "site@truck.com",
-    displayName: "Anna Site",
-    role: "operator_site",
-    siteId: "s1",
-  },
-  quarry: {
-    uid: "mock_quarry",
-    email: "quarry@truck.com",
-    displayName: "Peter Quarry",
-    role: "operator_quarry",
-    quarryId: "q1",
-  },
-};
-
 interface AuthStore {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: string | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   restoreSession: () => Promise<void>;
   clearError: () => void;
@@ -73,40 +37,48 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isAuthenticated: false,
   error: null,
 
-  login: async (username: string, password: string) => {
+  login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     await clearAuthData();
     try {
-      const credential = username.trim().toLowerCase();
+      console.log('[AuthStore] Logging in via backend /api/auth/login...');
+      const response = await api.post('/api/auth/login', { email, password });
+      console.log('[AuthStore] Login response:', response.data);
 
-      // ✅ Type‑safe lookup
-      const match = MOCK_USERS[credential as keyof typeof MOCK_USERS];
-      if (!match || password.length < 4) {
-        throw new Error('Invalid username or password');
+      const { user: backendUser, token, refreshToken } = response.data as any;
+
+      if (!backendUser || !token) {
+        throw new Error('Invalid response from server');
       }
 
-      const mockToken = `mock_token_${Date.now()}`;
       const user: User = {
-        uid: `mock_${credential}`,
-        email: credential.includes('@') ? credential : `${credential}@truck.com`,
-        displayName: match.displayName,
-        role: match.role as any,
-        vendorId: match.vendorId,
-        quarryId: match.quarryId,
-        siteId: match.siteId,
-        phone: '',
+        uid: backendUser.uid,
+        email: backendUser.email,
+        displayName: backendUser.displayName || backendUser.name || email.split('@')[0],
+        name: backendUser.name || backendUser.displayName,
+        role: backendUser.role || 'management',
+        phone: backendUser.phone || '',
+        vendorId: backendUser.vendorId || undefined,
+        quarryId: backendUser.quarryId || undefined,
+        siteId: backendUser.siteId || undefined,
         createdAt: new Date().toISOString(),
       };
 
+      console.log('[AuthStore] Saving user data:', user);
+
       await saveAuthData({
-        token: mockToken,
+        token,
+        refreshToken: refreshToken || '',
         userData: JSON.stringify(user),
       });
 
       set({ user, isLoading: false, isAuthenticated: true, error: null });
+      console.log('[AuthStore] Login successful, user authenticated');
     } catch (err: any) {
+      const errorMsg = err?.response?.data?.error || err.message || 'Login failed';
+      console.error('[AuthStore] Login failed:', errorMsg);
       set({
-        error: err?.response?.data?.error || err.message || 'Login failed',
+        error: errorMsg,
         isLoading: false,
         isAuthenticated: false,
       });
@@ -116,7 +88,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   logout: async () => {
     try {
-      await api.post('/auth/logout').catch(() => {});
+      await api.post('/api/auth/logout').catch(() => {});
     } catch {}
     await clearAuthData();
     set({ user: null, isAuthenticated: false, isLoading: false });
@@ -127,23 +99,37 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const stored = await withTimeout(getAuthData(), RESTORE_TIMEOUT_MS, 'Auth storage');
       if (stored.token) {
-        try {
-          const res = await withTimeout(api.get('/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile');
-          const user: User = res.data.user;
-          set({ user, isLoading: false, isAuthenticated: true });
-          return;
-        } catch {
-          if (stored.userData) {
-            try {
-              const user: User = JSON.parse(stored.userData);
-              set({ user, isLoading: false, isAuthenticated: true });
-              return;
-            } catch {}
+        // Skip backend profile call for mock tokens — they will fail Firebase verifyIdToken
+        const isMockToken = stored.token.startsWith('mock_');
+
+        if (!isMockToken) {
+          try {
+            console.log('[AuthStore] Restoring session via /api/auth/profile...');
+            const res = await withTimeout(api.get('/api/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile');
+            const user: User = res.data.user;
+            console.log('[AuthStore] Session restored from backend:', user);
+            set({ user, isLoading: false, isAuthenticated: true });
+            return;
+          } catch (profileErr: any) {
+            const status = profileErr?.response?.status;
+            console.warn(`[AuthStore] Backend profile fetch failed (${status || 'network error'}), using stored data`);
           }
+        } else {
+          console.log('[AuthStore] Mock token detected, using stored session data');
+        }
+
+        // Fallback to stored userData (works for both mock tokens and expired real tokens)
+        if (stored.userData) {
+          try {
+            const user: User = JSON.parse(stored.userData);
+            console.log('[AuthStore] Session restored from stored data:', user);
+            set({ user, isLoading: false, isAuthenticated: true });
+            return;
+          } catch {}
         }
       }
     } catch (error) {
-      console.warn('Session restore failed:', error);
+      console.warn('[AuthStore] Session restore failed:', error);
     }
     set({ user: null, isLoading: false, isAuthenticated: false });
   },

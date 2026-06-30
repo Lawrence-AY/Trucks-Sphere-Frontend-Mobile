@@ -98,29 +98,14 @@ export default function ManagementMaterialsScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader
-        eyebrow="All materials"
-        title="Materials"
-        subtitle="Purchase orders grouped by material across all vendors"
-      />
+     
 
       <View style={styles.metricRow}>
         <MetricTile icon="cube" label="Materials" value={materialCards.length} tone={colors.primary} />
         <MetricTile icon="document-text" label="Purchase orders" value={orders.length} tone={colors.accent} />
       </View>
 
-      <DataCard>
-        <View style={styles.summaryHead}>
-          <View>
-            <Text style={[styles.summaryTitle, { color: colors.text }]}>{totals.completion}% delivered</Text>
-            <Text style={[styles.summarySub, { color: colors.textMuted }]}>
-              {Math.round(totals.delivered)}/{Math.round(totals.ordered)} ordered units
-            </Text>
-          </View>
-          <Text style={[styles.remaining, { color: colors.accent }]}>{totals.completion}%</Text>
-        </View>
-        <ProgressBar value={totals.completion} color={colors.primary} />
-      </DataCard>
+       
 
       <SearchField value={search} onChangeText={setSearch} placeholder="Search material, category..." />
       <SectionTitle title={`${materialCards.length} material cards`} />
@@ -139,9 +124,7 @@ export default function ManagementMaterialsScreen() {
                   {item.purchaseOrderCount} POs - {item.jobs} jobs
                 </Text>
               </View>
-              <Text style={[styles.percent, { color: item.completion >= 100 ? colors.success : colors.primary }]}>
-                {item.completion}%
-              </Text>
+               
             </View>
             <ProgressBar value={item.completion} color={item.completion >= 100 ? colors.success : colors.primary} />
             <DetailRow icon="download-outline" value={`Ordered ${Math.round(item.ordered)} ${item.unit || 'units'}`} />
