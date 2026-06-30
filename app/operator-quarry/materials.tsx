@@ -27,8 +27,7 @@ export default function OperatorQuarryMaterialsScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader title="Materials" subtitle={`${materials.length} items`} />
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search..." />
+       <SearchField value={search} onChangeText={setSearch} placeholder="Search..." />
       <SectionTitle title={`${filtered.length} items`} />
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
@@ -36,7 +35,7 @@ export default function OperatorQuarryMaterialsScreen() {
         filtered.map((item) => (
           <DataCard key={item.id}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.name}</Text>
-            <DetailRow icon="pricetag-outline" value={`${item.unitPrice || 0} KES / ${item.unit || 'unit'}`} />
+            
           </DataCard>
         ))
       ) : (

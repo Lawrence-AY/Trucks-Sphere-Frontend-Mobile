@@ -43,8 +43,7 @@ export default function OperatorQuarryWeighInScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Quarry gate" title="Weigh In" subtitle={`${deliveries.length} pending weigh-ins`} />
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate..." />
+       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate..." />
       <SectionTitle title={`${filtered.length} to weigh in`} />
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
