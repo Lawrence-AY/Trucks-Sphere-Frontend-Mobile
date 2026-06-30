@@ -1,5 +1,6 @@
 import { useAuthStore } from '../store/authStore';
 import { getStoredToken } from './database';
+import axios from 'axios';
 import {  
   MOCK_DRIVERS, MOCK_TRUCKS, MOCK_MATERIALS,
   MOCK_PURCHASE_ORDERS, MOCK_DELIVERY_ORDERS, MOCK_WEIGHMENTS,
@@ -71,6 +72,34 @@ let MOCK_DELIVERIES_CACHE: any[] = MOCK_DELIVERY_ORDERS as any[];
 
 // ============== Fetch Functions ==============
 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || '';
+
+async function backendRequest<T>(method: 'get' | 'post' | 'put' | 'delete', url: string, data?: any, params?: any): Promise<T> {
+  if (!API_BASE_URL) throw new Error('Backend API URL is not configured');
+  const token = await getStoredToken();
+  const response = await axios.request<T>({
+    baseURL: API_BASE_URL,
+    url,
+    method,
+    data,
+    params,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  return response.data;
+}
+
+function unwrapItems<T = any>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
+function unwrapOne<T = any>(data: any, fallback: T): T {
+  return (data?.item || data?.data || data?.deliveryOrder || data?.delivery || data) as T || fallback;
+}
+
 function getCache(key: string): any[] {
   switch (key) {
     case 'vendors': return MOCK_VENDORS_CACHE;
@@ -86,6 +115,11 @@ function getCache(key: string): any[] {
 function delay(ms = 100) { return new Promise((r) => setTimeout(r, ms)); }
 
 export async function fetchVendors(params?: { search?: string; status?: string }): Promise<any[]> {
+  try {
+    if (API_BASE_URL) return unwrapItems(await backendRequest('get', '/vendors', undefined, params));
+  } catch (error) {
+    console.warn('Backend vendors fetch failed, using mock fallback:', error);
+  }
   await delay();
   let items = getCache('vendors');
   const search = params?.search?.toLowerCase();
@@ -96,6 +130,11 @@ export async function fetchVendors(params?: { search?: string; status?: string }
 }
 
 export async function fetchDrivers(params?: { search?: string; status?: string }): Promise<any[]> {
+  try {
+    if (API_BASE_URL) return unwrapItems(await backendRequest('get', '/drivers', undefined, params));
+  } catch (error) {
+    console.warn('Backend drivers fetch failed, using mock fallback:', error);
+  }
   await delay();
   let items = getCache('drivers');
   const search = params?.search?.toLowerCase();
@@ -106,6 +145,11 @@ export async function fetchDrivers(params?: { search?: string; status?: string }
 }
 
 export async function fetchVehicles(params?: { search?: string; status?: string }): Promise<any[]> {
+  try {
+    if (API_BASE_URL) return unwrapItems(await backendRequest('get', '/vehicles', undefined, params));
+  } catch (error) {
+    console.warn('Backend vehicles fetch failed, using mock fallback:', error);
+  }
   await delay();
   let items = getCache('vehicles');
   const search = params?.search?.toLowerCase();
@@ -124,6 +168,11 @@ export async function fetchMaterials(params?: { search?: string; category?: stri
 }
 
 export async function fetchPurchaseOrders(params?: { search?: string; status?: string }): Promise<any[]> {
+  try {
+    if (API_BASE_URL) return unwrapItems(await backendRequest('get', '/purchase-orders', undefined, params));
+  } catch (error) {
+    console.warn('Backend purchase orders fetch failed, using mock fallback:', error);
+  }
   await delay();
   let items = getCache('orders');
   const search = params?.search?.toLowerCase();
@@ -132,12 +181,45 @@ export async function fetchPurchaseOrders(params?: { search?: string; status?: s
 }
 
 export async function fetchDeliveryOrders(params?: { search?: string; status?: string; jobId?: string; purchaseOrderId?: string }): Promise<any[]> {
+  try {
+    if (API_BASE_URL) return unwrapItems(await backendRequest('get', '/delivery-orders', undefined, params));
+  } catch (error) {
+    console.warn('Backend delivery orders fetch failed, using mock fallback:', error);
+  }
   await delay();
   let items = getCache('deliveries');
   const { jobId, purchaseOrderId } = params || {};
   if (jobId) items = items.filter((d: any) => d.jobId === jobId || d.id === jobId);
   if (purchaseOrderId) items = items.filter((d: any) => d.purchaseOrderId === purchaseOrderId);
   return items;
+}
+
+export async function createDeliveryOrder(payload: any): Promise<any> {
+  try {
+    if (API_BASE_URL) {
+      return unwrapOne(await backendRequest('post', '/delivery-orders', payload), payload);
+    }
+  } catch (error) {
+    console.warn('Backend delivery order create failed, using mock fallback:', error);
+  }
+  await delay();
+  MOCK_DELIVERIES_CACHE = [payload, ...MOCK_DELIVERIES_CACHE];
+  return payload;
+}
+
+export async function updateDeliveryOrder(id: string, payload: any): Promise<any> {
+  try {
+    if (API_BASE_URL) {
+      return unwrapOne(await backendRequest('put', `/delivery-orders/${id}`, payload), payload);
+    }
+  } catch (error) {
+    console.warn('Backend delivery order update failed, using mock fallback:', error);
+  }
+  await delay();
+  MOCK_DELIVERIES_CACHE = MOCK_DELIVERIES_CACHE.map((item: any) =>
+    item.id === id ? { ...item, ...payload } : item
+  );
+  return { ...MOCK_DELIVERIES_CACHE.find((item: any) => item.id === id), ...payload };
 }
 
 export async function fetchWeighments(params?: { jobId?: string; type?: string }): Promise<any[]> {
@@ -191,6 +273,11 @@ interface ApiClient {
 
 const api: ApiClient = {
   async get<T>(url: string, params?: any): Promise<{ data: T }> {
+    try {
+      if (API_BASE_URL) return { data: await backendRequest<T>('get', url, undefined, params) };
+    } catch (error) {
+      console.warn(`Backend GET ${url} failed, using mock fallback:`, error);
+    }
     await delay(50);
     const search = params?.search?.toLowerCase();
     if (url.includes('/vendors')) return { data: getCache('vendors') as any as T };
@@ -207,14 +294,39 @@ const api: ApiClient = {
     return { data: { items: [] } as any as T };
   },
   async post<T>(_url: string, data?: any): Promise<{ data: T }> {
+    try {
+      if (API_BASE_URL) return { data: await backendRequest<T>('post', _url, data) };
+    } catch (error) {
+      console.warn(`Backend POST ${_url} failed, using mock fallback:`, error);
+    }
     await delay(50);
     if (_url.includes('/auth/login')) {
       return { data: { token: 'mock_token', user: { uid: 'mock_user', email: data?.email || 'admin@truck.com', displayName: 'James Admin', role: 'management' } } as any as T };
     }
+    if (_url.includes('/delivery-orders') || _url.includes('/deliveries')) {
+      MOCK_DELIVERIES_CACHE = [data, ...MOCK_DELIVERIES_CACHE];
+      return { data: data as any as T };
+    }
     return { data: null as any as T };
   },
-  async put<T>(_url: string, data?: any): Promise<{ data: T }> { await delay(50); return { data: data as any as T }; },
-  async delete<T>(): Promise<{ data: T }> { await delay(50); return { data: null as any as T }; },
+  async put<T>(_url: string, data?: any): Promise<{ data: T }> {
+    try {
+      if (API_BASE_URL) return { data: await backendRequest<T>('put', _url, data) };
+    } catch (error) {
+      console.warn(`Backend PUT ${_url} failed, using mock fallback:`, error);
+    }
+    await delay(50);
+    return { data: data as any as T };
+  },
+  async delete<T>(url: string): Promise<{ data: T }> {
+    try {
+      if (API_BASE_URL) return { data: await backendRequest<T>('delete', url) };
+    } catch (error) {
+      console.warn(`Backend DELETE ${url} failed, using mock fallback:`, error);
+    }
+    await delay(50);
+    return { data: null as any as T };
+  },
 };
 
 export default api;

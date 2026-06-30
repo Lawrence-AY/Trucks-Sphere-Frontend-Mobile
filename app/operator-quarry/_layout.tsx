@@ -23,6 +23,7 @@ export default function OperatorQuarryLayout() {
   const insets = useSafeAreaInsets();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -62,8 +63,8 @@ export default function OperatorQuarryLayout() {
               <TouchableOpacity onPress={() => router.push('/screens/issues' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
                 <Ionicons name="notifications-outline" size={22} color="#1B2A4A" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setConfirmLogout(true)} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
-                <Ionicons name="log-out-outline" size={20} color="#1B2A4A" />
+              <TouchableOpacity onPress={() => setMenuVisible(true)} style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+                <Ionicons name="menu-outline" size={23} color="#1B2A4A" />
               </TouchableOpacity>
             </View>
           ),
@@ -88,6 +89,55 @@ export default function OperatorQuarryLayout() {
           );
         })}
       </Tabs>
+
+      <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
+        <TouchableOpacity style={styles.menuBackdrop} activeOpacity={1} onPress={() => setMenuVisible(false)}>
+          <View style={styles.miniBar}>
+            <MiniBarItem
+              icon="settings-outline"
+              label="Settings"
+              onPress={() => {
+                setMenuVisible(false);
+                router.push('/operator-quarry/settings' as any);
+              }}
+            />
+            <MiniBarItem
+              icon="person-outline"
+              label="Profile"
+              onPress={() => {
+                setMenuVisible(false);
+                router.push('/operator-quarry/profile' as any);
+              }}
+            />
+            <MiniBarItem
+              icon="time-outline"
+              label="History"
+              onPress={() => {
+                setMenuVisible(false);
+                router.push('/(tabs)/history' as any);
+              }}
+            />
+            <MiniBarItem
+              icon="chatbubble-ellipses-outline"
+              label="Issues"
+              onPress={() => {
+                setMenuVisible(false);
+                router.push('/screens/issues' as any);
+              }}
+            />
+            <View style={styles.menuDivider} />
+            <MiniBarItem
+              icon="log-out-outline"
+              label="Logout"
+              danger
+              onPress={() => {
+                setMenuVisible(false);
+                setConfirmLogout(true);
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Logout Confirmation Modal */}
       <Modal visible={confirmLogout} transparent animationType="fade" onRequestClose={() => setConfirmLogout(false)}>
@@ -125,6 +175,25 @@ export default function OperatorQuarryLayout() {
   );
 }
 
+function MiniBarItem({
+  icon,
+  label,
+  onPress,
+  danger = false,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+      <Ionicons name={icon} size={18} color={danger ? '#EF4444' : '#1B2A4A'} />
+      <Text style={[styles.menuText, danger && { color: '#EF4444' }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   tabIcon: {
     width: 38,
@@ -132,6 +201,43 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.12)',
+    alignItems: 'flex-end',
+    paddingTop: Platform.OS === 'ios' ? 56 : 46,
+    paddingRight: 10,
+  },
+  miniBar: {
+    width: 196,
+    borderRadius: Radius.lg,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: Spacing.sm,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+  },
+  menuItem: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+  },
+  menuText: {
+    color: '#1E293B',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: Spacing.sm,
   },
   modalBackdrop: {
     flex: 1,

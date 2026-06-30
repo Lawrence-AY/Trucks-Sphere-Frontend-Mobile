@@ -10356,3 +10356,300 @@
 {"_e":"metro:client_log","_t":1782798643111,"level":"warn","data":["Route \"./vendor/index.tsx\" is missing the required default export. Ensure a React component is exported as default."]}
 {"_e":"metro:client_log","_t":1782798643245,"level":"warn","data":["Route \"./vendor/index.tsx\" is missing the required default export. Ensure a React component is exported as default."]}
 {"_e":"metro:client_log","_t":1782798643341,"level":"warn","data":["Route \"./vendor/index.tsx\" is missing the required default export. Ensure a React component is exported as default."]}
+{"_e":"root:init","_t":1782799470929,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782799470930,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782799470934,"mode":"development","files":[],"env":{}}
+{"_e":"devserver:start","_t":1782799471489,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782799471958,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782799481300,"atlas":false,"workers":8,"host":"::","port":8081}
+{"_e":"metro:bundling:started","_t":1782799590522,"id":"1","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782799590524,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782799590536,"id":"1","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782799590639,"id":"1","progress":0.09765625,"total":16,"current":5}
+{"_e":"metro:bundling:progress","_t":1782799590758,"id":"1","progress":0.1758584807492196,"total":31,"current":13}
+{"_e":"metro:bundling:progress","_t":1782799590858,"id":"1","progress":0.1758584807492196,"total":149,"current":35}
+{"_e":"metro:bundling:progress","_t":1782799590960,"id":"1","progress":0.1758584807492196,"total":173,"current":63}
+{"_e":"metro:bundling:progress","_t":1782799591061,"id":"1","progress":0.1758584807492196,"total":199,"current":82}
+{"_e":"metro:bundling:progress","_t":1782799591169,"id":"1","progress":0.21041999831664004,"total":218,"current":100}
+{"_e":"metro:bundling:progress","_t":1782799591272,"id":"1","progress":0.21041999831664004,"total":264,"current":112}
+{"_e":"metro:bundling:progress","_t":1782799591372,"id":"1","progress":0.28090000000000004,"total":300,"current":159}
+{"_e":"metro:bundling:progress","_t":1782799591473,"id":"1","progress":0.37811041240692883,"total":322,"current":198}
+{"_e":"metro:bundling:progress","_t":1782799591576,"id":"1","progress":0.3784323317762909,"total":356,"current":219}
+{"_e":"metro:bundling:progress","_t":1782799591676,"id":"1","progress":0.3784323317762909,"total":437,"current":258}
+{"_e":"metro:bundling:progress","_t":1782799591784,"id":"1","progress":0.3990343391917978,"total":467,"current":295}
+{"_e":"metro:bundling:progress","_t":1782799591887,"id":"1","progress":0.481009365244537,"total":496,"current":344}
+{"_e":"metro:bundling:progress","_t":1782799591987,"id":"1","progress":0.5006229975080099,"total":530,"current":375}
+{"_e":"metro:bundling:progress","_t":1782799592087,"id":"1","progress":0.5336250691615111,"total":564,"current":412}
+{"_e":"metro:bundling:progress","_t":1782799592243,"id":"1","progress":0.597939767694206,"total":591,"current":457}
+{"_e":"metro:bundling:progress","_t":1782799592343,"id":"1","progress":0.6598276096815073,"total":618,"current":502}
+{"_e":"metro:bundling:progress","_t":1782799592443,"id":"1","progress":0.8043847656249999,"total":640,"current":574}
+{"_e":"metro:bundling:progress","_t":1782799592543,"id":"1","progress":0.8731523783929052,"total":671,"current":627}
+{"_e":"metro:bundling:progress","_t":1782799592650,"id":"1","progress":0.8731523783929052,"total":717,"current":666}
+{"_e":"metro:bundling:progress","_t":1782799592755,"id":"1","progress":0.9315996695393802,"total":747,"current":721}
+{"_e":"metro:bundling:progress","_t":1782799592855,"id":"1","progress":0.9315996695393802,"total":804,"current":752}
+{"_e":"metro:bundling:progress","_t":1782799592956,"id":"1","progress":0.9854016557313261,"total":819,"current":813}
+{"_e":"metro:bundling:progress","_t":1782799593066,"id":"1","progress":0.9975859996732712,"total":828,"current":827}
+{"_e":"metro:bundling:progress","_t":1782799593369,"id":"1","progress":0.999,"total":828,"current":828}
+{"_e":"metro:bundling:progress","_t":1782799593468,"id":"1","progress":0.999,"total":901,"current":828}
+{"_e":"metro:bundling:progress","_t":1782799593568,"id":"1","progress":0.999,"total":914,"current":855}
+{"_e":"metro:bundling:progress","_t":1782799593670,"id":"1","progress":0.999,"total":917,"current":891}
+{"_e":"metro:bundling:progress","_t":1782799593770,"id":"1","progress":0.999,"total":940,"current":895}
+{"_e":"metro:bundling:progress","_t":1782799593913,"id":"1","progress":0.999,"total":950,"current":900}
+{"_e":"metro:bundling:progress","_t":1782799594013,"id":"1","progress":0.999,"total":979,"current":906}
+{"_e":"metro:bundling:progress","_t":1782799594116,"id":"1","progress":0.999,"total":1012,"current":918}
+{"_e":"metro:bundling:progress","_t":1782799594216,"id":"1","progress":0.999,"total":1040,"current":934}
+{"_e":"metro:bundling:progress","_t":1782799594317,"id":"1","progress":0.999,"total":1065,"current":957}
+{"_e":"metro:bundling:progress","_t":1782799594416,"id":"1","progress":0.999,"total":1078,"current":995}
+{"_e":"metro:bundling:progress","_t":1782799594519,"id":"1","progress":0.999,"total":1096,"current":1029}
+{"_e":"metro:bundling:progress","_t":1782799594621,"id":"1","progress":0.999,"total":1120,"current":1050}
+{"_e":"metro:bundling:progress","_t":1782799594721,"id":"1","progress":0.999,"total":1130,"current":1078}
+{"_e":"metro:bundling:progress","_t":1782799594823,"id":"1","progress":0.999,"total":1148,"current":1087}
+{"_e":"metro:bundling:progress","_t":1782799594928,"id":"1","progress":0.999,"total":1171,"current":1110}
+{"_e":"metro:bundling:progress","_t":1782799595028,"id":"1","progress":0.999,"total":1178,"current":1140}
+{"_e":"metro:bundling:progress","_t":1782799595134,"id":"1","progress":0.999,"total":1222,"current":1160}
+{"_e":"metro:bundling:progress","_t":1782799595234,"id":"1","progress":0.999,"total":1226,"current":1175}
+{"_e":"metro:bundling:progress","_t":1782799595342,"id":"1","progress":0.999,"total":1253,"current":1196}
+{"_e":"metro:bundling:progress","_t":1782799595443,"id":"1","progress":0.999,"total":1282,"current":1208}
+{"_e":"metro:bundling:progress","_t":1782799595586,"id":"1","progress":0.999,"total":1290,"current":1214}
+{"_e":"metro:bundling:progress","_t":1782799595697,"id":"1","progress":0.999,"total":1329,"current":1236}
+{"_e":"metro:bundling:progress","_t":1782799595796,"id":"1","progress":0.999,"total":1359,"current":1274}
+{"_e":"metro:bundling:progress","_t":1782799595896,"id":"1","progress":0.999,"total":1377,"current":1301}
+{"_e":"metro:bundling:progress","_t":1782799595996,"id":"1","progress":0.999,"total":1390,"current":1325}
+{"_e":"metro:bundling:progress","_t":1782799596097,"id":"1","progress":0.999,"total":1397,"current":1360}
+{"_e":"metro:bundling:progress","_t":1782799596201,"id":"1","progress":0.999,"total":1400,"current":1381}
+{"_e":"metro:bundling:progress","_t":1782799596303,"id":"1","progress":0.999,"total":1425,"current":1397}
+{"_e":"metro:bundling:progress","_t":1782799596408,"id":"1","progress":0.999,"total":1445,"current":1417}
+{"_e":"metro:bundling:progress","_t":1782799596508,"id":"1","progress":0.999,"total":1483,"current":1437}
+{"_e":"metro:bundling:progress","_t":1782799596611,"id":"1","progress":0.999,"total":1497,"current":1458}
+{"_e":"metro:bundling:progress","_t":1782799596712,"id":"1","progress":0.999,"total":1509,"current":1468}
+{"_e":"metro:bundling:progress","_t":1782799596817,"id":"1","progress":0.999,"total":1515,"current":1476}
+{"_e":"metro:bundling:progress","_t":1782799596937,"id":"1","progress":0.999,"total":1520,"current":1494}
+{"_e":"metro:bundling:progress","_t":1782799597033,"id":"1","progress":0.999,"total":1522,"current":1508}
+{"_e":"metro:bundling:progress","_t":1782799597140,"id":"1","progress":0.999,"total":1523,"current":1516}
+{"_e":"metro:bundling:progress","_t":1782799597212,"id":"1","progress":0.999,"total":1523,"current":1517}
+{"_e":"metro:bundling:progress","_t":1782799597335,"id":"1","progress":0.999,"total":1523,"current":1518}
+{"_e":"metro:bundling:progress","_t":1782799597435,"id":"1","progress":0.999,"total":1523,"current":1521}
+{"_e":"metro:bundling:done","_t":1782799597741,"id":"1","total":1523,"ms":7217.6549}
+{"_e":"metro:client_log","_t":1782799598278,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782799598279,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782799598306,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782799598400,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782799598407,"level":"warn","data":["Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md"]}
+{"_e":"metro:bundling:started","_t":1782799995018,"id":"k","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782799995018,"id":"k","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782799995192,"id":"k","total":1,"ms":173.7072}
+{"_e":"metro:client_log","_t":1782799995806,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782799995806,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782799995848,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782799995995,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782800939937,"level":"warn","data":["An error occurred in the <JobDetailsScreen> component.\n\nConsider adding an error boundary to your tree to customize error handling behavior.\nVisit https://react.dev/link/error-boundaries to learn more about error boundaries.\n"]}
+{"_e":"metro:client_log","_t":1782800940057,"level":"error","data":["[ReferenceError: loading is not defined]","\n\n\u001b[1mCode: job-details.tsx\u001b[22m\n\u001b[0m \u001b[90m 125 |\u001b[39m   \u001b[36mconst\u001b[39m unit \u001b[33m=\u001b[39m purchaseOrder\u001b[33m?\u001b[39m\u001b[33m.\u001b[39munit \u001b[33m||\u001b[39m \u001b[32m'tonnes'\u001b[39m\u001b[33m;\u001b[39m\n \u001b[90m 126 |\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 127 |\u001b[39m   \u001b[36mif\u001b[39m (loading) {\n \u001b[90m     |\u001b[39m   \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 128 |\u001b[39m     \u001b[36mreturn\u001b[39m (\n \u001b[90m 129 |\u001b[39m       \u001b[33m<\u001b[39m\u001b[33mPageShell\u001b[39m\u001b[33m>\u001b[39m\n \u001b[90m 130 |\u001b[39m         \u001b[33m<\u001b[39m\u001b[33mDataCard\u001b[39m\u001b[33m>\u001b[39m\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[90m  JobDetailsScreen (app\\screens\\job-details.tsx:127:3)\u001b[39m","\n\n\u001b[1mCode: _layout.tsx\u001b[22m\n\u001b[0m \u001b[90m  8 |\u001b[39m\n \u001b[90m  9 |\u001b[39m   \u001b[36mreturn\u001b[39m (\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 10 |\u001b[39m     \u001b[33m<\u001b[39m\u001b[33mStack\u001b[39m\n \u001b[90m    |\u001b[39m     \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 11 |\u001b[39m       screenOptions\u001b[33m=\u001b[39m{{\n \u001b[90m 12 |\u001b[39m         headerStyle\u001b[33m:\u001b[39m { backgroundColor\u001b[33m:\u001b[39m colors\u001b[33m.\u001b[39msurface }\u001b[33m,\u001b[39m\n \u001b[90m 13 |\u001b[39m         headerTintColor\u001b[33m:\u001b[39m colors\u001b[33m.\u001b[39mtext\u001b[33m,\u001b[39m\u001b[0m\n\u001b[1mCall Stack\u001b[22m\n\u001b[90m  ScreensLayout (app\\screens\\_layout.tsx:10:5)\u001b[39m\n\u001b[90m  RootLayout (app\\_layout.tsx:32:7)\u001b[39m"]}
+{"_e":"metro:bundling:started","_t":1782801224270,"id":"26","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782801224270,"id":"26","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782801224369,"id":"26","total":1,"ms":99.6846}
+{"_e":"metro:client_log","_t":1782801224742,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782801224742,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782801224775,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782801224867,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782801504841,"id":"2a","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782801504841,"id":"2a","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782801504890,"id":"2a","total":1,"ms":48.8296}
+{"_e":"metro:client_log","_t":1782801505249,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782801505250,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782801505279,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782801505363,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782802546028,"id":"2o","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782802546029,"id":"2o","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782802546249,"id":"2o","total":1,"ms":219.8336}
+{"_e":"metro:client_log","_t":1782802546772,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782802546773,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782802546815,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782802546919,"level":"warn","data":["[Layout children]: No route named \"dashboard\" exists in nested children:","[\"materials\", \"profile\", \"settings\", \"weigh-in\", \"weigh-out\"]"]}
+{"_e":"metro:client_log","_t":1782802546942,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782802546965,"level":"warn","data":["[Layout children]: No route named \"dashboard\" exists in nested children:","[\"materials\", \"profile\", \"settings\", \"weigh-in\", \"weigh-out\"]"]}
+{"_e":"metro:client_log","_t":1782802547048,"level":"warn","data":["[Layout children]: No route named \"dashboard\" exists in nested children:","[\"materials\", \"profile\", \"settings\", \"weigh-in\", \"weigh-out\"]"]}
+{"_e":"metro:bundling:started","_t":1782802570897,"id":"2s","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782802570898,"id":"2s","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782802570990,"id":"2s","total":1,"ms":92.5418}
+{"_e":"metro:client_log","_t":1782802571389,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782802571389,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782802571421,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782802571528,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782802634769,"id":"31","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782802634769,"id":"31","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782802635026,"id":"31","total":1,"ms":257}
+{"_e":"metro:client_log","_t":1782802635629,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782802635629,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782802635659,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782802635754,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782802643617,"id":"36","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782802643617,"id":"36","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782802643843,"id":"36","total":1,"ms":225.6208}
+{"_e":"metro:client_log","_t":1782802644343,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782802644343,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782802644354,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782802644409,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782802644707,"id":"3a","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782802644707,"id":"3a","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782802644858,"id":"3a","total":1,"ms":150.5594}
+{"_e":"metro:client_log","_t":1782802650769,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782802650770,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782802650779,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782802650835,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"root:init","_t":1782802826810,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782802826811,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782802826814,"mode":"development","files":[],"env":{}}
+{"_e":"devserver:start","_t":1782802827364,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782802827957,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782802837375,"atlas":false,"workers":8,"host":"::","port":8082}
+{"_e":"metro:bundling:started","_t":1782803172602,"id":"3l","platform":"android","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803172602,"id":"3l","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:progress","_t":1782803172690,"id":"3l","progress":0.03227078776578579,"total":167,"current":30}
+{"_e":"metro:bundling:progress","_t":1782803172790,"id":"3l","progress":0.08863119864809743,"total":262,"current":78}
+{"_e":"metro:bundling:progress","_t":1782803172891,"id":"3l","progress":0.176541204717181,"total":357,"current":150}
+{"_e":"metro:bundling:progress","_t":1782803173014,"id":"3l","progress":0.176541204717181,"total":476,"current":189}
+{"_e":"metro:bundling:progress","_t":1782803173136,"id":"3l","progress":0.176541204717181,"total":476,"current":190}
+{"_e":"metro:bundling:progress","_t":1782803173236,"id":"3l","progress":0.18760483025964042,"total":501,"current":217}
+{"_e":"metro:bundling:progress","_t":1782803173336,"id":"3l","progress":0.2263504475437471,"total":557,"current":265}
+{"_e":"metro:bundling:progress","_t":1782803173436,"id":"3l","progress":0.2735354172155519,"total":652,"current":341}
+{"_e":"metro:bundling:progress","_t":1782803173536,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803173636,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803173736,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803173836,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803173936,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803174036,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803174136,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803174240,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803174340,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803174441,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803174540,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803174641,"id":"3l","progress":0.2936550045254518,"total":716,"current":388}
+{"_e":"metro:bundling:progress","_t":1782803174741,"id":"3l","progress":0.3104081632653061,"total":840,"current":468}
+{"_e":"metro:bundling:progress","_t":1782803174841,"id":"3l","progress":0.43089740254529596,"total":879,"current":577}
+{"_e":"metro:bundling:progress","_t":1782803174943,"id":"3l","progress":0.47160453977509376,"total":980,"current":673}
+{"_e":"metro:bundling:progress","_t":1782803175043,"id":"3l","progress":0.48986705555239907,"total":1053,"current":737}
+{"_e":"metro:bundling:progress","_t":1782803175158,"id":"3l","progress":0.48986705555239907,"total":1053,"current":737}
+{"_e":"metro:bundling:progress","_t":1782803175259,"id":"3l","progress":0.49552532793993875,"total":1118,"current":787}
+{"_e":"metro:bundling:progress","_t":1782803175359,"id":"3l","progress":0.571269898107693,"total":1159,"current":876}
+{"_e":"metro:bundling:progress","_t":1782803175471,"id":"3l","progress":0.6617143445870058,"total":1174,"current":955}
+{"_e":"metro:bundling:progress","_t":1782803175578,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803175678,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803175790,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803175890,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803175993,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803176093,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803176193,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803176293,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803176393,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803176496,"id":"3l","progress":0.6996272681079841,"total":1235,"current":1033}
+{"_e":"metro:bundling:progress","_t":1782803176595,"id":"3l","progress":0.7818430169779532,"total":1261,"current":1115}
+{"_e":"metro:bundling:progress","_t":1782803176695,"id":"3l","progress":0.8143961927424153,"total":1312,"current":1184}
+{"_e":"metro:bundling:progress","_t":1782803176795,"id":"3l","progress":0.8143961927424153,"total":1312,"current":1184}
+{"_e":"metro:bundling:progress","_t":1782803176895,"id":"3l","progress":0.8143961927424153,"total":1312,"current":1184}
+{"_e":"metro:bundling:progress","_t":1782803176995,"id":"3l","progress":0.8975069252077561,"total":1406,"current":1332}
+{"_e":"metro:bundling:progress","_t":1782803177095,"id":"3l","progress":0.8975069252077561,"total":1406,"current":1332}
+{"_e":"metro:bundling:progress","_t":1782803177195,"id":"3l","progress":0.8975069252077561,"total":1406,"current":1332}
+{"_e":"metro:bundling:progress","_t":1782803177295,"id":"3l","progress":0.8975069252077561,"total":1406,"current":1332}
+{"_e":"metro:bundling:progress","_t":1782803177395,"id":"3l","progress":0.8975069252077561,"total":1406,"current":1332}
+{"_e":"metro:bundling:progress","_t":1782803177495,"id":"3l","progress":0.8975069252077561,"total":1406,"current":1332}
+{"_e":"metro:bundling:progress","_t":1782803177595,"id":"3l","progress":0.8975069252077561,"total":1406,"current":1332}
+{"_e":"metro:bundling:progress","_t":1782803177705,"id":"3l","progress":0.8975069252077561,"total":1406,"current":1332}
+{"_e":"metro:bundling:progress","_t":1782803177804,"id":"3l","progress":0.8975069252077561,"total":1406,"current":1332}
+{"_e":"metro:bundling:progress","_t":1782803177910,"id":"3l","progress":0.8975069252077561,"total":1585,"current":1469}
+{"_e":"metro:bundling:progress","_t":1782803178054,"id":"3l","progress":0.8975069252077561,"total":1652,"current":1515}
+{"_e":"metro:bundling:progress","_t":1782803178154,"id":"3l","progress":0.8975069252077561,"total":1725,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782803178254,"id":"3l","progress":0.8975069252077561,"total":1725,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782803178354,"id":"3l","progress":0.8975069252077561,"total":1725,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782803178454,"id":"3l","progress":0.8975069252077561,"total":1725,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782803178554,"id":"3l","progress":0.8975069252077561,"total":1725,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782803178654,"id":"3l","progress":0.8975069252077561,"total":1725,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782803178754,"id":"3l","progress":0.8975069252077561,"total":1725,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782803178854,"id":"3l","progress":0.8975069252077561,"total":1725,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782803178954,"id":"3l","progress":0.8975069252077561,"total":1725,"current":1582}
+{"_e":"metro:bundling:progress","_t":1782803179057,"id":"3l","progress":0.8975069252077561,"total":1793,"current":1674}
+{"_e":"metro:bundling:progress","_t":1782803179185,"id":"3l","progress":0.8975069252077561,"total":1793,"current":1674}
+{"_e":"metro:bundling:progress","_t":1782803179285,"id":"3l","progress":0.910438418389857,"total":1811,"current":1728}
+{"_e":"metro:bundling:progress","_t":1782803179385,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803179485,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803179594,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803179694,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803179794,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803179894,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803179994,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803180094,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803180194,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803180294,"id":"3l","progress":0.9397018032482561,"total":1829,"current":1773}
+{"_e":"metro:bundling:progress","_t":1782803180394,"id":"3l","progress":0.9703406384507881,"total":1874,"current":1846}
+{"_e":"metro:bundling:progress","_t":1782803180526,"id":"3l","progress":0.9703406384507881,"total":1874,"current":1846}
+{"_e":"metro:bundling:progress","_t":1782803180626,"id":"3l","progress":0.9703406384507881,"total":1874,"current":1846}
+{"_e":"metro:bundling:progress","_t":1782803180726,"id":"3l","progress":0.9703406384507881,"total":1874,"current":1846}
+{"_e":"metro:bundling:progress","_t":1782803180826,"id":"3l","progress":0.9703406384507881,"total":1874,"current":1846}
+{"_e":"metro:bundling:progress","_t":1782803180926,"id":"3l","progress":0.9703406384507881,"total":1874,"current":1846}
+{"_e":"metro:bundling:progress","_t":1782803181026,"id":"3l","progress":0.9703406384507881,"total":1874,"current":1846}
+{"_e":"metro:bundling:progress","_t":1782803181126,"id":"3l","progress":0.9703406384507881,"total":1874,"current":1846}
+{"_e":"metro:bundling:progress","_t":1782803181240,"id":"3l","progress":0.9703406384507881,"total":1874,"current":1846}
+{"_e":"metro:bundling:progress","_t":1782803181347,"id":"3l","progress":0.9908838156097812,"total":1970,"current":1961}
+{"_e":"metro:bundling:progress","_t":1782803181447,"id":"3l","progress":0.9908838156097812,"total":1970,"current":1961}
+{"_e":"metro:bundling:progress","_t":1782803181547,"id":"3l","progress":0.9908838156097812,"total":1970,"current":1961}
+{"_e":"metro:bundling:progress","_t":1782803181733,"id":"3l","progress":0.9989855440673118,"total":1971,"current":1970}
+{"_e":"metro:bundling:progress","_t":1782803181835,"id":"3l","progress":0.9989855440673118,"total":1971,"current":1970}
+{"_e":"metro:bundling:done","_t":1782803181965,"id":"3l","total":1971,"ms":9362.8715}
+{"_e":"metro:bundling:started","_t":1782803185857,"id":"3n","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803185857,"id":"3n","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782803185934,"id":"3n","total":1,"ms":77.1868}
+{"_e":"metro:client_log","_t":1782803195413,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782803195413,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782803195414,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782803195512,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782803208358,"id":"3r","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803208359,"id":"3r","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782803208416,"id":"3r","total":1,"ms":57.1246}
+{"_e":"metro:bundling:started","_t":1782803211233,"id":"3u","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803211233,"id":"3u","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782803211325,"id":"3u","total":1,"ms":92.7109}
+{"_e":"metro:client_log","_t":1782803211328,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782803211329,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782803211329,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782803211329,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782803211739,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782803211739,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782803211776,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782803211886,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782803220562,"id":"40","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803220562,"id":"40","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782803220648,"id":"40","total":1,"ms":86.0545}
+{"_e":"metro:client_log","_t":1782803223957,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782803223957,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782803223967,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782803224045,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782803236057,"id":"44","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803236058,"id":"44","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782803236102,"id":"44","total":1,"ms":44.723}
+{"_e":"metro:client_log","_t":1782803240143,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782803240143,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782803240156,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782803240266,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782803245092,"id":"48","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803245092,"id":"48","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782803245138,"id":"48","total":1,"ms":45.3046}
+{"_e":"metro:bundling:started","_t":1782803249883,"id":"4a","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803249883,"id":"4a","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782803249923,"id":"4a","total":1,"ms":40.0499}
+{"_e":"metro:client_log","_t":1782803251516,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782803251518,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782803251518,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782803251538,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:client_log","_t":1782803254047,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782803254047,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782803254070,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782803254109,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782803275209,"id":"4i","platform":"web","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803275210,"id":"4i","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782803275259,"id":"4i","total":1,"ms":49.2919}
+{"_e":"metro:client_log","_t":1782803279896,"level":"info","data":["%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools","font-weight:bold"]}
+{"_e":"metro:client_log","_t":1782803279896,"level":"log","data":["Running application \"main\" with appParams:\n","{\"hydrate\": undefined, \"rootTag\": \"#root\"}","\nDevelopment-level warnings: ON.\nPerformance optimizations: OFF."]}
+{"_e":"metro:client_log","_t":1782803279909,"level":"warn","data":["\"shadow*\" style props are deprecated. Use \"boxShadow\"."]}
+{"_e":"metro:client_log","_t":1782803279953,"level":"warn","data":["props.pointerEvents is deprecated. Use style.pointerEvents"]}
+{"_e":"metro:bundling:started","_t":1782803695626,"id":"4t","platform":"android","environment":null,"entry":"node_modules\\expo-router\\entry.js"}
+{"_e":"metro:bundling:progress","_t":1782803695626,"id":"4t","progress":0,"total":1,"current":0}
+{"_e":"metro:bundling:done","_t":1782803695689,"id":"4t","total":1,"ms":62.8717}

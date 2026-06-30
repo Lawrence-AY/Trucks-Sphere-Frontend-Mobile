@@ -30,9 +30,8 @@ type IconName = keyof typeof Ionicons.glyphMap;
 const TIMELINE_LABELS: Record<string, { label: string; icon: IconName }> = {
   origin: { label: 'Job Created', icon: 'add-circle-outline' },
   weigh_in: { label: 'Quarry In Weight', icon: 'download-outline' },
-  loading: { label: 'Loading', icon: 'cube-outline' },
   weigh_out: { label: 'Quarry Out Weight', icon: 'arrow-up-circle-outline' },
-  arrived_site: { label: 'Arrived at Site', icon: 'location-outline' },
+  arrived_site: { label: 'Arrived Site', icon: 'location-outline' },
   received: { label: 'Receipt Uploaded', icon: 'receipt-outline' },
 };
 
@@ -46,13 +45,17 @@ function formatWeight(value?: number | string, unit = 't') {
   return Number.isFinite(numeric) ? `${numeric.toFixed(1)} ${unit}` : String(value);
 }
 
+function formatJobCreatedMeta(job: any, driver: any, vehicle: any) {
+  const driverName = driver?.name || job?.driverName || 'Pending driver';
+  const plateNumber = vehicle?.plateNumber || vehicle?.plate || job?.plateNumber || 'Pending vehicle';
+  return `${formatMaybeDate(job?.createdAt)}\nDriver: ${driverName}\nVehicle: ${plateNumber}`;
+}
+
 function progressForJob(job: any, checkpoints: any[]) {
   if (!job) return 0;
   if (job.status === 'delivered' || job.status === 'completed') return 100;
   if (job.receivedAt || checkpoints.some((item) => item.type === 'received')) return 92;
-  if (job.deliveredAt || checkpoints.some((item) => item.type === 'arrived_site')) return 78;
   if (job.weighOutWeight || checkpoints.some((item) => item.type === 'weigh_out')) return 62;
-  if (checkpoints.some((item) => item.type === 'loading')) return 48;
   if (job.weighInWeight || checkpoints.some((item) => item.type === 'weigh_in')) return 34;
   if (job.driverId || job.vehicleId) return 18;
   return 8;
@@ -122,6 +125,7 @@ export default function JobDetailsScreen() {
   }, [id]);
 
   const progress = useMemo(() => progressForJob(job, checkpoints), [checkpoints, job]);
+  const timelineCheckpoints = useMemo(() => checkpoints.filter((item) => item.type !== 'loading'), [checkpoints]);
   const orderedQty = Number(job?.quantityOrdered || job?.quantity || 0);
   const deliveredQty = Number(job?.quantityDelivered || job?.netWeight || 0);
   const expectedNet = job?.netWeight || (job?.weighInWeight && job?.weighOutWeight ? job.weighInWeight - job.weighOutWeight : 0);
@@ -193,14 +197,6 @@ export default function JobDetailsScreen() {
         <MetricTile icon="scale" label="Net weight" value={formatWeight(expectedNet)} tone={colors.accent} />
       </View>
 
-      <SectionTitle title="Linked Records" />
-      <DataCard>
-        <HubRow icon="document-text-outline" label="Purchase Order" value={job.poNumber || purchaseOrder?.poNumber || 'Unlinked'} />
-        <HubRow icon="business-outline" label="Vendor" value={job.vendorName || purchaseOrder?.vendorName || 'Unassigned'} />
-        <HubRow icon="person-outline" label="Driver" value={driver?.name || job.driverName || 'Unassigned'} />
-        <HubRow icon="car-outline" label="Vehicle" value={vehicle?.plateNumber || job.plateNumber || 'Unassigned'} />
-      </DataCard>
-
       <SectionTitle title="Dispatch" />
       <DataCard>
         <DetailRow icon="cube-outline" value={`${job.materialName || 'Material'} - ${orderedQty || 0} ${unit}`} />
@@ -237,25 +233,11 @@ export default function JobDetailsScreen() {
         <TimelineItem
           icon="add-circle-outline"
           title="Job Created"
-          meta={formatMaybeDate(job.createdAt)}
+          meta={formatJobCreatedMeta(job, driver, vehicle)}
           color={colors.primary}
           complete
         />
-        <TimelineItem
-          icon="person-add-outline"
-          title="Driver Assigned"
-          meta={job.driverName || 'Pending assignment'}
-          color={colors.accent}
-          complete={Boolean(job.driverName)}
-        />
-        <TimelineItem
-          icon="car-outline"
-          title="Vehicle Assigned"
-          meta={job.plateNumber || 'Pending assignment'}
-          color={colors.accent}
-          complete={Boolean(job.plateNumber)}
-        />
-        {checkpoints.map((item) => {
+        {timelineCheckpoints.map((item) => {
           const config = TIMELINE_LABELS[item.type] || { label: formatStatus(item.type), icon: 'ellipse-outline' as IconName };
           return (
             <TimelineItem
@@ -279,19 +261,6 @@ export default function JobDetailsScreen() {
         ) : null}
       </DataCard>
 
-      <SectionTitle title="Receipt Notes" />
-      <DataCard>
-        <DetailRow icon="person-outline" label="Receiver" value={job.receivedBy || 'Pending receipt'} />
-        <DetailRow icon="location-outline" label="Location" value={job.receivedLocation || job.siteName || 'Pending'} />
-        <DetailRow icon="calendar-outline" label="Received" value={formatMaybeDate(job.receivedAt || job.deliveredAt)} />
-      </DataCard>
-
-      <SectionTitle title="Attachments" />
-      <DataCard>
-        <AttachmentRow icon="image-outline" label="Quarry weighbridge photos" count={Number(Boolean(job.weighInPhoto)) + Number(Boolean(job.weighOutPhoto))} />
-        <AttachmentRow icon="document-attach-outline" label="Signed delivery notes" count={job.receivedAt ? 1 : 0} />
-        <AttachmentRow icon="folder-outline" label="Supporting documents" count={0} />
-      </DataCard>
 
       <SectionTitle title="Activity Log" />
       <DataCard>
