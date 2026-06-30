@@ -170,24 +170,11 @@ export default function DashboardScreen() {
     ];
   }, [colors, isAdmin, isManagement, isVendor, role]);
 
-  const title = isVendor ? 'Vendor workspace' : isOperator ? 'Operations board' : isAdmin ? 'Admin control tower' : 'Management control tower';
-  const subtitle = isVendor
-    ? `${user?.displayName || 'Vendor'} - own trips, drivers, and vehicles only`
-    : `${user?.displayName || 'User'} - ${roleLabel}`;
+  const title = isVendor ? 'Vendor workspace' : isOperator ? 'Operations board' : isAdmin ? 'Admin dashboard' : 'Dashboard';
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader
-        eyebrow="Role-aware dashboard"
-        title={title}
-        subtitle={subtitle}
-        right={
-          <View style={[styles.signal, { backgroundColor: `${colors.success}18` }]}>
-            <View style={[styles.signalDot, { backgroundColor: colors.success }]} />
-            <Text style={[styles.signalText, { color: colors.success }]}>Live</Text>
-          </View>
-        }
-      />
+      <CommandHeader title={title} />
 
       <View style={styles.metricGrid}>
         <View style={styles.metricRow}>
@@ -207,23 +194,6 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {isManagement ? (
-        <DataCard>
-          <View style={styles.cardHead}>
-            <View>
-              <Text style={[styles.cardEyebrow, { color: colors.accent }]}>Reports and analytics</Text>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>{stats.completion}% PO fulfillment</Text>
-            </View>
-            <Ionicons name="analytics" size={24} color={colors.primary} />
-          </View>
-          <ProgressBar value={stats.completion} color={colors.accent} />
-          <View style={styles.compactStats}>
-            <Text style={[styles.compactStat, { color: colors.textSecondary }]}>{stats.activeDrivers} active drivers</Text>
-            <Text style={[styles.compactStat, { color: colors.textSecondary }]}>{stats.activeVehicles} active vehicles</Text>
-            <Text style={[styles.compactStat, { color: colors.textSecondary }]}>{orders.length} purchase orders</Text>
-          </View>
-        </DataCard>
-      ) : null}
 
       <SectionTitle
         title="Materials"
@@ -254,20 +224,6 @@ export default function DashboardScreen() {
       ) : (
         <EmptyState icon="cube-outline" title="No material activity" subtitle="No visible purchase orders are linked to materials yet." />
       )}
-
-      {quickActions.length ? (
-        <>
-          <SectionTitle title="Quick actions" />
-          <View style={styles.actionRow}>
-            {quickActions.map((item) => (
-              <TouchableOpacity key={item.label} style={[styles.action, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => router.push(item.route as any)}>
-                <Ionicons name={item.icon as any} size={22} color={item.color} />
-                <Text style={[styles.actionText, { color: colors.textSecondary }]}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      ) : null}
 
       <SectionTitle
         title="Recent trips"

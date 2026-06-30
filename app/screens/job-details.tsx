@@ -32,7 +32,6 @@ const TIMELINE_LABELS: Record<string, { label: string; icon: IconName }> = {
   weigh_in: { label: 'Quarry In Weight', icon: 'download-outline' },
   loading: { label: 'Loading', icon: 'cube-outline' },
   weigh_out: { label: 'Quarry Out Weight', icon: 'arrow-up-circle-outline' },
-  in_transit: { label: 'In Transit', icon: 'navigate-outline' },
   arrived_site: { label: 'Arrived at Site', icon: 'location-outline' },
   received: { label: 'Receipt Uploaded', icon: 'receipt-outline' },
 };

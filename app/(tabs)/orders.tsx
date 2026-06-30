@@ -103,7 +103,7 @@ export default function OrdersScreen() {
       <CommandHeader
         eyebrow="Procurement execution"
         title="Purchase orders"
-        subtitle={`${summary.vendors} vendors · ${Math.round(summary.remaining)} remaining units`}
+        subtitle={`${summary.vendors} vendors · ${orders.length} orders`}
       />
 
       <View style={styles.metricRow}>
@@ -117,7 +117,7 @@ export default function OrdersScreen() {
             <Text style={[styles.summaryTitle, { color: colors.text }]}>{summary.completion}% fulfilled</Text>
             <Text style={[styles.summarySub, { color: colors.textMuted }]}>{formatCurrency(summary.value)} total value</Text>
           </View>
-          <Text style={[styles.remaining, { color: colors.warning }]}>{Math.round(summary.remaining)} left</Text>
+          <Text style={[styles.remaining, { color: colors.accent }]}>{summary.completion}%</Text>
         </View>
         <ProgressBar value={summary.completion} color={colors.accent} />
       </DataCard>

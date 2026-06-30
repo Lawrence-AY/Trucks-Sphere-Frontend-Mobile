@@ -1,10 +1,5 @@
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { File, Paths, Directory } from 'expo-file-system';
-import { Platform, Alert } from 'react-native';
+import { Platform, Alert, Share } from 'react-native';
 import { fetchDrivers, fetchVehicles, fetchPurchaseOrders, fetchDeliveryOrders, fetchVendors } from '../services/api';
-
-// ============== HELPERS ==============
 
 function escapeCsvField(value: any): string {
   if (value == null || value === undefined) return '';
@@ -20,36 +15,6 @@ function formatCsv(headers: string[], rows: string[][]): string {
   const body = rows.map(row => row.map(escapeCsvField).join(',')).join('\n');
   return `${hdr}\n${body}`;
 }
-
-// ============== SHARE FILE ==============
-
-async function shareFile(fileUri: string, mimeType: string) {
-  if (Platform.OS === 'web') {
-    // On web, use a blob download
-    const response = await fetch(fileUri);
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `export.${mimeType === 'text/csv' ? 'csv' : 'pdf'}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    return;
-  }
-
-  if (Platform.OS === 'android' || Platform.OS === 'ios') {
-    const canShare = await Sharing.isAvailableAsync();
-    if (canShare) {
-      await Sharing.shareAsync(fileUri, { mimeType, dialogTitle: 'Export Data' });
-    } else {
-      Alert.alert('Sharing not available', 'File sharing is not supported on this device.');
-    }
-  }
-}
-
-// ============== PDF GENERATION ==============
 
 function buildHtmlTable(headers: string[], rows: string[][], title: string): string {
   const headerCells = headers.map(h => `<th style="padding:10px 14px; background:#1B2A4A; color:#fff; font-weight:700; text-align:left; border:1px solid #ddd;">${h}</th>`).join('');
@@ -76,27 +41,31 @@ function buildHtmlTable(headers: string[], rows: string[][], title: string): str
   `;
 }
 
-async function generatePdfAndShare(title: string, headers: string[], rows: string[][]) {
+async function shareCsv(title: string, headers: string[], rows: string[][]) {
   try {
-    const html = buildHtmlTable(headers, rows, title);
-    const { uri } = await Print.printToFileAsync({ html });
-    const destFile = new File(Paths.document, `${title.replace(/\s+/g, '_')}.pdf`);
-    const srcFile = new File(uri);
-    await srcFile.move(destFile);
-    await shareFile(destFile.uri, 'application/pdf');
+    const csv = formatCsv(headers, rows);
+    await Share.share({
+      message: csv,
+      title: title,
+    });
   } catch (e: any) {
-    Alert.alert('Export Error', e?.message || 'Failed to generate PDF');
+    if (e?.message !== 'User did not share') {
+      Alert.alert('Export Error', e?.message || 'Failed to share CSV');
+    }
   }
 }
 
-async function generateCsvAndShare(title: string, headers: string[], rows: string[][]) {
+async function sharePdf(title: string, headers: string[], rows: string[][]) {
   try {
-    const csv = formatCsv(headers, rows);
-    const destFile = new File(Paths.document, `${title.replace(/\s+/g, '_')}.csv`);
-    destFile.write(csv);
-    await shareFile(destFile.uri, 'text/csv');
+    const html = buildHtmlTable(headers, rows, title);
+    await Share.share({
+      message: html,
+      title: title,
+    });
   } catch (e: any) {
-    Alert.alert('Export Error', e?.message || 'Failed to generate CSV');
+    if (e?.message !== 'User did not share') {
+      Alert.alert('Export Error', e?.message || 'Failed to share');
+    }
   }
 }
 
@@ -137,7 +106,7 @@ export async function shareDeliveryNoteCSV(data: DeliveryNoteExportData) {
     ['Status', data.status.replace(/_/g, ' ').toUpperCase()],
     ['Date Created', data.createdAt],
   ];
-  await generateCsvAndShare(`Delivery_Note_${data.jobId}`, headers, rows);
+  await shareCsv(`Delivery_Note_${data.jobId}`, headers, rows);
 }
 
 export async function shareDeliveryNotePDF(data: DeliveryNoteExportData) {
@@ -158,7 +127,7 @@ export async function shareDeliveryNotePDF(data: DeliveryNoteExportData) {
     ['Status', data.status.replace(/_/g, ' ').toUpperCase()],
     ['Date Created', data.createdAt],
   ];
-  await generatePdfAndShare(`Delivery Note - ${data.jobId}`, headers, rows);
+  await sharePdf(`Delivery Note - ${data.jobId}`, headers, rows);
 }
 
 // ============== SYSTEM-WIDE EXPORTS ==============
@@ -284,14 +253,13 @@ async function doExport(entity: ExportEntity, format: 'csv' | 'pdf') {
     }
 
     if (entity === 'all') {
-      // Truncate title for filename
       title = 'Full_System_Export';
     }
 
     if (format === 'csv') {
-      await generateCsvAndShare(title, headers, rows);
+      await shareCsv(title, headers, rows);
     } else {
-      await generatePdfAndShare(title, headers, rows);
+      await sharePdf(title, headers, rows);
     }
   } catch (e: any) {
     Alert.alert('Export Error', e?.message || 'Failed to export data');

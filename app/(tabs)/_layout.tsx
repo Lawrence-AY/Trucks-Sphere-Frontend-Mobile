@@ -46,15 +46,17 @@ const getTabIcon = (name: string, focused: boolean, color: string) => {
 };
 
 const HAMBURGER_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string; roles: UserRole[] }[] = [
-  { label: 'Dashboard', icon: 'grid-outline', route: '/', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'] },
-  { label: 'Materials', icon: 'cube-outline', route: '/(tabs)/materials', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'] },
+  { label: 'Settings', icon: 'settings-outline', route: '/management/settings', roles: ['admin', 'management'] },
+  { label: 'Settings', icon: 'settings-outline', route: '/vendor/settings', roles: ['vendor'] },
+  { label: 'Settings', icon: 'settings-outline', route: '/operator-site/settings', roles: ['operator_site'] },
+  { label: 'Settings', icon: 'settings-outline', route: '/operator-quarry/settings', roles: ['operator_quarry'] },
+  { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'] },
+  { label: 'History', icon: 'time-outline', route: '/(tabs)/history', roles: ['admin', 'management', 'operator_quarry', 'operator_site'] },
   { label: 'Weigh-In', icon: 'download-outline', route: '/quarry/weigh-in', roles: ['operator_quarry'] },
   { label: 'Weigh-Out', icon: 'arrow-up-circle-outline', route: '/quarry/weigh-out', roles: ['operator_quarry'] },
   { label: 'Receive', icon: 'checkmark-circle-outline', route: '/site/receive', roles: ['operator_site'] },
-  { label: 'History', icon: 'time-outline', route: '/(tabs)/history', roles: ['admin', 'management', 'operator_quarry', 'operator_site'] },
-  { label: 'Profile', icon: 'person-outline', route: '/(tabs)/profile', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'] },
-  { label: 'Trucks', icon: 'car-outline', route: '/(tabs)/trucks', roles: ['admin', 'management'] },
-  { label: 'Orders', icon: 'document-text-outline', route: '/(tabs)/orders', roles: ['admin', 'management', 'vendor'] },
+  { label: 'Export Data', icon: 'cloud-download-outline', route: '/screens/issues', roles: ['admin', 'management'] },
+  { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details', roles: ['admin', 'management'] },
 ];
 
 export default function TabsLayout() {
@@ -129,22 +131,27 @@ export default function TabsLayout() {
           tabBarStyle: [
             styles.tabBar,
             {
-              backgroundColor: '#091827',
+              backgroundColor: '#FFFFFF',
               borderTopColor: colors.border,
               paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
               height: Platform.OS === 'ios' ? 72 + insets.bottom : 72,
             },
           ],
-          headerStyle: { backgroundColor: colors.background },
+        headerStyle: { backgroundColor: '#FFFFFF' },
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700', fontSize: 17 },
           headerShadowVisible: false,
           headerRight: () => (
-            <TouchableOpacity onPress={toggleMenu} style={styles.headerBtn}>
-              <View style={[styles.headerMenuIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="menu-outline" size={24} color={colors.primary} />
-              </View>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => router.push('/screens/issues' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
+                <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={toggleMenu} style={styles.headerBtn}>
+                <View style={[styles.headerMenuIcon, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="menu-outline" size={24} color={colors.primary} />
+                </View>
+              </TouchableOpacity>
+            </View>
           ),
           headerLeft: Platform.OS === 'ios'
             ? () => <View style={{ width: 8 }} />

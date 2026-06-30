@@ -30,7 +30,7 @@ const FILTERS = [
 function progressForDelivery(item: any) {
   if (item.status === 'delivered' || item.status === 'completed') return 100;
   if (item.receivedAt) return 92;
-  if (item.deliveredAt || item.status === 'destination_weighbridge') return 78;
+  if (item.deliveredAt) return 78;
   if (item.weighOutWeight || item.status === 'in_transit_to_site') return 58;
   if (item.weighInWeight || item.status === 'at_quarry') return 38;
   if (item.driverId || item.vehicleId || item.status === 'assigned') return 18;
@@ -42,9 +42,8 @@ function isFlagged(item: any) {
   return net > 0 && (net < 19 || net > 23);
 }
 
-export default function ActiveScreen() {
+export default function ManagementActiveScreen() {
   const colors = useTheme();
-  const { user } = useAuthStore();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -55,10 +54,7 @@ export default function ActiveScreen() {
     setRefreshing(true);
     try {
       const data = await fetchDeliveryOrders();
-      const visible = user?.role === 'vendor'
-        ? (data || []).filter((item: any) => item.vendorId === (user.vendorId || 'v1'))
-        : data || [];
-      setDeliveries(visible);
+      setDeliveries(data || []);
     } catch (error) {
       console.error('Active deliveries load error:', error);
     } finally {
@@ -67,25 +63,17 @@ export default function ActiveScreen() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, [user?.role, user?.vendorId]);
+  useEffect(() => { loadData(); }, []);
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     return deliveries.filter((item) => {
       const matchesSearch = !query || [
-        item.jobId,
-        item.poNumber,
-        item.driverName,
-        item.plateNumber,
-        item.vendorName,
-        item.materialName,
+        item.jobId, item.poNumber, item.driverName, item.plateNumber, item.vendorName, item.materialName,
       ].some((value) => String(value || '').toLowerCase().includes(query));
-
       if (!matchesSearch) return false;
       if (filter === 'active') return !['delivered', 'completed', 'cancelled'].includes(item.status);
-      if (filter === 'weighbridge') return Boolean(item.weighInWeight || item.weighOutWeight || item.status?.includes('weigh'));
+      if (filter === 'weighbridge') return Boolean(item.weighInWeight || item.weighOutWeight);
       if (filter === 'delivered') return ['delivered', 'completed'].includes(item.status);
       if (filter === 'flagged') return isFlagged(item);
       return true;
@@ -93,84 +81,39 @@ export default function ActiveScreen() {
   }, [deliveries, filter, search]);
 
   const activeCount = deliveries.filter((item) => !['delivered', 'completed', 'cancelled'].includes(item.status)).length;
-  const flaggedCount = deliveries.filter(isFlagged).length;
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader
-        eyebrow="Delivery execution"
-        title="Active board"
-        subtitle={`${activeCount} in motion · ${flaggedCount} weight flags`}
-      />
-
+      <CommandHeader title="Active board" subtitle={`${activeCount} in motion`} />
       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor..." />
       <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
-
       <SectionTitle title={`${filtered.length} deliveries`} />
       {loading ? (
-        <DataCard>
-          <Text style={[styles.muted, { color: colors.textMuted }]}>Loading movement board...</Text>
-        </DataCard>
+        <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading movement board...</Text></DataCard>
       ) : filtered.length ? (
         filtered.map((item) => {
           const progress = progressForDelivery(item);
           const flagged = isFlagged(item);
           return (
-            <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}`)}>
-              <View style={styles.cardTop}>
-                <View style={styles.cardTitleWrap}>
-                  <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
-                  <Text style={[styles.subtle, { color: colors.textMuted }]}>{item.vendorName || item.poNumber}</Text>
+            <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}` as any)}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
+                  <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.vendorName || item.poNumber}</Text>
                 </View>
                 <StatusPill status={flagged ? 'suspended' : item.status} compact />
               </View>
-
               <ProgressBar value={progress} color={flagged ? colors.danger : colors.accent} />
-
-              <View style={styles.detailGrid}>
-                <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
-                <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || item.quantity || 0} tonnes`} />
-                <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} -> ${item.siteName || 'Destination'}`} />
-                <DetailRow icon="scale-outline" value={`Net ${item.netWeight || 'pending'} t`} />
-              </View>
-
-              <View style={styles.cardFooter}>
-                <Text style={[styles.timestamp, { color: colors.textTertiary }]}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
-                <Text style={[styles.progressText, { color: flagged ? colors.danger : colors.accent }]}>
-                  {progress}% complete
-                </Text>
-              </View>
+              <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
+              <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
+              <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} → ${item.siteName || 'Destination'}`} />
+              <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
             </DataCard>
           );
         })
       ) : (
-        <EmptyState
-          icon="file-tray-outline"
-          title="No deliveries found"
-          subtitle={search ? 'Try a broader search or another filter.' : 'There are no matching deliveries on this board.'}
-        />
+        <EmptyState icon="file-tray-outline" title="No deliveries found" subtitle="Try a broader search or another filter." />
       )}
     </PageShell>
   );
 }
-
-const styles = StyleSheet.create({
-  muted: { fontSize: 13, fontWeight: '700' },
-  cardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-  },
-  cardTitleWrap: { flex: 1 },
-  jobId: { fontSize: 17, fontWeight: '900' },
-  subtle: { fontSize: 12, fontWeight: '700', marginTop: 3 },
-  detailGrid: { gap: 7 },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  timestamp: { fontSize: 11, fontWeight: '700' },
-  progressText: { fontSize: 11, fontWeight: '900' },
-});

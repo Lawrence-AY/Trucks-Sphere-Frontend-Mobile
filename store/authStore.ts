@@ -20,15 +20,15 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   }
 }
 
-const MOCK_USERS: Record<string, { displayName: string; role: string; vendorId?: string }> = {
+const MOCK_USERS: Record<string, { displayName: string; role: string; vendorId?: string, quarryId?: string, siteId?: string }> = {
   'admin@truck.com': { displayName: 'James Admin', role: 'admin' },
   admin: { displayName: 'James Admin', role: 'admin' },
   'management@truck.com': { displayName: 'Mary Management', role: 'management' },
   management: { displayName: 'Mary Management', role: 'management' },
-  'quarry@truck.com': { displayName: 'Peter Quarry', role: 'operator_quarry' },
-  quarry: { displayName: 'Peter Quarry', role: 'operator_quarry' },
-  'site@truck.com': { displayName: 'Anna Site', role: 'operator_site' },
-  site: { displayName: 'Anna Site', role: 'operator_site' },
+  'quarry@truck.com': { displayName: 'Peter Quarry', role: 'operator_quarry', quarryId: 'q1' },
+  quarry: { displayName: 'Peter Quarry', role: 'operator_quarry', quarryId: 'q1' },
+  'site@truck.com': { displayName: 'Anna Site', role: 'operator_site', siteId: 's1' },
+  site: { displayName: 'Anna Site', role: 'operator_site', siteId: 's1' },
   'vendor@truck.com': { displayName: 'John Vendor', role: 'vendor', vendorId: 'v1' },
   vendor: { displayName: 'John Vendor', role: 'vendor', vendorId: 'v1' },
 };
