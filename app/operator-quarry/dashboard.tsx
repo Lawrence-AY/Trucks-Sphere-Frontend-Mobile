@@ -272,11 +272,7 @@ export default function OperatorQuarryDashboardScreen() {
           />
         }
       >
-        <CommandHeader
-          eyebrow="Quarry operations"
-          title="Queue"
-          subtitle={`${deliveries.length} jobs`}
-        />
+         
         <View style={styles.metricRow}>
           <MetricTile
             icon="clipboard"
@@ -633,10 +629,7 @@ export default function OperatorQuarryDashboardScreen() {
                     icon="flag-outline"
                     value={`Site: ${selectedPo.siteName}`}
                   />
-                  <DetailRow
-                    icon="cash-outline"
-                    value={`Unit Price: KES ${Number(selectedPo.unitPrice).toLocaleString()}`}
-                  />
+                   
                 </View>
               )}
 

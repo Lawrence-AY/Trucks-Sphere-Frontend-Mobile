@@ -15,8 +15,7 @@ export default function NotificationsScreen() {
 
   return (
     <PageShell>
-      <CommandHeader eyebrow="Updates" title="Notifications" subtitle="Stay on top of fleet activity" />
-      <SectionTitle title="Recent" />
+        
       <EmptyState
         icon="notifications-off-outline"
         title="No notifications"
