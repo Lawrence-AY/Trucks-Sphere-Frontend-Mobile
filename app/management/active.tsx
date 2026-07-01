@@ -13,10 +13,8 @@ import {
   EmptyState,
   FilterRail,
   PageShell,
-  ProgressBar,
   SearchField,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
 
 const FILTERS = [
@@ -26,16 +24,6 @@ const FILTERS = [
   { key: 'delivered', label: 'Delivered' },
   { key: 'flagged', label: 'Flagged' },
 ];
-
-function progressForDelivery(item: any) {
-  if (item.status === 'delivered' || item.status === 'completed') return 100;
-  if (item.receivedAt) return 92;
-  if (item.deliveredAt) return 78;
-  if (item.weighOutWeight || item.status === 'in_transit_to_site') return 58;
-  if (item.weighInWeight || item.status === 'at_quarry') return 38;
-  if (item.driverId || item.vehicleId || item.status === 'assigned') return 18;
-  return 8;
-}
 
 function isFlagged(item: any) {
   const net = Number(item.netWeight || 0);
@@ -92,8 +80,6 @@ export default function ManagementActiveScreen() {
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading movement board...</Text></DataCard>
       ) : filtered.length ? (
         filtered.map((item) => {
-          const progress = progressForDelivery(item);
-          const flagged = isFlagged(item);
           return (
             <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}` as any)}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -101,9 +87,7 @@ export default function ManagementActiveScreen() {
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
                   <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.vendorName || item.poNumber}</Text>
                 </View>
-                <StatusPill status={flagged ? 'suspended' : item.status} compact />
               </View>
-              <ProgressBar value={progress} color={flagged ? colors.danger : colors.accent} />
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
               <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} → ${item.siteName || 'Destination'}`} />

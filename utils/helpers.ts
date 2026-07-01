@@ -6,27 +6,30 @@ export function generateId(): string {
   return `${timestamp}-${randomPart}-${randomPart2}`.toUpperCase();
 }
 
-// Generate job ID for delivery notes
-export function generateJobId(): string {
-  const year = new Date().getFullYear();
-  const seq = Math.floor(Math.random() * 9999) + 1;
-  return `JOB-${year}-${String(seq).padStart(4, '0')}`;
+// Generate job ID for delivery notes in format POMAT###/V###/D###/T###/J###
+export function generateJobId(materialId?: string, vendorId?: string, driverId?: string, vehicleId?: string): string {
+  var cleanMatId = materialId ? materialId.replace(/^MAT/i, '').replace(/[^a-zA-Z0-9]/g, '') : '###';
+  var cleanVendorId = vendorId ? vendorId.replace(/^[Vv]/, '').replace(/[^a-zA-Z0-9]/g, '') : '###';
+  var cleanDriverId = driverId ? driverId.replace(/^[Dd]/, '').replace(/[^a-zA-Z0-9]/g, '') : '###';
+  var cleanVehicleId = vehicleId ? vehicleId.replace(/^[TtVv]/, '').replace(/^ehicle/i, '').replace(/[^a-zA-Z0-9]/g, '') : '###';
+  var jobSeq = Math.floor(Math.random() * 9999) + 1;
+  return `POMAT${cleanMatId}/V${cleanVendorId}/D${cleanDriverId}/T${cleanVehicleId}/J${String(jobSeq).padStart(4, '0')}`;
 }
 
-// Generate PO number
-export function generatePONumber(): string {
-  const year = new Date().getFullYear();
-  const seq = Math.floor(Math.random() * 999) + 1;
-  return `PO-${year}-${String(seq).padStart(3, '0')}`;
+// Generate PO number in format POMAT###/V###
+export function generatePONumber(materialId: string, vendorId: string): string {
+  var cleanMatId = materialId.replace(/^MAT/i, '');
+  var cleanVendorId = vendorId.replace(/^[Vv]/, '');
+  return `POMAT${cleanMatId}/V${cleanVendorId}`;
 }
 
-// Format currency
+// Format currency (no KES prefix)
 export function formatCurrency(amount: number | null | undefined): string {
-  if (amount == null || isNaN(amount)) return 'KES 0.00';
-  return `KES ${amount.toLocaleString('en-KE', {
+  if (amount == null || isNaN(amount)) return '0.00';
+  return amount.toLocaleString('en-KE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`;
+  });
 }
 
 // Format weight

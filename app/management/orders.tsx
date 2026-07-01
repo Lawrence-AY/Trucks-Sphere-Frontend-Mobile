@@ -6,21 +6,12 @@ import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { usePurchaseOrders } from '../../store/realtimeData';
 import { fetchMaterials } from '../../services/api';
-import { formatCurrency, formatEAT } from '../../utils/helpers';
-import { DataCard, DetailRow, EmptyState, FilterRail, PageShell, SearchField, SectionTitle, StatusPill } from '../../components/EnterpriseUI';
-
-const STATUS_FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'approved', label: 'Approved' },
-  { key: 'in_progress', label: 'In progress' },
-  { key: 'completed', label: 'Completed' },
-];
+import { formatEAT } from '../../utils/helpers';
+import { DataCard, DetailRow, EmptyState, PageShell, SearchField, SectionTitle } from '../../components/EnterpriseUI';
 
 export default function ManagementOrdersScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
   const [materials, setMaterials] = useState<any[]>([]);
   const [materialFilter, setMaterialFilter] = useState('');
   const [matDropdownOpen, setMatDropdownOpen] = useState(false);
@@ -35,11 +26,11 @@ export default function ManagementOrdersScreen() {
     return orders.filter((item: any) => {
       const matchesSearch = !query || [item.poNumber, item.vendorName, item.materialName]
         .some((v: any) => String(v || '').toLowerCase().includes(query));
-      const matchesFilter = filter === 'all' || item.status === filter;
+      const matchesFilter = true;
       const matchesMaterial = !materialFilter || item.materialId === materialFilter;
       return matchesSearch && matchesFilter && matchesMaterial;
     });
-  }, [filter, orders, search, materialFilter]);
+  }, [orders, search, materialFilter]);
 
   const matFiltered = matSearch.trim()
     ? materials.filter(m => (m.name || '').toLowerCase().includes(matSearch.toLowerCase()))
@@ -51,7 +42,6 @@ export default function ManagementOrdersScreen() {
     <View style={styles.shell}>
       <PageShell>
         <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, vendor, material..." />
-        <FilterRail options={STATUS_FILTERS} value={filter} onChange={setFilter} />
 
         {/* Material Dropdown Filter */}
         <View style={{ marginBottom: Spacing.sm }}>
@@ -99,10 +89,8 @@ export default function ManagementOrdersScreen() {
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber}</Text>
                   <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.vendorName}</Text>
                 </View>
-                <StatusPill status={item.status} compact />
               </View>
               <DetailRow icon="cube-outline" value={`${item.materialName} · ${item.quantity || 0} ${item.unit || 'units'}`} />
-              <DetailRow icon="cash-outline" value={formatCurrency(item.totalAmount || 0)} />
               <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.createdAt)}</Text>
             </DataCard>
           ))

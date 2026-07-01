@@ -14,7 +14,6 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
 
 export default function ManagementTrucksScreen() {
@@ -65,7 +64,6 @@ export default function ManagementTrucksScreen() {
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.plateNumber}</Text>
                 <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.make} {item.model} ({item.year})</Text>
               </View>
-              <StatusPill status={item.status || 'active'} compact />
             </View>
             <DetailRow icon="person-outline" value={`Driver: ${item.driverName || 'Unassigned'}`} />
             <DetailRow icon="business-outline" value={`Vendor: ${item.vendorName || 'Unassigned'}`} />
