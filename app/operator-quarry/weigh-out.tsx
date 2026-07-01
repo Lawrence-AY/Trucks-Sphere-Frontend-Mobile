@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
@@ -84,7 +85,7 @@ export default function OperatorQuarryWeighOutScreen() {
         updatedAt: now,
       });
       setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
-      Alert.alert('Completed', `Weigh-Out submitted.\n\nIn: ${weighIn.toFixed(1)}T · Out: ${numericWeightOut.toFixed(1)}T · Net: ${netWeight.toFixed(1)}T`, [{ text: 'OK', onPress: closeWeighOutForm }]);
+      Alert.alert('Completed', `Weigh-Out submitted.\n\nIn: ${weighIn.toFixed(1)}T · Out: ${numericWeightOut.toFixed(1)}T · Net: ${netWeight.toFixed(1)}T`, [{ text: 'View History', onPress: () => { closeWeighOutForm(); router.replace('/operator-quarry/history' as any); } }]);
     } catch (error: any) {
       Alert.alert('Submission Failed', error?.message || 'Could not submit weigh-out data.');
     } finally {

@@ -70,7 +70,7 @@ export default function OperatorQuarryDashboardScreen() {
   useEffect(() => { loadData(); }, []);
 
   const queue = deliveries.filter(
-    (d) => !['delivered', 'completed', 'cancelled'].includes(d.status),
+    (d) => !['delivered', 'completed', 'cancelled'].includes(d.status) && !d.weighInWeight,
   );
   const completed = deliveries.filter(
     (d) => d.status === 'delivered' || d.status === 'completed',

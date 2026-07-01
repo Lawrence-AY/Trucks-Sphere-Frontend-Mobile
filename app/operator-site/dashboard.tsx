@@ -249,28 +249,6 @@ export default function OperatorSiteDashboardScreen() {
           />
         }
       >
-        {/* Metric Tiles */}
-        <View style={styles.metricRow}>
-          <MetricTile
-            icon="hourglass-outline"
-            label="Pending Weigh In"
-            value={stats.pending}
-            tone={colors.warning}
-          />
-          <MetricTile
-            icon="checkmark-circle-outline"
-            label="Weighed In"
-            value={stats.weighedIn}
-            tone="#3B82F6"
-          />
-          <MetricTile
-            icon="checkmark-done"
-            label="Completed"
-            value={stats.completed}
-            tone={colors.success}
-          />
-        </View>
-
         <SearchField
           value={search}
           onChangeText={setSearch}
