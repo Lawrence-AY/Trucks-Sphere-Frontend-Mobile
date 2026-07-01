@@ -7,13 +7,11 @@ import {
   DataCard,
   DetailRow,
   EmptyState,
-  MetricTile,
   PageShell,
-  ProgressBar,
   SectionTitle,
   StatusPill,
 } from '../../components/EnterpriseUI';
-import { Radius, Spacing } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import {
   fetchCheckpoints,
@@ -21,7 +19,6 @@ import {
   fetchDrivers,
   fetchPurchaseOrders,
   fetchVehicles,
-  fetchWeighments,
 } from '../../services/api';
 import { formatEAT, formatStatus, getStatusColor } from '../../utils/helpers';
 
@@ -51,24 +48,6 @@ function formatJobCreatedMeta(job: any, driver: any, vehicle: any) {
   return `${formatMaybeDate(job?.createdAt)}\nDriver: ${driverName}\nVehicle: ${plateNumber}`;
 }
 
-function progressForJob(job: any, checkpoints: any[]) {
-  if (!job) return 0;
-  if (job.status === 'delivered' || job.status === 'completed') return 100;
-  if (job.receivedAt || checkpoints.some((item) => item.type === 'received')) return 92;
-  if (job.weighOutWeight || checkpoints.some((item) => item.type === 'weigh_out')) return 62;
-  if (job.weighInWeight || checkpoints.some((item) => item.type === 'weigh_in')) return 34;
-  if (job.driverId || job.vehicleId) return 18;
-  return 8;
-}
-
-const CHECKPOINT_CONFIG: Record<string, { label: string; icon: IconName }> = {
-  weigh_in: { label: 'Weigh In', icon: 'download-outline' },
-  weigh_out: { label: 'Weigh Out', icon: 'arrow-up-circle-outline' },
-  loading: { label: 'Loading', icon: 'cube-outline' },
-  arrived_site: { label: 'Arrived at Site', icon: 'location-outline' },
-  received: { label: 'Received', icon: 'receipt-outline' },
-};
-
 export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
@@ -76,7 +55,6 @@ export default function JobDetailsScreen() {
   const [purchaseOrder, setPurchaseOrder] = useState<any>(null);
   const [driver, setDriver] = useState<any>(null);
   const [vehicle, setVehicle] = useState<any>(null);
-  const [weighments, setWeighments] = useState<any[]>([]);
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -101,11 +79,10 @@ export default function JobDetailsScreen() {
           return;
         }
 
-        const [orders, drivers, vehicles, jobWeighments, jobCheckpoints] = await Promise.all([
+        const [orders, drivers, vehicles, jobCheckpoints] = await Promise.all([
           fetchPurchaseOrders(),
           fetchDrivers(),
           fetchVehicles(),
-          fetchWeighments({ jobId: foundJob.jobId }),
           fetchCheckpoints({ jobId: foundJob.jobId }),
         ]);
 
@@ -115,7 +92,6 @@ export default function JobDetailsScreen() {
         );
         setDriver(drivers.find((item: any) => item.id === foundJob.driverId) || null);
         setVehicle(vehicles.find((item: any) => item.id === foundJob.vehicleId) || null);
-        setWeighments(jobWeighments || []);
         setCheckpoints(
           [...(jobCheckpoints || [])].sort(
             (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
@@ -132,15 +108,8 @@ export default function JobDetailsScreen() {
     loadJob();
   }, [id]);
 
-  const progress = useMemo(() => progressForJob(job, checkpoints), [checkpoints, job]);
   const timelineCheckpoints = useMemo(() => checkpoints.filter((item) => item.type !== 'loading'), [checkpoints]);
   const isWeight = useMemo(() => timelineCheckpoints.some((item) => item.weight !== undefined && item.weight !== null), [timelineCheckpoints]);
-  const orderedQty = Number(job?.quantityOrdered || job?.quantity || 0);
-  const deliveredQty = Number(job?.quantityDelivered || job?.netWeight || 0);
-  const expectedNet = job?.netWeight || (job?.weighInWeight && job?.weighOutWeight ? job.weighInWeight - job.weighOutWeight : 0);
-  const siteVariance = deliveredQty && expectedNet ? deliveredQty - expectedNet : 0;
-  const varianceTone = Math.abs(siteVariance) > 1 ? colors.danger : colors.success;
-  const unit = purchaseOrder?.unit || 'tonnes';
 
   if (loading) {
     return (
@@ -187,7 +156,6 @@ export default function JobDetailsScreen() {
             <Text style={[styles.priorityText, { color: getStatusColor(job.status) }]}>{formatStatus(job.status)}</Text>
           </View>
         </View>
-        <ProgressBar value={progress} color={job.status === 'delivered' ? colors.success : colors.primary} />
         <View style={styles.actionRow}>
           <TouchableOpacity style={[styles.primaryAction, { backgroundColor: colors.primary }]} onPress={() => router.push(`/screens/delivery-note?id=${job.jobId}`)}>
             <Ionicons name="receipt-outline" size={18} color="#FFFFFF" />
@@ -199,9 +167,6 @@ export default function JobDetailsScreen() {
           </TouchableOpacity>
         </View>
       </DataCard>
-
-     
-     
 
       <SectionTitle title="Journey Timeline" />
       <DataCard>
@@ -236,39 +201,7 @@ export default function JobDetailsScreen() {
         ) : null}
       </DataCard>
 
-
-      <SectionTitle title="Activity Log" />
-      <DataCard>
-        <DetailRow icon="create-outline" value={`Created by ${job.createdBy || 'system'} on ${formatMaybeDate(job.createdAt)}`} />
-        <DetailRow icon="sync-outline" value={`Last updated ${formatMaybeDate(job.updatedAt)}`} />
-        <DetailRow icon="flag-outline" value={`Current status: ${formatStatus(job.status)}`} />
-      </DataCard>
     </PageShell>
-  );
-}
-
-function HubRow({ icon, label, value }: { icon: IconName; label: string; value: string }) {
-  const colors = useTheme();
-  return (
-    <View style={styles.hubRow}>
-      <View style={[styles.hubIcon, { backgroundColor: colors.inputBg }]}>
-        <Ionicons name={icon} size={18} color={colors.primary} />
-      </View>
-      <View style={styles.hubCopy}>
-        <Text style={[styles.hubLabel, { color: colors.textMuted }]}>{label}</Text>
-        <Text style={[styles.hubValue, { color: colors.text }]}>{value}</Text>
-      </View>
-    </View>
-  );
-}
-
-function WeightCell({ label, value }: { label: string; value: string }) {
-  const colors = useTheme();
-  return (
-    <View style={[styles.weightCell, { backgroundColor: colors.inputBg }]}>
-      <Text style={[styles.weightLabel, { color: colors.textMuted }]}>{label}</Text>
-      <Text style={[styles.weightValue, { color: colors.text }]}>{value}</Text>
-    </View>
   );
 }
 
@@ -305,13 +238,13 @@ const styles = StyleSheet.create({
   summaryHead: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md, alignItems: 'flex-start' },
   summaryCopy: { flex: 1 },
   summarySub: { fontSize: 12, fontWeight: '700', marginTop: 4 },
-  priorityBadge: { borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+  priorityBadge: { borderRadius: 20, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
   priorityText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   actionRow: { flexDirection: 'row', gap: Spacing.md },
   primaryAction: {
     flex: 1,
     minHeight: 44,
-    borderRadius: Radius.md,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -321,7 +254,7 @@ const styles = StyleSheet.create({
   secondaryAction: {
     flex: 1,
     minHeight: 44,
-    borderRadius: Radius.md,
+    borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -329,27 +262,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   secondaryActionText: { fontSize: 13, fontWeight: '900' },
-  metricRow: { flexDirection: 'row', gap: Spacing.md },
-  hubRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  hubIcon: { width: 38, height: 38, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  hubCopy: { flex: 1 },
-  hubLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  hubValue: { fontSize: 15, fontWeight: '900', marginTop: 2 },
-  weightGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  weightCell: { width: '48%', minHeight: 76, borderRadius: Radius.md, padding: Spacing.md, justifyContent: 'space-between' },
-  weightLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  weightValue: { fontSize: 16, fontWeight: '900' },
-  reconciliationBand: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  reconciliationText: { flex: 1, fontSize: 13, fontWeight: '900' },
   timelineItem: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
-  timelineIcon: { width: 36, height: 36, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
+  timelineIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   timelineCopy: { flex: 1 },
   timelineTitle: { fontSize: 14, fontWeight: '900' },
   timelineMeta: { fontSize: 12, fontWeight: '700', marginTop: 3, lineHeight: 17 },

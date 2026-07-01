@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,17 +14,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Radius, Spacing } from '../constants/theme';
 import { fetchDeliveryOrders, fetchPurchaseOrders, fetchMaterials } from '../services/api';
-import { formatCurrency, formatEAT, formatStatus, getStatusColor } from '../utils/helpers';
+import { formatEAT } from '../utils/helpers';
+
+const STATUS_OPTIONS = [
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'in_progress', label: 'In progress' },
+  { key: 'completed', label: 'Completed' },
+];
 
 export default function OrdersListScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
-  const [materialFilter, setMaterialFilter] = useState('all');
+  const [materialFilter, setMaterialFilter] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [matDropdownOpen, setMatDropdownOpen] = useState(false);
+  const [matSearch, setMatSearch] = useState('');
 
   const loadData = async () => {
     setRefreshing(true);
@@ -46,7 +58,13 @@ export default function OrdersListScreen() {
     loadData();
   }, []);
 
-  const materialOptions = [{ key: 'all', label: 'All Materials' }, ...materials.map((m: any) => ({ key: m.id, label: m.name || m.id }))];
+  const materialOptions = [{ id: '', name: 'All Materials' }, ...materials.map((m: any) => ({ id: m.id, name: m.name || m.id }))];
+  const matFiltered = matSearch.trim()
+    ? materialOptions.filter(m => (m.name || '').toLowerCase().includes(matSearch.toLowerCase()))
+    : materialOptions;
+
+  const selectedMaterial = materialOptions.find(m => m.id === materialFilter);
+  const selectedStatus = STATUS_OPTIONS.find(s => s.key === filter);
 
   const filtered = orders.filter((order) => {
     const s = search.toLowerCase();
@@ -55,17 +73,9 @@ export default function OrdersListScreen() {
       (order.vendorName || '').toLowerCase().includes(s) ||
       (order.materialName || '').toLowerCase().includes(s);
     const matchesFilter = filter === 'all' || order.status === filter;
-    const matchesMaterial = materialFilter === 'all' || order.materialId === materialFilter;
+    const matchesMaterial = !materialFilter || order.materialId === materialFilter;
     return matchesSearch && matchesFilter && matchesMaterial;
   });
-
-  const filters = [
-    { key: 'all', label: 'All' },
-    { key: 'pending', label: 'Pending' },
-    { key: 'approved', label: 'Approved' },
-    { key: 'in_progress', label: 'In Progress' },
-    { key: 'completed', label: 'Completed' },
-  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -85,53 +95,71 @@ export default function OrdersListScreen() {
         )}
       </View>
 
-      <FlatList
-        horizontal
-        data={filters}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        keyExtractor={(item) => item.key}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              { borderColor: colors.border },
-              filter === item.key && { backgroundColor: colors.accent, borderColor: colors.accent },
-            ]}
-            onPress={() => setFilter(item.key)}
-          >
-            <Text style={[
-              styles.filterText,
-              { color: colors.textSecondary },
-              filter === item.key && { color: '#FFF' },
-            ]}>{item.label}</Text>
-          </TouchableOpacity>
+      {/* Status Dropdown Filter */}
+      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.sm }}>
+        <TouchableOpacity
+          style={[styles.dropdownBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
+          onPress={() => setStatusDropdownOpen(!statusDropdownOpen)}
+        >
+          <Ionicons name="filter-outline" size={16} color={colors.textMuted} />
+          <Text style={[styles.dropdownBtnText, { color: colors.text }]} numberOfLines={1}>
+            Status: {selectedStatus ? selectedStatus.label : 'All'}
+          </Text>
+          <Ionicons name={statusDropdownOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+        </TouchableOpacity>
+        {statusDropdownOpen && (
+          <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
+              {STATUS_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.dropdownItem, opt.key === filter && { backgroundColor: colors.accent + '15' }]}
+                  onPress={() => { setFilter(opt.key); setStatusDropdownOpen(false); }}
+                >
+                  <Text style={{ color: colors.text, fontSize: 14, flex: 1 }} numberOfLines={1}>{opt.label}</Text>
+                  {opt.key === filter && <Ionicons name="checkmark" size={16} color={colors.accent} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         )}
-      />
+      </View>
 
-      <FlatList
-        horizontal
-        data={materialOptions}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        keyExtractor={(item) => item.key}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              { borderColor: colors.border },
-              materialFilter === item.key && { backgroundColor: colors.accent, borderColor: colors.accent },
-            ]}
-            onPress={() => setMaterialFilter(item.key)}
-          >
-            <Text style={[
-              styles.filterText,
-              { color: colors.textSecondary },
-              materialFilter === item.key && { color: '#FFF' },
-            ]}>{item.label}</Text>
-          </TouchableOpacity>
+      {/* Material Dropdown Filter */}
+      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.sm }}>
+        <TouchableOpacity
+          style={[styles.dropdownBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
+          onPress={() => { setMatDropdownOpen(!matDropdownOpen); setMatSearch(''); }}
+        >
+          <Ionicons name="cube-outline" size={16} color={colors.textMuted} />
+          <Text style={[styles.dropdownBtnText, { color: selectedMaterial?.id ? colors.text : colors.textMuted }]} numberOfLines={1}>
+            {selectedMaterial?.id ? selectedMaterial.name : 'Filter by material...'}
+          </Text>
+          {materialFilter ? (
+            <TouchableOpacity onPress={() => setMaterialFilter('')}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          ) : (
+            <Ionicons name={matDropdownOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+          )}
+        </TouchableOpacity>
+        {matDropdownOpen && (
+          <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.matSearchRow, { borderBottomColor: colors.border }]}>
+              <Ionicons name="search" size={14} color={colors.textMuted} />
+              <TextInput style={[styles.matSearchInput, { color: colors.text }]} placeholder="Search materials..." placeholderTextColor={colors.textMuted} value={matSearch} onChangeText={setMatSearch} autoFocus />
+            </View>
+            <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
+              {matFiltered.map((m: any) => (
+                <TouchableOpacity key={m.id} style={[styles.dropdownItem, m.id === materialFilter && { backgroundColor: colors.accent + '15' }]} onPress={() => { setMaterialFilter(m.id || ''); setMatDropdownOpen(false); }}>
+                  <Text style={{ color: colors.text, fontSize: 14, flex: 1 }} numberOfLines={1}>{m.name}</Text>
+                  {m.id === materialFilter && <Ionicons name="checkmark" size={16} color={colors.accent} />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         )}
-      />
+      </View>
 
       <FlatList
         data={filtered}
@@ -166,11 +194,6 @@ const OrderCard = ({ item, deliveries }: { item: any; deliveries: any[] }) => {
         <View style={styles.orderTitleWrap}>
           <Text style={[styles.orderPo, { color: colors.text }]}>{item.poNumber}</Text>
           <Text style={[styles.vendorName, { color: colors.textSecondary }]}>{item.vendorName}</Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '15' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {formatStatus(item.status).toUpperCase()}
-          </Text>
         </View>
       </View>
 
@@ -231,22 +254,18 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   searchInput: { flex: 1, fontSize: 14 },
-  filterRow: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Spacing.sm },
-  filterChip: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-  },
-  filterText: { fontSize: 13, fontWeight: '600' },
+  dropdownBtn: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: 6 },
+  dropdownBtnText: { flex: 1, fontSize: 14 },
+  dropdownMenu: { borderWidth: 1, borderTopWidth: 0, borderBottomLeftRadius: Radius.md, borderBottomRightRadius: Radius.md, overflow: 'hidden' },
+  dropdownItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: Spacing.md },
+  matSearchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderBottomWidth: 1, gap: 6 },
+  matSearchInput: { flex: 1, fontSize: 13, paddingVertical: 2 },
   list: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['4xl'] },
   card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.sm },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.md },
   orderTitleWrap: { flex: 1 },
   orderPo: { fontSize: 14, fontWeight: '700' },
   vendorName: { fontSize: 12, marginTop: 2 },
-  statusBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radius.full },
-  statusText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
   cardBody: { gap: 6 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   detailText: { fontSize: 13 },

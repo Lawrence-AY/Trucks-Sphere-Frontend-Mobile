@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { fetchPurchaseOrders } from '../../services/api';
-import { formatCurrency, formatEAT } from '../../utils/helpers';
+import { formatEAT } from '../../utils/helpers';
 import {
   CommandHeader,
   DataCard,
@@ -13,7 +12,6 @@ import {
   EmptyState,
   FilterRail,
   PageShell,
-  ProgressBar,
   SearchField,
   SectionTitle,
   StatusPill,
@@ -78,7 +76,6 @@ export default function VendorOrdersScreen() {
               <StatusPill status={item.status} compact />
             </View>
             <DetailRow icon="cube-outline" value={`${item.quantity || 0} ${item.unit || 'units'}`} />
-            <DetailRow icon="cash-outline" value={formatCurrency(item.totalAmount || 0)} />
             <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.createdAt)}</Text>
           </DataCard>
         ))

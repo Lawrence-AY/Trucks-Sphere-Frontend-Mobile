@@ -5,17 +5,14 @@ import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { fetchDrivers } from '../../services/api';
-import { formatDate } from '../../utils/helpers';
 import {
   CommandHeader,
   DataCard,
   DetailRow,
   EmptyState,
-  MetricTile,
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
 
 export default function DriversScreen() {
@@ -49,18 +46,9 @@ export default function DriversScreen() {
       .some((value) => String(value || '').toLowerCase().includes(query)));
   }, [drivers, search]);
 
-  const expiring = drivers.filter((item) => {
-    const expiry = new Date(item.licenseExpiry || item.licenseExpiryDate || '');
-    return expiry.getTime() && expiry.getTime() < Date.now() + 60 * 24 * 60 * 60 * 1000;
-  }).length;
-
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Fleet workforce" title="Drivers" subtitle={`${drivers.length} drivers · ${expiring} license alerts`} />
-      <View style={styles.metricRow}>
-        <MetricTile icon="people" label="Active drivers" value={drivers.filter((item) => item.status === 'active').length} tone={colors.success} />
-        <MetricTile icon="shield-checkmark" label="Compliance alerts" value={expiring} tone={expiring ? colors.warning : colors.accent} />
-      </View>
+      <CommandHeader eyebrow="Fleet workforce" title="Drivers" subtitle={`${drivers.length} drivers`} />
       <SearchField value={search} onChangeText={setSearch} placeholder="Search driver, phone, license..." />
       <SectionTitle title={`${filtered.length} driver records`} />
 
@@ -81,11 +69,9 @@ export default function DriversScreen() {
                   <Text style={[styles.title, { color: colors.text }]}>{name}</Text>
                   <Text style={[styles.subtle, { color: colors.textMuted }]}>{item.licenseNumber || 'No license number'}</Text>
                 </View>
-                <StatusPill status={item.status || 'active'} compact />
               </View>
               <DetailRow icon="call-outline" value={item.phone || 'No phone'} />
               <DetailRow icon="business-outline" value={item.vendorName || item.vendorId || 'Vendor not linked'} />
-              <DetailRow icon="calendar-outline" value={`License expires ${formatDate(item.licenseExpiry || item.licenseExpiryDate || new Date())}`} />
             </DataCard>
           );
         })

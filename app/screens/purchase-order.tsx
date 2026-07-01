@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { fetchPurchaseOrders, fetchDeliveryOrders, fetchVendors, fetchMaterials } from '../../services/api';
-import { formatEAT, formatStatus, getStatusColor } from '../../utils/helpers';
+import { formatEAT, generatePONumber } from '../../utils/helpers';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
@@ -16,12 +16,6 @@ function PORow({ label, value, bold }: { label: string; value: string; bold?: bo
       <Text style={[styles.rValue, bold && { fontWeight: '700' }]}>{value}</Text>
     </View>
   );
-}
-
-function generatePreviewPONumber(materialId: string, vendorId: string) {
-  var cleanMatId = materialId.replace(/^MAT/i, '');
-  var cleanVendorId = vendorId.replace(/^[Vv]/, '');
-  return `POMAT${cleanMatId}/V${cleanVendorId}`;
 }
 
 function ModalPicker({ label, value, options, onSelect, icon }: { label: string; value: string; options: { id: string; name: string }[]; onSelect: (id: string) => void; icon?: string }) {
@@ -168,7 +162,7 @@ export default function PurchaseOrderScreen() {
     var selectedMaterial = materials.find(function (m) { return m.id === materialId; });
     var selectedVendor = vendors.find(function (v) { return v.id === vendorId; });
     var qty = Number(quantity);
-    var poNumber = generatePreviewPONumber(materialId, vendorId);
+    var poNumber = generatePONumber(materialId, vendorId);
 
     setSaving(true);
     api.post('/api/purchase-orders', {
@@ -226,7 +220,7 @@ export default function PurchaseOrderScreen() {
             {materialId && vendorId ? (
               <View style={[styles.poPreview, { backgroundColor: colors.accent + '12', borderColor: colors.accent }]}>
                 <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>PURCHASE ORDER NUMBER</Text>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.accent }}>{generatePreviewPONumber(materialId, vendorId)}</Text>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.accent }}>{generatePONumber(materialId, vendorId)}</Text>
               </View>
             ) : null}
 
@@ -245,7 +239,7 @@ export default function PurchaseOrderScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Ionicons name="search" size={18} color={colors.textSecondary} />
-          <TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search PO..." placeholderTextColor={colors.textMuted} value={searchPo} onChangeText={setSearchPo} onSubmitEditing={() => { loadData(searchPo.trim()); }} returnKeyType="search" />
+          <TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search PO (e.g. POMAT001/V01)..." placeholderTextColor={colors.textMuted} value={searchPo} onChangeText={setSearchPo} onSubmitEditing={() => { loadData(searchPo.trim()); }} returnKeyType="search" />
           <TouchableOpacity onPress={() => { loadData(searchPo.trim()); }}>
             <Ionicons name="arrow-forward-circle" size={22} color={colors.accent} />
           </TouchableOpacity>
@@ -260,9 +254,6 @@ export default function PurchaseOrderScreen() {
               <PORow label="Material" value={order.materialName} />
               <PORow label="Vendor" value={order.vendorName} />
               <PORow label="Quantity" value={order.quantity + ' ' + order.unit} bold />
-              <View style={[styles.stamp, { backgroundColor: getStatusColor(order.status) + '15', borderColor: getStatusColor(order.status) }]}>
-                <Text style={[styles.stampText, { color: getStatusColor(order.status) }]}>{formatStatus(order.status).toUpperCase()}</Text>
-              </View>
             </View>
           </View>
         )}
@@ -297,7 +288,6 @@ var styles = StyleSheet.create({
   inputField: { flex: 1, fontSize: 14, height: 44 },
   submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: Radius.md, gap: Spacing.sm },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  // Modal styles
   modalOverlay: { flex: 1 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, paddingTop: Spacing['2xl'] },
   modalTitle: { fontSize: 18, fontWeight: '700' },

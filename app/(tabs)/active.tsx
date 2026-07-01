@@ -13,10 +13,8 @@ import {
   EmptyState,
   FilterRail,
   PageShell,
-  ProgressBar,
   SearchField,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
 
 const FILTERS = [
@@ -26,16 +24,6 @@ const FILTERS = [
   { key: 'delivered', label: 'Delivered' },
   { key: 'flagged', label: 'Flagged' },
 ];
-
-function progressForDelivery(item: any) {
-  if (item.status === 'delivered' || item.status === 'completed') return 100;
-  if (item.receivedAt) return 92;
-  if (item.deliveredAt || item.status === 'destination_weighbridge') return 78;
-  if (item.weighOutWeight || item.status === 'in_transit_to_site') return 58;
-  if (item.weighInWeight || item.status === 'at_quarry') return 38;
-  if (item.driverId || item.vehicleId || item.status === 'assigned') return 18;
-  return 8;
-}
 
 function isFlagged(item: any) {
   const net = Number(item.netWeight || 0);
@@ -113,8 +101,6 @@ export default function ActiveScreen() {
         </DataCard>
       ) : filtered.length ? (
         filtered.map((item) => {
-          const progress = progressForDelivery(item);
-          const flagged = isFlagged(item);
           return (
             <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}`)}>
               <View style={styles.cardTop}>
@@ -122,10 +108,7 @@ export default function ActiveScreen() {
                   <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
                   <Text style={[styles.subtle, { color: colors.textMuted }]}>{item.vendorName || item.poNumber}</Text>
                 </View>
-                <StatusPill status={flagged ? 'suspended' : item.status} compact />
               </View>
-
-              <ProgressBar value={progress} color={flagged ? colors.danger : colors.accent} />
 
               <View style={styles.detailGrid}>
                 <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />

@@ -29,7 +29,6 @@ import {
   MetricTile,
   PageShell,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
 
 export default function OperatorQuarryDashboardScreen() {
@@ -119,9 +118,11 @@ export default function OperatorQuarryDashboardScreen() {
     const now = new Date().toISOString();
     setSubmitting(true);
     setSubmitError('');
+    // Generate job ID: POMAT###/V###/D###/T###/J####
+    const jobId = generateJobId(selectedPo.materialId, selectedPo.vendorId, selectedDriver.id, selectedVehicle.id);
     const payload = {
       id: generateId(),
-      jobId: generateJobId(),
+      jobId: jobId,
       purchaseOrderId: selectedPo.id,
       poNumber: selectedPo.poNumber,
       vendorId: selectedPo.vendorId,
@@ -132,12 +133,12 @@ export default function OperatorQuarryDashboardScreen() {
       plateNumber: selectedVehicle.plateNumber || selectedVehicle.plate || 'N/A',
       materialId: selectedPo.materialId,
       materialName: selectedPo.materialName,
-      quantityOrdered: Math.min(Number(selectedPo.quantity || 20), 20),
+      quantityOrdered: Number(selectedPo.quantity || 0),
       quantityDelivered: 0,
-      quarryId: selectedPo.quarryId,
-      quarryName: selectedPo.quarryName,
-      siteId: selectedPo.siteId,
-      siteName: selectedPo.siteName,
+      quarryId: selectedPo.quarryId || '',
+      quarryName: selectedPo.quarryName || 'Quarry',
+      siteId: selectedPo.siteId || '',
+      siteName: selectedPo.siteName || 'Site',
       status: 'assigned',
       createdBy: 'operator_quarry',
       createdAt: now,
@@ -198,7 +199,6 @@ export default function OperatorQuarryDashboardScreen() {
                     <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
                     <Text style={[styles.jobMeta, { color: colors.textMuted }]}>{item.poNumber || 'No PO'}</Text>
                   </View>
-                  <StatusPill status={item.status} compact />
                 </View>
                 <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
                 <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
@@ -231,7 +231,7 @@ export default function OperatorQuarryDashboardScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.sheetTitle, { color: colors.text }]}>Create Job Card</Text>
                   <Text style={[styles.sheetSub, { color: colors.textMuted }]}>
-                    Search a Purchase Order, then assign a driver and vehicle to initialize a job card.
+                    Search a Purchase Order, then assign a driver and vehicle to create a delivery job.
                   </Text>
                 </View>
                 <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.inputBg }]} onPress={closeAddForm}>
@@ -243,7 +243,7 @@ export default function OperatorQuarryDashboardScreen() {
                 <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
                 <TextInput
                   style={[styles.poInput, { color: colors.text }]}
-                  placeholder="Enter Order Number (e.g. PO-2026-001)"
+                  placeholder="Search PO (e.g. POMAT004/V01)"
                   placeholderTextColor={colors.textTertiary}
                   value={selectedPo ? selectedPo.poNumber : poSearch}
                   onChangeText={(value) => { setPoSearch(value); setSelectedPo(null); setSelectedDriver(null); setSelectedVehicle(null); }}
@@ -260,7 +260,7 @@ export default function OperatorQuarryDashboardScreen() {
                     >
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.optionTitle, { color: colors.text }]}>{order.poNumber}</Text>
-                        <Text style={[styles.optionMeta, { color: colors.textMuted }]}>{order.vendorName}</Text>
+                        <Text style={[styles.optionMeta, { color: colors.textMuted }]}>{order.vendorName} · {order.materialName}</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                     </TouchableOpacity>
@@ -272,8 +272,6 @@ export default function OperatorQuarryDashboardScreen() {
                   <DetailRow icon="document-outline" value={`Order: ${selectedPo.poNumber}`} />
                   <DetailRow icon="business-outline" value={`Vendor: ${selectedPo.vendorName}`} />
                   <DetailRow icon="cube-outline" value={`Material: ${selectedPo.materialName} - ${selectedPo.quantity} ${selectedPo.unit}`} />
-                  <DetailRow icon="location-outline" value={`Quarry: ${selectedPo.quarryName}`} />
-                  <DetailRow icon="flag-outline" value={`Site: ${selectedPo.siteName}`} />
                 </View>
               )}
 
@@ -354,7 +352,7 @@ export default function OperatorQuarryDashboardScreen() {
 const styles = StyleSheet.create({
   metricRow: { flexDirection: 'row', gap: Spacing.md },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.sm },
-  jobId: { fontSize: 16, fontWeight: '700' },
+  jobId: { fontSize: 15, fontWeight: '700' },
   jobMeta: { fontSize: 12, fontWeight: '600', marginTop: 2 },
   stageBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1, marginTop: Spacing.sm },
   stageText: { fontSize: 11, fontWeight: '700' },
