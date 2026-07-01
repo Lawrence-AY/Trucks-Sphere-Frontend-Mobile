@@ -144,7 +144,7 @@ export interface DeliveryOrder {
   siteId: string;
   siteLocation?: string;
   siteName: string;
-  status: 'assigned' | 'at_quarry' | 'loaded' | 'in_transit_to_site' | 'delivered' | 'cancelled';
+  status: 'assigned' | 'at_quarry' | 'loaded' | 'in_transit_to_site' | 'weighed_in' | 'completed' | 'delivered' | 'cancelled';
   weighInId?: string;
   weighOutId?: string;
   weighInWeight?: number;
@@ -156,6 +156,13 @@ export interface DeliveryOrder {
   weighOutLocation?: string;
   weighInPhoto?: string;
   weighOutPhoto?: string;
+  // Site-specific fields (Phase 2: Site Operator Workflow)
+  siteWeighInWeight?: number;
+  siteWeighOutWeight?: number;
+  siteNetWeight?: number;
+  siteWeightDifference?: number;
+  siteWeighInAt?: string;
+  siteWeighOutAt?: string;
   receivedAt?: string;
   receivedLocation?: string;
   receivedBy?: string;
