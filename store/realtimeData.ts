@@ -1,50 +1,37 @@
 /**
- * Real-time Firestore Data Store
- * Uses onSnapshot listeners to maintain live data from Firestore.
- * Data is cached locally via AsyncStorage/SecureStore for offline use.
+ * Backend API Data Store
+ * All data is fetched from the backend API (Firebase-backed).
+ * No direct Firestore access from the frontend.
+ * Data is cached locally via SecureStore for offline use.
  */
 import { useEffect, useState } from 'react';
-import { listenToCollection, listenToQuery } from '../services/firestoreRealtime';
 import { setItem, getItem } from '../services/database';
-import { Unsubscribe } from 'firebase/firestore';
-
-// ============================================================
-// Type-safe collection names
-// ============================================================
-const COLLECTIONS = {
-  vendors: 'vendors',
-  drivers: 'drivers',
-  vehicles: 'vehicles',
-  materials: 'materials',
-  purchaseOrders: 'purchaseOrders',
-  deliveryOrders: 'deliveryOrders',
-  weighRecords: 'weighRecords',
-  checkpoints: 'checkpoints',
-  quarries: 'quarries',
-  sites: 'sites',
-} as const;
+import * as api from '../services/api';
 
 const CACHE_PREFIX = 'rt_cache_';
 
 // ============================================================
-// React hook for any collection with local caching
+// React hook for any collection with local caching + backend API
 // ============================================================
 export function useRealtimeCollection(
   collectionName: string,
-  filter?: { field: string; op: any; value: any }
+  params?: Record<string, string>
 ): any[] {
   const [data, setData] = useState<any[]>([]);
-  const cacheKey = CACHE_PREFIX + collectionName + (filter ? `_${filter.field}_${filter.value}` : '');
+  const filterKey = params ? `_${Object.entries(params).map(([k, v]) => `${k}_${v}`).join('_')}` : '';
+  const cacheKey = CACHE_PREFIX + collectionName + filterKey;
 
   useEffect(() => {
+    let cancelled = false;
+
     // Load cached data first for instant display
     getItem(cacheKey)
       .then((cached) => {
-        if (cached) {
+        if (cached && !cancelled) {
           try {
             const parsed = JSON.parse(cached);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              console.log(`[Realtime] Loaded cached ${collectionName}:`, parsed.length, 'items');
+              console.log(`[Data] Loaded cached ${collectionName}:`, parsed.length, 'items');
               setData(parsed);
             }
           } catch {}
@@ -52,37 +39,42 @@ export function useRealtimeCollection(
       })
       .catch(() => {});
 
-    console.log(`[Realtime] Subscribing to: ${collectionName}`);
-    let unsub: Unsubscribe;
-
-    const onData = (docs: any[]) => {
-      setData(docs);
-      // Cache data locally
-      setItem(cacheKey, JSON.stringify(docs)).catch(() => {});
+    // Map collection names to API functions
+    const fetchers: Record<string, (p?: any) => Promise<any[]>> = {
+      vendors: api.fetchVendors,
+      drivers: api.fetchDrivers,
+      vehicles: api.fetchVehicles,
+      materials: api.fetchMaterials,
+      purchaseOrders: api.fetchPurchaseOrders,
+      deliveryOrders: api.fetchDeliveryOrders,
+      weighRecords: api.fetchWeighments,
+      checkpoints: api.fetchCheckpoints,
+      quarries: api.fetchQuarries,
+      sites: api.fetchSites,
     };
 
-    if (filter) {
-      unsub = listenToQuery(
-        collectionName,
-        filter.field,
-        filter.op,
-        filter.value,
-        onData,
-        (err) => console.warn(`[Realtime] ${collectionName} filter error:`, err.message)
-      );
-    } else {
-      unsub = listenToCollection(
-        collectionName,
-        onData,
-        (err) => console.warn(`[Realtime] ${collectionName} error:`, err.message)
-      );
+    const fetchFn = fetchers[collectionName];
+    if (!fetchFn) {
+      console.warn(`[Data] Unknown collection: ${collectionName}`);
+      return;
     }
 
+    console.log(`[Data] Fetching ${collectionName} from backend...`);
+    fetchFn(params)
+      .then((result) => {
+        if (!cancelled) {
+          setData(result);
+          setItem(cacheKey, JSON.stringify(result)).catch(() => {});
+        }
+      })
+      .catch((err) => {
+        console.warn(`[Data] ${collectionName} fetch error:`, err?.message || err);
+      });
+
     return () => {
-      console.log(`[Realtime] Unsubscribing from: ${collectionName}`);
-      unsub();
+      cancelled = true;
     };
-  }, [collectionName, filter?.field, filter?.op, filter?.value]);
+  }, [collectionName, filterKey]);
 
   return data;
 }
@@ -90,50 +82,44 @@ export function useRealtimeCollection(
 // ============================================================
 // Convenience hooks for each collection
 // ============================================================
-export function useVendors() {
-  return useRealtimeCollection(COLLECTIONS.vendors);
+export function useVendors(params?: { search?: string; status?: string }) {
+  return useRealtimeCollection('vendors', params as Record<string, string>);
 }
 
-export function useDrivers(params?: { status?: string }) {
-  const filter = params?.status
-    ? { field: 'status', op: '==' as const, value: params.status }
-    : undefined;
-  return useRealtimeCollection(COLLECTIONS.drivers, filter);
+export function useDrivers(params?: { status?: string; search?: string }) {
+  return useRealtimeCollection('drivers', params as Record<string, string>);
 }
 
-export function useVehicles(params?: { status?: string }) {
-  const filter = params?.status
-    ? { field: 'status', op: '==' as const, value: params.status }
-    : undefined;
-  return useRealtimeCollection(COLLECTIONS.vehicles, filter);
+export function useVehicles(params?: { status?: string; search?: string }) {
+  return useRealtimeCollection('vehicles', params as Record<string, string>);
 }
 
-export function useMaterials() {
-  return useRealtimeCollection(COLLECTIONS.materials);
+export function useMaterials(params?: { search?: string; category?: string }) {
+  return useRealtimeCollection('materials', params as Record<string, string>);
 }
 
-export function usePurchaseOrders() {
-  return useRealtimeCollection(COLLECTIONS.purchaseOrders);
+export function usePurchaseOrders(params?: { search?: string; status?: string }) {
+  return useRealtimeCollection('purchaseOrders', params as Record<string, string>);
 }
 
-export function useDeliveryOrders() {
-  return useRealtimeCollection(COLLECTIONS.deliveryOrders);
+export function useDeliveryOrders(params?: { search?: string; status?: string; jobId?: string; purchaseOrderId?: string }) {
+  return useRealtimeCollection('deliveryOrders', params as Record<string, string>);
 }
 
-export function useWeighRecords() {
-  return useRealtimeCollection(COLLECTIONS.weighRecords);
+export function useWeighRecords(params?: { jobId?: string; type?: string }) {
+  return useRealtimeCollection('weighRecords', params as Record<string, string>);
 }
 
-export function useCheckpoints() {
-  return useRealtimeCollection(COLLECTIONS.checkpoints);
+export function useCheckpoints(params?: { jobId?: string; deliveryOrderId?: string }) {
+  return useRealtimeCollection('checkpoints', params as Record<string, string>);
 }
 
 export function useQuarries() {
-  return useRealtimeCollection(COLLECTIONS.quarries);
+  return useRealtimeCollection('quarries');
 }
 
 export function useSites() {
-  return useRealtimeCollection(COLLECTIONS.sites);
+  return useRealtimeCollection('sites');
 }
 
 // ============================================================

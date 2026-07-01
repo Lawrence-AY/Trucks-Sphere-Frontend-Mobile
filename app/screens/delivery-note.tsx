@@ -64,7 +64,7 @@ export default function DeliveryNoteScreen() {
       {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search Delivery Note (e.g. JOB-2026-0001)" placeholderTextColor={colors.textMuted} value={searchJobId} onChangeText={setSearchJobId} onSubmitEditing={handleSearch} returnKeyType="search" />
+        <TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search Delivery Note (e.g. POMAT...)" placeholderTextColor={colors.textMuted} value={searchJobId} onChangeText={setSearchJobId} onSubmitEditing={handleSearch} returnKeyType="search" />
         <TouchableOpacity onPress={handleSearch}>
           <Ionicons name="arrow-forward-circle" size={22} color={NAVY} />
         </TouchableOpacity>
@@ -108,8 +108,6 @@ export default function DeliveryNoteScreen() {
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>MATERIAL</Text>
               <DNRow label="Material" value={delivery.materialName} />
-              <DNRow label="Ordered Qty" value={`${delivery.quantityOrdered} ${delivery.unit || 'tonnes'}`} />
-              <DNRow label="Delivered Qty" value={`${delivery.quantityDelivered || 0} ${delivery.unit || 'tonnes'}`} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>ROUTE</Text>
               <DNRow label="Origin" value={delivery.quarryName} />
@@ -146,9 +144,8 @@ export default function DeliveryNoteScreen() {
                 const isCurrent = !isCompleted && (currentStepIdx === idx - 1);
                 const isLast = idx === JOURNEY_STEPS.length - 1;
                 let dotBg = '#CBD5E1';
-                let iconName: any = 'ellipse-outline';
-                if (isCompleted) { dotBg = '#16A34A'; iconName = 'checkmark-circle'; }
-                else if (isCurrent) { dotBg = '#3B82F6'; iconName = 'time'; }
+                if (isCompleted) { dotBg = '#16A34A'; }
+                else if (isCurrent) { dotBg = '#3B82F6'; }
                 return (
                   <View key={step.type} style={styles.tRow}>
                     <View style={styles.tLeft}>

@@ -21,7 +21,8 @@ export function generatePONumber(): string {
 }
 
 // Format currency
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number | null | undefined): string {
+  if (amount == null || isNaN(amount)) return 'KES 0.00';
   return `KES ${amount.toLocaleString('en-KE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
