@@ -19,17 +19,18 @@ import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 
-const BOTTOM_TABS = ['dashboard', 'receive', 'materials'];
-const HIDDEN_TABS = ['profile', 'settings'];
+const BOTTOM_TABS = ['dashboard', 'weights', 'history'];
+const HIDDEN_TABS = ['profile', 'settings', 'receive', 'materials'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   dashboard: { icon: 'calendar-outline', label: 'Schedule' },
-  receive: { icon: 'checkmark-circle-outline', label: 'Receive' },
-  materials: { icon: 'cube-outline', label: 'Materials' },
+  weights: { icon: 'scale-outline', label: 'Weights' },
+  history: { icon: 'time-outline', label: 'History' },
 };
 
-// Menu items for operator site drawer
+// Menu items for operator site drawer — includes Issues
 const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
+  { label: 'Issues', icon: 'warning-outline', route: '/screens/issues' },
   { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
   { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
@@ -111,6 +112,12 @@ export default function OperatorSiteLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => router.push('/screens/issues' as any)}
+                style={{ paddingHorizontal: 6, paddingVertical: 8 }}
+              >
+                <Ionicons name="warning-outline" size={22} color="#EF4444" />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push('/screens/notifications' as any)}
                 style={{ paddingHorizontal: 6, paddingVertical: 8 }}
@@ -195,7 +202,7 @@ export default function OperatorSiteLayout() {
                   <Ionicons
                     name={item.icon}
                     size={20}
-                    color={item.label === 'Logout' ? '#EF4444' : '#1E293B'}
+                    color={item.label === 'Logout' ? '#EF4444' : item.label === 'Issues' ? '#F59E0B' : '#1E293B'}
                   />
                   <Text
                     style={[
