@@ -1,11 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Alert, ScrollView, Share } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_DELIVERIES } from '../../store/mockData';
-import { formatEAT } from '../../utils/helpers';
+import { fetchDeliveryOrders } from '../../services/api';
 
 function RRow({ label, value }: { label: string; value: string }) {
   return (
@@ -22,12 +21,21 @@ export default function ReceiveScreen() {
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<any>(null);
   const [deliveryNote, setDeliveryNote] = useState('');
+  const [deliveries, setDeliveries] = useState<any[]>([]);
 
-  const pending = MOCK_DELIVERIES.filter(d => d.status === 'in_transit')
-    .filter(d =>
+  useEffect(() => {
+    console.log('[ReceiveScreen] Fetching delivery orders...');
+    fetchDeliveryOrders().then(data => {
+      console.log('[ReceiveScreen] Delivery orders loaded:', data.length, 'items');
+      setDeliveries(data);
+    }).catch(err => console.error('[ReceiveScreen] Failed to fetch deliveries:', err));
+  }, []);
+
+  const pending = deliveries.filter((d: any) => d.status === 'in_transit' || d.status === 'in_transit_to_site')
+    .filter((d: any) =>
       (d.jobId || '').toLowerCase().includes((search || '').toLowerCase()) ||
-      (d.truckPlate || '').toLowerCase().includes((search || '').toLowerCase()) ||
-      (d.material || '').toLowerCase().includes((search || '').toLowerCase())
+      (d.truckPlate || d.plateNumber || '').toLowerCase().includes((search || '').toLowerCase()) ||
+      (d.material || d.materialName || '').toLowerCase().includes((search || '').toLowerCase())
     );
 
   if (step === 1 && selected) {

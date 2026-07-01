@@ -45,8 +45,7 @@ export default function OperatorSiteReceiveScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Site receiving" title="Receive" subtitle={`${deliveries.length} pending deliveries`} />
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate..." />
+       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate..." />
       <SectionTitle title={`${filtered.length} to receive`} />
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>

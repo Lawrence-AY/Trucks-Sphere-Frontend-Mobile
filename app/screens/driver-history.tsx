@@ -1,45 +1,42 @@
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_DRIVERS, MOCK_DELIVERY_ORDERS, MOCK_TRUCKS } from '../../store/mockData';
-import { formatDate, formatTime, formatDateTime } from '../../utils/helpers';
+import { fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../services/api';
+import { formatDate, formatTime } from '../../utils/helpers';
 
 export default function DriverHistoryScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
   const colors = useTheme();
+  const [driver, setDriver] = useState<any>(null);
+  const [truck, setTruck] = useState<any>(null);
+  const [trips, setTrips] = useState<any[]>([]);
 
-  const driver = MOCK_DRIVERS.find(d => d.id === id);
+  useEffect(() => {
+    console.log('[DriverHistory] Fetching data for driver:', id, name);
+    Promise.all([fetchDrivers(), fetchVehicles(), fetchDeliveryOrders()]).then(([drivers, vehicles, deliveries]) => {
+      console.log('[DriverHistory] Loaded drivers:', drivers.length, 'vehicles:', vehicles.length, 'deliveries:', deliveries.length);
+      const foundDriver = drivers.find(d => d.id === id);
+      setDriver(foundDriver || null);
+      if (foundDriver?.assignedTruckId) {
+        const foundTruck = vehicles.find(t => t.id === foundDriver.assignedTruckId);
+        setTruck(foundTruck || null);
+      }
+      const driverTrips = deliveries
+        .filter((d: any) => d.driverId === id)
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setTrips(driverTrips);
+      console.log('[DriverHistory] Found', driverTrips.length, 'trips for driver');
+    }).catch(err => console.error('[DriverHistory] Failed to load data:', err));
+  }, [id, name]);
+
   const driverName = driver?.name || name || 'Driver';
-  const truck = driver?.assignedTruckId ? MOCK_TRUCKS.find(t => t.id === driver.assignedTruckId) : null;
-
-  // Get trips (deliveries) for this driver
-  const trips = MOCK_DELIVERY_ORDERS.filter(d => d.driverId === id)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  const statusConfig: Record<string, { icon: string; color: string; label: string }> = {
-    delivered: { icon: 'checkmark-done', color: '#53BDEB', label: 'Delivered' },
-    at_quarry: { icon: 'time', color: '#8696BB', label: 'At Quarry' },
-    assigned: { icon: 'time', color: '#8696BB', label: 'Assigned' },
-  };
-
-  const statusIndicator = (status: string) => {
-    const cfg = statusConfig[status] || { icon: 'time', color: '#8696BB', label: status };
-    return (
-      <Ionicons name={cfg.icon as any} size={14} color={cfg.color} />
-    );
-  };
 
   const getCompanyName = (vendorId?: string) => {
     if (!vendorId) return '';
-    const names: Record<string, string> = {
-      v1: 'Mwangi Transport Ltd',
-      v2: 'Kamau Trucking Co',
-      v3: 'Ochieng Supplies',
-      v4: 'Njoroge Heavy Haulage',
-    };
-    return names[vendorId] || '';
+    return vendorId;
   };
 
   // Group trips by date for chat-style grouping
@@ -59,13 +56,13 @@ export default function DriverHistoryScreen() {
         </TouchableOpacity>
         <View style={[styles.chatAvatar, { backgroundColor: colors.accent + '15' }]}>
           <Text style={[styles.chatAvatarText, { color: colors.accent }]}>
-            {driverName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            {driverName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
           </Text>
         </View>
         <View style={styles.chatHeaderInfo}>
           <Text style={[styles.chatName, { color: colors.text }]}>{driverName}</Text>
           <Text style={[styles.chatStatus, { color: colors.textSecondary }]}>
-            {driver?.status === 'active' ? 'Active' : driver?.status || ''} · {truck?.plateNumber || 'No truck'}
+            {driver?.status === 'active' ? 'Active' : driver?.status || ''} · {truck?.plateNumber || truck?.plate || 'No truck'}
           </Text>
         </View>
       </View>
@@ -95,13 +92,12 @@ export default function DriverHistoryScreen() {
             {/* Messages (Trips) */}
             {dateTrips.map((trip, index) => {
               const isLast = index === dateTrips.length - 1;
-              const tripStatus = statusConfig[trip.status] || { icon: 'time', color: '#8696BB', label: trip.status };
               const isDelivered = trip.status === 'delivered';
               const hasMeta = trip.quarryName || trip.siteName;
 
               return (
                 <TouchableOpacity
-                  key={trip.id}
+                  key={trip.id || trip.jobId}
                   style={[
                     styles.messageBubble,
                     {
@@ -125,7 +121,7 @@ export default function DriverHistoryScreen() {
 
                   {/* Material & Route */}
                   <Text style={[styles.tripMaterial, { color: colors.text }]}>
-                    {trip.materialName}
+                    {trip.materialName || trip.material}
                   </Text>
                   {hasMeta && (
                     <Text style={[styles.tripRoute, { color: colors.textMuted }]}>
@@ -211,7 +207,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.md,
     marginLeft: Spacing.xl,
-    // WhatsApp-style left bubble
     borderTopLeftRadius: 4,
   },
   bubbleHeader: {

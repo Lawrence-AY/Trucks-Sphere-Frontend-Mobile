@@ -1,15 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_TRUCKS } from '../../store/mockData';
+import { fetchVehicles } from '../../services/api';
 
 export default function MyTrucksScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
-  const vendorTrucks = MOCK_TRUCKS.filter(t => t.vendorId === 'v1').filter(t =>
-    (t.plate || '').toLowerCase().includes((search || '').toLowerCase())
+  const [trucks, setTrucks] = useState<any[]>([]);
+
+  useEffect(() => {
+    console.log('[MyTrucks] Fetching vehicles from backend...');
+    fetchVehicles().then(data => {
+      console.log('[MyTrucks] Vehicles loaded:', data.length, 'items', data);
+      setTrucks(data);
+    }).catch(err => console.error('[MyTrucks] Failed to load vehicles:', err));
+  }, []);
+
+  const vendorTrucks = trucks.filter(t =>
+    (t.plate || t.plateNumber || '').toLowerCase().includes((search || '').toLowerCase())
   );
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -20,7 +30,7 @@ export default function MyTrucksScreen() {
       <FlatList data={vendorTrucks} keyExtractor={t => t.id} contentContainerStyle={{ padding: 16 }}
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.plate, { color: colors.accent }]}>{item.plate}</Text>
+            <Text style={[styles.plate, { color: colors.accent }]}>{item.plate || item.plateNumber}</Text>
             <Text style={[styles.text, { color: colors.textSecondary }]}>{item.model}</Text>
             <Text style={[styles.text, { color: colors.textTertiary }]}>Driver: {item.driverName}</Text>
           </View>

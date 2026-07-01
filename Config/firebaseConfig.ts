@@ -5,13 +5,13 @@
  * In production, authentication happens entirely via the backend API endpoints.
  */
 export const firebaseConfig = {
-  apiKey: "AIzaSyATEU61bk0_DNuEBui15djMTvlGmSv_5fc",
-  authDomain: "truck-d18ad.firebaseapp.com",
-  projectId: "truck-d18ad",
-  storageBucket: "truck-d18ad.firebasestorage.app",
-  messagingSenderId: "591932346134",
-  appId: "1:591932346134:web:aff38c5dc11cfebfe68a37",
-  measurementId: "G-GQKGCC566M"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Note: To use Firebase client SDK directly, uncomment below:

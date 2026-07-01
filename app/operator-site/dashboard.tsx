@@ -236,53 +236,30 @@ export default function OperatorSiteDashboardScreen() {
     router.navigate('/operator-site/weights' as any);
   };
 
+  const scheduled = allScheduled;
+  const arrived = stats.weighedIn;
+
   /* ─── Render ─── */
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <PageShell
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={loadData}
-            tintColor={colors.primary}
-          />
-        }
-      >
-        {/* Metric Tiles */}
-        <View style={styles.metricRow}>
-          <MetricTile
-            icon="hourglass-outline"
-            label="Pending Weigh In"
-            value={stats.pending}
-            tone={colors.warning}
-          />
-          <MetricTile
-            icon="checkmark-circle-outline"
-            label="Weighed In"
-            value={stats.weighedIn}
-            tone="#3B82F6"
-          />
-          <MetricTile
-            icon="checkmark-done"
-            label="Completed"
-            value={stats.completed}
-            tone={colors.success}
-          />
-        </View>
-
-        <SearchField
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search job, driver, plate, material..."
-        />
-        <SectionTitle title={`Schedule — ${filtered.length} deliveries`} />
-
-        {loading ? (
-          <DataCard>
-            <Text style={{ fontSize: 14, color: colors.textMuted }}>
-              Loading schedule...
-            </Text>
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+       <View style={styles.metricRow}>
+        <MetricTile icon="calendar" label="Scheduled" value={scheduled.length} tone={colors.primary} />
+        <MetricTile icon="checkmark-done" label="Arrived" value={arrived.length} tone={colors.success} />
+      </View>
+      <SectionTitle title="Incoming deliveries" />
+      {loading ? (
+        <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading schedule...</Text></DataCard>
+      ) : scheduled.length ? (
+        scheduled.slice(0, 10).map((item) => (
+          <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}` as any)}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
+              <StatusPill status={item.status} compact />
+            </View>
+            <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+            <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
+            <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.createdAt)}</Text>
           </DataCard>
         ) : filtered.length ? (
           filtered.slice(0, 30).map((item) => {
