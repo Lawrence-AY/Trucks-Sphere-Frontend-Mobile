@@ -12,26 +12,30 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Radius, Spacing } from '../constants/theme';
-import { fetchDeliveryOrders, fetchPurchaseOrders } from '../services/api';
+import { fetchDeliveryOrders, fetchPurchaseOrders, fetchMaterials } from '../services/api';
 import { formatCurrency, formatEAT, formatStatus, getStatusColor } from '../utils/helpers';
 
 export default function OrdersListScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [materialFilter, setMaterialFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<any[]>([]);
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [orderData, deliveryData] = await Promise.all([
+      const [orderData, deliveryData, matData] = await Promise.all([
         fetchPurchaseOrders(),
         fetchDeliveryOrders(),
+        fetchMaterials(),
       ]);
       setOrders(orderData || []);
       setDeliveries(deliveryData || []);
+      setMaterials(matData || []);
     } catch (e) {
       console.error('Failed to load orders:', e);
     }
@@ -42,13 +46,17 @@ export default function OrdersListScreen() {
     loadData();
   }, []);
 
+  const materialOptions = [{ key: 'all', label: 'All Materials' }, ...materials.map((m: any) => ({ key: m.id, label: m.name || m.id }))];
+
   const filtered = orders.filter((order) => {
     const s = search.toLowerCase();
     const matchesSearch = !search ||
       (order.poNumber || '').toLowerCase().includes(s) ||
       (order.vendorName || '').toLowerCase().includes(s) ||
       (order.materialName || '').toLowerCase().includes(s);
-    return matchesSearch && (filter === 'all' || order.status === filter);
+    const matchesFilter = filter === 'all' || order.status === filter;
+    const matchesMaterial = materialFilter === 'all' || order.materialId === materialFilter;
+    return matchesSearch && matchesFilter && matchesMaterial;
   });
 
   const filters = [
@@ -102,6 +110,30 @@ export default function OrdersListScreen() {
       />
 
       <FlatList
+        horizontal
+        data={materialOptions}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+        keyExtractor={(item) => item.key}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              { borderColor: colors.border },
+              materialFilter === item.key && { backgroundColor: colors.accent, borderColor: colors.accent },
+            ]}
+            onPress={() => setMaterialFilter(item.key)}
+          >
+            <Text style={[
+              styles.filterText,
+              { color: colors.textSecondary },
+              materialFilter === item.key && { color: '#FFF' },
+            ]}>{item.label}</Text>
+          </TouchableOpacity>
+        )}
+      />
+
+      <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
@@ -123,8 +155,6 @@ export default function OrdersListScreen() {
 const OrderCard = ({ item, deliveries }: { item: any; deliveries: any[] }) => {
   const colors = useTheme();
   const orderTrips = deliveries.filter((delivery) => delivery.purchaseOrderId === item.id);
-  const transported = orderTrips.reduce((sum, delivery) => sum + Number(delivery.quantityDelivered || 0), 0);
-  const remaining = Math.max(0, Number(item.quantity || 0) - transported);
 
   return (
     <TouchableOpacity
@@ -150,18 +180,13 @@ const OrderCard = ({ item, deliveries }: { item: any; deliveries: any[] }) => {
           <Text style={[styles.detailText, { color: colors.textSecondary }]}>{item.materialName} - {item.quantity} {item.unit}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Ionicons name="cash-outline" size={14} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { color: colors.textSecondary }]}>{formatCurrency(item.totalAmount)}</Text>
-        </View>
-        <View style={styles.detailRow}>
           <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
           <Text style={[styles.detailText, { color: colors.textSecondary }]}>Created: {formatEAT(item.createdAt)}</Text>
         </View>
       </View>
 
       <View style={styles.progressRow}>
-        <ProgressStat label="Transported" value={`${transported} ${item.unit}`} color="#16A34A" />
-        <ProgressStat label="Remaining" value={`${remaining} ${item.unit}`} color={remaining > 0 ? '#D97706' : '#16A34A'} />
+        <ProgressStat label="Quantity" value={`${item.quantity} ${item.unit}`} color={colors.text} />
         <ProgressStat label="Trips" value={orderTrips.length.toString()} color={colors.text} />
       </View>
 
@@ -171,7 +196,6 @@ const OrderCard = ({ item, deliveries }: { item: any; deliveries: any[] }) => {
             <View key={trip.id} style={styles.tripRow}>
               <Text style={[styles.tripText, { color: colors.text }]} numberOfLines={1}>{trip.driverName}</Text>
               <Text style={[styles.tripText, { color: colors.textSecondary }]} numberOfLines={1}>{trip.plateNumber}</Text>
-              <Text style={[styles.tripQty, { color: colors.accent }]}>{trip.quantityDelivered || 0} {item.unit}</Text>
             </View>
           ))}
           {orderTrips.length > 3 && (
@@ -233,7 +257,6 @@ const styles = StyleSheet.create({
   tripList: { borderTopWidth: 1, marginTop: Spacing.md, paddingTop: Spacing.sm, gap: Spacing.xs },
   tripRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   tripText: { flex: 1, fontSize: 12 },
-  tripQty: { fontSize: 12, fontWeight: '800' },
   moreTrips: { fontSize: 11, marginTop: 2 },
   empty: { alignItems: 'center', marginTop: 60 },
   emptyText: { fontSize: 15, marginTop: Spacing.md },

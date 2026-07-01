@@ -22,6 +22,12 @@ function getBaseUrl(): string {
 
 const API_BASE_URL = getBaseUrl();
 
+console.log('[API] Base URL:', API_BASE_URL);
+console.log('[API] Platform:', Platform.OS, '| ENV vars:', {
+  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL || '(not set)',
+  EXPO_PUBLIC_API_IP: process.env.EXPO_PUBLIC_API_IP || '(not set)',
+});
+
 // ============== HTTP Helpers ==============
 
 async function backendRequest<T>(
@@ -76,7 +82,7 @@ async function safeFetch<T>(
     return result;
   } catch (error: any) {
     const msg = error?.message || error?.code || String(error);
-    console.warn(`[API] ${label} fetch failed (backend may be offline):`, msg);
+    console.warn(`[API] ❌ ${label} fetch failed → ${API_BASE_URL}`, msg);
     return [];
   }
 }
@@ -199,9 +205,9 @@ const api: ApiClient = {
         ? `${error.response.status} ${error.response.statusText || ''}`
         : (error?.message || 'Network Error');
       if (isAuthProfile) {
-        console.warn(`[API] GET ${url} failed (${msg}) — handled by authStore`);
+        console.warn(`[API] GET ${url} @ ${API_BASE_URL} failed (${msg}) — handled by authStore`);
       } else {
-        console.error(`[API] GET ${url} failed:`, msg);
+        console.error(`[API] GET ${url} @ ${API_BASE_URL} failed:`, msg);
       }
       throw error;
     }
@@ -219,9 +225,9 @@ const api: ApiClient = {
         ? `${error.response.status} ${error.response.statusText || ''}`
         : (error?.message || 'Network Error');
       if (isAuthEndpoint) {
-        console.warn(`[API] POST ${url} failed (${msg}) — handled by caller`);
+        console.warn(`[API] POST ${url} @ ${API_BASE_URL} failed (${msg}) — handled by caller`);
       } else {
-        console.error(`[API] POST ${url} failed:`, msg);
+        console.error(`[API] POST ${url} @ ${API_BASE_URL} failed:`, msg);
       }
       throw error;
     }
