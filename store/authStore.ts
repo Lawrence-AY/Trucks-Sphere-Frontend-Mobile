@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     await clearAuthData();
     try {
       console.log('[AuthStore] Logging in via backend /api/auth/login...');
-      const response = await api.post('/api/auth/login', { email, password });
+      const response = await api.post('/api/auth/login', { username: email, password });
       console.log('[AuthStore] Login response:', response.data);
 
       const { user: backendUser, token, refreshToken } = response.data as any;

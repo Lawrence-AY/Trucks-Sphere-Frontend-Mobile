@@ -19,18 +19,19 @@ import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 
-const BOTTOM_TABS = ['dashboard', 'weigh-in', 'weigh-out', 'materials'];
-const HIDDEN_TABS = ['profile', 'settings'];
+const BOTTOM_TABS = ['dashboard', 'weigh-in', 'weigh-out', 'history'];
+const HIDDEN_TABS = ['profile', 'settings', 'materials'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   dashboard: { icon: 'clipboard-outline', label: 'Queue' },
   'weigh-in': { icon: 'download-outline', label: 'Weigh In' },
   'weigh-out': { icon: 'arrow-up-outline', label: 'Weigh Out' },
-  materials: { icon: 'cube-outline', label: 'Materials' },
+  history: { icon: 'time-outline', label: 'History' },
 };
 
 // Menu items for quarry operator drawer
 const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
+  { label: 'Issues', icon: 'warning-outline', route: '/screens/issues' },
   { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
   { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
@@ -112,6 +113,12 @@ export default function OperatorQuarryLayout() {
           headerShadowVisible: false,
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => router.push('/screens/issues' as any)}
+                style={{ paddingHorizontal: 6, paddingVertical: 8 }}
+              >
+                <Ionicons name="warning-outline" size={22} color="#EF4444" />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push('/screens/notifications' as any)}
                 style={{ paddingHorizontal: 6, paddingVertical: 8 }}
@@ -196,7 +203,7 @@ export default function OperatorQuarryLayout() {
                   <Ionicons
                     name={item.icon}
                     size={20}
-                    color={item.label === 'Logout' ? '#EF4444' : '#1E293B'}
+                    color={item.label === 'Logout' ? '#EF4444' : item.label === 'Issues' ? '#F59E0B' : '#1E293B'}
                   />
                   <Text
                     style={[
@@ -251,25 +258,6 @@ export default function OperatorQuarryLayout() {
         </View>
       </Modal>
     </>
-  );
-}
-
-function MiniBarItem({
-  icon,
-  label,
-  onPress,
-  danger = false,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-      <Ionicons name={icon} size={18} color={danger ? '#EF4444' : '#1B2A4A'} />
-      <Text style={[styles.menuText, danger && { color: '#EF4444' }]}>{label}</Text>
-    </TouchableOpacity>
   );
 }
 

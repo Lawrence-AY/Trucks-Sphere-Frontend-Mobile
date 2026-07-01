@@ -1,10 +1,11 @@
 /**
  * Real-time Firestore Data Store
  * Uses onSnapshot listeners to maintain live data from Firestore.
- * All data is pure Firebase — no mock data, no HTTP backend calls.
+ * Data is cached locally via AsyncStorage/SecureStore for offline use.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { listenToCollection, listenToQuery } from '../services/firestoreRealtime';
+import { setItem, getItem } from '../services/database';
 import { Unsubscribe } from 'firebase/firestore';
 
 // ============================================================
@@ -23,58 +24,42 @@ const COLLECTIONS = {
   sites: 'sites',
 } as const;
 
-// ============================================================
-// Singleton listener manager
-// ============================================================
-let globalListeners: Map<string, { count: number; unsub: Unsubscribe | null; data: any[] }> = new Map();
-
-function ensureListener(collectionName: string): () => void {
-  if (!globalListeners.has(collectionName)) {
-    globalListeners.set(collectionName, { count: 0, unsub: null, data: [] });
-  }
-  const entry = globalListeners.get(collectionName)!;
-  entry.count++;
-
-  if (entry.count === 1 || !entry.unsub) {
-    console.log(`[Realtime] Starting onSnapshot for: ${collectionName}`);
-    entry.unsub = listenToCollection(
-      collectionName,
-      (docs) => {
-        console.log(`[Realtime] ${collectionName} updated:`, docs.length, 'items', docs);
-        entry.data = docs;
-        // Notify all subscribers via a simple event
-        window.dispatchEvent(new CustomEvent(`firestore:${collectionName}`, { detail: docs }));
-      },
-      (error) => {
-        console.warn(`[Realtime] ${collectionName} listener error:`, error.message);
-      }
-    );
-  }
-
-  // Return cleanup function
-  return () => {
-    const e = globalListeners.get(collectionName);
-    if (!e) return;
-    e.count--;
-    if (e.count <= 0 && e.unsub) {
-      console.log(`[Realtime] Stopping onSnapshot for: ${collectionName}`);
-      e.unsub();
-      e.unsub = null;
-      globalListeners.delete(collectionName);
-    }
-  };
-}
+const CACHE_PREFIX = 'rt_cache_';
 
 // ============================================================
-// React hook for any collection
+// React hook for any collection with local caching
 // ============================================================
-export function useRealtimeCollection(collectionName: string, filter?: { field: string; op: any; value: any }): any[] {
+export function useRealtimeCollection(
+  collectionName: string,
+  filter?: { field: string; op: any; value: any }
+): any[] {
   const [data, setData] = useState<any[]>([]);
-  const unsubRef = useRef<Unsubscribe | null>(null);
+  const cacheKey = CACHE_PREFIX + collectionName + (filter ? `_${filter.field}_${filter.value}` : '');
 
   useEffect(() => {
+    // Load cached data first for instant display
+    getItem(cacheKey)
+      .then((cached) => {
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              console.log(`[Realtime] Loaded cached ${collectionName}:`, parsed.length, 'items');
+              setData(parsed);
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
     console.log(`[Realtime] Subscribing to: ${collectionName}`);
     let unsub: Unsubscribe;
+
+    const onData = (docs: any[]) => {
+      setData(docs);
+      // Cache data locally
+      setItem(cacheKey, JSON.stringify(docs)).catch(() => {});
+    };
 
     if (filter) {
       unsub = listenToQuery(
@@ -82,24 +67,17 @@ export function useRealtimeCollection(collectionName: string, filter?: { field: 
         filter.field,
         filter.op,
         filter.value,
-        (docs) => {
-          console.log(`[Realtime] ${collectionName} (filtered) updated:`, docs.length, 'items', docs);
-          setData(docs);
-        },
+        onData,
         (err) => console.warn(`[Realtime] ${collectionName} filter error:`, err.message)
       );
     } else {
       unsub = listenToCollection(
         collectionName,
-        (docs) => {
-          console.log(`[Realtime] ${collectionName} updated:`, docs.length, 'items', docs);
-          setData(docs);
-        },
+        onData,
         (err) => console.warn(`[Realtime] ${collectionName} error:`, err.message)
       );
     }
 
-    unsubRef.current = unsub;
     return () => {
       console.log(`[Realtime] Unsubscribing from: ${collectionName}`);
       unsub();

@@ -7,7 +7,20 @@
 import axios from 'axios';
 import { getStoredToken } from './database';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+import { Platform } from 'react-native';
+
+// Detect environment for API URL
+function getBaseUrl(): string {
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  // Physical device or custom IP from env
+  if (process.env.EXPO_PUBLIC_API_IP) return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
+  // Android emulator can't reach localhost — use 10.0.2.2
+  if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
+  // iOS simulator and web can use localhost
+  return 'http://localhost:5000';
+}
+
+const API_BASE_URL = getBaseUrl();
 
 // ============== HTTP Helpers ==============
 
