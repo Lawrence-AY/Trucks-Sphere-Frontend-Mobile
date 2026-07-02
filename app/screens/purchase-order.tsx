@@ -172,14 +172,11 @@ export default function PurchaseOrderScreen() {
       vendorName: selectedVendor ? selectedVendor.name || '' : '',
       quantity: qty,
       unit: selectedMaterial ? selectedMaterial.unit || 'tons' : 'tons',
-      unitPrice: 0,
-      totalAmount: 0,
       status: 'pending',
       poNumber: poNumber,
       requestedBy: user ? user.uid || 'u1' : 'u1',
     }).then(function (res: any) {
-      var createdPoNumber = res && res.data ? res.data.poNumber || poNumber : poNumber;
-      Alert.alert('Success', 'Purchase Order ' + createdPoNumber + ' created!', [
+      Alert.alert('Success', 'Purchase Order ' + poNumber + ' created!', [
         { text: 'View Orders', onPress: function () { router.replace('/(tabs)/orders'); } },
       ]);
     }).catch(function (err: any) {

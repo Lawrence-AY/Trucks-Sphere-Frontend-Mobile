@@ -24,7 +24,7 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
+   
 } from '../../components/EnterpriseUI';
 
 export default function OperatorQuarryWeighOutScreen() {
@@ -105,7 +105,7 @@ export default function OperatorQuarryWeighOutScreen() {
           <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.jobCardHeader}>
               <Text style={[styles.jobCardTitle, { color: colors.text }]}>{activeJob.jobId}</Text>
-              <StatusPill status={activeJob.status} compact />
+              
             </View>
             <DetailRow icon="document-outline" value={`PO: ${activeJob.poNumber || 'N/A'}`} />
             <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
@@ -211,7 +211,7 @@ export default function OperatorQuarryWeighOutScreen() {
             <DataCard key={item.id} onPress={() => openWeighOutForm(item)}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
-                <StatusPill status={item.status} compact />
+                
               </View>
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />

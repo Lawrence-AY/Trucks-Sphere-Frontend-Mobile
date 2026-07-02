@@ -14,7 +14,7 @@ import {
   MetricTile,
   PageShell,
   SectionTitle,
-  StatusPill,
+ 
 } from '../../components/EnterpriseUI';
 
 export default function VendorDashboardScreen() {
@@ -76,7 +76,7 @@ export default function VendorDashboardScreen() {
           <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}` as any)}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
-              <StatusPill status={item.status} compact />
+        
             </View>
             <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No vehicle'}`} />
             <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />

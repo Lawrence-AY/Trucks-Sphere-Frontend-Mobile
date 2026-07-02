@@ -6,8 +6,7 @@ import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { fetchDrivers } from '../../services/api';
 import {
-  CommandHeader,
-  DataCard,
+   DataCard,
   DetailRow,
   EmptyState,
   PageShell,
@@ -47,8 +46,7 @@ export default function ManagementDriversScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Fleet workforce" title="Drivers" subtitle={`${drivers.length} drivers`} />
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search driver, phone, license..." />
+       <SearchField value={search} onChangeText={setSearch} placeholder="Search driver, phone, license..." />
       <SectionTitle title={`${filtered.length} driver records`} />
 
       {loading ? (

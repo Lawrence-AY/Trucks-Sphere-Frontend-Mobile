@@ -18,10 +18,10 @@ import { formatEAT } from "../../utils/helpers";
 import {
   DataCard,
   EmptyState,
-  MetricTile,
+ 
   PageShell,
   SectionTitle,
-  StatusPill,
+ 
 } from "../../components/EnterpriseUI";
 
 /* ─────────── CSV / PDF Export Helpers ─────────── */
@@ -411,7 +411,7 @@ export default function OperatorSiteHistoryScreen() {
                 </TouchableOpacity>
               </View>
 
-              <StatusPill status={item.status} />
+             
 
               {/* Parties */}
               <View
@@ -782,35 +782,7 @@ export default function OperatorSiteHistoryScreen() {
         </Text>
       </View>
 
-      {/* KPI Tiles */}
-      <View style={styles.kpiRow}>
-        <MetricTile
-          icon="checkmark-done"
-          label="Completed"
-          value={analytics.totalCompleted}
-          tone={colors.success}
-        />
-        {/* <MetricTile
-          icon="cube"
-          label="Site Net"
-          value={`${analytics.totalSiteNet.toFixed(1)}T`}
-          tone={colors.primary}
-        />
-      </View>
-      <View style={styles.kpiRow}>
-        <MetricTile
-          icon="analytics-outline"
-          label="Avg Net/Delivery"
-          value={`${analytics.avgNet.toFixed(1)}T`}
-          tone="#8B5CF6"
-        />*/}
-        <MetricTile
-          icon="warning-outline"
-          label="Discrepancies"
-          value={analytics.discrepancies}
-          tone={analytics.discrepancies > 0 ? colors.danger : colors.success}
-        />
-      </View>
+     
 
       {/* Filter Pills */}
       <View style={styles.filterRow}>
@@ -934,7 +906,7 @@ export default function OperatorSiteHistoryScreen() {
                     {item.poNumber || "—"}
                   </Text>
                 </View>
-                <StatusPill status={item.status} compact />
+                
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
@@ -1042,7 +1014,7 @@ export default function OperatorSiteHistoryScreen() {
                     {item.poNumber || "—"}
                   </Text>
                 </View>
-                <StatusPill status={item.status} compact />
+            
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>

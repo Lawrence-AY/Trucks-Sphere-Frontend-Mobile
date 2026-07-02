@@ -6,21 +6,60 @@ export function generateId(): string {
   return `${timestamp}-${randomPart}-${randomPart2}`.toUpperCase();
 }
 
-// Generate job ID for delivery notes in format POMAT###/V###/D###/T###/J###
-export function generateJobId(materialId?: string, vendorId?: string, driverId?: string, vehicleId?: string): string {
-  var cleanMatId = materialId ? materialId.replace(/^MAT/i, '').replace(/[^a-zA-Z0-9]/g, '') : '###';
-  var cleanVendorId = vendorId ? vendorId.replace(/^[Vv]/, '').replace(/[^a-zA-Z0-9]/g, '') : '###';
-  var cleanDriverId = driverId ? driverId.replace(/^[Dd]/, '').replace(/[^a-zA-Z0-9]/g, '') : '###';
-  var cleanVehicleId = vehicleId ? vehicleId.replace(/^[TtVv]/, '').replace(/^ehicle/i, '').replace(/[^a-zA-Z0-9]/g, '') : '###';
-  var jobSeq = Math.floor(Math.random() * 9999) + 1;
-  return `POMAT${cleanMatId}/V${cleanVendorId}/D${cleanDriverId}/T${cleanVehicleId}/J${String(jobSeq).padStart(4, '0')}`;
+// Pad numeric IDs to 3 digits: "1" -> "001", "V1" -> "V001", "V01" -> "V001"
+function padToThree(id: string): string {
+  const stripped = id.replace(/^[VvDdTtJj]/, '').replace(/[^0-9]/g, '');
+  const num = parseInt(stripped, 10);
+  if (isNaN(num)) return stripped.padStart(3, '0');
+  return String(num).padStart(3, '0');
 }
 
-// Generate PO number in format POMAT###/V###
+// Extract type prefix: V, D, T, J
+function typePrefix(id: string): 'V' | 'D' | 'T' | 'J' {
+  const upper = id.toUpperCase();
+  if (upper.startsWith('V')) return 'V';
+  if (upper.startsWith('D')) return 'D';
+  if (upper.startsWith('T')) return 'T';
+  return 'J';
+}
+
+// Sequential job counter per PO (in-memory; resets on app restart)
+const jobSeqMap: Record<string, number> = {};
+function nextJobSeq(poNumber: string): number {
+  if (!jobSeqMap[poNumber]) jobSeqMap[poNumber] = 0;
+  jobSeqMap[poNumber]++;
+  return jobSeqMap[poNumber];
+}
+
+// Generate job ID: POMAT###/V###/D###/T###/J#### (sequential per PO)
+export function generateJobId(
+  poNumber: string,
+  materialId?: string,
+  vendorId?: string,
+  driverId?: string,
+  vehicleId?: string
+): string {
+  const cleanVendorId = vendorId ? `${typePrefix(vendorId)}${padToThree(vendorId)}` : 'V###';
+  const cleanDriverId = driverId ? `${typePrefix(driverId)}${padToThree(driverId)}` : 'D###';
+  const cleanVehicleId = vehicleId ? `${typePrefix(vehicleId)}${padToThree(vehicleId)}` : 'T###';
+  const jobSeq = nextJobSeq(poNumber);
+  return `${poNumber}/${cleanDriverId}/${cleanVehicleId}/J${String(jobSeq).padStart(4, '0')}`;
+}
+
+// Generate PO number: POMAT###/V### (padded to 3 digits)
 export function generatePONumber(materialId: string, vendorId: string): string {
-  var cleanMatId = materialId.replace(/^MAT/i, '');
-  var cleanVendorId = vendorId.replace(/^[Vv]/, '');
+  const cleanMatId = materialId
+    .replace(/^MAT/i, '')
+    .replace(/[^0-9]/g, '')
+    .padStart(3, '0');
+  const cleanVendorId = padToThree(vendorId);
   return `POMAT${cleanMatId}/V${cleanVendorId}`;
+}
+
+// Generate site delivery reference: POMAT###/V###/D###/T###/J####/S####
+export function generateSiteRef(jobId: string): string {
+  const siteSeq = nextJobSeq(`SITE_${jobId}`);
+  return `${jobId}/S${String(siteSeq).padStart(4, '0')}`;
 }
 
 // Format currency (no KES prefix)

@@ -11,7 +11,7 @@ import {
   MetricTile,
   PageShell,
   SectionTitle,
-  StatusPill,
+ 
 } from '../../components/EnterpriseUI';
 
 export default function ProfileScreen() {
@@ -33,7 +33,7 @@ export default function ProfileScreen() {
             <Text style={[styles.name, { color: colors.text }]}>{name}</Text>
             <Text style={[styles.email, { color: colors.textMuted }]}>{user?.email || 'No email recorded'}</Text>
           </View>
-          <StatusPill status="active" compact />
+          
         </View>
       </DataCard>
 

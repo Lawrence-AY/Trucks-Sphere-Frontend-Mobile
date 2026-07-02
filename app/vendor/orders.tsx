@@ -14,7 +14,7 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
+ 
 } from '../../components/EnterpriseUI';
 
 const FILTERS = [
@@ -73,7 +73,7 @@ export default function VendorOrdersScreen() {
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber}</Text>
                 <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.materialName}</Text>
               </View>
-              <StatusPill status={item.status} compact />
+          
             </View>
             <DetailRow icon="cube-outline" value={`${item.quantity || 0} ${item.unit || 'units'}`} />
             <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.createdAt)}</Text>

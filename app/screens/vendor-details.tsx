@@ -162,7 +162,7 @@ export default function VendorDetailsScreen() {
               <View style={styles.orderTop}>
                 <View>
                   <Text style={[styles.poNumber, { color: colors.text }]}>{order.poNumber}</Text>
-                  <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{order.materialName} · {formatCurrency(order.totalAmount || 0)}</Text>
+                  <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{order.materialName} · {order.quantity} {order.unit}</Text>
                 </View>
                 <View style={[styles.badge, { backgroundColor: getStatusColor(order.status) + '15' }]}>
                   <Text style={[styles.badgeText, { color: getStatusColor(order.status) }]}>{formatStatus(order.status)}</Text>

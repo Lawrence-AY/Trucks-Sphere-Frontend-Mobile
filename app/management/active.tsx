@@ -18,7 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { fetchDeliveryOrders, fetchMaterials } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import {
-  CommandHeader,
+ 
   DataCard,
   DetailRow,
   EmptyState,
@@ -176,8 +176,7 @@ export default function ManagementActiveScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader title="Active" subtitle={`${filtered.length} deliveries`} />
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor, material..." />
+       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor, material..." />
 
       {/* Period Filter */}
       <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
@@ -218,21 +217,7 @@ export default function ManagementActiveScreen() {
         )}
       </View>
 
-      {/* Export Actions Row */}
-      <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md, marginTop: Spacing.xs }}>
-        <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.sm, borderRadius: Radius.md, backgroundColor: '#2563EB' }} onPress={handleExportDeliveryCSV}>
-          <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
-          <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>Export Delivery CSV</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.sm, borderRadius: Radius.md, backgroundColor: '#7C3AED' }} onPress={handleExportDeliveryPDF}>
-          <Ionicons name="document-outline" size={16} color="#FFFFFF" />
-          <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>Export Delivery PDF</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.sm, borderRadius: Radius.md, backgroundColor: '#059669' }} onPress={() => router.push('/screens/delivery-note' as any)}>
-          <Ionicons name="receipt-outline" size={16} color="#FFFFFF" />
-          <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>Receipt Note</Text>
-        </TouchableOpacity>
-      </View>
+    
 
       <SectionTitle title={`${filtered.length} deliveries`} />
       {loading ? (

@@ -119,7 +119,7 @@ export default function OperatorQuarryDashboardScreen() {
     setSubmitting(true);
     setSubmitError('');
     // Generate job ID: POMAT###/V###/D###/T###/J####
-    const jobId = generateJobId(selectedPo.materialId, selectedPo.vendorId, selectedDriver.id, selectedVehicle.id);
+    const jobId = generateJobId(selectedPo.poNumber, selectedPo.materialId, selectedPo.vendorId, selectedDriver.id, selectedVehicle.id);
     const payload = {
       id: generateId(),
       jobId: jobId,
@@ -139,7 +139,7 @@ export default function OperatorQuarryDashboardScreen() {
       quarryName: selectedPo.quarryName || 'Quarry',
       siteId: selectedPo.siteId || '',
       siteName: selectedPo.siteName || 'Site',
-      status: 'assigned',
+      status: '',
       createdBy: 'operator_quarry',
       createdAt: now,
       updatedAt: now,
@@ -162,12 +162,8 @@ export default function OperatorQuarryDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />
         }
       >
-        <View style={styles.metricRow}>
-          <MetricTile icon="clipboard" label="In Queue" value={queue.length} tone={colors.warning} />
-          <MetricTile icon="checkmark-done" label="Completed" value={completed.length} tone={colors.success} />
-        </View>
-
-        <SectionTitle title="Active Queue" />
+        
+ 
         {loading ? (
           <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading queue...</Text></DataCard>
         ) : queue.length ? (

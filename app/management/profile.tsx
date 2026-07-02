@@ -3,7 +3,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
 import { Spacing } from '../../constants/theme';
 import {
-  CommandHeader,
+  
   DataCard,
   DetailRow,
   PageShell,
@@ -17,8 +17,7 @@ export default function ManagementProfileScreen() {
 
   return (
     <PageShell>
-      <CommandHeader eyebrow="Account" title="Profile" subtitle={`${getRoleLabel(user?.role || '')} · ${user?.displayName || 'User'}`} />
-      <DataCard>
+       <DataCard>
         <View style={{ alignItems: 'center', gap: Spacing.md }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#1B2A4A18', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 28, fontWeight: '700', color: '#1B2A4A' }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
