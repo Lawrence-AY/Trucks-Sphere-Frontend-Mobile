@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
@@ -22,11 +23,12 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
- 
+  StatusPill,
 } from '../../components/EnterpriseUI';
 
 export default function OperatorQuarryWeighInScreen() {
   const colors = useTheme();
+  const params = useLocalSearchParams<{ id?: string }>();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,17 @@ export default function OperatorQuarryWeighInScreen() {
 
   useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
 
+  // Auto-open job from route param (after job card creation)
+  useEffect(() => {
+    if (params.id && deliveries.length > 0) {
+      const target = deliveries.find((d) => d.jobId === params.id);
+      if (target) {
+        setActiveJob(target);
+        setWeightIn('');
+      }
+    }
+  }, [params.id, deliveries]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return deliveries.filter((d) => !q || [d.jobId, d.driverName, d.plateNumber].some((v) => String(v || '').toLowerCase().includes(q)));
@@ -71,11 +84,11 @@ export default function OperatorQuarryWeighInScreen() {
         weighInWeight: numericWeight,
         weighInAt: now,
         weighInLocation: activeJob.quarryName ? `${activeJob.quarryName} Gate` : 'Quarry Gate',
-        status: 'at_quarry',
+        status: 'DRAFT_WEIGH_IN_COMPLETE',
         updatedAt: now,
       });
       setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
-      Alert.alert('Saved', `Weigh-In of ${numericWeight.toFixed(1)} tonnes saved as draft. Job forwarded to Weigh-Out stage.`, [{ text: 'OK', onPress: closeWeighInForm }]);
+      Alert.alert('Saved', `Weigh-In of ${numericWeight.toFixed(1)} tonnes saved as draft. Job forwarded to Weigh-Out stage.`, [{ text: 'OK', onPress: () => { closeWeighInForm(); router.replace('/operator-quarry/dashboard' as any); } }]);
     } catch (error: any) {
       Alert.alert('Save Failed', error?.message || 'Could not save weigh-in data.');
     } finally {
@@ -90,7 +103,7 @@ export default function OperatorQuarryWeighInScreen() {
         <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.jobCardHeader}>
             <Text style={[styles.jobCardTitle, { color: colors.text }]}>{activeJob.jobId}</Text>
-            
+            <StatusPill status={activeJob.status} compact />
           </View>
           <DetailRow icon="document-outline" value={`PO: ${activeJob.poNumber || 'N/A'}`} />
           <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
@@ -137,7 +150,7 @@ export default function OperatorQuarryWeighInScreen() {
           <DataCard key={item.id} onPress={() => openWeighInForm(item)}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
-              
+              <StatusPill status={item.status} compact />
             </View>
             <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
             <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
