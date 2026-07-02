@@ -948,7 +948,9 @@ export default function OperatorSiteHistoryScreen() {
                     Qty
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.quantityOrdered ?? "—"} t
+                    {item.weightOut
+                      ? `${parseFloat(item.weightOut).toFixed(1)} t`
+                      : "—"}
                   </Text>
                 </View>
               </View>
