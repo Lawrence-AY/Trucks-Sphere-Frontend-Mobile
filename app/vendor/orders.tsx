@@ -14,7 +14,13 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
+<<<<<<< HEAD
 } from "../../components/EnterpriseUI";
+=======
+ 
+} from '../../components/EnterpriseUI';
+
+>>>>>>> 90dda82c2ba382a8697d6a58fa477056581badc3
 
 export default function VendorOrdersScreen() {
   const colors = useTheme();
@@ -57,6 +63,7 @@ export default function VendorOrdersScreen() {
   }, [filter, orders, search]);
 
   return (
+<<<<<<< HEAD
     <PageShell
       refreshControl={
         <RefreshControl
@@ -72,6 +79,10 @@ export default function VendorOrdersScreen() {
         placeholder="Search PO, material..."
       />
 
+=======
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+       <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, material..." />
+>>>>>>> 90dda82c2ba382a8697d6a58fa477056581badc3
       <SectionTitle title={`${filtered.length} orders`} />
       {loading ? (
         <DataCard>

@@ -18,10 +18,8 @@ import { formatEAT } from "../../utils/helpers";
 import {
   DataCard,
   EmptyState,
- 
   PageShell,
   SectionTitle,
- 
 } from "../../components/EnterpriseUI";
 
 /* ─────────── CSV / PDF Export Helpers ─────────── */
@@ -411,8 +409,6 @@ export default function OperatorSiteHistoryScreen() {
                 </TouchableOpacity>
               </View>
 
-             
-
               {/* Parties */}
               <View
                 style={[styles.detailSection, { borderColor: colors.border }]}
@@ -782,8 +778,6 @@ export default function OperatorSiteHistoryScreen() {
         </Text>
       </View>
 
-     
-
       {/* Filter Pills */}
       <View style={styles.filterRow}>
         {(["today", "week", "month"] as FilterPeriod[]).map((period) => {
@@ -906,7 +900,6 @@ export default function OperatorSiteHistoryScreen() {
                     {item.poNumber || "—"}
                   </Text>
                 </View>
-                
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
@@ -1016,7 +1009,6 @@ export default function OperatorSiteHistoryScreen() {
                     {item.poNumber || "—"}
                   </Text>
                 </View>
-            
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>

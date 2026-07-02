@@ -62,6 +62,12 @@ export function generateSiteRef(jobId: string): string {
   return `${jobId}/S${String(siteSeq).padStart(4, '0')}`;
 }
 
+// Generate receipt note ID: POMAT###/V###/D###/T###/J####/RN###
+export function generateReceiptNoteId(jobId: string): string {
+  const rnSeq = nextJobSeq(`RN_${jobId}`);
+  return `${jobId}/RN${String(rnSeq).padStart(3, '0')}`;
+}
+
 // Format currency (no KES prefix)
 export function formatCurrency(amount: number | null | undefined): string {
   if (amount == null || isNaN(amount)) return '0.00';
