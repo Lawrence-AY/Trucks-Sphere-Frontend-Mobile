@@ -5,28 +5,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
-import { fetchDeliveryOrders, fetchDrivers, fetchMaterials, fetchPurchaseOrders, fetchVehicles, fetchVendors } from '../../services/api';
-import { formatEAT, getRoleLabel } from '../../utils/helpers';
+import { fetchDeliveryOrders, fetchDrivers, fetchPurchaseOrders, fetchVehicles, fetchVendors } from '../../services/api';
+import { formatEAT } from '../../utils/helpers';
 import {
-  CommandHeader,
-  DataCard,
+   DataCard,
   DetailRow,
   EmptyState,
   MetricTile,
   PageShell,
-  ProgressBar,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
-
-function deliveredFor(order: any, deliveries: any[]) {
-  const linked = deliveries.filter((item) => item.purchaseOrderId === order.id || item.poNumber === order.poNumber);
-  const delivered = linked.reduce((sum, item) => sum + Number(item.quantityDelivered || 0), 0);
-  if (delivered) return delivered;
-  if (order.deliveredQuantity != null) return Number(order.deliveredQuantity);
-  if (order.status === 'completed') return Number(order.quantity || 0);
-  return 0;
-}
 
 function isDelayed(item: any) {
   if (['delivered', 'completed', 'cancelled'].includes(item.status)) return false;
@@ -37,33 +25,27 @@ function isDelayed(item: any) {
 export default function ManagementDashboardScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  const role = user?.role || 'management';
 
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [materials, setMaterials] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [driverData, vehicleData, orderData, deliveryData, materialData, vendorData] = await Promise.all([
+      const [driverData, vehicleData, orderData, deliveryData, vendorData] = await Promise.all([
         fetchDrivers(),
         fetchVehicles(),
         fetchPurchaseOrders(),
         fetchDeliveryOrders(),
-        fetchMaterials(),
         fetchVendors(),
       ]);
       setDrivers(driverData || []);
       setVehicles(vehicleData || []);
-      setOrders(orderData || []);
       setDeliveries(deliveryData || []);
-      setMaterials(materialData || []);
       setVendors(vendorData || []);
     } catch (error) {
       console.error('Dashboard load error:', error);
@@ -78,8 +60,6 @@ export default function ManagementDashboardScreen() {
   const stats = useMemo(() => {
     const activeTrips = deliveries.filter((item) => !['delivered', 'completed', 'cancelled'].includes(item.status));
     const deliveredTrips = deliveries.filter((item) => ['delivered', 'completed'].includes(item.status));
-    const ordered = orders.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-    const deliveredQty = orders.reduce((sum, item) => sum + deliveredFor(item, deliveries), 0);
     return {
       totalTrips: deliveries.length,
       activeTrips: activeTrips.length,
@@ -90,9 +70,8 @@ export default function ManagementDashboardScreen() {
       totalVehicles: vehicles.length,
       activeDrivers: drivers.filter((item) => item.status === 'active').length,
       activeVehicles: vehicles.filter((item) => item.status === 'active').length,
-      completion: ordered ? Math.min(100, Math.round((deliveredQty / ordered) * 100)) : 0,
     };
-  }, [deliveries, drivers, orders, vehicles, vendors]);
+  }, [deliveries, drivers, vehicles, vendors]);
 
   const recentDeliveries = useMemo(() => {
     return [...deliveries]
@@ -102,8 +81,7 @@ export default function ManagementDashboardScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader title="Dashboard" />
-
+ 
       <View style={styles.metricGrid}>
         <View style={styles.metricRow}>
           <MetricTile icon="trail-sign" label="Total trips" value={stats.totalTrips} tone={colors.primary} />
@@ -114,9 +92,9 @@ export default function ManagementDashboardScreen() {
           <MetricTile icon="alert-circle" label="Delayed" value={stats.delayed} tone={stats.delayed ? colors.danger : colors.success} />
         </View>
         <View style={styles.metricRow}>
-          <MetricTile icon="briefcase" label="Total vendors" value={stats.totalVendors} tone={colors.warning} />
-          <MetricTile icon="people" label="Total drivers" value={stats.totalDrivers} tone={colors.primary} />
-          <MetricTile icon="car" label="Total vehicles" value={stats.totalVehicles} tone={colors.accent} />
+          <MetricTile icon="briefcase" label="Vendors" value={stats.totalVendors} tone={colors.warning} />
+          <MetricTile icon="people" label="Drivers" value={stats.totalDrivers} tone={colors.primary} />
+          <MetricTile icon="car" label="Vehicles" value={stats.totalVehicles} tone={colors.accent} />
         </View>
       </View>
 
@@ -127,8 +105,7 @@ export default function ManagementDashboardScreen() {
         recentDeliveries.map((item) => (
           <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}` as any)}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
-              <StatusPill status={item.status} compact />
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber || 'Unlinked PO'}</Text>
             </View>
             <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No vehicle'}`} />
             <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />

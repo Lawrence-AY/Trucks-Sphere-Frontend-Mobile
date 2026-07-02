@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
-import { fetchDeliveryOrders, fetchDrivers, fetchMaterials, fetchPurchaseOrders, fetchVehicles, fetchVendors } from '../../services/api';
+import { fetchDeliveryOrders, fetchDrivers, fetchPurchaseOrders, fetchVehicles, fetchVendors } from '../../services/api';
 import { formatEAT, getRoleLabel } from '../../utils/helpers';
 import {
   CommandHeader,
@@ -14,19 +14,8 @@ import {
   EmptyState,
   MetricTile,
   PageShell,
-  ProgressBar,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
-
-function deliveredFor(order: any, deliveries: any[]) {
-  const linked = deliveries.filter((item) => item.purchaseOrderId === order.id || item.poNumber === order.poNumber);
-  const delivered = linked.reduce((sum, item) => sum + Number(item.quantityDelivered || 0), 0);
-  if (delivered) return delivered;
-  if (order.deliveredQuantity != null) return Number(order.deliveredQuantity);
-  if (order.status === 'completed') return Number(order.quantity || 0);
-  return 0;
-}
 
 function isDelayed(item: any) {
   if (['delivered', 'completed', 'cancelled'].includes(item.status)) return false;
@@ -51,18 +40,16 @@ export default function DashboardScreen() {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [materials, setMaterials] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [driverData, vehicleData, orderData, deliveryData, materialData, vendorData] = await Promise.all([
+      const [driverData, vehicleData, orderData, deliveryData, vendorData] = await Promise.all([
         fetchDrivers(),
         fetchVehicles(),
         fetchPurchaseOrders(),
         fetchDeliveryOrders(),
-        fetchMaterials(),
         fetchVendors(),
       ]);
 
@@ -75,7 +62,6 @@ export default function DashboardScreen() {
       setVehicles(visibleVehicles);
       setOrders(visibleOrders);
       setDeliveries(visibleDeliveries);
-      setMaterials(materialData || []);
       setVendors(vendorData || []);
     } catch (error) {
       console.error('Dashboard load error:', error);
@@ -92,8 +78,6 @@ export default function DashboardScreen() {
   const stats = useMemo(() => {
     const activeTrips = deliveries.filter((item) => !['delivered', 'completed', 'cancelled'].includes(item.status));
     const deliveredTrips = deliveries.filter((item) => ['delivered', 'completed'].includes(item.status));
-    const ordered = orders.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-    const deliveredQty = orders.reduce((sum, item) => sum + deliveredFor(item, deliveries), 0);
 
     return {
       totalTrips: deliveries.length,
@@ -105,70 +89,14 @@ export default function DashboardScreen() {
       totalVehicles: vehicles.length,
       activeDrivers: drivers.filter((item) => item.status === 'active').length,
       activeVehicles: vehicles.filter((item) => item.status === 'active').length,
-      completion: ordered ? Math.min(100, Math.round((deliveredQty / ordered) * 100)) : 0,
     };
-  }, [deliveries, drivers, orders, vehicles, vendors]);
-
-  const materialCards = useMemo(() => {
-    return materials
-      .map((material) => {
-        const materialOrders = orders.filter((order) => order.materialId === material.id || order.materialName === material.name);
-        const ordered = materialOrders.reduce((sum, order) => sum + Number(order.quantity || 0), 0);
-        const delivered = materialOrders.reduce((sum, order) => sum + deliveredFor(order, deliveries), 0);
-        const jobs = deliveries.filter((job) => job.materialId === material.id || job.materialName === material.name).length;
-        return {
-          ...material,
-          purchaseOrderCount: materialOrders.length,
-          ordered,
-          delivered,
-          jobs,
-          completion: ordered ? Math.round((delivered / ordered) * 100) : 0,
-        };
-      })
-      .filter((item) => item.purchaseOrderCount > 0 || !isVendor)
-      .sort((a, b) => b.ordered - a.ordered)
-      .slice(0, 4);
-  }, [deliveries, isVendor, materials, orders]);
+  }, [deliveries, drivers, vehicles, vendors]);
 
   const recentDeliveries = useMemo(() => {
     return [...deliveries]
       .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
       .slice(0, 4);
   }, [deliveries]);
-
-  const quickActions = useMemo(() => {
-    if (isVendor) return [];
-    if (isAdmin) {
-      return [
-        { icon: 'settings', label: 'Settings', route: '/(tabs)/profile', color: colors.primary },
-        { icon: 'analytics', label: 'Reports', route: '/(tabs)/history', color: colors.accent },
-        { icon: 'cube', label: 'Materials', route: '/(tabs)/materials', color: colors.success },
-        { icon: 'search', label: 'Search', route: '/(tabs)/search', color: colors.warning },
-      ];
-    }
-    if (isManagement) {
-      return [
-        { icon: 'analytics', label: 'Reports', route: '/(tabs)/history', color: colors.primary },
-        { icon: 'cube', label: 'Materials', route: '/(tabs)/materials', color: colors.accent },
-        { icon: 'document-text', label: 'Orders', route: '/(tabs)/orders', color: colors.success },
-        { icon: 'search', label: 'Search', route: '/(tabs)/search', color: colors.warning },
-      ];
-    }
-    if (role === 'operator_quarry') {
-      return [
-        { icon: 'add-circle', label: 'Create Job', route: '/(tabs)/orders', color: colors.primary },
-        { icon: 'scale', label: 'Weigh In', route: '/quarry/weigh-in', color: colors.accent },
-        { icon: 'arrow-up-circle', label: 'Weigh Out', route: '/quarry/weigh-out', color: colors.success },
-        { icon: 'search', label: 'Search', route: '/(tabs)/search', color: colors.warning },
-      ];
-    }
-    return [
-      { icon: 'scan', label: 'Receive', route: '/site/receive', color: colors.success },
-      { icon: 'cube', label: 'Materials', route: '/(tabs)/materials', color: colors.primary },
-      { icon: 'time', label: 'History', route: '/(tabs)/history', color: colors.accent },
-      { icon: 'search', label: 'Search', route: '/(tabs)/search', color: colors.warning },
-    ];
-  }, [colors, isAdmin, isManagement, isVendor, role]);
 
   const title = isVendor ? 'Vendor workspace' : isOperator ? 'Operations board' : isAdmin ? 'Admin dashboard' : 'Dashboard';
 
@@ -187,43 +115,12 @@ export default function DashboardScreen() {
         </View>
         <View style={styles.metricRow}>
           {isManagement ? (
-            <MetricTile icon="briefcase" label="Total vendors" value={stats.totalVendors} tone={colors.warning} />
+            <MetricTile icon="briefcase" label="Vendors" value={stats.totalVendors} tone={colors.warning} />
           ) : null}
-          <MetricTile icon="people" label="Total drivers" value={stats.totalDrivers} tone={colors.primary} onPress={() => router.push('/(tabs)/drivers')} />
-          <MetricTile icon="car" label="Total vehicles" value={stats.totalVehicles} tone={colors.accent} onPress={() => router.push('/(tabs)/trucks')} />
+          <MetricTile icon="people" label="Drivers" value={stats.totalDrivers} tone={colors.primary} onPress={() => router.push('/(tabs)/drivers')} />
+          <MetricTile icon="car" label="Vehicles" value={stats.totalVehicles} tone={colors.accent} onPress={() => router.push('/(tabs)/trucks')} />
         </View>
       </View>
-
-
-      <SectionTitle
-        title="Materials"
-        action={
-          <TouchableOpacity onPress={() => router.push('/(tabs)/materials')}>
-            <Text style={[styles.link, { color: colors.primary }]}>View all</Text>
-          </TouchableOpacity>
-        }
-      />
-      {materialCards.length ? (
-        materialCards.map((item) => (
-          <DataCard key={item.id} onPress={() => router.push(`/screens/material-details?id=${item.id}`)}>
-            <View style={styles.cardHead}>
-              <View style={styles.cardCopy}>
-                <Text style={[styles.materialTitle, { color: colors.text }]}>{item.name}</Text>
-                <Text style={[styles.deliveryMeta, { color: colors.textMuted }]}>
-                  {item.purchaseOrderCount} POs - {item.jobs} jobs
-                </Text>
-              </View>
-              <Text style={[styles.materialPercent, { color: item.completion >= 100 ? colors.success : colors.primary }]}>
-                {item.completion}%
-              </Text>
-            </View>
-            <ProgressBar value={item.completion} color={item.completion >= 100 ? colors.success : colors.primary} />
-            <DetailRow icon="cube-outline" value={`${Math.round(item.delivered)}/${Math.round(item.ordered)} ${item.unit || 'units'} delivered`} />
-          </DataCard>
-        ))
-      ) : (
-        <EmptyState icon="cube-outline" title="No material activity" subtitle="No visible purchase orders are linked to materials yet." />
-      )}
 
       <SectionTitle
         title="Recent trips"
@@ -242,10 +139,9 @@ export default function DashboardScreen() {
           <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}`)}>
             <View style={styles.deliveryHead}>
               <View>
-                <Text style={[styles.deliveryId, { color: colors.text }]}>{item.jobId}</Text>
-                <Text style={[styles.deliveryMeta, { color: colors.textMuted }]}>{item.poNumber || 'Unlinked PO'}</Text>
+                <Text style={[styles.deliveryId, { color: colors.text }]}>{item.poNumber || 'Unlinked PO'}</Text>
+                <Text style={[styles.deliveryMeta, { color: colors.textMuted }]}>{item.jobId}</Text>
               </View>
-              <StatusPill status={isDelayed(item) ? 'delayed' : item.status} compact />
             </View>
             <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} - ${item.plateNumber || 'No vehicle'}`} />
             <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} - ${item.quantityOrdered || item.quantity || 0} tonnes`} />
@@ -273,25 +169,6 @@ const styles = StyleSheet.create({
   signalText: { fontSize: 12, fontWeight: '900' },
   metricGrid: { gap: Spacing.md },
   metricRow: { flexDirection: 'row', gap: Spacing.md },
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md },
-  cardCopy: { flex: 1 },
-  cardEyebrow: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
-  cardTitle: { fontSize: 21, fontWeight: '900', marginTop: 4 },
-  compactStats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  compactStat: { fontSize: 12, fontWeight: '700' },
-  materialTitle: { fontSize: 17, fontWeight: '900' },
-  materialPercent: { fontSize: 18, fontWeight: '900' },
-  actionRow: { flexDirection: 'row', gap: Spacing.sm },
-  action: {
-    flex: 1,
-    minHeight: 76,
-    borderWidth: 1,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-  },
-  actionText: { fontSize: 11, fontWeight: '800', textAlign: 'center' },
   link: { fontSize: 13, fontWeight: '900' },
   loadingText: { fontSize: 13, fontWeight: '700' },
   deliveryHead: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md },

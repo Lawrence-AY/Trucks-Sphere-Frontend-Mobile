@@ -6,7 +6,7 @@ import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { fetchVehicles } from '../../services/api';
 import {
-  CommandHeader,
+ 
   DataCard,
   DetailRow,
   EmptyState,
@@ -14,7 +14,6 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
 
 export default function ManagementTrucksScreen() {
@@ -48,11 +47,7 @@ export default function ManagementTrucksScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Fleet assets" title="Trucks" subtitle={`${vehicles.length} vehicles`} />
-      <View style={styles.metricRow}>
-        <MetricTile icon="car" label="Active" value={vehicles.filter((item) => item.status === 'active').length} tone={colors.success} />
-        <MetricTile icon="car-sport" label="Total" value={vehicles.length} tone={colors.primary} />
-      </View>
+        
       <SearchField value={search} onChangeText={setSearch} placeholder="Search plate, model..." />
       <SectionTitle title={`${filtered.length} vehicles`} />
       {loading ? (
@@ -65,7 +60,6 @@ export default function ManagementTrucksScreen() {
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.plateNumber}</Text>
                 <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.make} {item.model} ({item.year})</Text>
               </View>
-              <StatusPill status={item.status || 'active'} compact />
             </View>
             <DetailRow icon="person-outline" value={`Driver: ${item.driverName || 'Unassigned'}`} />
             <DetailRow icon="business-outline" value={`Vendor: ${item.vendorName || 'Unassigned'}`} />

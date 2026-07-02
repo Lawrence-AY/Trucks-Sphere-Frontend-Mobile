@@ -3,16 +3,25 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_WEIGHMENTS } from '../../store/mockData';
-import { useState } from 'react';
+import { fetchWeighments } from '../../services/api';
+import { useState, useEffect } from 'react';
 
 export default function QuarryScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
+  const [weighments, setWeighments] = useState<any[]>([]);
 
-  const allRecords = [...MOCK_WEIGHMENTS];
+  useEffect(() => {
+    console.log('[QuarryScreen] Fetching weighments from backend...');
+    fetchWeighments().then(data => {
+      console.log('[QuarryScreen] Weighments loaded:', data.length, 'items', data);
+      setWeighments(data);
+    }).catch(err => console.error('[QuarryScreen] Failed to load weighments:', err));
+  }, []);
+
+  const allRecords = [...weighments];
   const filtered = allRecords.filter(w =>
-    (w.truckPlate || '').toLowerCase().includes((search || '').toLowerCase()) ||
+    (w.truckPlate || w.plateNumber || '').toLowerCase().includes((search || '').toLowerCase()) ||
     (w.driverName || '').toLowerCase().includes((search || '').toLowerCase()) ||
     (w.id || '').toLowerCase().includes((search || '').toLowerCase())
   );
@@ -64,7 +73,7 @@ export default function QuarryScreen() {
             onPress={() => router.push(`/screens/weigh-receipt?id=${item.id}`)}
           >
             <View style={styles.recordTop}>
-              <Text style={[styles.recordPlate, { color: colors.accent }]}>{item.truckPlate}</Text>
+              <Text style={[styles.recordPlate, { color: colors.accent }]}>{item.truckPlate || item.plateNumber}</Text>
               <StatusBadge status={item.status || 'pending'} />
             </View>
             <View style={styles.recordRow}>
@@ -73,7 +82,7 @@ export default function QuarryScreen() {
             </View>
             <View style={styles.recordRow}>
               <Ionicons name="cube-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.recordText, { color: colors.textSecondary }]}>{item.material} | {item.weightIn?.toFixed(1)}T</Text>
+              <Text style={[styles.recordText, { color: colors.textSecondary }]}>{item.material || item.materialName} | {item.weightIn?.toFixed(1)}T</Text>
             </View>
           </TouchableOpacity>
         )}

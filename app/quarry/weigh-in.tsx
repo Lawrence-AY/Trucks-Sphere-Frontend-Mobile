@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, FlatList,
 } from 'react-native';
@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_DRIVERS, MOCK_TRUCKS } from '../../store/mockData';
+import { fetchDrivers, fetchVehicles } from '../../services/api';
 
 export default function WeighInScreen() {
   const colors = useTheme();
@@ -19,16 +19,28 @@ export default function WeighInScreen() {
   const [weightIn, setWeightIn] = useState('');
   const [material, setMaterial] = useState('Ballast');
 
-  const available = MOCK_DRIVERS.filter(d => d.status === 'active' || d.status === 'on_trip')
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [trucks, setTrucks] = useState<any[]>([]);
+
+  useEffect(() => {
+    console.log('[WeighIn] Fetching drivers and vehicles...');
+    Promise.all([fetchDrivers(), fetchVehicles()]).then(([d, t]) => {
+      console.log('[WeighIn] Loaded drivers:', d.length, 'trucks:', t.length);
+      setDrivers(d);
+      setTrucks(t);
+    }).catch(err => console.error('[WeighIn] Failed to load data:', err));
+  }, []);
+
+  const available = drivers.filter(d => d.status === 'active' || d.status === 'on_trip')
     .map(d => {
-      const truck = MOCK_TRUCKS.find(t => t.assignedDriverId === d.id || t.driverName === d.name);
+      const truck = trucks.find(t => t.assignedDriverId === d.id || t.driverName === d.name);
       return { ...d, truck };
     })
     .filter(item => {
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
-      return item.name.toLowerCase().includes(q) ||
-        item.phone.includes(q) ||
+      return (item.name || '').toLowerCase().includes(q) ||
+        (item.phone || '').includes(q) ||
         (item.truck?.plate || item.truck?.plateNumber || '').toLowerCase().includes(q);
     });
 

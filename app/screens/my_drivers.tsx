@@ -1,14 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_DRIVERS } from '../../store/mockData';
+import { fetchDrivers } from '../../services/api';
 
 export default function MyDriversScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
-  const vendorDrivers = MOCK_DRIVERS.filter(d => d.vendorId === 'v1').filter(d =>
+  const [drivers, setDrivers] = useState<any[]>([]);
+
+  useEffect(() => {
+    console.log('[MyDrivers] Fetching drivers from backend...');
+    fetchDrivers().then(data => {
+      console.log('[MyDrivers] Drivers loaded:', data.length, 'items', data);
+      setDrivers(data);
+    }).catch(err => console.error('[MyDrivers] Failed to load drivers:', err));
+  }, []);
+
+  const vendorDrivers = drivers.filter(d =>
     (d.name || '').toLowerCase().includes((search || '').toLowerCase())
   );
   return (
@@ -21,7 +31,7 @@ export default function MyDriversScreen() {
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.avatar, { backgroundColor: colors.accent + '15' }]}>
-              <Text style={[styles.avatarText, { color: colors.accent }]}>{item.name.split(' ').map(n => n[0]).join('').slice(0,2)}</Text>
+              <Text style={[styles.avatarText, { color: colors.accent }]}>{item.name.split(' ').map((n: string) => n[0]).join('').slice(0,2)}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>

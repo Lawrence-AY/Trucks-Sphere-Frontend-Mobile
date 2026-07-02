@@ -32,8 +32,7 @@ export default function OperatorSiteMaterialsScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Inventory" title="Materials" subtitle={`${materials.length} materials`} />
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search material..." />
+       <SearchField value={search} onChangeText={setSearch} placeholder="Search material..." />
       <SectionTitle title={`${filtered.length} materials`} />
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
@@ -41,8 +40,7 @@ export default function OperatorSiteMaterialsScreen() {
         filtered.map((item) => (
           <DataCard key={item.id} onPress={() => router.push(`/screens/material-details?id=${item.id}` as any)}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.name}</Text>
-            <DetailRow icon="pricetag-outline" value={`${item.unitPrice || 0} KES / ${item.unit || 'unit'}`} />
-            <DetailRow icon="folder-outline" value={item.category || 'Uncategorized'} />
+             <DetailRow icon="folder-outline" value={item.category || 'Uncategorized'} />
           </DataCard>
         ))
       ) : (

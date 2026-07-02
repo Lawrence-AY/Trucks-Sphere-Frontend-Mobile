@@ -1,16 +1,33 @@
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_TRUCKS, MOCK_WEIGHMENTS } from '../../store/mockData';
+import { fetchVehicles, fetchWeighments } from '../../services/api';
 
 export default function TruckHistoryScreen() {
   const { id, plate } = useLocalSearchParams<{ id: string; plate: string }>();
   const colors = useTheme();
+  const [truck, setTruck] = useState<any>(null);
+  const [trips, setTrips] = useState<any[]>([]);
 
-  const truck = MOCK_TRUCKS.find(t => t.id === id);
-  const trips = MOCK_WEIGHMENTS.filter(w => w.truckPlate === (truck?.plate || truck?.plateNumber || plate));
+  useEffect(() => {
+    console.log('[TruckHistory] Fetching data for truck:', id, plate);
+    Promise.all([fetchVehicles(), fetchWeighments()]).then(([vehicles, weighments]) => {
+      console.log('[TruckHistory] Loaded vehicles:', vehicles.length, 'weighments:', weighments.length);
+      const foundTruck = vehicles.find((t: any) => t.id === id);
+      setTruck(foundTruck || null);
+      if (foundTruck) {
+        const truckTrips = weighments.filter((w: any) =>
+          w.truckPlate === (foundTruck.plate || foundTruck.plateNumber || plate) ||
+          w.plateNumber === (foundTruck.plate || foundTruck.plateNumber || plate)
+        );
+        setTrips(truckTrips);
+        console.log('[TruckHistory] Found', truckTrips.length, 'trips for truck');
+      }
+    }).catch(err => console.error('[TruckHistory] Failed to load data:', err));
+  }, [id, plate]);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
@@ -27,13 +44,13 @@ export default function TruckHistoryScreen() {
             </View>
             <View style={[styles.statusBadge, { backgroundColor: getStatusBg(truck.status) }]}>
               <Text style={[styles.statusText, { color: getStatusColor(truck.status) }]}>
-                {truck.status.replace('_', ' ').toUpperCase()}
+                {(truck.status || '').replace('_', ' ').toUpperCase()}
               </Text>
             </View>
           </View>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.text }]}>{truck.axles}</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{truck.axles || '-'}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Axles</Text>
             </View>
             <View style={styles.stat}>
@@ -64,7 +81,7 @@ export default function TruckHistoryScreen() {
             <View style={styles.tripTop}>
               <Text style={[styles.tripJob, { color: colors.accent }]}>{trip.id}</Text>
               <Text style={[styles.tripStatus, { color: trip.status === 'completed' ? '#16A34A' : '#2563EB' }]}>
-                {(trip.status || trip.type).replace('_', ' ')}
+                {(trip.status || trip.type || '').replace('_', ' ')}
               </Text>
             </View>
             <View style={styles.tripRow}>
@@ -73,12 +90,12 @@ export default function TruckHistoryScreen() {
             </View>
             <View style={styles.tripRow}>
               <Ionicons name="cube-outline" size={14} color={colors.textSecondary} />
-              <Text style={[styles.tripText, { color: colors.textSecondary }]}>{trip.material}</Text>
+              <Text style={[styles.tripText, { color: colors.textSecondary }]}>{trip.material || trip.materialName}</Text>
             </View>
-            {trip.weightIn && (
+            {(trip.weightIn || trip.weight) && (
               <View style={styles.tripRow}>
                 <Ionicons name="scale-outline" size={14} color={colors.textSecondary} />
-                <Text style={[styles.tripText, { color: colors.textSecondary }]}>Gross: {trip.weightIn.toFixed(1)}T</Text>
+                <Text style={[styles.tripText, { color: colors.textSecondary }]}>Gross: {(trip.weightIn || trip.weight)?.toFixed(1)}T</Text>
               </View>
             )}
           </TouchableOpacity>

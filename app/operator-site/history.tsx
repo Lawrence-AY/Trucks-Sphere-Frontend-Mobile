@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Modal,
@@ -9,35 +9,35 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../hooks/useTheme';
-import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders } from '../../services/api';
-import { formatEAT } from '../../utils/helpers';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../hooks/useTheme";
+import { Radius, Spacing } from "../../constants/theme";
+import { fetchDeliveryOrders } from "../../services/api";
+import { formatEAT } from "../../utils/helpers";
 import {
   DataCard,
   EmptyState,
-  MetricTile,
+ 
   PageShell,
   SectionTitle,
-  StatusPill,
-} from '../../components/EnterpriseUI';
+ 
+} from "../../components/EnterpriseUI";
 
 /* ─────────── CSV / PDF Export Helpers ─────────── */
 
 function escapeCsvField(value: any): string {
-  if (value == null || value === undefined) return '';
+  if (value == null || value === undefined) return "";
   const str = String(value);
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
 }
 
 function formatCsv(headers: string[], rows: string[][]): string {
-  const hdr = headers.map(escapeCsvField).join(',');
-  const body = rows.map((row) => row.map(escapeCsvField).join(',')).join('\n');
+  const hdr = headers.map(escapeCsvField).join(",");
+  const body = rows.map((row) => row.map(escapeCsvField).join(",")).join("\n");
   return `${hdr}\n${body}`;
 }
 
@@ -51,19 +51,19 @@ function buildHtmlTable(
       (h) =>
         `<th style="padding:10px 14px; background:#1B2A4A; color:#fff; font-weight:700; text-align:left; border:1px solid #ddd;">${h}</th>`,
     )
-    .join('');
+    .join("");
   const bodyRows = rows
     .map((row, i) => {
-      const bg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
+      const bg = i % 2 === 0 ? "#FFFFFF" : "#F8FAFC";
       const cells = row
         .map(
           (cell) =>
-            `<td style="padding:8px 14px; border:1px solid #ddd;">${cell || '—'}</td>`,
+            `<td style="padding:8px 14px; border:1px solid #ddd;">${cell || "—"}</td>`,
         )
-        .join('');
+        .join("");
       return `<tr style="background:${bg};">${cells}</tr>`;
     })
-    .join('');
+    .join("");
 
   return `
     <html>
@@ -71,9 +71,12 @@ function buildHtmlTable(
     <body style="font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 24px; color: #1E293B;">
       <h1 style="color: #1B2A4A; margin-bottom: 4px;">Trucks Sphere</h1>
       <h2 style="color: #475569; font-size: 18px; margin-top: 0; margin-bottom: 24px;">${title}</h2>
-      <p style="color: #94A3B8; font-size: 12px;">Exported on ${new Date().toLocaleString('en-KE', {
-        timeZone: 'Africa/Nairobi',
-      })}</p>
+      <p style="color: #94A3B8; font-size: 12px;">Exported on ${new Date().toLocaleString(
+        "en-KE",
+        {
+          timeZone: "Africa/Nairobi",
+        },
+      )}</p>
       <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:12px;">
         <thead><tr>${headerCells}</tr></thead>
         <tbody>${bodyRows}</tbody>
@@ -84,45 +87,37 @@ function buildHtmlTable(
   `;
 }
 
-async function shareCsv(
-  title: string,
-  headers: string[],
-  rows: string[][],
-) {
+async function shareCsv(title: string, headers: string[], rows: string[][]) {
   try {
     const csv = formatCsv(headers, rows);
     await Share.share({ message: csv, title });
   } catch (e: any) {
-    if (e?.message !== 'User did not share') {
-      Alert.alert('Export Error', e?.message || 'Failed to share CSV');
+    if (e?.message !== "User did not share") {
+      Alert.alert("Export Error", e?.message || "Failed to share CSV");
     }
   }
 }
 
-async function sharePdf(
-  title: string,
-  headers: string[],
-  rows: string[][],
-) {
+async function sharePdf(title: string, headers: string[], rows: string[][]) {
   try {
     const html = buildHtmlTable(headers, rows, title);
     await Share.share({ message: html, title });
   } catch (e: any) {
-    if (e?.message !== 'User did not share') {
-      Alert.alert('Export Error', e?.message || 'Failed to share PDF');
+    if (e?.message !== "User did not share") {
+      Alert.alert("Export Error", e?.message || "Failed to share PDF");
     }
   }
 }
 
 /* ─────────── Filter Types ─────────── */
 
-type FilterPeriod = 'today' | 'week' | 'month';
-type DetailView = 'overview' | 'completed' | 'pending';
+type FilterPeriod = "today" | "week" | "month";
+type DetailView = "overview" | "completed" | "pending";
 
 const FILTER_LABELS: Record<FilterPeriod, string> = {
-  today: 'Today',
-  week: 'This Week',
-  month: 'This Month',
+  today: "Today",
+  week: "This Week",
+  month: "This Month",
 };
 
 /* ─────────── Phase 3: History Tab — Logs, Analytics & Reporting ─────────── */
@@ -132,8 +127,8 @@ export default function OperatorSiteHistoryScreen() {
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterPeriod>('today');
-  const [detailView, setDetailView] = useState<DetailView>('overview');
+  const [filter, setFilter] = useState<FilterPeriod>("today");
+  const [detailView, setDetailView] = useState<DetailView>("overview");
 
   // ─── Selected item for detail view ───
   const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -161,9 +156,9 @@ export default function OperatorSiteHistoryScreen() {
 
   const getStartOfPeriod = (period: FilterPeriod): Date => {
     const d = new Date(now);
-    if (period === 'today') {
+    if (period === "today") {
       d.setHours(0, 0, 0, 0);
-    } else if (period === 'week') {
+    } else if (period === "week") {
       const day = d.getDay();
       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
       d.setDate(diff);
@@ -182,8 +177,7 @@ export default function OperatorSiteHistoryScreen() {
   const pendingJobs = useMemo(() => {
     return deliveries
       .filter(
-        (d) =>
-          !['completed', 'delivered', 'cancelled'].includes(d.status),
+        (d) => !["completed", "delivered", "cancelled"].includes(d.status),
       )
       .sort(
         (a, b) =>
@@ -194,9 +188,7 @@ export default function OperatorSiteHistoryScreen() {
 
   const completedRecords = useMemo(() => {
     return deliveries
-      .filter(
-        (d) => d.status === 'completed' || d.status === 'delivered',
-      )
+      .filter((d) => d.status === "completed" || d.status === "delivered")
       .filter((d) => {
         const date = new Date(
           d.receivedAt || d.siteWeighInAt || d.updatedAt || d.createdAt,
@@ -244,13 +236,15 @@ export default function OperatorSiteHistoryScreen() {
     ).length;
 
     // Average net per delivery
-    const avgNet =
-      totalCompleted > 0 ? totalSiteNet / totalCompleted : 0;
+    const avgNet = totalCompleted > 0 ? totalSiteNet / totalCompleted : 0;
 
     // Material breakdown
-    const materialBreakdown: Record<string, { count: number; totalNet: number }> = {};
+    const materialBreakdown: Record<
+      string,
+      { count: number; totalNet: number }
+    > = {};
     completedRecords.forEach((r) => {
-      const mat = r.materialName || 'Unknown';
+      const mat = r.materialName || "Unknown";
       if (!materialBreakdown[mat]) {
         materialBreakdown[mat] = { count: 0, totalNet: 0 };
       }
@@ -273,21 +267,21 @@ export default function OperatorSiteHistoryScreen() {
   /* ─── Export Logic ─── */
 
   const exportHeaders = [
-    'Job ID',
-    'PO Number',
-    'Vendor',
-    'Driver',
-    'Truck Plate',
-    'Material',
-    'Qty Ordered (t)',
-    'Quarry Net (t)',
-    'Site In (t)',
-    'Site Out (t)',
-    'Site Net (t)',
-    'Expected (t)',
-    'Difference (t)',
-    'Status',
-    'Finalized',
+    "Job ID",
+    "PO Number",
+    "Vendor",
+    "Driver",
+    "Truck Plate",
+    "Material",
+    "Qty Ordered (t)",
+    "Quarry Net (t)",
+    "Site In (t)",
+    "Site Out (t)",
+    "Site Net (t)",
+    "Expected (t)",
+    "Difference (t)",
+    "Status",
+    "Finalized",
   ];
 
   const buildExportRows = (records: any[]): string[][] =>
@@ -307,21 +301,21 @@ export default function OperatorSiteHistoryScreen() {
           : null);
 
       return [
-        r.jobId || '',
-        r.poNumber || '',
-        r.vendorName || '',
-        r.driverName || '',
-        r.plateNumber || '',
-        r.materialName || '',
-        String(r.quantityOrdered ?? ''),
-        quarryNet != null ? quarryNet.toFixed(1) : '—',
-        siteIn != null ? siteIn.toFixed(1) : '—',
-        siteOut != null ? siteOut.toFixed(1) : '—',
-        siteNet != null ? siteNet.toFixed(1) : '—',
-        r.quantityOrdered != null ? r.quantityOrdered.toFixed(1) : '—',
-        diff != null ? `${diff > 0 ? '+' : ''}${diff.toFixed(2)}` : '—',
-        r.status || '',
-        r.receivedAt || r.updatedAt || r.createdAt || '',
+        r.jobId || "",
+        r.poNumber || "",
+        r.vendorName || "",
+        r.driverName || "",
+        r.plateNumber || "",
+        r.materialName || "",
+        String(r.quantityOrdered ?? ""),
+        quarryNet != null ? quarryNet.toFixed(1) : "—",
+        siteIn != null ? siteIn.toFixed(1) : "—",
+        siteOut != null ? siteOut.toFixed(1) : "—",
+        siteNet != null ? siteNet.toFixed(1) : "—",
+        r.quantityOrdered != null ? r.quantityOrdered.toFixed(1) : "—",
+        diff != null ? `${diff > 0 ? "+" : ""}${diff.toFixed(2)}` : "—",
+        r.status || "",
+        r.receivedAt || r.updatedAt || r.createdAt || "",
       ];
     });
 
@@ -399,130 +393,184 @@ export default function OperatorSiteHistoryScreen() {
                     {item.jobId}
                   </Text>
                   <Text style={[styles.detailPo, { color: colors.textMuted }]}>
-                    {item.poNumber || 'No PO'}
+                    {item.poNumber || "No PO"}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={[styles.detailCloseBtn, { backgroundColor: colors.inputBg }]}
+                  style={[
+                    styles.detailCloseBtn,
+                    { backgroundColor: colors.inputBg },
+                  ]}
                   onPress={() => setDetailModalVisible(false)}
                 >
-                  <Ionicons name="close" size={20} color={colors.textSecondary} />
+                  <Ionicons
+                    name="close"
+                    size={20}
+                    color={colors.textSecondary}
+                  />
                 </TouchableOpacity>
               </View>
 
-              <StatusPill status={item.status} />
+             
 
               {/* Parties */}
-              <View style={[styles.detailSection, { borderColor: colors.border }]}>
-                <Text style={[styles.detailSectionTitle, { color: colors.textMuted }]}>
+              <View
+                style={[styles.detailSection, { borderColor: colors.border }]}
+              >
+                <Text
+                  style={[
+                    styles.detailSectionTitle,
+                    { color: colors.textMuted },
+                  ]}
+                >
                   PARTIES
                 </Text>
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
                     Driver
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.driverName || 'N/A'}
+                    {item.driverName || "N/A"}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
                     Truck
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.plateNumber || 'N/A'}
+                    {item.plateNumber || "N/A"}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
                     Vendor
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.vendorName || 'N/A'}
+                    {item.vendorName || "N/A"}
                   </Text>
                 </View>
               </View>
 
               {/* Route */}
-              <View style={[styles.detailSection, { borderColor: colors.border }]}>
-                <Text style={[styles.detailSectionTitle, { color: colors.textMuted }]}>
+              <View
+                style={[styles.detailSection, { borderColor: colors.border }]}
+              >
+                <Text
+                  style={[
+                    styles.detailSectionTitle,
+                    { color: colors.textMuted },
+                  ]}
+                >
                   ROUTE
                 </Text>
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
                     Origin
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.quarryName || 'N/A'}
+                    {item.quarryName || "N/A"}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
                     Destination
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.siteName || 'N/A'}
+                    {item.siteName || "N/A"}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
                     Material
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.materialName || 'N/A'}
+                    {item.materialName || "N/A"}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
                     Ordered
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.quantityOrdered ?? '—'} tonnes
+                    {item.quantityOrdered ?? "—"} tonnes
                   </Text>
                 </View>
               </View>
 
               {/* Weights */}
-              <View style={[styles.detailSection, { borderColor: colors.border }]}>
-                <Text style={[styles.detailSectionTitle, { color: colors.textMuted }]}>
+              <View
+                style={[styles.detailSection, { borderColor: colors.border }]}
+              >
+                <Text
+                  style={[
+                    styles.detailSectionTitle,
+                    { color: colors.textMuted },
+                  ]}
+                >
                   WEIGHT RECORD
                 </Text>
 
                 {/* Quarry weights */}
-                {(item.weighInWeight != null || item.weighOutWeight != null) && (
+                {(item.weighInWeight != null ||
+                  item.weighOutWeight != null) && (
                   <View style={styles.detailWeightSubsection}>
-                    <Text style={[styles.detailSubLabel, { color: colors.textMuted }]}>
+                    <Text
+                      style={[
+                        styles.detailSubLabel,
+                        { color: colors.textMuted },
+                      ]}
+                    >
                       Quarry
                     </Text>
                     <View style={styles.detailWeightGrid}>
                       <View style={styles.detailWeightCell}>
-                        <Text style={[styles.dwLabel, { color: colors.textMuted }]}>
+                        <Text
+                          style={[styles.dwLabel, { color: colors.textMuted }]}
+                        >
                           In
                         </Text>
-                        <Text style={[styles.dwValue, { color: '#2563EB' }]}>
+                        <Text style={[styles.dwValue, { color: "#2563EB" }]}>
                           {item.weighInWeight != null
                             ? `${item.weighInWeight.toFixed(1)}T`
-                            : '—'}
+                            : "—"}
                         </Text>
                       </View>
                       <View style={styles.detailWeightCell}>
-                        <Text style={[styles.dwLabel, { color: colors.textMuted }]}>
+                        <Text
+                          style={[styles.dwLabel, { color: colors.textMuted }]}
+                        >
                           Out
                         </Text>
-                        <Text style={[styles.dwValue, { color: '#7C3AED' }]}>
+                        <Text style={[styles.dwValue, { color: "#7C3AED" }]}>
                           {item.weighOutWeight != null
                             ? `${item.weighOutWeight.toFixed(1)}T`
-                            : '—'}
+                            : "—"}
                         </Text>
                       </View>
                       <View style={styles.detailWeightCell}>
-                        <Text style={[styles.dwLabel, { color: colors.textMuted }]}>
+                        <Text
+                          style={[styles.dwLabel, { color: colors.textMuted }]}
+                        >
                           Net
                         </Text>
-                        <Text style={[styles.dwValue, { color: colors.success }]}>
-                          {quarryNet != null
-                            ? `${quarryNet.toFixed(1)}T`
-                            : '—'}
+                        <Text
+                          style={[styles.dwValue, { color: colors.success }]}
+                        >
+                          {quarryNet != null ? `${quarryNet.toFixed(1)}T` : "—"}
                         </Text>
                       </View>
                     </View>
@@ -532,32 +580,48 @@ export default function OperatorSiteHistoryScreen() {
                 {/* Site weights */}
                 {(siteIn != null || siteOut != null) && (
                   <View style={styles.detailWeightSubsection}>
-                    <Text style={[styles.detailSubLabel, { color: colors.textMuted }]}>
+                    <Text
+                      style={[
+                        styles.detailSubLabel,
+                        { color: colors.textMuted },
+                      ]}
+                    >
                       Site
                     </Text>
                     <View style={styles.detailWeightGrid}>
                       <View style={styles.detailWeightCell}>
-                        <Text style={[styles.dwLabel, { color: colors.textMuted }]}>
+                        <Text
+                          style={[styles.dwLabel, { color: colors.textMuted }]}
+                        >
                           In
                         </Text>
-                        <Text style={[styles.dwValue, { color: '#F59E0B' }]}>
-                          {siteIn != null ? `${siteIn.toFixed(1)}T` : '—'}
+                        <Text style={[styles.dwValue, { color: "#F59E0B" }]}>
+                          {siteIn != null ? `${siteIn.toFixed(1)}T` : "—"}
                         </Text>
                       </View>
                       <View style={styles.detailWeightCell}>
-                        <Text style={[styles.dwLabel, { color: colors.textMuted }]}>
+                        <Text
+                          style={[styles.dwLabel, { color: colors.textMuted }]}
+                        >
                           Out
                         </Text>
-                        <Text style={[styles.dwValue, { color: '#8B5CF6' }]}>
-                          {siteOut != null ? `${siteOut.toFixed(1)}T` : '—'}
+                        <Text style={[styles.dwValue, { color: "#8B5CF6" }]}>
+                          {siteOut != null ? `${siteOut.toFixed(1)}T` : "—"}
                         </Text>
                       </View>
                       <View style={styles.detailWeightCell}>
-                        <Text style={[styles.dwLabel, { color: colors.textMuted }]}>
+                        <Text
+                          style={[styles.dwLabel, { color: colors.textMuted }]}
+                        >
                           Net
                         </Text>
-                        <Text style={[styles.dwValue, { color: '#10B981', fontSize: 16 }]}>
-                          {siteNet != null ? `${siteNet.toFixed(1)}T` : '—'}
+                        <Text
+                          style={[
+                            styles.dwValue,
+                            { color: "#10B981", fontSize: 16 },
+                          ]}
+                        >
+                          {siteNet != null ? `${siteNet.toFixed(1)}T` : "—"}
                         </Text>
                       </View>
                     </View>
@@ -567,7 +631,9 @@ export default function OperatorSiteHistoryScreen() {
                 {/* Difference */}
                 {diff != null && (
                   <View style={styles.detailDiffRow}>
-                    <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                    <Text
+                      style={[styles.detailLabel, { color: colors.textMuted }]}
+                    >
                       vs Expected ({item.quantityOrdered ?? 0}T)
                     </Text>
                     <Text
@@ -575,12 +641,14 @@ export default function OperatorSiteHistoryScreen() {
                         styles.detailValue,
                         {
                           color:
-                            Math.abs(diff) > 0.5 ? colors.danger : colors.success,
-                          fontWeight: '800',
+                            Math.abs(diff) > 0.5
+                              ? colors.danger
+                              : colors.success,
+                          fontWeight: "800",
                         },
                       ]}
                     >
-                      Δ {diff > 0 ? '+' : ''}
+                      Δ {diff > 0 ? "+" : ""}
                       {diff.toFixed(2)}T
                     </Text>
                   </View>
@@ -588,56 +656,98 @@ export default function OperatorSiteHistoryScreen() {
               </View>
 
               {/* Timestamps */}
-              <View style={[styles.detailSection, { borderColor: colors.border }]}>
-                <Text style={[styles.detailSectionTitle, { color: colors.textMuted }]}>
+              <View
+                style={[styles.detailSection, { borderColor: colors.border }]}
+              >
+                <Text
+                  style={[
+                    styles.detailSectionTitle,
+                    { color: colors.textMuted },
+                  ]}
+                >
                   TIMELINE
                 </Text>
                 {item.weighInAt && (
                   <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                    <Text
+                      style={[styles.detailLabel, { color: colors.textMuted }]}
+                    >
                       Quarry Weigh In
                     </Text>
-                    <Text style={[styles.detailValueSmall, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.detailValueSmall,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       {formatEAT(item.weighInAt)}
                     </Text>
                   </View>
                 )}
                 {item.weighOutAt && (
                   <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                    <Text
+                      style={[styles.detailLabel, { color: colors.textMuted }]}
+                    >
                       Quarry Weigh Out
                     </Text>
-                    <Text style={[styles.detailValueSmall, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.detailValueSmall,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       {formatEAT(item.weighOutAt)}
                     </Text>
                   </View>
                 )}
                 {item.siteWeighInAt && (
                   <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                    <Text
+                      style={[styles.detailLabel, { color: colors.textMuted }]}
+                    >
                       Site Arrival
                     </Text>
-                    <Text style={[styles.detailValueSmall, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.detailValueSmall,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       {formatEAT(item.siteWeighInAt)}
                     </Text>
                   </View>
                 )}
                 {item.siteWeighOutAt && (
                   <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                    <Text
+                      style={[styles.detailLabel, { color: colors.textMuted }]}
+                    >
                       Site Finalized
                     </Text>
-                    <Text style={[styles.detailValueSmall, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.detailValueSmall,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       {formatEAT(item.siteWeighOutAt)}
                     </Text>
                   </View>
                 )}
                 {item.receivedAt && (
                   <View style={styles.detailRow}>
-                    <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
+                    <Text
+                      style={[styles.detailLabel, { color: colors.textMuted }]}
+                    >
                       Received
                     </Text>
-                    <Text style={[styles.detailValueSmall, { color: colors.textSecondary }]}>
+                    <Text
+                      style={[
+                        styles.detailValueSmall,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
                       {formatEAT(item.receivedAt)}
                     </Text>
                   </View>
@@ -672,39 +782,11 @@ export default function OperatorSiteHistoryScreen() {
         </Text>
       </View>
 
-      {/* KPI Tiles */}
-      <View style={styles.kpiRow}>
-        <MetricTile
-          icon="checkmark-done"
-          label="Completed"
-          value={analytics.totalCompleted}
-          tone={colors.success}
-        />
-        <MetricTile
-          icon="cube"
-          label="Site Net"
-          value={`${analytics.totalSiteNet.toFixed(1)}T`}
-          tone={colors.primary}
-        />
-      </View>
-      <View style={styles.kpiRow}>
-        <MetricTile
-          icon="analytics-outline"
-          label="Avg Net/Delivery"
-          value={`${analytics.avgNet.toFixed(1)}T`}
-          tone="#8B5CF6"
-        />
-        <MetricTile
-          icon="warning-outline"
-          label="Discrepancies"
-          value={analytics.discrepancies}
-          tone={analytics.discrepancies > 0 ? colors.danger : colors.success}
-        />
-      </View>
+     
 
       {/* Filter Pills */}
       <View style={styles.filterRow}>
-        {(['today', 'week', 'month'] as FilterPeriod[]).map((period) => {
+        {(["today", "week", "month"] as FilterPeriod[]).map((period) => {
           const active = filter === period;
           return (
             <TouchableOpacity
@@ -720,19 +802,19 @@ export default function OperatorSiteHistoryScreen() {
             >
               <Ionicons
                 name={
-                  period === 'today'
-                    ? 'today-outline'
-                    : period === 'week'
-                    ? 'calendar-outline'
-                    : 'calendar-number-outline'
+                  period === "today"
+                    ? "today-outline"
+                    : period === "week"
+                      ? "calendar-outline"
+                      : "calendar-number-outline"
                 }
                 size={14}
-                color={active ? '#FFFFFF' : colors.textSecondary}
+                color={active ? "#FFFFFF" : colors.textSecondary}
               />
               <Text
                 style={[
                   styles.filterPillText,
-                  { color: active ? '#FFFFFF' : colors.textSecondary },
+                  { color: active ? "#FFFFFF" : colors.textSecondary },
                 ]}
               >
                 {FILTER_LABELS[period]}
@@ -745,14 +827,14 @@ export default function OperatorSiteHistoryScreen() {
       {/* Export Actions */}
       <View style={styles.exportRow}>
         <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: '#2563EB' }]}
+          style={[styles.exportBtn, { backgroundColor: "#2563EB" }]}
           onPress={handleDownloadCSV}
         >
           <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
           <Text style={styles.exportBtnText}>Download CSV</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: '#7C3AED' }]}
+          style={[styles.exportBtn, { backgroundColor: "#7C3AED" }]}
           onPress={handleDownloadPDF}
         >
           <Ionicons name="document-outline" size={16} color="#FFFFFF" />
@@ -771,7 +853,10 @@ export default function OperatorSiteHistoryScreen() {
                   key={material}
                   style={[
                     styles.materialCard,
-                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                    },
                   ]}
                 >
                   <Text
@@ -788,12 +873,7 @@ export default function OperatorSiteHistoryScreen() {
                   >
                     {data.count} deliveries
                   </Text>
-                  <Text
-                    style={[
-                      styles.materialNet,
-                      { color: colors.primary },
-                    ]}
-                  >
+                  <Text style={[styles.materialNet, { color: colors.primary }]}>
                     {data.totalNet.toFixed(1)}T
                   </Text>
                 </View>
@@ -804,9 +884,7 @@ export default function OperatorSiteHistoryScreen() {
       )}
 
       {/* ─── Pending Jobs ─── */}
-      <SectionTitle
-        title={`Pending (${pendingJobs.length})`}
-      />
+      <SectionTitle title={`Pending (${pendingJobs.length})`} />
       {loading ? (
         <DataCard>
           <Text style={{ fontSize: 14, color: colors.textMuted }}>
@@ -816,7 +894,7 @@ export default function OperatorSiteHistoryScreen() {
       ) : pendingJobs.length ? (
         pendingJobs.slice(0, 10).map((item) => {
           const hasSiteWeighIn =
-            item.siteWeighInWeight != null || item.status === 'weighed_in';
+            item.siteWeighInWeight != null || item.status === "weighed_in";
           return (
             <DataCard key={item.id} onPress={() => openDetail(item)}>
               <View style={styles.tableHeaderRow}>
@@ -825,62 +903,71 @@ export default function OperatorSiteHistoryScreen() {
                     {item.jobId}
                   </Text>
                   <Text style={[styles.tablePo, { color: colors.textMuted }]}>
-                    {item.poNumber || '—'}
+                    {item.poNumber || "—"}
                   </Text>
                 </View>
-                <StatusPill status={item.status} compact />
+                
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
-                  <Text style={[styles.tableLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.tableLabel, { color: colors.textMuted }]}
+                  >
                     Driver
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.driverName || '—'}
+                    {item.driverName || "—"}
                   </Text>
                 </View>
                 <View style={styles.tableCell}>
-                  <Text style={[styles.tableLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.tableLabel, { color: colors.textMuted }]}
+                  >
                     Truck
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.plateNumber || '—'}
+                    {item.plateNumber || "—"}
                   </Text>
                 </View>
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
-                  <Text style={[styles.tableLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.tableLabel, { color: colors.textMuted }]}
+                  >
                     Material
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.materialName || '—'}
+                    {item.materialName || "—"}
                   </Text>
                 </View>
                 <View style={styles.tableCell}>
-                  <Text style={[styles.tableLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.tableLabel, { color: colors.textMuted }]}
+                  >
                     Qty
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.quantityOrdered ?? '—'} t
+                    {item.quantityOrdered ?? "—"} t
                   </Text>
                 </View>
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
-                  <Text style={[styles.tableLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.tableLabel, { color: colors.textMuted }]}
+                  >
                     Stage
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {hasSiteWeighIn ? 'Awaiting Weigh Out' : 'Awaiting Weigh In'}
+                    {hasSiteWeighIn
+                      ? "Awaiting Weigh Out"
+                      : "Awaiting Weigh In"}
                   </Text>
                 </View>
               </View>
               <Text
-                style={[
-                  styles.tableTimestamp,
-                  { color: colors.textTertiary },
-                ]}
+                style={[styles.tableTimestamp, { color: colors.textTertiary }]}
               >
                 Updated: {formatEAT(item.updatedAt || item.createdAt)}
               </Text>
@@ -924,44 +1011,52 @@ export default function OperatorSiteHistoryScreen() {
                     {item.jobId}
                   </Text>
                   <Text style={[styles.tablePo, { color: colors.textMuted }]}>
-                    {item.poNumber || '—'}
+                    {item.poNumber || "—"}
                   </Text>
                 </View>
-                <StatusPill status={item.status} compact />
+            
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
-                  <Text style={[styles.tableLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.tableLabel, { color: colors.textMuted }]}
+                  >
                     Driver
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.driverName || '—'}
+                    {item.driverName || "—"}
                   </Text>
                 </View>
                 <View style={styles.tableCell}>
-                  <Text style={[styles.tableLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.tableLabel, { color: colors.textMuted }]}
+                  >
                     Truck
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.plateNumber || '—'}
+                    {item.plateNumber || "—"}
                   </Text>
                 </View>
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
-                  <Text style={[styles.tableLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.tableLabel, { color: colors.textMuted }]}
+                  >
                     Material
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.materialName || '—'}
+                    {item.materialName || "—"}
                   </Text>
                 </View>
                 <View style={styles.tableCell}>
-                  <Text style={[styles.tableLabel, { color: colors.textMuted }]}>
+                  <Text
+                    style={[styles.tableLabel, { color: colors.textMuted }]}
+                  >
                     Qty Ordered
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.quantityOrdered ?? '—'} t
+                    {item.quantityOrdered ?? "—"} t
                   </Text>
                 </View>
               </View>
@@ -980,16 +1075,16 @@ export default function OperatorSiteHistoryScreen() {
                   <Text style={[styles.wLabel, { color: colors.textMuted }]}>
                     S-In
                   </Text>
-                  <Text style={[styles.wValue, { color: '#F59E0B' }]}>
-                    {siteIn != null ? `${siteIn.toFixed(1)}T` : '—'}
+                  <Text style={[styles.wValue, { color: "#F59E0B" }]}>
+                    {siteIn != null ? `${siteIn.toFixed(1)}T` : "—"}
                   </Text>
                 </View>
                 <View style={styles.weightCell}>
                   <Text style={[styles.wLabel, { color: colors.textMuted }]}>
                     S-Out
                   </Text>
-                  <Text style={[styles.wValue, { color: '#8B5CF6' }]}>
-                    {siteOut != null ? `${siteOut.toFixed(1)}T` : '—'}
+                  <Text style={[styles.wValue, { color: "#8B5CF6" }]}>
+                    {siteOut != null ? `${siteOut.toFixed(1)}T` : "—"}
                   </Text>
                 </View>
                 <View style={styles.weightCell}>
@@ -1002,28 +1097,24 @@ export default function OperatorSiteHistoryScreen() {
                       { color: colors.success, fontSize: 16 },
                     ]}
                   >
-                    {siteNet != null ? `${siteNet.toFixed(1)}T` : '—'}
+                    {siteNet != null ? `${siteNet.toFixed(1)}T` : "—"}
                   </Text>
                 </View>
                 <View style={styles.weightCell}>
                   <Text style={[styles.wLabel, { color: colors.textMuted }]}>
                     Q-Net
                   </Text>
-                  <Text style={[styles.wValue, { color: '#2563EB' }]}>
-                    {quarryNet != null
-                      ? `${quarryNet.toFixed(1)}T`
-                      : '—'}
+                  <Text style={[styles.wValue, { color: "#2563EB" }]}>
+                    {quarryNet != null ? `${quarryNet.toFixed(1)}T` : "—"}
                   </Text>
                 </View>
               </View>
 
               <Text
-                style={[
-                  styles.tableTimestamp,
-                  { color: colors.textTertiary },
-                ]}
+                style={[styles.tableTimestamp, { color: colors.textTertiary }]}
               >
-                Finalized: {formatEAT(item.receivedAt || item.updatedAt || item.createdAt)}
+                Finalized:{" "}
+                {formatEAT(item.receivedAt || item.updatedAt || item.createdAt)}
               </Text>
             </DataCard>
           );
@@ -1037,7 +1128,7 @@ export default function OperatorSiteHistoryScreen() {
       )}
 
       {/* Bottom spacing */}
-      <View style={{ height: Spacing['4xl'] }} />
+      <View style={{ height: Spacing["4xl"] }} />
 
       {/* ─── Detail Modal ─── */}
       {renderDetailModal()}
@@ -1054,100 +1145,100 @@ const styles = StyleSheet.create({
   },
   analyticsTitle: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   analyticsSub: {
     fontSize: 13,
     marginTop: 2,
   },
   kpiRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.sm,
     marginBottom: Spacing.xs,
   },
   // Filters
   filterRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.sm,
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
   filterPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: Radius.full,
     borderWidth: 1,
   },
-  filterPillText: { fontSize: 13, fontWeight: '700' },
+  filterPillText: { fontSize: 13, fontWeight: "700" },
   // Export
   exportRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
   exportBtn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
     minHeight: 44,
   },
-  exportBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  exportBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
   // Material Breakdown
   materialBreakdownGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
   materialCard: {
     flex: 1,
-    minWidth: '30%',
+    minWidth: "30%",
     borderRadius: Radius.md,
     borderWidth: 1,
     padding: Spacing.md,
-    alignItems: 'center',
+    alignItems: "center",
   },
   materialName: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 4,
-    maxWidth: '100%',
+    maxWidth: "100%",
   },
   materialCount: { fontSize: 11, marginBottom: 2 },
-  materialNet: { fontSize: 15, fontWeight: '900' },
+  materialNet: { fontSize: 15, fontWeight: "900" },
   // Table rows
   tableHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: Spacing.sm,
   },
-  tableJobId: { fontSize: 15, fontWeight: '700' },
-  tablePo: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  tableJobId: { fontSize: 15, fontWeight: "700" },
+  tablePo: { fontSize: 11, fontWeight: "600", marginTop: 2 },
   tableRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.md,
     marginBottom: 4,
   },
   tableCell: { flex: 1 },
   tableLabel: {
     fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     marginBottom: 2,
   },
-  tableValue: { fontSize: 13, fontWeight: '600' },
+  tableValue: { fontSize: 13, fontWeight: "600" },
   tableTimestamp: { fontSize: 12, marginTop: Spacing.sm },
   // Weight Summary
   weightSummary: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderRadius: Radius.md,
     borderWidth: 1,
     padding: Spacing.sm,
@@ -1156,42 +1247,42 @@ const styles = StyleSheet.create({
   },
   weightCell: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 4,
   },
   wLabel: {
     fontSize: 10,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    fontWeight: "800",
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  wValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
+  wValue: { fontSize: 14, fontWeight: "800", marginTop: 2 },
   // Detail Modal
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
   },
   detailSheet: {
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
     borderWidth: 1,
     padding: Spacing.lg,
-    maxHeight: '90%',
+    maxHeight: "90%",
   },
   detailHead: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
   },
-  detailJobId: { fontSize: 18, fontWeight: '900' },
-  detailPo: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  detailJobId: { fontSize: 18, fontWeight: "900" },
+  detailPo: { fontSize: 12, fontWeight: "600", marginTop: 2 },
   detailCloseBtn: {
     width: 36,
     height: 36,
     borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   detailSection: {
     borderWidth: 1,
@@ -1201,24 +1292,24 @@ const styles = StyleSheet.create({
   },
   detailSectionTitle: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: "900",
     letterSpacing: 1,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     marginBottom: 2,
   },
   detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 2,
   },
-  detailLabel: { fontSize: 12, fontWeight: '600' },
-  detailValue: { fontSize: 13, fontWeight: '700' },
-  detailValueSmall: { fontSize: 11, fontWeight: '600' },
+  detailLabel: { fontSize: 12, fontWeight: "600" },
+  detailValue: { fontSize: 13, fontWeight: "700" },
+  detailValueSmall: { fontSize: 11, fontWeight: "600" },
   detailSubLabel: {
     fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+    fontWeight: "800",
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 4,
   },
@@ -1226,29 +1317,29 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   detailWeightGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.sm,
   },
   detailWeightCell: {
     flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
     borderRadius: Radius.md,
     paddingVertical: Spacing.sm,
   },
   dwLabel: {
     fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
   },
-  dwValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
+  dwValue: { fontSize: 14, fontWeight: "800", marginTop: 2 },
   detailDiffRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 6,
     paddingTop: 6,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: "#E2E8F0",
   },
 });

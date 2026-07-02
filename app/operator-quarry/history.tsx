@@ -19,7 +19,7 @@ import {
   MetricTile,
   PageShell,
   SectionTitle,
-  StatusPill,
+ 
 } from '../../components/EnterpriseUI';
 
 /* ─────────── CSV / PDF helpers (inline, mirroring utils/exportData.ts) ─────────── */
@@ -236,27 +236,7 @@ export default function OperatorQuarryHistoryScreen() {
         />
       }
     >
-      {/* Summary Tiles */}
-      <View style={styles.metricRow}>
-        <MetricTile
-          icon="clipboard"
-          label="Active Queue"
-          value={activeQueue.length}
-          tone={colors.warning}
-        />
-        <MetricTile
-          icon="checkmark-done"
-          label="Completed"
-          value={completedRecords.length}
-          tone={colors.success}
-        />
-        <MetricTile
-          icon="cube"
-          label={`Net (${FILTER_LABELS[filter]})`}
-          value={`${totalNetToday.toFixed(1)}T`}
-          tone={colors.primary}
-        />
-      </View>
+    
 
       {/* Filter Pills */}
       <View style={styles.filterRow}>
@@ -331,7 +311,7 @@ export default function OperatorQuarryHistoryScreen() {
               <Text style={[styles.tableJobId, { color: colors.text }]}>
                 {item.jobId}
               </Text>
-              <StatusPill status={item.status} compact />
+          
             </View>
             <View style={styles.tableRow}>
               <View style={styles.tableCell}>
@@ -394,7 +374,7 @@ export default function OperatorQuarryHistoryScreen() {
                   {item.poNumber || '—'}
                 </Text>
               </View>
-              <StatusPill status={item.status} compact />
+              
             </View>
             <View style={styles.tableRow}>
               <View style={styles.tableCell}>

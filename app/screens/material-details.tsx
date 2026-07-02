@@ -8,7 +8,6 @@ import {
   EmptyState,
   MetricTile,
   PageShell,
-  ProgressBar,
   SectionTitle,
   StatusPill,
 } from '../../components/EnterpriseUI';
@@ -16,16 +15,7 @@ import { Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
 import { fetchDeliveryOrders, fetchMaterials, fetchPurchaseOrders } from '../../services/api';
-import { formatCurrency, formatEAT } from '../../utils/helpers';
-
-function deliveredFor(order: any, deliveries: any[]) {
-  const linked = deliveries.filter((item) => item.purchaseOrderId === order.id || item.poNumber === order.poNumber);
-  const delivered = linked.reduce((sum, item) => sum + Number(item.quantityDelivered || 0), 0);
-  if (delivered) return delivered;
-  if (order.deliveredQuantity != null) return Number(order.deliveredQuantity);
-  if (order.status === 'completed') return Number(order.quantity || 0);
-  return 0;
-}
+import { formatEAT } from '../../utils/helpers';
 
 export default function MaterialDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -77,17 +67,12 @@ export default function MaterialDetailsScreen() {
 
   const summary = useMemo(() => {
     const ordered = orders.reduce((sum, order) => sum + Number(order.quantity || 0), 0);
-    const delivered = orders.reduce((sum, order) => sum + deliveredFor(order, deliveries), 0);
     const vendors = new Set(orders.map((order) => order.vendorId || order.vendorName).filter(Boolean));
     return {
       ordered,
-      delivered,
-      remaining: Math.max(0, ordered - delivered),
-      completion: ordered ? Math.round((delivered / ordered) * 100) : 0,
       vendors: vendors.size,
-      value: orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
     };
-  }, [deliveries, orders]);
+  }, [orders]);
 
   if (loading) {
     return (
@@ -112,32 +97,20 @@ export default function MaterialDetailsScreen() {
 
   return (
     <PageShell>
-      
+      <CommandHeader
+        eyebrow={material.category || 'Material'}
+        title={material.name}
+        subtitle={`${orders.length} purchase orders · ${summary.vendors} vendors`}
+      />
 
       <View style={styles.metricRow}>
         <MetricTile icon="document-text" label="Purchase orders" value={orders.length} tone={colors.primary} />
         <MetricTile icon="briefcase" label="Linked vendors" value={summary.vendors} tone={colors.accent} />
       </View>
 
-      <DataCard>
-        <View style={styles.summaryHead}>
-          <View>
-            <Text style={[styles.summaryTitle, { color: colors.text }]}>{summary.completion}% delivered</Text>
-            <Text style={[styles.summarySub, { color: colors.textMuted }]}>{formatCurrency(summary.value)} ordered value</Text>
-          </View>
-          <Text style={[styles.remaining, { color: colors.warning }]}>
-            {Math.round(summary.remaining)} {material.unit || 'units'} left
-          </Text>
-        </View>
-        <ProgressBar value={summary.completion} color={summary.completion >= 100 ? colors.success : colors.primary} />
-      </DataCard>
-
       <SectionTitle title="Purchase Orders" />
       {orders.length ? (
         orders.map((order) => {
-          const delivered = deliveredFor(order, deliveries);
-          const ordered = Number(order.quantity || 0);
-          const pct = ordered ? Math.round((delivered / ordered) * 100) : 0;
           const jobs = deliveries.filter((job) => job.purchaseOrderId === order.id || job.poNumber === order.poNumber);
 
           return (
@@ -149,8 +122,7 @@ export default function MaterialDetailsScreen() {
                 </View>
                 <StatusPill status={order.status} compact />
               </View>
-              <ProgressBar value={pct} color={pct >= 100 ? colors.success : colors.primary} />
-              <DetailRow icon="cube-outline" value={`${Math.round(delivered)}/${Math.round(ordered)} ${order.unit || material.unit || 'units'} delivered`} />
+              <DetailRow icon="cube-outline" value={`${Math.round(order.quantity || 0)} ${order.unit || material.unit || 'units'} ordered`} />
               <DetailRow icon="navigate-outline" value={`${order.quarryName || 'Origin'} to ${order.siteName || 'Destination'}`} />
               <DetailRow icon="git-branch-outline" value={`${jobs.length} linked jobs`} />
               <Text style={[styles.timestamp, { color: colors.textTertiary }]}>{formatEAT(order.createdAt)}</Text>
@@ -180,10 +152,7 @@ const styles = StyleSheet.create({
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   muted: { fontSize: 13, fontWeight: '800' },
   metricRow: { flexDirection: 'row', gap: Spacing.md },
-  summaryHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md },
-  summaryTitle: { fontSize: 21, fontWeight: '900' },
   summarySub: { fontSize: 12, fontWeight: '700', marginTop: 3 },
-  remaining: { fontSize: 14, fontWeight: '900', textAlign: 'right' },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md },
   cardCopy: { flex: 1 },
   poNumber: { fontSize: 17, fontWeight: '900' },

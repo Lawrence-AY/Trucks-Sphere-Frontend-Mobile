@@ -14,7 +14,7 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
+  
 } from '../../components/EnterpriseUI';
 
 export default function OperatorSiteDashboardScreen() {
@@ -90,8 +90,7 @@ export default function OperatorSiteDashboardScreen() {
                   <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
                   <Text style={[styles.poText, { color: colors.textMuted }]}>{item.poNumber || 'No PO'}</Text>
                 </View>
-                <StatusPill status={item.status} compact />
-              </View>
+               </View>
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
               <DetailRow icon="business-outline" value={`Vendor: ${item.vendorName || 'N/A'}`} />

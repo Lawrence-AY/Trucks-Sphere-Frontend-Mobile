@@ -1,16 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
-import { MOCK_ORDERS } from '../../store/mockData';
+import { fetchPurchaseOrders } from '../../services/api';
 
 export default function ActiveOrdersScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
-  const orders = MOCK_ORDERS.filter((o) => o.vendorId === 'v1' && o.status !== 'completed').filter((o) =>
-    (o.id || '').toLowerCase().includes((search || '').toLowerCase())
+  const [orders, setOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    console.log('[ActiveOrders] Fetching purchase orders from backend...');
+    fetchPurchaseOrders().then(data => {
+      console.log('[ActiveOrders] Orders loaded:', data.length, 'items', data);
+      setOrders(data);
+    }).catch(err => console.error('[ActiveOrders] Failed to load orders:', err));
+  }, []);
+
+  const filtered = orders.filter((o) => o.status !== 'completed').filter((o) =>
+    (o.id || o.poNumber || '').toLowerCase().includes((search || '').toLowerCase())
   );
 
   return (
@@ -26,16 +36,16 @@ export default function ActiveOrdersScreen() {
         />
       </View>
       <FlatList
-        data={orders}
-        keyExtractor={(o) => o.id}
+        data={filtered}
+        keyExtractor={(o) => o.id || o.poNumber}
         contentContainerStyle={{ padding: 16 }}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => router.push({ pathname: '/screens/purchase-order', params: { id: item.id } })}
+            onPress={() => router.push({ pathname: '/screens/purchase-order', params: { id: item.id || item.poNumber } })}
           >
             <View style={styles.cardHeader}>
-              <Text style={[styles.id, { color: colors.accent }]}>{item.id}</Text>
+              <Text style={[styles.id, { color: colors.accent }]}>{item.id || item.poNumber}</Text>
               <Text style={[styles.status, { color: '#D97706' }]}>{item.status.replace('_', ' ')}</Text>
             </View>
             <Text style={[styles.text, { color: colors.textSecondary }]}>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, RefreshControl,
@@ -7,14 +7,35 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { MOCK_TRUCKS } from '../../store/mockData';
+import { fetchVehicles } from '../../services/api';
 
 export default function TrucksScreen() {
   const colors = useTheme();
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [trucks, setTrucks] = useState<any[]>([]);
 
-  const filtered = MOCK_TRUCKS.filter((t) =>
+  useEffect(() => {
+    console.log('[Trucks] Fetching vehicles from backend...');
+    fetchVehicles().then(data => {
+      console.log('[Trucks] Vehicles loaded:', data.length, 'items', data);
+      setTrucks(data);
+    }).catch(err => console.error('[Trucks] Failed to load vehicles:', err));
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchVehicles().then(data => {
+      console.log('[Trucks] Vehicles refreshed:', data.length, 'items');
+      setTrucks(data);
+      setRefreshing(false);
+    }).catch(err => {
+      console.error('[Trucks] Refresh failed:', err);
+      setRefreshing(false);
+    });
+  };
+
+  const filtered = trucks.filter((t) =>
     (t.plate || t.plateNumber || '').toLowerCase().includes((search || '').toLowerCase()) ||
     (t.model || '').toLowerCase().includes((search || '').toLowerCase())
   );
@@ -41,7 +62,7 @@ export default function TrucksScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 1000); }} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="car-outline" size={48} color={colors.textTertiary} />

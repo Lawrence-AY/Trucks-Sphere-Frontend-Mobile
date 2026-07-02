@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
@@ -27,6 +28,7 @@ import {
 
 export default function OperatorQuarryWeighInScreen() {
   const colors = useTheme();
+  const params = useLocalSearchParams<{ id?: string }>();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -50,6 +52,17 @@ export default function OperatorQuarryWeighInScreen() {
 
   useEffect(() => { loadData(); }, []);
 
+  // Auto-open job from route param (after job card creation)
+  useEffect(() => {
+    if (params.id && deliveries.length > 0) {
+      const target = deliveries.find((d) => d.jobId === params.id);
+      if (target) {
+        setActiveJob(target);
+        setWeightIn('');
+      }
+    }
+  }, [params.id, deliveries]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return deliveries.filter((d) => !q || [d.jobId, d.driverName, d.plateNumber].some((v) => String(v || '').toLowerCase().includes(q)));
@@ -71,11 +84,11 @@ export default function OperatorQuarryWeighInScreen() {
         weighInWeight: numericWeight,
         weighInAt: now,
         weighInLocation: activeJob.quarryName ? `${activeJob.quarryName} Gate` : 'Quarry Gate',
-        status: 'at_quarry',
+        status: 'DRAFT_WEIGH_IN_COMPLETE',
         updatedAt: now,
       });
       setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
-      Alert.alert('Saved', `Weigh-In of ${numericWeight.toFixed(1)} tonnes saved as draft. Job forwarded to Weigh-Out stage.`, [{ text: 'OK', onPress: closeWeighInForm }]);
+      Alert.alert('Saved', `Weigh-In of ${numericWeight.toFixed(1)} tonnes saved as draft. Job forwarded to Weigh-Out stage.`, [{ text: 'OK', onPress: () => { closeWeighInForm(); router.replace('/operator-quarry/dashboard' as any); } }]);
     } catch (error: any) {
       Alert.alert('Save Failed', error?.message || 'Could not save weigh-in data.');
     } finally {
@@ -107,7 +120,7 @@ export default function OperatorQuarryWeighInScreen() {
             </View>
             <Text style={[styles.inputTitle, { color: colors.text }]}>Weigh-In</Text>
           </View>
-          <Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter the gross weight of the loaded truck.</Text>
+          <Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter the weight of the empty truck (tare weight).</Text>
           <View style={[styles.weightInputWrap, { borderColor: '#2563EB', backgroundColor: colors.inputBg }]}>
             <TextInput style={[styles.weightInput, { color: colors.text }]} placeholder="0.0" placeholderTextColor={colors.textTertiary} keyboardType="decimal-pad" value={weightIn} onChangeText={setWeightIn} autoFocus />
             <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>

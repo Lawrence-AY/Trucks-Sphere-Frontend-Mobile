@@ -25,7 +25,7 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
+ 
 } from '../../components/EnterpriseUI';
 
 /* ─────────── Configuration ─────────── */
@@ -111,7 +111,7 @@ function buildReceiptHtml(data: {
         <div class="row"><span class="label">GRN / Job ID</span><span class="value">${data.jobId}</span></div>
         <div class="row"><span class="label">Purchase Order</span><span class="value">${data.poNumber || 'N/A'}</span></div>
         <div class="row"><span class="label">Date</span><span class="value">${data.timestamp}</span></div>
-        <div class="row"><span class="label">Status</span><span class="value">COMPLETED</span></div>
+        
       </div>
 
       <div class="section">
@@ -194,6 +194,9 @@ export default function OperatorSiteWeightsScreen() {
   const [activeJob, setActiveJob] = useState<any>(null);
   const [weightOutInput, setWeightOutInput] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // ─── Review / Receipt Modal ───
+  const [reviewVisible, setReviewVisible] = useState(false);
 
   // ─── GRN / Receipt Modal ───
   const [grnVisible, setGrnVisible] = useState(false);
@@ -294,27 +297,8 @@ export default function OperatorSiteWeightsScreen() {
       );
       return;
     }
-
-    const net = siteWeighIn - weightOutNum;
-    const diff = expectedWeight - net;
-
-    Alert.alert(
-      'Weight Calculation Summary',
-      `Please review the following calculations:\n\n` +
-        `Site Arrival: ${siteWeighIn.toFixed(1)} T\n` +
-        `Weight Out: ${weightOutNum.toFixed(1)} T\n` +
-        `Net Weight: ${net.toFixed(1)} T\n\n` +
-        `Expected: ${expectedWeight.toFixed(1)} T\n` +
-        `Difference: ${diff > 0 ? '+' : ''}${diff.toFixed(2)} T\n\n` +
-        `Proceed to finalize?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm & Finalize',
-          onPress: handleConfirmAndFinalize,
-        },
-      ],
-    );
+    // Show receipt review note modal
+    setReviewVisible(true);
   };
 
   const handleConfirmAndFinalize = async () => {
@@ -505,7 +489,7 @@ export default function OperatorSiteWeightsScreen() {
                   {activeJob.poNumber || 'No PO'}
                 </Text>
               </View>
-              <StatusPill status={activeJob.status} compact />
+          
             </View>
             <DetailRow
               icon="person-outline"
@@ -737,6 +721,175 @@ export default function OperatorSiteWeightsScreen() {
           <View style={{ height: 60 }} />
         </ScrollView>
 
+        {/* ─── Receipt Review Note Modal ─── */}
+        <Modal
+          visible={reviewVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setReviewVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View
+              style={[
+                styles.grnDialog,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <View
+                style={[
+                  styles.grnIconWrap,
+                  { backgroundColor: '#8B5CF615' },
+                ]}
+              >
+                <Ionicons name="receipt-outline" size={36} color="#8B5CF6" />
+              </View>
+
+              <Text style={[styles.grnTitle, { color: colors.text }]}>
+                Receipt Note
+              </Text>
+              <Text style={[styles.grnSub, { color: colors.textMuted }]}>
+                Review the weight calculations below before finalizing.
+              </Text>
+
+              {/* Receipt Summary */}
+              <View
+                style={[
+                  styles.grnSummary,
+                  { backgroundColor: colors.inputBg },
+                ]}
+              >
+                <View style={styles.grnRow}>
+                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                    Job ID
+                  </Text>
+                  <Text style={[styles.grnValue, { color: colors.text }]}>
+                    {activeJob.jobId}
+                  </Text>
+                </View>
+                <View style={styles.grnRow}>
+                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                    Driver
+                  </Text>
+                  <Text style={[styles.grnValue, { color: colors.text }]}>
+                    {activeJob.driverName} · {activeJob.plateNumber}
+                  </Text>
+                </View>
+                <View style={styles.grnRow}>
+                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                    Material
+                  </Text>
+                  <Text style={[styles.grnValue, { color: colors.text }]}>
+                    {activeJob.materialName}
+                  </Text>
+                </View>
+                <View style={styles.grnRow}>
+                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                    Vendor
+                  </Text>
+                  <Text style={[styles.grnValue, { color: colors.text }]}>
+                    {activeJob.vendorName}
+                  </Text>
+                </View>
+                <View style={styles.grnDivider} />
+                <View style={styles.grnRow}>
+                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                    Site Arrival (Gross)
+                  </Text>
+                  <Text style={[styles.grnValue, { color: '#F59E0B' }]}>
+                    {siteWeighIn.toFixed(1)} T
+                  </Text>
+                </View>
+                <View style={styles.grnRow}>
+                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                    Weight Out (Tare)
+                  </Text>
+                  <Text style={[styles.grnValue, { color: '#8B5CF6' }]}>
+                    {weightOutNum.toFixed(1)} T
+                  </Text>
+                </View>
+                <View style={[styles.grnDivider, { marginTop: 4 }]} />
+                <View style={styles.grnRow}>
+                  <Text
+                    style={[
+                      styles.grnLabel,
+                      { color: colors.textMuted, fontWeight: '800' },
+                    ]}
+                  >
+                    Net Weight
+                  </Text>
+                  <Text
+                    style={[
+                      styles.grnValue,
+                      { color: colors.success, fontWeight: '900', fontSize: 18 },
+                    ]}
+                  >
+                    {netWeight!.toFixed(1)} T
+                  </Text>
+                </View>
+                <View style={styles.grnRow}>
+                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                    Expected
+                  </Text>
+                  <Text style={[styles.grnValue, { color: colors.text }]}>
+                    {expectedWeight.toFixed(1)} T
+                  </Text>
+                </View>
+                <View style={styles.grnRow}>
+                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                    Difference
+                  </Text>
+                  <Text
+                    style={[
+                      styles.grnValue,
+                      {
+                        color: mismatch ? colors.danger : colors.success,
+                        fontWeight: '800',
+                      },
+                    ]}
+                  >
+                    {difference! > 0 ? '+' : ''}{difference!.toFixed(2)} T
+                  </Text>
+                </View>
+
+                {mismatch && (
+                  <View
+                    style={[
+                      styles.mismatchBanner,
+                      { backgroundColor: '#FEF2F2', borderColor: '#FECACA', marginTop: 8 },
+                    ]}
+                  >
+                    <Ionicons name="warning" size={16} color="#EF4444" />
+                    <Text style={styles.mismatchText}>
+                      Discrepancy of {Math.abs(difference!).toFixed(2)}T exceeds{' '}
+                      {MISMATCH_THRESHOLD_TONS}T threshold — please investigate.
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Review Actions */}
+              <View style={styles.grnActions}>
+                <TouchableOpacity
+                  style={[styles.grnActionBtn, { flex: 1, backgroundColor: colors.border }]}
+                  onPress={() => setReviewVisible(false)}
+                >
+                  <Text style={[styles.grnActionText, { color: colors.textSecondary }]}>Back</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.grnActionBtn, { flex: 2, backgroundColor: '#8B5CF6' }]}
+                  onPress={() => {
+                    setReviewVisible(false);
+                    handleConfirmAndFinalize();
+                  }}
+                >
+                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                  <Text style={styles.grnActionText}>Confirm & Finalize</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* ─── GRN Success Modal ─── */}
         <Modal
           visible={grnVisible}
@@ -902,20 +1055,7 @@ export default function OperatorSiteWeightsScreen() {
         />
       }
     >
-      <View style={styles.metricRow}>
-        <MetricTile
-          icon="hourglass-outline"
-          label="Pending Weigh Out"
-          value={stats.pending}
-          tone={colors.warning}
-        />
-        <MetricTile
-          icon="checkmark-done"
-          label="Completed"
-          value={stats.completed}
-          tone={colors.success}
-        />
-      </View>
+     
 
       <SearchField
         value={search}
@@ -960,7 +1100,7 @@ export default function OperatorSiteWeightsScreen() {
                 >
                   {item.jobId}
                 </Text>
-                <StatusPill status={item.status} compact />
+             
               </View>
               <DetailRow
                 icon="person-outline"
