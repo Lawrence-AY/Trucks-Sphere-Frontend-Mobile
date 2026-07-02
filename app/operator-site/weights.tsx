@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
-import { formatEAT } from '../../utils/helpers';
+import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
 import {
   DataCard,
   DetailRow,
@@ -29,7 +29,7 @@ import {
 } from '../../components/EnterpriseUI';
 
 /* ─────────── Configuration ─────────── */
-const MISMATCH_THRESHOLD_TONS = 0.5;
+
 
 /* ─────────── GRN (Good Receipt Note) Helpers ─────────── */
 
@@ -50,6 +50,7 @@ function formatCsv(headers: string[], rows: string[][]): string {
 
 function buildReceiptHtml(data: {
   jobId: string;
+  receiptNoteId: string;
   poNumber: string;
   driverName: string;
   plateNumber: string;
@@ -61,8 +62,6 @@ function buildReceiptHtml(data: {
   weightIn: number;
   weightOut: number;
   netWeight: number;
-  expectedWeight: number;
-  difference: number;
   timestamp: string;
   operatorName: string;
 }): string {
@@ -108,7 +107,8 @@ function buildReceiptHtml(data: {
 
       <div class="section">
         <div class="section-title">Document Details</div>
-        <div class="row"><span class="label">GRN / Job ID</span><span class="value">${data.jobId}</span></div>
+        <div class="row"><span class="label">Receipt Note</span><span class="value">${data.receiptNoteId || data.jobId}</span></div>
+        <div class="row"><span class="label">Job ID</span><span class="value">${data.jobId}</span></div>
         <div class="row"><span class="label">Purchase Order</span><span class="value">${data.poNumber || 'N/A'}</span></div>
         <div class="row"><span class="label">Date</span><span class="value">${data.timestamp}</span></div>
         
@@ -140,17 +140,6 @@ function buildReceiptHtml(data: {
           <div class="net">${data.netWeight.toFixed(1)} Tonnes</div>
           <div class="calc">NET WEIGHT = ${data.weightIn.toFixed(1)}T (Gross) − ${data.weightOut.toFixed(1)}T (Tare)</div>
         </div>
-
-        <div class="row"><span class="label">Expected Weight</span><span class="value">${data.expectedWeight.toFixed(1)} T</span></div>
-        <div class="row"><span class="label">Difference</span><span class="value" style="color: ${Math.abs(data.difference) > MISMATCH_THRESHOLD_TONS ? '#EF4444' : '#16A34A'}; font-weight:800;">
-          ${data.difference > 0 ? '+' : ''}${data.difference.toFixed(2)} T
-        </span></div>
-
-        ${Math.abs(data.difference) > MISMATCH_THRESHOLD_TONS ? `
-        <div class="discrepancy">
-          <div class="disc-title">⚠ Discrepancy Detected</div>
-          <div class="disc-body">The difference of ${Math.abs(data.difference).toFixed(2)}T exceeds the ${MISMATCH_THRESHOLD_TONS}T threshold. Please investigate.</div>
-        </div>` : ''}
       </div>
 
       <div class="section">
@@ -202,8 +191,8 @@ export default function OperatorSiteWeightsScreen() {
   const [grnVisible, setGrnVisible] = useState(false);
   const [grnData, setGrnData] = useState<any>(null);
 
-  const loadData = async () => {
-    setRefreshing(true);
+  const loadData = async (silent?: boolean) => {
+    if (!silent) setRefreshing(true);
     try {
       const data = (await fetchDeliveryOrders()) || [];
       setDeliveries(data);
@@ -214,9 +203,7 @@ export default function OperatorSiteWeightsScreen() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
 
   /* ─── Filtering & Categorizing ─── */
 
@@ -260,15 +247,6 @@ export default function OperatorSiteWeightsScreen() {
       ? siteWeighIn - weightOutNum
       : null;
 
-  const expectedWeight = activeJob?.quantityOrdered ?? 0;
-  const difference =
-    netWeight !== null ? expectedWeight - netWeight : null;
-
-  const mismatch =
-    difference !== null
-      ? Math.abs(difference) > MISMATCH_THRESHOLD_TONS
-      : false;
-
   /* ─── Handlers ─── */
 
   const openWeighForm = (job: any) => {
@@ -307,13 +285,11 @@ export default function OperatorSiteWeightsScreen() {
     setSaving(true);
     try {
       const now = new Date().toISOString();
-      const diff = expectedWeight - netWeight;
 
       await updateDeliveryOrder(activeJob.id, {
         siteWeighOutWeight: weightOutNum,
         siteWeighOutAt: now,
         siteNetWeight: netWeight,
-        siteWeightDifference: diff,
         quantityDelivered: netWeight,
         receivedAt: now,
         receivedLocation: activeJob.siteName || 'Site',
@@ -328,7 +304,6 @@ export default function OperatorSiteWeightsScreen() {
         siteWeighOutWeight: weightOutNum,
         siteWeighOutAt: now,
         siteNetWeight: netWeight,
-        siteWeightDifference: diff,
         quantityDelivered: netWeight,
         receivedAt: now,
         receivedBy: 'Site Operator',
@@ -342,13 +317,13 @@ export default function OperatorSiteWeightsScreen() {
       );
 
       // Show GRN
+      const receiptNoteId = generateReceiptNoteId(activeJob.jobId);
       setGrnData({
         ...updatedJob,
+        receiptNoteId,
         siteWeighIn,
         weightOut: weightOutNum,
         netWeight,
-        expectedWeight,
-        difference: diff,
       });
       setGrnVisible(true);
     } catch (error: any) {
@@ -367,6 +342,7 @@ export default function OperatorSiteWeightsScreen() {
     if (!grnData) return null;
     return {
       jobId: grnData.jobId || '',
+      receiptNoteId: grnData.receiptNoteId || '',
       poNumber: grnData.poNumber || '',
       driverName: grnData.driverName || '',
       plateNumber: grnData.plateNumber || '',
@@ -378,8 +354,6 @@ export default function OperatorSiteWeightsScreen() {
       weightIn: siteWeighIn,
       weightOut: weightOutNum,
       netWeight: grnData.siteNetWeight || netWeight || 0,
-      expectedWeight: expectedWeight,
-      difference: grnData.siteWeightDifference || difference || 0,
       timestamp: new Date().toLocaleString('en-KE', {
         timeZone: 'Africa/Nairobi',
       }),
@@ -394,7 +368,7 @@ export default function OperatorSiteWeightsScreen() {
       const html = buildReceiptHtml(data);
       await Share.share({
         message: html,
-        title: `GRN_${data.jobId}`,
+        title: `GRN_${data.receiptNoteId || data.jobId}`,
       });
     } catch (e: any) {
       if (e?.message !== 'User did not share') {
@@ -412,7 +386,8 @@ export default function OperatorSiteWeightsScreen() {
         'Value',
       ];
       const rows = [
-        ['GRN / Job ID', data.jobId],
+        ['Receipt Note', data.receiptNoteId || data.jobId],
+        ['Job ID', data.jobId],
         ['Purchase Order', data.poNumber],
         ['Vendor', data.vendorName],
         ['Driver', data.driverName],
@@ -424,8 +399,6 @@ export default function OperatorSiteWeightsScreen() {
         ['Site Arrival Weight (Gross)', `${data.weightIn.toFixed(1)} T`],
         ['Weight Out (Tare)', `${data.weightOut.toFixed(1)} T`],
         ['Net Weight', `${data.netWeight.toFixed(1)} T`],
-        ['Expected Weight', `${data.expectedWeight.toFixed(1)} T`],
-        ['Difference', `${data.difference > 0 ? '+' : ''}${data.difference.toFixed(2)} T`],
         ['Status', 'COMPLETED'],
         ['Operator', data.operatorName],
         ['Date', data.timestamp],
@@ -433,7 +406,7 @@ export default function OperatorSiteWeightsScreen() {
       const csv = formatCsv(headers, rows);
       await Share.share({
         message: csv,
-        title: `GRN_${data.jobId}`,
+        title: `GRN_${data.receiptNoteId || data.jobId}`,
       });
     } catch (e: any) {
       if (e?.message !== 'User did not share') {
@@ -449,7 +422,7 @@ export default function OperatorSiteWeightsScreen() {
       const html = buildReceiptHtml(data);
       await Share.share({
         message: html,
-        title: `GRN_${data.jobId}`,
+        title: `GRN_${data.receiptNoteId || data.jobId}`,
       });
     } catch {}
   };
@@ -637,41 +610,7 @@ export default function OperatorSiteWeightsScreen() {
                   {siteWeighIn.toFixed(1)}T (Gross) − {weightOutNum.toFixed(1)}T (Tare)
                 </Text>
 
-                {/* Difference from Expected */}
-                {difference !== null && (
-                  <View style={styles.diffRow}>
-                    <Text style={[styles.diffLabel, { color: colors.textMuted }]}>
-                      Expected: {expectedWeight.toFixed(1)}T
-                    </Text>
-                    <Text
-                      style={[
-                        styles.diffValue,
-                        {
-                          color: mismatch ? colors.danger : colors.success,
-                          fontWeight: '800',
-                        },
-                      ]}
-                    >
-                      Δ {difference > 0 ? '+' : ''}
-                      {difference.toFixed(2)}T
-                    </Text>
-                  </View>
-                )}
 
-                {mismatch && (
-                  <View
-                    style={[
-                      styles.mismatchBanner,
-                      { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
-                    ]}
-                  >
-                    <Ionicons name="warning" size={16} color="#EF4444" />
-                    <Text style={styles.mismatchText}>
-                      Discrepancy of {Math.abs(difference!).toFixed(2)}T exceeds{' '}
-                      {MISMATCH_THRESHOLD_TONS}T threshold — please investigate.
-                    </Text>
-                  </View>
-                )}
               </View>
             )}
           </View>
@@ -823,48 +762,9 @@ export default function OperatorSiteWeightsScreen() {
                       { color: colors.success, fontWeight: '900', fontSize: 18 },
                     ]}
                   >
-                    {netWeight!.toFixed(1)} T
+                    {netWeight !== null ? netWeight.toFixed(1) : '—'} T
                   </Text>
                 </View>
-                <View style={styles.grnRow}>
-                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
-                    Expected
-                  </Text>
-                  <Text style={[styles.grnValue, { color: colors.text }]}>
-                    {expectedWeight.toFixed(1)} T
-                  </Text>
-                </View>
-                <View style={styles.grnRow}>
-                  <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
-                    Difference
-                  </Text>
-                  <Text
-                    style={[
-                      styles.grnValue,
-                      {
-                        color: mismatch ? colors.danger : colors.success,
-                        fontWeight: '800',
-                      },
-                    ]}
-                  >
-                    {difference! > 0 ? '+' : ''}{difference!.toFixed(2)} T
-                  </Text>
-                </View>
-
-                {mismatch && (
-                  <View
-                    style={[
-                      styles.mismatchBanner,
-                      { backgroundColor: '#FEF2F2', borderColor: '#FECACA', marginTop: 8 },
-                    ]}
-                  >
-                    <Ionicons name="warning" size={16} color="#EF4444" />
-                    <Text style={styles.mismatchText}>
-                      Discrepancy of {Math.abs(difference!).toFixed(2)}T exceeds{' '}
-                      {MISMATCH_THRESHOLD_TONS}T threshold — please investigate.
-                    </Text>
-                  </View>
-                )}
               </View>
 
               {/* Review Actions */}
@@ -931,6 +831,14 @@ export default function OperatorSiteWeightsScreen() {
                     { backgroundColor: colors.inputBg },
                   ]}
                 >
+                  <View style={styles.grnRow}>
+                    <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                      Receipt Note
+                    </Text>
+                    <Text style={[styles.grnValue, { color: '#8B5CF6', fontWeight: '800' }]}>
+                      {grnData.receiptNoteId || grnData.jobId}
+                    </Text>
+                  </View>
                   <View style={styles.grnRow}>
                     <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
                       Job ID

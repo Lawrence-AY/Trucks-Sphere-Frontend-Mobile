@@ -141,7 +141,7 @@ export default function JobDetailsScreen() {
       <CommandHeader
         eyebrow={job.poNumber || purchaseOrder?.poNumber || 'Job operations'}
         title={job.jobId}
-        subtitle={`${job.materialName || purchaseOrder?.materialName || 'Material'} to ${job.siteName || 'Destination'}`}
+        subtitle={`${job.materialName || purchaseOrder?.materialName || 'Material'} to ${job.siteName || 'Destination'} | ${job.jobId}`}
         right={<StatusPill status={job.status} compact />}
       />
 
@@ -173,7 +173,7 @@ export default function JobDetailsScreen() {
         <TimelineItem
           icon="add-circle-outline"
           title="Job Created"
-          meta={formatJobCreatedMeta(job, driver, vehicle)}
+              meta={`${formatMaybeDate(job?.createdAt)}\nDriver: ${driver?.name || job?.driverName || 'Pending driver'}\nVehicle: ${vehicle?.plateNumber || vehicle?.plate || job?.plateNumber || 'Pending vehicle'}`}
           color={colors.primary}
           complete
         />

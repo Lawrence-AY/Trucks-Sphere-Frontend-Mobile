@@ -49,8 +49,8 @@ export default function OperatorQuarryDashboardScreen() {
   const [submitError, setSubmitError] = useState('');
   const [queueSearch, setQueueSearch] = useState('');
 
-  const loadData = async () => {
-    setRefreshing(true);
+  const loadData = async (silent?: boolean) => {
+    if (!silent) setRefreshing(true);
     try {
       const [data, orders, driverData, vehicleData] = await Promise.all([
         fetchDeliveryOrders(),
@@ -69,7 +69,7 @@ export default function OperatorQuarryDashboardScreen() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
 
   const queue = useMemo(() => {
     const q = queueSearch.toLowerCase();

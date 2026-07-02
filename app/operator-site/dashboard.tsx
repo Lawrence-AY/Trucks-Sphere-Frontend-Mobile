@@ -24,8 +24,18 @@ export default function OperatorSiteDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  const loadData = async () => {
-    setRefreshing(true);
+  // ─── Weight In form state (per job) ───
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [weightInInputs, setWeightInInputs] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
+  const [submitErrors, setSubmitErrors] = useState<Record<string, string>>({});
+
+  // ─── Success modal for Phase 1 completion ───
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [successJob, setSuccessJob] = useState<any>(null);
+
+  const loadData = async (silent?: boolean) => {
+    if (!silent) setRefreshing(true);
     try {
       const data = (await fetchDeliveryOrders()) || [];
       setDeliveries(data);
@@ -36,7 +46,7 @@ export default function OperatorSiteDashboardScreen() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
 
   const scheduled = deliveries.filter((d) => !['cancelled'].includes(d.status));
 

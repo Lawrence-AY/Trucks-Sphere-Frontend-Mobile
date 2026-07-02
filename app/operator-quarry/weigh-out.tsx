@@ -25,7 +25,6 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
 
 /* ─────────── CSV / PDF helpers for Delivery Note ─────────── */
@@ -142,15 +141,12 @@ export default function OperatorQuarryWeighOutScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
 
-  const loadData = async () => {
-    setRefreshing(true);
+  const loadData = async (silent?: boolean) => {
+    if (!silent) setRefreshing(true);
     try {
       const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data.filter((d: any) =>
-        d.weighInWeight &&
-        !d.weighOutWeight &&
-        !['delivered', 'completed', 'cancelled', 'SUBMITTED'].includes(d.status),
-      ));
+      // Show only jobs that have weigh-in but NOT weigh-out
+      setDeliveries(data.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'cancelled'].includes(d.status)));
     } catch {
     } finally {
       setRefreshing(false);
@@ -158,7 +154,7 @@ export default function OperatorQuarryWeighOutScreen() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -180,20 +176,16 @@ export default function OperatorQuarryWeighOutScreen() {
 
   const handleSubmitPress = () => {
     const numericWeightOut = parseFloat(weightOut);
-    if (isNaN(numericWeightOut) || numericWeightOut <= 0) {
-      Alert.alert('Invalid Weight', 'Please enter a valid weigh-out value.');
-      return;
-    }
-    if (numericWeightOut <= (activeJob?.weighInWeight || 0)) {
-      Alert.alert('Invalid Weight', 'Weigh-Out (loaded truck) must be greater than Weigh-In (empty truck).');
-      return;
-    }
+    if (isNaN(numericWeightOut) || numericWeightOut <= 0) { Alert.alert('Invalid Weight', 'Please enter a valid weigh-out value.'); return; }
+    // Weigh-Out (loaded) must be HIGHER than weigh-in (empty/tare)
+    if (numericWeightOut <= (activeJob?.weighInWeight || 0)) { Alert.alert('Invalid Weight', 'Loaded weight must be higher than empty weight.'); return; }
     setConfirmVisible(true);
   };
 
   const handleConfirmSubmit = async () => {
     const numericWeightOut = parseFloat(weightOut);
     const weighIn = activeJob?.weighInWeight || 0;
+    // Net = loaded - empty
     const netWeight = numericWeightOut - weighIn;
     setConfirmVisible(false);
     setSubmitting(true);
@@ -207,10 +199,8 @@ export default function OperatorQuarryWeighOutScreen() {
         status: 'SUBMITTED',
         updatedAt: now,
       });
-      const submittedJob = { ...activeJob, ...updated };
-      setActiveJob(submittedJob);
-      setDeliveries((current) => current.filter((item) => item.id !== activeJob.id));
-      setViewState('summary');
+      setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
+      Alert.alert('Completed', `Weigh-Out submitted.\n\nLoaded: ${numericWeightOut.toFixed(1)}T · Empty: ${weighIn.toFixed(1)}T · Net: ${netWeight.toFixed(1)}T`, [{ text: 'View History', onPress: () => { closeWeighOutForm(); router.replace('/operator-quarry/history' as any); } }]);
     } catch (error: any) {
       Alert.alert('Submission Failed', error?.message || 'Could not submit weigh-out data.');
     } finally {
@@ -309,17 +299,16 @@ export default function OperatorQuarryWeighOutScreen() {
           <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.jobCardHeader}>
               <Text style={[styles.jobCardTitle, { color: colors.text }]}>{activeJob.jobId}</Text>
-              <StatusPill status={activeJob.status} compact />
             </View>
             <DetailRow icon="document-outline" value={`PO: ${activeJob.poNumber || 'N/A'}`} />
             <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
-            <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'} · ${activeJob.quantityOrdered || 0} tonnes`} />
+            <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
             <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
             <DetailRow icon="location-outline" value={`${activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`} />
             <View style={styles.divider} />
             <View style={styles.draftWeightRow}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.draftLabel, { color: colors.textMuted }]}>Weigh-In (Tare / Empty)</Text>
+                <Text style={[styles.draftLabel, { color: colors.textMuted }]}>Empty Weight (Tare)</Text>
                 <Text style={[styles.draftValue, { color: '#2563EB' }]}>{wIn.toFixed(1)} Tonnes</Text>
               </View>
               <View style={[styles.draftBadge, { backgroundColor: '#2563EB15' }]}>
@@ -336,7 +325,7 @@ export default function OperatorQuarryWeighOutScreen() {
               </View>
               <Text style={[styles.inputTitle, { color: colors.text }]}>Weigh-Out</Text>
             </View>
-            <Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter the gross weight of the loaded truck.</Text>
+            <Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter the gross weight of the loaded truck (must be higher than empty weight).</Text>
             <View style={[styles.weightInputWrap, { borderColor: '#7C3AED', backgroundColor: colors.inputBg }]}>
               <TextInput style={[styles.weightInput, { color: colors.text }]} placeholder="0.0" placeholderTextColor={colors.textTertiary} keyboardType="decimal-pad" value={weightOut} onChangeText={setWeightOut} autoFocus />
               <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>
@@ -346,7 +335,7 @@ export default function OperatorQuarryWeighOutScreen() {
               <View style={[styles.netPreview, { backgroundColor: '#7C3AED08', borderColor: '#7C3AED33' }]}>
                 <Text style={[styles.netLabel, { color: colors.textMuted }]}>NET WEIGHT</Text>
                 <Text style={[styles.netValue, { color: '#7C3AED' }]}>{net.toFixed(1)} Tonnes</Text>
-                <Text style={[styles.netCalc, { color: colors.textTertiary }]}>{wOut.toFixed(1)}T (Gross) - {wIn.toFixed(1)}T (Tare)</Text>
+                <Text style={[styles.netCalc, { color: colors.textTertiary }]}>{wOut.toFixed(1)}T (Loaded) − {wIn.toFixed(1)}T (Empty)</Text>
               </View>
             )}
           </View>
@@ -365,6 +354,7 @@ export default function OperatorQuarryWeighOutScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
 
+        {/* Confirmation Modal */}
         <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => setConfirmVisible(false)}>
           <View style={styles.modalBackdrop}>
             <View style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -372,15 +362,15 @@ export default function OperatorQuarryWeighOutScreen() {
                 <Ionicons name="shield-checkmark-outline" size={32} color="#7C3AED" />
               </View>
               <Text style={[styles.confirmTitle, { color: colors.text }]}>Confirm Submission</Text>
-              <Text style={[styles.confirmSub, { color: colors.textMuted }]}>Please verify all details before finalizing. This will mark the job as submitted and generate the net weight.</Text>
+              <Text style={[styles.confirmSub, { color: colors.textMuted }]}>Please verify all details before finalizing this record. Job will move to history after submission.</Text>
               <View style={[styles.confirmSummary, { backgroundColor: colors.inputBg }]}>
                 <View style={styles.confirmRow}><Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Job ID</Text><Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.jobId}</Text></View>
                 <View style={styles.confirmRow}><Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver</Text><Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.driverName || 'N/A'}</Text></View>
                 <View style={styles.confirmRow}><Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Truck</Text><Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.plateNumber || 'N/A'}</Text></View>
                 <View style={styles.confirmRow}><Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Material</Text><Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.materialName || 'N/A'}</Text></View>
                 <View style={styles.confirmDivider} />
-                <View style={styles.confirmRow}><Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Weight In (Tare)</Text><Text style={[styles.confirmValue, { color: '#2563EB', fontWeight: '800' }]}>{wIn.toFixed(1)} T</Text></View>
-                <View style={styles.confirmRow}><Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Weight Out (Gross)</Text><Text style={[styles.confirmValue, { color: '#7C3AED', fontWeight: '800' }]}>{parseFloat(weightOut).toFixed(1)} T</Text></View>
+                <View style={styles.confirmRow}><Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Empty (Tare)</Text><Text style={[styles.confirmValue, { color: '#2563EB', fontWeight: '800' }]}>{wIn.toFixed(1)} T</Text></View>
+                <View style={styles.confirmRow}><Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Loaded (Gross)</Text><Text style={[styles.confirmValue, { color: '#7C3AED', fontWeight: '800' }]}>{parseFloat(weightOut).toFixed(1)} T</Text></View>
                 <View style={[styles.confirmDivider, { marginTop: 6 }]} />
                 <View style={styles.confirmRow}><Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text><Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>{(parseFloat(weightOut) - wIn).toFixed(1)} T</Text></View>
               </View>
@@ -414,13 +404,12 @@ export default function OperatorQuarryWeighOutScreen() {
             <DataCard key={item.id} onPress={() => openWeighOutForm(item)}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
-                <StatusPill status={item.status} compact />
               </View>
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
-              <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
+              <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
               <View style={styles.listWeighInBadge}>
                 <Ionicons name="download-outline" size={12} color="#2563EB" />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>Weigh-In (Tare): {wInVal.toFixed(1)} T</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>Empty Weight: {wInVal.toFixed(1)} T</Text>
               </View>
               <View style={[styles.tapHint, { backgroundColor: `${colors.primary}08` }]}>
                 <Ionicons name="hand-left-outline" size={12} color={colors.primary} />

@@ -17,13 +17,6 @@ import {
  
 } from '../../components/EnterpriseUI';
 
-const FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'approved', label: 'Approved' },
-  { key: 'in_progress', label: 'In progress' },
-  { key: 'completed', label: 'Completed' },
-];
 
 export default function VendorOrdersScreen() {
   const colors = useTheme();
@@ -61,7 +54,6 @@ export default function VendorOrdersScreen() {
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
        <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, material..." />
-      <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
       <SectionTitle title={`${filtered.length} orders`} />
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading orders...</Text></DataCard>

@@ -38,8 +38,8 @@ export default function OperatorQuarryWeighInScreen() {
   const [weightIn, setWeightIn] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const loadData = async () => {
-    setRefreshing(true);
+  const loadData = async (silent?: boolean) => {
+    if (!silent) setRefreshing(true);
     try {
       const data = (await fetchDeliveryOrders()) || [];
       setDeliveries(data.filter((d: any) => !d.weighInWeight && !['delivered', 'completed', 'cancelled'].includes(d.status)));
@@ -50,7 +50,7 @@ export default function OperatorQuarryWeighInScreen() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
 
   // Auto-open job from route param (after job card creation)
   useEffect(() => {
@@ -107,7 +107,7 @@ export default function OperatorQuarryWeighInScreen() {
           </View>
           <DetailRow icon="document-outline" value={`PO: ${activeJob.poNumber || 'N/A'}`} />
           <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
-          <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'} · ${activeJob.quantityOrdered || 0} tonnes`} />
+            <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
           <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
           <DetailRow icon="location-outline" value={`${activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`} />
           <Text style={[styles.jobTimestamp, { color: colors.textTertiary }]}>Created: {formatEAT(activeJob.createdAt)}</Text>
@@ -120,7 +120,7 @@ export default function OperatorQuarryWeighInScreen() {
             </View>
             <Text style={[styles.inputTitle, { color: colors.text }]}>Weigh-In</Text>
           </View>
-          <Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter the weight of the empty truck (tare weight).</Text>
+          <Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter the empty weight (tare) of the truck before loading.</Text>
           <View style={[styles.weightInputWrap, { borderColor: '#2563EB', backgroundColor: colors.inputBg }]}>
             <TextInput style={[styles.weightInput, { color: colors.text }]} placeholder="0.0" placeholderTextColor={colors.textTertiary} keyboardType="decimal-pad" value={weightIn} onChangeText={setWeightIn} autoFocus />
             <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>
@@ -153,7 +153,7 @@ export default function OperatorQuarryWeighInScreen() {
               <StatusPill status={item.status} compact />
             </View>
             <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
-            <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
+            <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
             <View style={[styles.tapHint, { backgroundColor: `${colors.primary}08` }]}>
               <Ionicons name="hand-left-outline" size={12} color={colors.primary} />
               <Text style={[styles.tapHintText, { color: colors.primary }]}>Tap to weigh in</Text>
