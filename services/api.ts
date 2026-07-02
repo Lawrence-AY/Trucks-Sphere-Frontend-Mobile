@@ -121,12 +121,7 @@ export async function fetchPurchaseOrders(params?: { search?: string; status?: s
 
 export async function fetchDeliveryOrders(params?: { search?: string; status?: string; jobId?: string; purchaseOrderId?: string }): Promise<any[]> {
   return safeFetch('delivery-orders', () => {
-    let url = '/api/delivery-orders';
-    if (params?.jobId) {
-      url = `/api/delivery-orders/job/${params.jobId}`;
-    } else if (params?.purchaseOrderId) {
-      url = `/api/delivery-orders/po/${params.purchaseOrderId}`;
-    }
+    const url = '/api/delivery-orders';
     return backendRequest<any>('get', url, undefined, params).then(unwrapItems);
   });
 }
@@ -175,10 +170,7 @@ export async function fetchSites(): Promise<any[]> {
 
 export async function fetchCheckpoints(params?: { jobId?: string; deliveryOrderId?: string }): Promise<any[]> {
   return safeFetch('checkpoints', () => {
-    let url = '/api/checkpoints';
-    if (params?.jobId) {
-      url = `/api/checkpoints/journey/${params.jobId}`;
-    }
+    const url = '/api/checkpoints';
     return backendRequest<any>('get', url, undefined, params).then(unwrapItems);
   });
 }
