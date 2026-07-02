@@ -47,8 +47,8 @@ export default function OperatorQuarryDashboardScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const loadData = async () => {
-    setRefreshing(true);
+  const loadData = async (silent?: boolean) => {
+    if (!silent) setRefreshing(true);
     try {
       const [data, orders, driverData, vehicleData] = await Promise.all([
         fetchDeliveryOrders(),
@@ -67,7 +67,7 @@ export default function OperatorQuarryDashboardScreen() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
 
   const queue = deliveries.filter(
     (d) => !['delivered', 'completed', 'cancelled'].includes(d.status) && !d.weighInWeight,
