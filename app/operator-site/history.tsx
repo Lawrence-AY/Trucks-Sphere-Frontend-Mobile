@@ -18,10 +18,12 @@ import { formatEAT } from "../../utils/helpers";
 import {
   DataCard,
   EmptyState,
- 
   PageShell,
   SectionTitle,
- 
+<<<<<<< HEAD
+=======
+  StatusPill,
+>>>>>>> 714a889fff9c005df39bf7fe053987fd1d4a55ea
 } from "../../components/EnterpriseUI";
 
 /* ─────────── CSV / PDF Export Helpers ─────────── */
@@ -411,8 +413,6 @@ export default function OperatorSiteHistoryScreen() {
                 </TouchableOpacity>
               </View>
 
-             
-
               {/* Parties */}
               <View
                 style={[styles.detailSection, { borderColor: colors.border }]}
@@ -782,8 +782,39 @@ export default function OperatorSiteHistoryScreen() {
         </Text>
       </View>
 
-     
+<<<<<<< HEAD
+=======
+      {/* KPI Tiles */}
+      <View style={styles.kpiRow}>
+        <MetricTile
+          icon="checkmark-done"
+          label="Completed"
+          value={analytics.totalCompleted}
+          tone={colors.success}
+        />
+        {/* <MetricTile
+          icon="cube"
+          label="Site Net"
+          value={`${analytics.totalSiteNet.toFixed(1)}T`}
+          tone={colors.primary}
+        />
+      </View>
+      <View style={styles.kpiRow}>
+        <MetricTile
+          icon="analytics-outline"
+          label="Avg Net/Delivery"
+          value={`${analytics.avgNet.toFixed(1)}T`}
+          tone="#8B5CF6"
+        />*/}
+        <MetricTile
+          icon="warning-outline"
+          label="Discrepancies"
+          value={analytics.discrepancies}
+          tone={analytics.discrepancies > 0 ? colors.danger : colors.success}
+        />
+      </View>
 
+>>>>>>> 714a889fff9c005df39bf7fe053987fd1d4a55ea
       {/* Filter Pills */}
       <View style={styles.filterRow}>
         {(["today", "week", "month"] as FilterPeriod[]).map((period) => {
@@ -906,7 +937,6 @@ export default function OperatorSiteHistoryScreen() {
                     {item.poNumber || "—"}
                   </Text>
                 </View>
-                
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
@@ -947,10 +977,14 @@ export default function OperatorSiteHistoryScreen() {
                   >
                     Qty
                   </Text>
-                 <Text style={[styles.tableValue, { color: colors.text }]}>
+                  <Text style={[styles.tableValue, { color: colors.text }]}>
+<<<<<<< HEAD
                     {item.weightOut
                       ? `${parseFloat(item.weightOut).toFixed(1)} t`
                       : "—"}
+=======
+                    {item.quantityOrdered ?? "—"} t
+>>>>>>> 714a889fff9c005df39bf7fe053987fd1d4a55ea
                   </Text>
                 </View>
               </View>
@@ -1016,7 +1050,6 @@ export default function OperatorSiteHistoryScreen() {
                     {item.poNumber || "—"}
                   </Text>
                 </View>
-            
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
