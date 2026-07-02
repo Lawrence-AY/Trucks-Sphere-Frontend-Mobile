@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { fetchVendors, fetchPurchaseOrders, fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../services/api';
-import { formatCurrency, formatEAT, getStatusColor, formatStatus } from '../../utils/helpers';
+import { formatEAT, getStatusColor, formatStatus } from '../../utils/helpers';
 
 export default function VendorDetailScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
@@ -34,25 +34,21 @@ export default function VendorDetailScreen() {
       const foundVendor = vendorsData?.find((v: any) => v.id === id);
       setVendor(foundVendor || null);
 
-      // Filter orders by vendor
       const vendorOrders = (ordersData || []).filter(
         (o: any) => o.vendorId === id || o.vendorName === name
       );
       setPurchaseOrders(vendorOrders);
 
-      // Filter drivers by vendor
       const vendorDrivers = (driversData || []).filter(
         (d: any) => d.vendorId === id
       );
       setDrivers(vendorDrivers);
 
-      // Filter trucks by vendor
       const vendorTrucks = (trucksData || []).filter(
         (t: any) => t.vendorId === id
       );
       setTrucks(vendorTrucks);
 
-      // Filter deliveries by vendor
       const vendorDeliveries = (deliveriesData || []).filter(
         (d: any) => d.vendorId === id || d.vendorName === name
       );
@@ -73,16 +69,13 @@ export default function VendorDetailScreen() {
     loadData();
   };
 
-  // Calculate stats
-  const totalOrderValue = purchaseOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
   const completedOrders = purchaseOrders.filter(o => o.status === 'completed').length;
   const activeOrders = purchaseOrders.filter(o => ['approved', 'in_progress', 'pending'].includes(o.status)).length;
   const totalDeliveries = deliveries.length;
-  const completedDeliveries = deliveries.filter(d => d.status === 'delivered').length;
+  const completedDeliveries = deliveries.filter(d => d.status === 'delivered' || d.status === 'completed').length;
   const totalDeliveredQty = deliveries.reduce((sum, d) => sum + (d.quantityDelivered || 0), 0);
   const totalOrderedQty = purchaseOrders.reduce((sum, o) => sum + (o.quantity || 0), 0);
   const remainingQty = Math.max(0, totalOrderedQty - totalDeliveredQty);
-  const progressPct = totalOrderedQty > 0 ? Math.min(100, (totalDeliveredQty / totalOrderedQty) * 100) : 0;
 
   if (loading) {
     return (
@@ -131,14 +124,6 @@ export default function VendorDetailScreen() {
             </View>
           )}
         </View>
-        {vendor?.fleetSize !== undefined && (
-          <View style={styles.headerFooter}>
-            <Ionicons name="car-outline" size={14} color={colors.textSecondary} />
-            <Text style={[styles.fleetText, { color: colors.textSecondary }]}>
-              Fleet: {vendor.fleetSize} truck{vendor.fleetSize !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Stats Grid */}
@@ -148,17 +133,10 @@ export default function VendorDetailScreen() {
             <Ionicons name="document-text" size={20} color="#1B2A4A" />
           </View>
           <Text style={[styles.statValue, { color: colors.text }]}>{purchaseOrders.length}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Orders</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Orders</Text>
           <Text style={[styles.statSub, { color: colors.textMuted }]}>
             {activeOrders} active · {completedOrders} done
           </Text>
-        </View>
-        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
-          <View style={[styles.statIcon, { backgroundColor: '#10B98112' }]}>
-            <Ionicons name="cash" size={20} color="#10B981" />
-          </View>
-          <Text style={[styles.statValue, { color: colors.text }]}>{formatCurrency(totalOrderValue)}</Text>
-          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Value</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
           <View style={[styles.statIcon, { backgroundColor: '#3B82F612' }]}>
@@ -174,6 +152,13 @@ export default function VendorDetailScreen() {
           <Text style={[styles.statValue, { color: colors.text }]}>{trucks.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Trucks</Text>
         </View>
+        <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+          <View style={[styles.statIcon, { backgroundColor: '#10B98112' }]}>
+            <Ionicons name="cube" size={20} color="#10B981" />
+          </View>
+          <Text style={[styles.statValue, { color: colors.text }]}>{totalDeliveredQty}</Text>
+          <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Delivered (t)</Text>
+        </View>
       </View>
 
       {/* Delivery Progress */}
@@ -184,9 +169,6 @@ export default function VendorDetailScreen() {
             <Text style={[styles.progressStat, { color: colors.textSecondary }]}>
               {completedDeliveries}/{totalDeliveries} trips
             </Text>
-          </View>
-          <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
-            <View style={[styles.progressBarFill, { width: `${Math.round(progressPct)}%`, backgroundColor: progressPct >= 100 ? '#16A34A' : colors.accent }]} />
           </View>
           <View style={styles.progressDetails}>
             <View style={styles.progressDetailItem}>
@@ -235,9 +217,6 @@ export default function VendorDetailScreen() {
                 </View>
               </View>
               <View style={styles.itemMeta}>
-                <Text style={[styles.itemMetaText, { color: colors.textSecondary }]}>
-                  {formatCurrency(po.totalAmount)}
-                </Text>
                 <Text style={[styles.itemMetaText, { color: colors.textMuted }]}>
                   {formatEAT(po.createdAt)}
                 </Text>
@@ -276,11 +255,6 @@ export default function VendorDetailScreen() {
                   </Text>
                 </View>
               </View>
-              {driver.totalTrips !== undefined && (
-                <Text style={[styles.itemMetaText, { color: colors.textMuted }]}>
-                  {driver.totalTrips} trip{driver.totalTrips !== 1 ? 's' : ''}
-                </Text>
-              )}
             </TouchableOpacity>
           ))}
         </View>
@@ -319,7 +293,6 @@ export default function VendorDetailScreen() {
         </View>
       )}
 
-      {/* Back Button */}
       <TouchableOpacity
         style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={() => router.back()}
@@ -336,7 +309,6 @@ const styles = StyleSheet.create({
   centerContent: { justifyContent: 'center', alignItems: 'center' },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   loadingText: { fontSize: 14, marginTop: Spacing.md },
-  // Header
   headerCard: {
     borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.lg,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
@@ -350,9 +322,6 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 10, fontWeight: '700' },
-  headerFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.md, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  fleetText: { fontSize: 13 },
-  // Stats
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
   statCard: {
     width: '48%', borderRadius: Radius.lg, padding: Spacing.md,
@@ -362,21 +331,16 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 18, fontWeight: '800' },
   statLabel: { fontSize: 12, marginTop: 2 },
   statSub: { fontSize: 10, marginTop: 1 },
-  // Progress
   progressCard: { borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   progressTitle: { fontSize: 15, fontWeight: '700' },
   progressStat: { fontSize: 13 },
-  progressBarBg: { height: 10, borderRadius: 5, marginBottom: Spacing.md, overflow: 'hidden' },
-  progressBarFill: { height: '100%', borderRadius: 5 },
   progressDetails: { flexDirection: 'row', justifyContent: 'space-between' },
   progressDetailItem: { alignItems: 'center' },
   progressLabel: { fontSize: 11 },
   progressValue: { fontSize: 14, fontWeight: '700', marginTop: 2 },
-  // Section
   section: { marginBottom: Spacing.lg },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: Spacing.md },
-  // Items
   itemCard: {
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
@@ -388,9 +352,8 @@ const styles = StyleSheet.create({
   itemSub: { fontSize: 12, marginTop: 1 },
   itemBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radius.full },
   itemBadgeText: { fontSize: 9, fontWeight: '700' },
-  itemMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.sm },
+  itemMeta: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: Spacing.sm },
   itemMetaText: { fontSize: 12 },
-  // Back
   backBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: Radius.md,

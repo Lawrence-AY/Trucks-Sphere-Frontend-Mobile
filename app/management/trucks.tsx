@@ -6,7 +6,7 @@ import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { fetchVehicles } from '../../services/api';
 import {
-  CommandHeader,
+ 
   DataCard,
   DetailRow,
   EmptyState,
@@ -47,11 +47,7 @@ export default function ManagementTrucksScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader eyebrow="Fleet assets" title="Trucks" subtitle={`${vehicles.length} vehicles`} />
-      <View style={styles.metricRow}>
-        <MetricTile icon="car" label="Active" value={vehicles.filter((item) => item.status === 'active').length} tone={colors.success} />
-        <MetricTile icon="car-sport" label="Total" value={vehicles.length} tone={colors.primary} />
-      </View>
+        
       <SearchField value={search} onChangeText={setSearch} placeholder="Search plate, model..." />
       <SectionTitle title={`${filtered.length} vehicles`} />
       {loading ? (

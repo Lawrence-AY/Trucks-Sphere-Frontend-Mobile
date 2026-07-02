@@ -25,7 +25,7 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
+ 
 } from '../../components/EnterpriseUI';
 
 /* ─────────── Configuration ─────────── */
@@ -111,7 +111,7 @@ function buildReceiptHtml(data: {
         <div class="row"><span class="label">GRN / Job ID</span><span class="value">${data.jobId}</span></div>
         <div class="row"><span class="label">Purchase Order</span><span class="value">${data.poNumber || 'N/A'}</span></div>
         <div class="row"><span class="label">Date</span><span class="value">${data.timestamp}</span></div>
-        <div class="row"><span class="label">Status</span><span class="value">COMPLETED</span></div>
+        
       </div>
 
       <div class="section">
@@ -489,7 +489,7 @@ export default function OperatorSiteWeightsScreen() {
                   {activeJob.poNumber || 'No PO'}
                 </Text>
               </View>
-              <StatusPill status={activeJob.status} compact />
+          
             </View>
             <DetailRow
               icon="person-outline"
@@ -1055,20 +1055,7 @@ export default function OperatorSiteWeightsScreen() {
         />
       }
     >
-      <View style={styles.metricRow}>
-        <MetricTile
-          icon="hourglass-outline"
-          label="Pending Weigh Out"
-          value={stats.pending}
-          tone={colors.warning}
-        />
-        <MetricTile
-          icon="checkmark-done"
-          label="Completed"
-          value={stats.completed}
-          tone={colors.success}
-        />
-      </View>
+     
 
       <SearchField
         value={search}
@@ -1113,7 +1100,7 @@ export default function OperatorSiteWeightsScreen() {
                 >
                   {item.jobId}
                 </Text>
-                <StatusPill status={item.status} compact />
+             
               </View>
               <DetailRow
                 icon="person-outline"

@@ -25,7 +25,7 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
+  
 } from '../../components/EnterpriseUI';
 
 /* ─────────── Phase 1: Schedule Tab — Site Weight In ─────────── */
@@ -324,7 +324,7 @@ export default function OperatorSiteDashboardScreen() {
                           </Text>
                         </View>
                       )}
-                      <StatusPill status={item.status} compact />
+                 
                     </View>
                   </View>
 

@@ -40,7 +40,7 @@ export default function ManagementSettingsScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing['4xl'] }}>
       {/* Profile */}
-      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Settings</Text>
+     
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={{ alignItems: 'center', gap: Spacing.md }}>
           <View style={[styles.avatar, { backgroundColor: '#1B2A4A18' }]}>

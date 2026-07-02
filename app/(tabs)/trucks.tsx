@@ -14,7 +14,7 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
+  
 } from '../../components/EnterpriseUI';
 
 export default function TrucksScreen() {
@@ -75,7 +75,7 @@ export default function TrucksScreen() {
                 <Text style={[styles.title, { color: colors.text }]}>{item.plateNumber || item.registrationNumber}</Text>
                 <Text style={[styles.subtle, { color: colors.textMuted }]}>{item.make} {item.model} {item.year ? `· ${item.year}` : ''}</Text>
               </View>
-              <StatusPill status={item.status || 'active'} compact />
+             
             </View>
             <DetailRow icon="speedometer-outline" value={`${item.capacity || 0} tonnes capacity`} />
             <DetailRow icon="business-outline" value={item.vendorName || item.vendorId || 'Vendor not linked'} />

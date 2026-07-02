@@ -8,8 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { fetchDeliveryOrders, fetchDrivers, fetchPurchaseOrders, fetchVehicles, fetchVendors } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import {
-  CommandHeader,
-  DataCard,
+   DataCard,
   DetailRow,
   EmptyState,
   MetricTile,
@@ -82,8 +81,7 @@ export default function ManagementDashboardScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader title="Dashboard" />
-
+ 
       <View style={styles.metricGrid}>
         <View style={styles.metricRow}>
           <MetricTile icon="trail-sign" label="Total trips" value={stats.totalTrips} tone={colors.primary} />
