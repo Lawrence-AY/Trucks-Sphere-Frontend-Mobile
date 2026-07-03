@@ -71,6 +71,7 @@ export default function IndexScreen() {
         case 'vendor': router.replace('/vendor/dashboard' as any); break;
         case 'operator_site': router.replace('/operator-site/dashboard' as any); break;
         case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
+        case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
         case 'admin': router.replace('/management/dashboard' as any); break;
         default: router.replace('/management/dashboard' as any);
       }

@@ -87,7 +87,10 @@ export default function OperatorQuarryWeighOutScreen() {
         updatedAt: now,
       });
       setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
-      Alert.alert('Completed', `Weigh-Out submitted.\n\nLoaded: ${numericWeightOut.toFixed(1)}T · Empty: ${weighIn.toFixed(1)}T · Net: ${netWeight.toFixed(1)}T`, [{ text: 'View History', onPress: () => { closeWeighOutForm(); router.replace('/operator-quarry/history' as any); } }]);
+      closeWeighOutForm();
+      Alert.alert('Completed', `Weigh-Out submitted.\n\nLoaded: ${numericWeightOut.toFixed(1)}T · Empty: ${weighIn.toFixed(1)}T · Net: ${netWeight.toFixed(1)}T`, [
+        { text: 'OK', onPress: () => router.navigate('/operator-quarry/dashboard' as any) },
+      ]);
     } catch (error: any) {
       Alert.alert('Submission Failed', error?.message || 'Could not submit weigh-out data.');
     } finally {

@@ -68,6 +68,28 @@ export function generateReceiptNoteId(jobId: string): string {
   return `${jobId}/RN${String(rnSeq).padStart(3, '0')}`;
 }
 
+// Generate fuel record ID: POMAT###/V###/D###/T###/J####/F###
+export function generateFuelRecordId(jobId: string): string {
+  const fSeq = nextJobSeq(`F_${jobId}`);
+  return `${jobId}/F${String(fSeq).padStart(3, '0')}`;
+}
+
+/**
+ * Generate receipt note ID using backend sequential counter.
+ * Format: POMAT###/V###/D###/T###/J####/RN###
+ * The RN### part comes from the backend Firestore atomic counter.
+ */
+export async function generateReceiptNoteIdAsync(jobId: string): Promise<string> {
+  try {
+    const { getNextId } = require('../services/counter');
+    const rnSuffix = await getNextId();
+    return `${jobId}/RN${rnSuffix.padStart(3, '0')}`;
+  } catch {
+    // Fallback to in-memory sequential
+    return generateReceiptNoteId(jobId);
+  }
+}
+
 // Format currency (no KES prefix)
 export function formatCurrency(amount: number | null | undefined): string {
   if (amount == null || isNaN(amount)) return '0.00';
@@ -250,6 +272,7 @@ export function getRoleLabel(role: string): string {
     management: 'Management',
     operator_quarry: 'Quarry Operator',
     operator_site: 'Site Operator',
+    operator_fuel: 'Fuel Operator',
     vendor: 'Vendor',
   };
   return labels[role] || role;

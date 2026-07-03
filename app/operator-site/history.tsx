@@ -272,6 +272,7 @@ export default function OperatorSiteHistoryScreen() {
   /* ─── Export Logic ─── */
 
   const exportHeaders = [
+    "Receipt Note",
     "Job ID",
     "PO Number",
     "Vendor",
@@ -306,6 +307,7 @@ export default function OperatorSiteHistoryScreen() {
           : null);
 
       return [
+        r.receiptNoteId || "",
         r.jobId || "",
         r.poNumber || "",
         r.vendorName || "",

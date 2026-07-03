@@ -43,6 +43,7 @@ const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: 
   { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
   { label: 'History', icon: 'time-outline', route: '/(tabs)/history' },
   { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details' },
+  { label: 'Fuel', icon: 'water-outline', route: '/screens/fuel' },
   { label: 'Export Data', icon: 'cloud-download-outline', route: '/management/settings' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];

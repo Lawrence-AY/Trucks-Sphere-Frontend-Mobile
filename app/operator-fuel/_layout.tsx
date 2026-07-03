@@ -19,28 +19,21 @@ import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 
-const BOTTOM_TABS = ['dashboard', 'trips', 'drivers', 'trucks', 'orders', 'materials'];
-const HIDDEN_TABS = ['profile', 'settings'];
+const FUEL_TABS = ['dispense', 'history'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
-  dashboard: { icon: 'home-outline', label: 'Home' },
-  trips: { icon: 'layers-outline', label: 'Trips' },
-  drivers: { icon: 'people-outline', label: 'Drivers' },
-  trucks: { icon: 'car-outline', label: 'Trucks' },
-  orders: { icon: 'document-text-outline', label: 'Orders' },
-  materials: { icon: 'cube-outline', label: 'Materials' },
+  dispense: { icon: 'water-outline', label: 'Dispense' },
+  history: { icon: 'time-outline', label: 'History' },
 };
 
-// Menu items for vendor drawer
 const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
-  { label: 'Profile', icon: 'person-outline', route: '/vendor/profile' },
+  { label: 'Issues', icon: 'warning-outline', route: '/screens/issues' },
+  { label: 'Profile', icon: 'person-outline', route: '/operator-fuel/profile' },
   { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
-  { label: 'My Drivers', icon: 'people-outline', route: '/vendor/drivers' },
-  { label: 'My Trucks', icon: 'car-outline', route: '/vendor/trucks' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
 
-export default function VendorLayout() {
+export default function OperatorFuelLayout() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -93,7 +86,7 @@ export default function VendorLayout() {
     <>
       <Tabs
         screenOptions={{
-          tabBarActiveTintColor: '#1B2A4A',
+          tabBarActiveTintColor: '#F59E0B',
           tabBarInactiveTintColor: '#94A3B8',
           tabBarShowLabel: true,
           tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
@@ -117,6 +110,12 @@ export default function VendorLayout() {
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity
+                onPress={() => router.push('/screens/issues' as any)}
+                style={{ paddingHorizontal: 6, paddingVertical: 8 }}
+              >
+                <Ionicons name="warning-outline" size={22} color="#EF4444" />
+              </TouchableOpacity>
+              <TouchableOpacity
                 onPress={() => router.push('/screens/notifications' as any)}
                 style={{ paddingHorizontal: 6, paddingVertical: 8 }}
               >
@@ -129,27 +128,29 @@ export default function VendorLayout() {
           ),
         }}
       >
-        {BOTTOM_TABS.map((tabName) => {
-          const config = TAB_ICONS[tabName];
-          return (
-            <Tabs.Screen
-              key={tabName}
-              name={tabName}
-              options={{
-                title: config?.label || tabName,
-                tabBarLabel: config?.label || tabName,
-                tabBarIcon: ({ color, focused }) => (
-                  <View style={[styles.tabIcon, focused && { backgroundColor: '#1B2A4A12' }]}>
-                    <Ionicons name={config?.icon || 'ellipse'} size={22} color={color} />
-                  </View>
-                ),
-              }}
-            />
-          );
-        })}
-        {HIDDEN_TABS.map((tabName) => (
-          <Tabs.Screen key={tabName} name={tabName} options={{ href: null }} />
-        ))}
+        <Tabs.Screen
+          name="dispense"
+          options={{
+            title: 'Fuel Dispense',
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.tabIcon, focused && { backgroundColor: '#F59E0B12' }]}>
+                <Ionicons name="water-outline" size={22} color={color} />
+              </View>
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="history"
+          options={{
+            title: 'Fuel History',
+            tabBarIcon: ({ color, focused }) => (
+              <View style={[styles.tabIcon, focused && { backgroundColor: '#F59E0B12' }]}>
+                <Ionicons name="time-outline" size={22} color={color} />
+              </View>
+            ),
+          }}
+        />
+        <Tabs.Screen name="profile" options={{ href: null }} />
       </Tabs>
 
       {/* Hamburger Drawer */}
@@ -175,8 +176,8 @@ export default function VendorLayout() {
             ]}
           >
             <View style={styles.drawerUser}>
-              <View style={[styles.drawerAvatar, { backgroundColor: '#1B2A4A15' }]}>
-                <Text style={{ fontSize: 20, fontWeight: '700', color: '#1B2A4A' }}>
+              <View style={[styles.drawerAvatar, { backgroundColor: '#F59E0B15' }]}>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: '#F59E0B' }}>
                   {(user?.displayName || 'U').charAt(0).toUpperCase()}
                 </Text>
               </View>
@@ -184,8 +185,8 @@ export default function VendorLayout() {
                 {user?.displayName || 'User'}
               </Text>
               <Text style={{ fontSize: 14, color: '#64748B' }}>{user?.email || ''}</Text>
-              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#1B2A4A12' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1B2A4A' }}>
+              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F59E0B12' }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#F59E0B' }}>
                   {getRoleLabel(user?.role || '')}
                 </Text>
               </View>
@@ -200,7 +201,7 @@ export default function VendorLayout() {
                   <Ionicons
                     name={item.icon}
                     size={20}
-                    color={item.label === 'Logout' ? '#EF4444' : '#1E293B'}
+                    color={item.label === 'Logout' ? '#EF4444' : item.label === 'Issues' ? '#F59E0B' : '#1E293B'}
                   />
                   <Text
                     style={[
@@ -373,4 +374,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
   },
-}); 
+});

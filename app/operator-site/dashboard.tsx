@@ -63,9 +63,9 @@ export default function OperatorSiteDashboardScreen() {
 
   /* ─── Filtered & categorized data ─── */
 
-  // Trucks that have been dispatched from quarry (non-cancelled)
+  // Trucks that have been dispatched from quarry (non-cancelled, non-completed)
   const allScheduled = useMemo(
-    () => deliveries.filter((d) => d.status !== 'cancelled'),
+    () => deliveries.filter((d) => !['cancelled', 'completed', 'delivered'].includes(d.status)),
     [deliveries],
   );
 

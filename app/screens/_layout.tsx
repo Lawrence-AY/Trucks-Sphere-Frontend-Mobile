@@ -15,6 +15,7 @@ export default function ScreensLayout() {
         headerRight: () => <HamburgerMenu />,
       }}
     >
+      <Stack.Screen name="receipt-note" options={{ title: 'Receipt Note' }} />
       <Stack.Screen name="weigh-receipt" options={{ title: 'Weighment Receipt' }} />
       <Stack.Screen name="delivery-note" options={{ title: 'Delivery Note' }} />
       <Stack.Screen name="job-details" options={{ title: 'Job Details' }} />
@@ -24,6 +25,7 @@ export default function ScreensLayout() {
       <Stack.Screen name="driver-history" options={{ headerShown: false }} />
       <Stack.Screen name="truck-history" options={{ title: 'Truck History' }} />
       <Stack.Screen name="vendor-detail" options={{ title: 'Vendor Details' }} />
+      <Stack.Screen name="fuel" options={{ title: 'Fuel Records' }} />
     </Stack>
   );
 }

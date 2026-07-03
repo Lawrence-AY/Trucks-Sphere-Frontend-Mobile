@@ -32,7 +32,7 @@ const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: s
 // Menu items for quarry operator drawer
 const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
   { label: 'Issues', icon: 'warning-outline', route: '/screens/issues' },
-  { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
+  { label: 'Profile', icon: 'person-outline', route: '/operator-quarry/profile' },
   { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];

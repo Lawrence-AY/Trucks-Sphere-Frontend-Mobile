@@ -13,10 +13,12 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
+import { getNextId } from '../../services/counter';
 import {
   DataCard,
   DetailRow,
@@ -286,6 +288,15 @@ export default function OperatorSiteWeightsScreen() {
     try {
       const now = new Date().toISOString();
 
+      // Use backend sequential counter for RN, fallback to in-memory
+      let receiptNoteId: string;
+      try {
+        const rnNum = await getNextId();
+        receiptNoteId = `${activeJob.jobId}/RN${rnNum.replace('RN', '').padStart(3, '0')}`;
+      } catch {
+        receiptNoteId = generateReceiptNoteId(activeJob.jobId);
+      }
+
       await updateDeliveryOrder(activeJob.id, {
         siteWeighOutWeight: weightOutNum,
         siteWeighOutAt: now,
@@ -294,6 +305,7 @@ export default function OperatorSiteWeightsScreen() {
         receivedAt: now,
         receivedLocation: activeJob.siteName || 'Site',
         receivedBy: 'Site Operator',
+        receiptNoteId,
         status: 'completed',
         updatedAt: now,
       });
@@ -307,6 +319,7 @@ export default function OperatorSiteWeightsScreen() {
         quantityDelivered: netWeight,
         receivedAt: now,
         receivedBy: 'Site Operator',
+        receiptNoteId,
         status: 'completed',
         updatedAt: now,
       };
@@ -317,7 +330,6 @@ export default function OperatorSiteWeightsScreen() {
       );
 
       // Show GRN
-      const receiptNoteId = generateReceiptNoteId(activeJob.jobId);
       setGrnData({
         ...updatedJob,
         receiptNoteId,
@@ -933,6 +945,7 @@ export default function OperatorSiteWeightsScreen() {
                 onPress={() => {
                   setGrnVisible(false);
                   closeWeighForm();
+                  router.navigate('/operator-site/dashboard' as any);
                 }}
               >
                 <Text
@@ -941,7 +954,7 @@ export default function OperatorSiteWeightsScreen() {
                     { color: colors.textSecondary },
                   ]}
                 >
-                  Done
+                  Done — Back to Schedule
                 </Text>
               </TouchableOpacity>
             </View>

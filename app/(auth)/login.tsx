@@ -35,8 +35,9 @@ export default function LoginScreen() {
         case 'admin': router.replace('/management/dashboard' as any); break;
         case 'vendor': router.replace('/vendor/dashboard' as any); break;
         case 'operator_site': router.replace('/operator-site/dashboard' as any); break;
-        case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
-        default: router.replace('/management/dashboard' as any);
+         case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
+         case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
+         default: router.replace('/management/dashboard' as any);
       }
     }
   }, [isAuthenticated]);
@@ -120,6 +121,9 @@ export default function LoginScreen() {
             {isLoading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.loginBtnText}>Login</Text>}
           </TouchableOpacity>
 
+          <Text style={styles.hint}>Login with one of the test accounts:</Text>
+         
+          <View style={{ height: 16 }} />
           <Text style={styles.version}>v1.0.0</Text>
         </View>
       </ScrollView>
@@ -176,5 +180,6 @@ const styles = StyleSheet.create({
   },
   loginBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   hint: { color: '#94A3B8', fontSize: 14, textAlign: 'center', marginTop: Spacing.lg },
+ 
   version: { color: '#CBD5E1', fontSize: 14, textAlign: 'center', marginTop: Spacing.sm },
 });

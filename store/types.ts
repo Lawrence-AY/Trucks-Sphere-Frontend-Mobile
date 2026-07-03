@@ -12,7 +12,7 @@ export interface User {
   createdAt: string;
 }
 
-export type UserRole = 'admin' | 'management' | 'operator_quarry' | 'operator_site' | 'vendor';
+export type UserRole = 'admin' | 'management' | 'operator_quarry' | 'operator_site' | 'vendor' | 'operator_fuel';
 
 export interface Vendor {
   id: string;

@@ -50,6 +50,7 @@ const HAMBURGER_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; ro
   { label: 'Settings', icon: 'settings-outline', route: '/vendor/settings', roles: ['vendor'] },
   { label: 'Settings', icon: 'settings-outline', route: '/operator-site/settings', roles: ['operator_site'] },
   { label: 'Settings', icon: 'settings-outline', route: '/operator-quarry/settings', roles: ['operator_quarry'] },
+  { label: 'Settings', icon: 'settings-outline', route: '/operator-fuel/settings', roles: ['operator_fuel'] },
   { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'] },
   { label: 'History', icon: 'time-outline', route: '/(tabs)/history', roles: ['admin', 'management', 'operator_quarry', 'operator_site'] },
   { label: 'Weigh-In', icon: 'download-outline', route: '/quarry/weigh-in', roles: ['operator_quarry'] },
@@ -57,6 +58,7 @@ const HAMBURGER_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; ro
   { label: 'Receive', icon: 'checkmark-circle-outline', route: '/site/receive', roles: ['operator_site'] },
   { label: 'Export Data', icon: 'cloud-download-outline', route: '/screens/issues', roles: ['admin', 'management'] },
   { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details', roles: ['admin', 'management'] },
+  { label: 'Fuel', icon: 'water-outline', route: '/screens/fuel', roles: ['admin', 'management', 'vendor'] },
 ];
 
 export default function TabsLayout() {

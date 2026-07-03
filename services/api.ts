@@ -168,6 +168,52 @@ export async function fetchSites(): Promise<any[]> {
   );
 }
 
+export async function fetchNextCounter(entityType: string): Promise<string> {
+  try {
+    const result = await backendRequest<{ id: string }>('get', `/api/counter/${entityType}`);
+    return result.id;
+  } catch (error: any) {
+    console.warn(`[API] fetchNextCounter(${entityType}) failed:`, error?.message || error);
+    // Fallback: generate a local timestamp-based ID
+    const fallback = Math.floor(Date.now() / 1000).toString(36).toUpperCase();
+    if (entityType === 'receipt_note') return `RN${fallback}`;
+    return `${entityType.substring(0, 3).toUpperCase()}${fallback}`;
+  }
+}
+
+export async function fetchFuelRecords(params?: { search?: string; vendorId?: string; jobId?: string; plateNumber?: string }): Promise<any[]> {
+  return safeFetch('fuel-records', () =>
+    backendRequest<any>('get', '/api/fuel', undefined, params).then(unwrapItems)
+  );
+}
+
+export async function createFuelRecord(payload: any): Promise<any> {
+  try {
+    console.log('[API] Creating fuel record...', payload);
+    const result = unwrapOne(await backendRequest('post', '/api/fuel', payload), payload);
+    console.log('[API] Fuel record created:', result);
+    return result;
+  } catch (error: any) {
+    console.warn('[API] createFuelRecord failed:', error?.message || error);
+    return payload;
+  }
+}
+
+export async function fetchUploads(params?: { deliveryOrderId?: string; type?: string }): Promise<any[]> {
+  return safeFetch('uploads', () =>
+    backendRequest<any>('get', '/api/uploads', undefined, params).then(unwrapItems)
+  );
+}
+
+export async function createUpload(payload: any): Promise<any> {
+  try {
+    return unwrapOne(await backendRequest('post', '/api/uploads', payload), payload);
+  } catch (error: any) {
+    console.warn('[API] createUpload failed:', error?.message || error);
+    return payload;
+  }
+}
+
 export async function fetchCheckpoints(params?: { jobId?: string; deliveryOrderId?: string }): Promise<any[]> {
   return safeFetch('checkpoints', () => {
     const url = '/api/checkpoints';
