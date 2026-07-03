@@ -28,6 +28,7 @@ import {
   EmptyState,
   MetricTile,
   PageShell,
+  SearchField,
   SectionTitle,
 } from '../../components/EnterpriseUI';
 
@@ -46,6 +47,7 @@ export default function OperatorQuarryDashboardScreen() {
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [queueSearch, setQueueSearch] = useState('');
 
   const loadData = async (silent?: boolean) => {
     if (!silent) setRefreshing(true);
@@ -69,9 +71,16 @@ export default function OperatorQuarryDashboardScreen() {
 
   useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
 
-  const queue = deliveries.filter(
-    (d) => !['delivered', 'completed', 'cancelled'].includes(d.status) && !d.weighInWeight,
-  );
+  const queue = useMemo(() => {
+    const q = queueSearch.toLowerCase();
+    return deliveries.filter(
+      (d) =>
+        !['delivered', 'completed', 'cancelled'].includes(d.status) &&
+        !d.weighInWeight &&
+        (!q || [d.jobId, d.driverName, d.plateNumber, d.vendorName].some((v) => String(v || '').toLowerCase().includes(q))),
+    );
+  }, [deliveries, queueSearch]);
+
   const completed = deliveries.filter(
     (d) => d.status === 'delivered' || d.status === 'completed',
   );
@@ -118,8 +127,7 @@ export default function OperatorQuarryDashboardScreen() {
     const now = new Date().toISOString();
     setSubmitting(true);
     setSubmitError('');
-    // Generate job ID: POMAT###/V###/D###/T###/J####
-    const jobId = generateJobId(selectedPo.poNumber, selectedPo.materialId, selectedPo.vendorId, selectedDriver.id, selectedVehicle.id);
+    const jobId = generateJobId(selectedPo.materialId, selectedPo.vendorId, selectedDriver.id, selectedVehicle.id);
     const payload = {
       id: generateId(),
       jobId: jobId,
@@ -139,7 +147,7 @@ export default function OperatorQuarryDashboardScreen() {
       quarryName: selectedPo.quarryName || 'Quarry',
       siteId: selectedPo.siteId || '',
       siteName: selectedPo.siteName || 'Site',
-      status: '',
+      status: 'PENDING_WEIGH_IN',
       createdBy: 'operator_quarry',
       createdAt: now,
       updatedAt: now,
@@ -148,6 +156,7 @@ export default function OperatorQuarryDashboardScreen() {
       const createdJob = await createDeliveryOrder(payload);
       setDeliveries((current) => [createdJob, ...current]);
       closeAddForm();
+      router.push(`/operator-quarry/weigh-in?id=${jobId}` as any);
     } catch (error: any) {
       setSubmitError(error?.response?.data?.error || error?.message || 'Failed to create job card.');
     } finally {
@@ -162,8 +171,14 @@ export default function OperatorQuarryDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />
         }
       >
-        
- 
+        <View style={styles.metricRow}>
+          <MetricTile icon="clipboard" label="In Queue" value={queue.length} tone={colors.warning} />
+          <MetricTile icon="checkmark-done" label="Completed" value={completed.length} tone={colors.success} />
+        </View>
+
+        <SearchField value={queueSearch} onChangeText={setQueueSearch} placeholder="Search by vehicle number, driver, job..." />
+
+        <SectionTitle title="Active Queue" />
         {loading ? (
           <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading queue...</Text></DataCard>
         ) : queue.length ? (

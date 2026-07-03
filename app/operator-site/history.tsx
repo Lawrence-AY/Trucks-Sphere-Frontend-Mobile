@@ -19,10 +19,9 @@ import { formatEAT, generateReceiptNoteId } from "../../utils/helpers";
 import {
   DataCard,
   EmptyState,
- 
   PageShell,
   SectionTitle,
- 
+  StatusPill,
 } from "../../components/EnterpriseUI";
 
 /* ─────────── CSV / PDF Export Helpers ─────────── */
@@ -416,8 +415,6 @@ export default function OperatorSiteHistoryScreen() {
                 </TouchableOpacity>
               </View>
 
-             
-
               {/* Parties */}
               <View
                 style={[styles.detailSection, { borderColor: colors.border }]}
@@ -787,7 +784,35 @@ export default function OperatorSiteHistoryScreen() {
         </Text>
       </View>
 
-     
+      {/* KPI Tiles */}
+      <View style={styles.kpiRow}>
+        <MetricTile
+          icon="checkmark-done"
+          label="Completed"
+          value={analytics.totalCompleted}
+          tone={colors.success}
+        />
+        {/* <MetricTile
+          icon="cube"
+          label="Site Net"
+          value={`${analytics.totalSiteNet.toFixed(1)}T`}
+          tone={colors.primary}
+        />
+      </View>
+      <View style={styles.kpiRow}>
+        <MetricTile
+          icon="analytics-outline"
+          label="Avg Net/Delivery"
+          value={`${analytics.avgNet.toFixed(1)}T`}
+          tone="#8B5CF6"
+        />*/}
+        <MetricTile
+          icon="warning-outline"
+          label="Discrepancies"
+          value={analytics.discrepancies}
+          tone={analytics.discrepancies > 0 ? colors.danger : colors.success}
+        />
+      </View>
 
       {/* Filter Pills */}
       <View style={styles.filterRow}>
@@ -911,7 +936,6 @@ export default function OperatorSiteHistoryScreen() {
                     {item.poNumber || "—"}
                   </Text>
                 </View>
-                
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
@@ -952,10 +976,8 @@ export default function OperatorSiteHistoryScreen() {
                   >
                     Qty
                   </Text>
-                 <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.weightOut
-                      ? `${parseFloat(item.weightOut).toFixed(1)} t`
-                      : "—"}
+                  <Text style={[styles.tableValue, { color: colors.text }]}>
+                    {item.quantityOrdered ?? "—"} t
                   </Text>
                 </View>
               </View>
@@ -1021,14 +1043,6 @@ export default function OperatorSiteHistoryScreen() {
                     {item.poNumber || "—"}
                   </Text>
                 </View>
-                {/* RN Badge — tappable to view receipt note */}
-                <TouchableOpacity
-                  style={[styles.rnBadge, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
-                  onPress={(e) => { e.stopPropagation(); router.push(`/screens/receipt-note?id=${item.jobId}` as any); }}
-                >
-                  <Ionicons name="receipt-outline" size={12} color="#10B981" />
-                  <Text style={[styles.rnBadgeText, { color: '#10B981' }]}>{item.receiptNoteId}</Text>
-                </TouchableOpacity>
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
