@@ -11,10 +11,11 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useTheme } from "../../hooks/useTheme";
 import { Radius, Spacing } from "../../constants/theme";
 import { fetchDeliveryOrders } from "../../services/api";
-import { formatEAT } from "../../utils/helpers";
+import { formatEAT, generateReceiptNoteId } from "../../utils/helpers";
 import {
   DataCard,
   EmptyState,
@@ -195,6 +196,10 @@ export default function OperatorSiteHistoryScreen() {
         );
         return date >= startDate;
       })
+      .map((d) => ({
+        ...d,
+        receiptNoteId: d.receiptNoteId || generateReceiptNoteId(d.jobId),
+      }))
       .sort(
         (a, b) =>
           new Date(
@@ -1016,7 +1021,14 @@ export default function OperatorSiteHistoryScreen() {
                     {item.poNumber || "—"}
                   </Text>
                 </View>
-            
+                {/* RN Badge — tappable to view receipt note */}
+                <TouchableOpacity
+                  style={[styles.rnBadge, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
+                  onPress={(e) => { e.stopPropagation(); router.push(`/screens/receipt-note?id=${item.jobId}` as any); }}
+                >
+                  <Ionicons name="receipt-outline" size={12} color="#10B981" />
+                  <Text style={[styles.rnBadgeText, { color: '#10B981' }]}>{item.receiptNoteId}</Text>
+                </TouchableOpacity>
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
@@ -1259,6 +1271,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   wValue: { fontSize: 14, fontWeight: "800", marginTop: 2 },
+  // RN Badge
+  rnBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  rnBadgeText: { fontSize: 11, fontWeight: "700" },
   // Detail Modal
   modalBackdrop: {
     flex: 1,

@@ -17,7 +17,7 @@ function getBaseUrl(): string {
   // Android emulator can't reach localhost — use 10.0.2.2
   if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
   // iOS simulator and web can use localhost
-  return 'http://localhost:5000';
+  return 'http://192.168.1.4:5000';
 }
 
 const API_BASE_URL = getBaseUrl();

@@ -20,7 +20,7 @@ import {
   fetchPurchaseOrders,
   fetchVehicles,
 } from '../../services/api';
-import { formatEAT, formatStatus, getStatusColor } from '../../utils/helpers';
+import { formatEAT, formatStatus, generateReceiptNoteId, getStatusColor } from '../../utils/helpers';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -111,6 +111,9 @@ export default function JobDetailsScreen() {
   const timelineCheckpoints = useMemo(() => checkpoints.filter((item) => item.type !== 'loading'), [checkpoints]);
   const isWeight = useMemo(() => timelineCheckpoints.some((item) => item.weight !== undefined && item.weight !== null), [timelineCheckpoints]);
 
+  const isCompleted = job?.status === 'completed' || job?.status === 'delivered';
+  const receiptNoteId = isCompleted && job?.jobId ? (job.receiptNoteId || generateReceiptNoteId(job.jobId)) : null;
+
   if (loading) {
     return (
       <PageShell>
@@ -156,12 +159,29 @@ export default function JobDetailsScreen() {
             <Text style={[styles.priorityText, { color: getStatusColor(job.status) }]}>{formatStatus(job.status)}</Text>
           </View>
         </View>
+
+        {/* Receipt Note (RN) for completed jobs — tappable */}
+        {receiptNoteId && (
+          <TouchableOpacity
+            style={[styles.rnBadge, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
+            onPress={() => router.push(`/screens/receipt-note?id=${job.jobId}` as any)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="receipt-outline" size={16} color="#10B981" />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rnLabel, { color: colors.textMuted }]}>Receipt Note</Text>
+              <Text style={[styles.rnValue, { color: '#10B981' }]}>{receiptNoteId}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#10B981" />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.primaryAction, { backgroundColor: colors.primary }]} onPress={() => router.push(`/screens/delivery-note?id=${job.jobId}`)}>
+          <TouchableOpacity style={[styles.primaryAction, { backgroundColor: colors.primary }]} onPress={() => router.push(`/screens/delivery-note?id=${job.jobId}` as any)}>
             <Ionicons name="receipt-outline" size={18} color="#FFFFFF" />
             <Text style={styles.primaryActionText}>Delivery note</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.secondaryAction, { borderColor: colors.border }]} onPress={() => router.push(`/screens/purchase-order?id=${job.purchaseOrderId || job.poNumber}`)}>
+          <TouchableOpacity style={[styles.secondaryAction, { borderColor: colors.border }]} onPress={() => router.push(`/screens/purchase-order?id=${job.purchaseOrderId || job.poNumber}` as any)}>
             <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
             <Text style={[styles.secondaryActionText, { color: colors.textSecondary }]}>Purchase order</Text>
           </TouchableOpacity>
@@ -262,6 +282,17 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   secondaryActionText: { fontSize: 13, fontWeight: '900' },
+  rnBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  rnLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  rnValue: { fontSize: 15, fontWeight: '900' },
   timelineItem: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
   timelineIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   timelineCopy: { flex: 1 },
