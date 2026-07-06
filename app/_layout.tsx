@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -8,15 +8,27 @@ import { useAuthStore } from '../store/authStore';
 import { Colors } from '../constants/theme';
 import Toast from 'react-native-toast-message';
 import WebLayout from '../components/WebLayout';
+import { setOnAuthExpired } from '../services/api';
 
 void ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
-  const { restoreSession } = useAuthStore();
+  const { restoreSession, logout } = useAuthStore();
 
   useEffect(() => {
     void restoreSession();
   }, [restoreSession]);
+
+  // Wire up auto-logout on token expiry
+  useEffect(() => {
+    setOnAuthExpired(async () => {
+      console.log('[RootLayout] Auth expired — logging out');
+      await logout();
+      // Force redirect to login by replacing entire navigation stack
+      router.replace('/(auth)/login' as any);
+    });
+    return () => setOnAuthExpired(() => {});
+  }, [logout]);
 
   const handleRootLayout = useCallback(() => {
     void ExpoSplashScreen.hideAsync().catch((error) => {

@@ -124,13 +124,17 @@ export default function TabsLayout() {
 
   return (
       <View style={{ flex: 1 }}>
-        <Tabs
+      <Tabs
+        tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textSecondary,
-          tabBarShowLabel: true,
-          tabBarLabelStyle: styles.tabBarLabel,
-          tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : [
+          tabBarShowLabel: Platform.OS !== 'web',
+          headerShown: Platform.OS !== 'web',
+          tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : styles.tabBarLabel,
+          tabBarStyle: Platform.OS === 'web'
+            ? { display: 'none', height: 0, overflow: 'hidden', position: 'absolute', opacity: 0, pointerEvents: 'none' }
+            : [
             styles.tabBar,
             {
               backgroundColor: '#FFFFFF',
@@ -181,7 +185,7 @@ export default function TabsLayout() {
             />
           );
         })}
-        {HIDDEN_TABS.map((tabName) => (
+        {Platform.OS !== 'web' && HIDDEN_TABS.map((tabName) => (
           <Tabs.Screen
             key={tabName}
             name={tabName}

@@ -5,7 +5,7 @@
  * Gracefully returns empty arrays on network errors.
  */
 import axios from 'axios';
-import { getStoredToken } from './database';
+import { getStoredToken, clearAuthData } from './database';
 
 import { Platform } from 'react-native';
 
@@ -30,6 +30,14 @@ console.log('[API] Platform:', Platform.OS, '| ENV vars:', {
 
 // ============== HTTP Helpers ==============
 
+// ============== Auth Expiry Handler ==============
+
+let onAuthExpired: (() => void) | null = null;
+
+export function setOnAuthExpired(handler: () => void) {
+  onAuthExpired = handler;
+}
+
 async function backendRequest<T>(
   method: 'get' | 'post' | 'put' | 'delete',
   url: string,
@@ -43,16 +51,28 @@ async function backendRequest<T>(
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  const response = await axios.request<T>({
-    baseURL: API_BASE_URL,
-    url,
-    method,
-    data,
-    params,
-    headers,
-    timeout: 10000,
-  });
-  return response.data;
+  try {
+    const response = await axios.request<T>({
+      baseURL: API_BASE_URL,
+      url,
+      method,
+      data,
+      params,
+      headers,
+      timeout: 10000,
+    });
+    return response.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+    const errorCode = error?.response?.data?.code || error?.response?.data?.errorInfo?.code || '';
+    // Firebase token expired → auto logout
+    if (status === 401 && (errorCode === 'auth/id-token-expired' || errorCode.includes('token-expired') || errorCode.includes('TOKEN_EXPIRED'))) {
+      console.warn('[API] Token expired detected, triggering auto-logout');
+      await clearAuthData();
+      if (onAuthExpired) onAuthExpired();
+    }
+    throw error;
+  }
 }
 
 function unwrapItems<T = any>(data: any): T[] {

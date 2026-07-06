@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
   StyleSheet,
@@ -9,7 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { fetchFuelRecords } from '../../services/api';
-import { formatEAT } from '../../utils/helpers';
+import { useAuthStore } from '../../store/authStore';
+import { formatEAT, normalizeVendorId } from '../../utils/helpers';
 import {
   DataCard,
   DetailRow,
@@ -21,24 +22,45 @@ import {
 
 export default function FuelScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [records, setRecords] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  const loadData = async () => {
+  const vendorId = user?.vendorId;
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
+  console.log('[FuelScreen] user.role:', user?.role, 'user.vendorId:', vendorId, 'normalized:', normalizedUserVendorId);
+
+  const loadData = useCallback(async () => {
     setRefreshing(true);
     try {
-      const data = (await fetchFuelRecords()) || [];
+      // Vendors only see their own fuel records — always pass vendorId for server-side filtering
+      const params = normalizedUserVendorId ? { vendorId: normalizedUserVendorId } : undefined;
+      let data = (await fetchFuelRecords(params)) || [];
+      // Double-enforce: client-side filter ensures ONLY this vendor's records are shown
+      const isVendor = user?.role === 'vendor';
+      if (isVendor) {
+        if (normalizedUserVendorId) {
+          data = data.filter((r: any) => {
+            const recordVendorId = normalizeVendorId(r.vendorId || r.vendor);
+            return recordVendorId === normalizedUserVendorId;
+          });
+        } else {
+          // Vendor role without vendorId — cannot determine which records belong to them
+          console.warn('[FuelScreen] Vendor role detected but no vendorId. Showing empty to prevent data leakage.');
+          data = [];
+        }
+      }
       setRecords(data);
     } catch {
     } finally {
       setRefreshing(false);
       setLoading(false);
     }
-  };
+  }, [normalizedUserVendorId, user?.role]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -73,7 +95,7 @@ export default function FuelScreen() {
       </View>
 
       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate..." />
-      <SectionTitle title={`All Fuel Records (${filtered.length})`} />
+      <SectionTitle title={normalizedUserVendorId ? `Fuel Records · ${user?.displayName || normalizedUserVendorId} (${filtered.length})` : `All Fuel Records (${filtered.length})`} />
 
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
@@ -103,7 +125,13 @@ export default function FuelScreen() {
           </DataCard>
         ))
       ) : (
-        <EmptyState icon="water-outline" title="No fuel records" subtitle="No fuel has been dispensed yet." />
+        <EmptyState
+          icon="water-outline"
+          title="No fuel records"
+          subtitle={user?.role === 'vendor' && !normalizedUserVendorId
+            ? 'Your vendor account needs to be re-linked. Please log out and log in again.'
+            : 'No fuel has been dispensed yet.'}
+        />
       )}
     </PageShell>
   );

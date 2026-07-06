@@ -5,7 +5,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { fetchDeliveryOrders } from '../../services/api';
-import { formatEAT } from '../../utils/helpers';
+import { formatEAT, normalizeVendorId } from '../../utils/helpers';
 import {
   CommandHeader,
   DataCard,
@@ -43,8 +43,8 @@ export default function ActiveScreen() {
     setRefreshing(true);
     try {
       const data = await fetchDeliveryOrders();
-      const visible = user?.role === 'vendor'
-        ? (data || []).filter((item: any) => item.vendorId === (user.vendorId || 'v1'))
+      const visible = user?.role === 'vendor' && user.vendorId
+        ? (data || []).filter((item: any) => normalizeVendorId(item.vendorId) === normalizeVendorId(user.vendorId))
         : data || [];
       setDeliveries(visible);
     } catch (error) {
@@ -76,7 +76,8 @@ export default function ActiveScreen() {
       if (filter === 'weighbridge') return Boolean(item.weighInWeight || item.weighOutWeight || item.status?.includes('weigh'));
       if (filter === 'delivered') return ['delivered', 'completed'].includes(item.status);
       if (filter === 'flagged') return isFlagged(item);
-      return true;
+      // Default "all" filter: exclude completed/delivered/cancelled
+      return !['delivered', 'completed', 'cancelled'].includes(item.status);
     });
   }, [deliveries, filter, search]);
 

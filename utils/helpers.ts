@@ -7,11 +7,28 @@ export function generateId(): string {
 }
 
 // Pad numeric IDs to 3 digits: "1" -> "001", "V1" -> "V001", "V01" -> "V001"
-function padToThree(id: string): string {
+export function padToThree(id: string): string {
   const stripped = id.replace(/^[VvDdTtJj]/, '').replace(/[^0-9]/g, '');
   const num = parseInt(stripped, 10);
   if (isNaN(num)) return stripped.padStart(3, '0');
   return String(num).padStart(3, '0');
+}
+
+/**
+ * Normalize vendor ID to consistent format e.g. "v1" → "V001", "1" → "V001", "V1" → "V001"
+ * Useful for matching vendor IDs that may come from different sources (old mock data vs new counter IDs).
+ */
+export function normalizeVendorId(raw: any): string {
+  if (!raw && raw !== 0) return '';
+  const str = String(raw).trim();
+  if (!str) return '';
+  // Match pattern: optional V/v prefix followed by digits, e.g. "V001", "v1", "1", "V01"
+  const match = str.match(/^([Vv]?)(\d+)$/);
+  if (match) {
+    const num = parseInt(match[2], 10);
+    return `V${String(num).padStart(3, '0')}`;
+  }
+  return str.toUpperCase();
 }
 
 // Extract type prefix: V, D, T, J

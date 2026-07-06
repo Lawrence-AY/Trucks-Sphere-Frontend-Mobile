@@ -1,10 +1,10 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Alert, ScrollView, Share } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Alert, ScrollView, Share, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { fetchDeliveryOrders } from '../../services/api';
+import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
 
 function RRow({ label, value }: { label: string; value: string }) {
   return (
@@ -22,6 +22,8 @@ export default function ReceiveScreen() {
   const [selected, setSelected] = useState<any>(null);
   const [deliveryNote, setDeliveryNote] = useState('');
   const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     console.log('[ReceiveScreen] Fetching delivery orders...');
@@ -30,6 +32,26 @@ export default function ReceiveScreen() {
       setDeliveries(data);
     }).catch(err => console.error('[ReceiveScreen] Failed to fetch deliveries:', err));
   }, []);
+
+  const handleReceive = async () => {
+    if (!selected || saved) return;
+    setSaving(true);
+    try {
+      const deliveredQty = Number(selected.quantity || selected.quantityOrdered || selected.netWeight || 0);
+      await updateDeliveryOrder(selected.id || selected.jobId, {
+        status: 'delivered',
+        quantityDelivered: deliveredQty,
+        receivedAt: new Date().toISOString(),
+        deliveryNote: deliveryNote || undefined,
+      });
+      console.log('[ReceiveScreen] Delivery marked as delivered:', selected.jobId);
+      setSaved(true);
+    } catch (err) {
+      console.error('[ReceiveScreen] Failed to update delivery:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const pending = deliveries.filter((d: any) => d.status === 'in_transit' || d.status === 'in_transit_to_site')
     .filter((d: any) =>
@@ -84,10 +106,27 @@ export default function ReceiveScreen() {
 
             <View style={styles.receiptDivider} />
 
-            <View style={styles.confirmedBadge}>
-              <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-              <Text style={styles.confirmedText}>RECEIVED & CONFIRMED</Text>
-            </View>
+            {saved ? (
+              <View style={styles.confirmedBadge}>
+                <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+                <Text style={styles.confirmedText}>RECEIVED & CONFIRMED</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.confirmReceiveBtn, { backgroundColor: '#10B981' }]}
+                onPress={handleReceive}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                    <Text style={styles.confirmReceiveText}>Confirm Receipt</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
             <Text style={[styles.receiptTime, { color: colors.textTertiary }]}>
               {new Date().toLocaleString()}
             </Text>
@@ -249,6 +288,16 @@ const styles = StyleSheet.create({
   receiptIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
   receiptTitle: { fontSize: 16, fontWeight: '800', letterSpacing: 1 },
   receiptSub: { fontSize: 12, marginTop: 2 },
+  confirmReceiveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
+    marginVertical: Spacing.sm,
+  },
+  confirmReceiveText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   receiptDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.md },
   receiptBody: { gap: 8 },
   receiptRow: { flexDirection: 'row', justifyContent: 'space-between' },
