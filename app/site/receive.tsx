@@ -98,7 +98,7 @@ export default function ReceiveScreen() {
             <RRow label="Driver" value={selected.driverName} />
             <RRow label="Truck" value={selected.truckPlate} />
             <RRow label="Material" value={selected.material} />
-            <RRow label="Qty" value={`${selected.quantity}T`} />
+            
             <Text style={styles.rDash}>- - - - - - - - - - - - - - - -</Text>
             <Text style={styles.rFooter}>✓ RECEIVED & CONFIRMED</Text>
             <Text style={styles.rTime}>{new Date().toLocaleString()}</Text>

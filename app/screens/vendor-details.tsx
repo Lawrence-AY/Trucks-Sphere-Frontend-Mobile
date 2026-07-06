@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,15 +21,24 @@ import { formatCurrency, formatStatus, getStatusColor } from '../../utils/helper
 export default function VendorDetailsScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const colors = useTheme();
+  const { width } = useWindowDimensions();
   const [loading, setLoading] = useState(true);
   const [vendor, setVendor] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [trucks, setTrucks] = useState<any[]>([]);
+  const [allVendors, setAllVendors] = useState<any[]>([]);
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [vendorOrdersCount, setVendorOrdersCount] = useState<Record<string, number>>({});
+  const [vendorDriversCount, setVendorDriversCount] = useState<Record<string, number>>({});
 
-  const loadData = async () => {
-    if (!id) return;
+  const isListView = !id;
+  const isWeb = Platform.OS === 'web';
+  const isLargeScreen = width >= 768;
+  const cardWidth = isWeb && isLargeScreen ? `${100 / 3}%` as const : isWeb ? '49%' as const : '100%' as const;
+
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [vendorData, orderData, deliveryData, driverData, truckData] = await Promise.all([
@@ -37,20 +49,45 @@ export default function VendorDetailsScreen() {
         fetchVehicles(),
       ]);
 
-      setVendor(vendorData.find((v: any) => v.id === id) || { id, name });
-      setOrders((orderData || []).filter((order: any) => order.vendorId === id));
-      setDeliveries((deliveryData || []).filter((delivery: any) => delivery.vendorId === id));
-      setDrivers((driverData || []).filter((driver: any) => driver.vendorId === id));
-      setTrucks((truckData || []).filter((truck: any) => truck.vendorId === id));
+      if (id) {
+        setVendor(vendorData.find((v: any) => v.id === id) || { id, name });
+        setOrders((orderData || []).filter((order: any) => order.vendorId === id));
+        setDeliveries((deliveryData || []).filter((delivery: any) => delivery.vendorId === id));
+        setDrivers((driverData || []).filter((driver: any) => driver.vendorId === id));
+        setTrucks((truckData || []).filter((truck: any) => truck.vendorId === id));
+      } else {
+        // Build counts for the vendor list
+        const ordersCount: Record<string, number> = {};
+        const driversCount: Record<string, number> = {};
+        (orderData || []).forEach((o: any) => {
+          if (o.vendorId) ordersCount[o.vendorId] = (ordersCount[o.vendorId] || 0) + 1;
+        });
+        (driverData || []).forEach((d: any) => {
+          if (d.vendorId) driversCount[d.vendorId] = (driversCount[d.vendorId] || 0) + 1;
+        });
+        setAllVendors(vendorData || []);
+        setVendorOrdersCount(ordersCount);
+        setVendorDriversCount(driversCount);
+      }
     } catch (e) {
       console.error('Failed to load vendor details:', e);
     }
     setLoading(false);
-  };
+  }, [id, name]);
 
   useEffect(() => {
     loadData();
-  }, [id]);
+  }, [loadData]);
+
+  const filteredVendors = useMemo(() => {
+    if (!vendorSearch.trim()) return allVendors;
+    const q = vendorSearch.toLowerCase();
+    return allVendors.filter((v: any) =>
+      (v.name || '').toLowerCase().includes(q) ||
+      (v.email || '').toLowerCase().includes(q) ||
+      (v.phone || '').toLowerCase().includes(q)
+    );
+  }, [allVendors, vendorSearch]);
 
   const totals = useMemo(() => {
     const ordered = orders.reduce((sum, order) => sum + Number(order.quantity || 0), 0);
@@ -62,16 +99,114 @@ export default function VendorDetailsScreen() {
     };
   }, [orders, deliveries]);
 
-  const vendorName = vendor?.name || name || 'Vendor';
-
   if (loading) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading vendor details...</Text>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading vendors...</Text>
       </View>
     );
   }
+
+  // ===== VENDOR LIST VIEW (no id param) =====
+  if (isListView) {
+    return (
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.listHeader}>
+          <Text style={[styles.listTitle, { color: colors.text }]}>Vendors</Text>
+          <Text style={[styles.listSubtitle, { color: colors.textSecondary }]}>
+            {filteredVendors.length} vendor{filteredVendors.length !== 1 ? 's' : ''} found
+          </Text>
+        </View>
+
+        <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Search vendors by name, email, phone..."
+            placeholderTextColor={colors.textMuted}
+            value={vendorSearch}
+            onChangeText={setVendorSearch}
+          />
+          {vendorSearch.length > 0 && (
+            <TouchableOpacity onPress={() => setVendorSearch('')}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {filteredVendors.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name="business-outline" size={48} color={colors.textMuted} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              {vendorSearch ? 'No vendors match your search' : 'No vendors found'}
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.vendorGrid, { gap: Spacing.md }]}>
+            {filteredVendors.map((v: any) => (
+              <TouchableOpacity
+                key={v.id}
+                style={[styles.vendorCard, {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  width: cardWidth,
+                }]}
+                onPress={() => router.push(`/screens/vendor-details?id=${v.id}&name=${encodeURIComponent(v.name || '')}`)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.vendorCardTop}>
+                  <View style={[styles.vendorCardAvatar, { backgroundColor: colors.accent + '15' }]}>
+                    <Text style={[styles.vendorCardAvatarText, { color: colors.accent }]}>
+                      {(v.name || 'V').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.vendorCardInfo}>
+                    <Text style={[styles.vendorCardName, { color: colors.text }]} numberOfLines={1}>{v.name}</Text>
+                    {v.phone && (
+                      <Text style={[styles.vendorCardMeta, { color: colors.textSecondary }]}>
+                        <Ionicons name="call-outline" size={11} color={colors.textSecondary} /> {v.phone}
+                      </Text>
+                    )}
+                    {v.email && (
+                      <Text style={[styles.vendorCardMeta, { color: colors.textSecondary }]}>
+                        <Ionicons name="mail-outline" size={11} color={colors.textSecondary} /> {v.email}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </View>
+                <View style={[styles.vendorCardStats, { borderTopColor: colors.borderLight || colors.border }]}>
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, { color: colors.text }]}>{vendorOrdersCount[v.id] || 0}</Text>
+                    <Text style={[styles.statLabel, { color: colors.textMuted }]}>POs</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, { color: colors.text }]}>{vendorDriversCount[v.id] || 0}</Text>
+                    <Text style={[styles.statLabel, { color: colors.textMuted }]}>Drivers</Text>
+                  </View>
+                  {v.status && (
+                    <View style={[styles.statusBadgeSmall, { backgroundColor: getStatusColor(v.status) + '18' }]}>
+                      <Text style={[styles.statusBadgeText, { color: getStatusColor(v.status) }]}>
+                        {formatStatus(v.status)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    );
+  }
+
+  // ===== SINGLE VENDOR DETAIL VIEW (with id param) =====
+  const vendorName = vendor?.name || name || 'Vendor';
 
   return (
     <ScrollView
@@ -215,6 +350,37 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingText: { fontSize: 14, marginTop: Spacing.md },
+  // List View
+  listHeader: { marginBottom: Spacing.lg },
+  listTitle: { fontSize: 24, fontWeight: '900' },
+  listSubtitle: { fontSize: 13, marginTop: 4 },
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md, paddingVertical: Platform.OS === 'web' ? Spacing.sm : Spacing.md,
+    marginBottom: Spacing.lg, gap: Spacing.sm,
+  },
+  searchInput: { flex: 1, fontSize: 14, paddingVertical: 0 },
+  vendorGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+  },
+  vendorCard: {
+    borderWidth: 1, borderRadius: Radius.lg,
+    padding: Spacing.lg, marginBottom: Spacing.sm,
+  },
+  vendorCardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  vendorCardAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  vendorCardAvatarText: { fontSize: 18, fontWeight: '800' },
+  vendorCardInfo: { flex: 1 },
+  vendorCardName: { fontSize: 15, fontWeight: '800' },
+  vendorCardMeta: { fontSize: 12, marginTop: 2 },
+  vendorCardStats: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, gap: Spacing.lg },
+  statItem: { alignItems: 'center' },
+  statValue: { fontSize: 16, fontWeight: '800' },
+  statLabel: { fontSize: 10, marginTop: 1 },
+  statusBadgeSmall: { marginLeft: 'auto', paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
+  statusBadgeText: { fontSize: 10, fontWeight: '800' },
+  // Detail View
   headerCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md, gap: Spacing.md },
   avatar: { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 18, fontWeight: '800' },

@@ -107,7 +107,7 @@ export default function OperatorFuelLayout() {
           headerTintColor: '#1E293B',
           headerTitleStyle: { fontWeight: '700', fontSize: 16 },
           headerShadowVisible: false,
-          headerRight: () => (
+          headerRight: Platform.OS === 'web' ? undefined : () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity
                 onPress={() => router.push('/screens/issues' as any)}

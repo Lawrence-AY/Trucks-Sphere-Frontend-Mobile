@@ -36,6 +36,7 @@ export default function FuelDispenseScreen() {
 
   const [activeJob, setActiveJob] = useState<any>(null);
   const [fuelAmount, setFuelAmount] = useState('');
+  const [pricePerLiter, setPricePerLiter] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // FAB / Job Search Modal state
@@ -112,8 +113,8 @@ export default function FuelDispenseScreen() {
     }, 300);
   };
 
-  const openFuelForm = (job: any) => { setActiveJob(job); setFuelAmount(''); };
-  const closeFuelForm = () => { setActiveJob(null); setFuelAmount(''); setSubmitting(false); };
+  const openFuelForm = (job: any) => { setActiveJob(job); setFuelAmount(''); setPricePerLiter(''); };
+  const closeFuelForm = () => { setActiveJob(null); setFuelAmount(''); setPricePerLiter(''); setSubmitting(false); };
 
   const handleSubmit = async () => {
     const amount = parseFloat(fuelAmount);
@@ -123,6 +124,7 @@ export default function FuelDispenseScreen() {
     }
     setSubmitting(true);
     try {
+      const price = parseFloat(pricePerLiter) || 0;
       await createFuelRecord({
         jobId: activeJob.jobId,
         deliveryOrderId: activeJob.id,
@@ -133,6 +135,8 @@ export default function FuelDispenseScreen() {
         vendorName: activeJob.vendorName || 'N/A',
         materialName: activeJob.materialName || 'N/A',
         fuelAmount: amount,
+        pricePerLiter: price,
+        totalCost: price > 0 ? amount * price : 0,
         unit: 'Litres',
         dispensedBy: 'Fuel Operator',
         dispensedAt: new Date().toISOString(),
@@ -199,6 +203,37 @@ export default function FuelDispenseScreen() {
             />
             <Text style={[styles.fuelSuffix, { color: colors.textMuted }]}>Litres</Text>
           </View>
+        </View>
+
+        <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.inputHeader}>
+            <View style={[styles.inputIcon, { backgroundColor: '#10B98115' }]}>
+              <Ionicons name="cash-outline" size={22} color="#10B981" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.inputTitle, { color: colors.text }]}>Price per Litre</Text>
+              <Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter price per litre (KES).</Text>
+            </View>
+          </View>
+          <View style={[styles.fuelInputWrap, { borderColor: '#10B981', backgroundColor: colors.inputBg }]}>
+            <TextInput
+              style={[styles.fuelInput, { color: colors.text }]}
+              placeholder="0.00"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="decimal-pad"
+              value={pricePerLiter}
+              onChangeText={setPricePerLiter}
+            />
+            <Text style={[styles.fuelSuffix, { color: colors.textMuted }]}>KES/L</Text>
+          </View>
+          {fuelAmount && pricePerLiter ? (
+            <View style={{ marginTop: Spacing.sm, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Total Cost:</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#10B981' }}>
+                KES {(parseFloat(fuelAmount) * parseFloat(pricePerLiter)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <TouchableOpacity

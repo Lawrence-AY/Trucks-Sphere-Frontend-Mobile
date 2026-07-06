@@ -123,14 +123,14 @@ export default function TabsLayout() {
   );
 
   return (
-    <View style={{ flex: 1 }}>
-      <Tabs
+      <View style={{ flex: 1 }}>
+        <Tabs
         screenOptions={{
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textSecondary,
           tabBarShowLabel: true,
           tabBarLabelStyle: styles.tabBarLabel,
-          tabBarStyle: [
+          tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : [
             styles.tabBar,
             {
               backgroundColor: '#FFFFFF',
@@ -143,7 +143,7 @@ export default function TabsLayout() {
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700', fontSize: 17 },
           headerShadowVisible: false,
-          headerRight: () => (
+          headerRight: Platform.OS === 'web' ? undefined : () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity onPress={() => router.push('/screens/notifications' as any)} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
                 <Ionicons name="notifications-outline" size={22} color={colors.primary} />
@@ -291,7 +291,7 @@ export default function TabsLayout() {
           <Text style={styles.successToastText}>Logged out successfully</Text>
         </View>
       ) : null}
-    </View>
+      </View>
   );
 }
 

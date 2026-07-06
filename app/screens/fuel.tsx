@@ -89,6 +89,14 @@ export default function FuelScreen() {
             <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginBottom: Spacing.sm }}>Job: {item.jobId}</Text>
             <DetailRow icon="person-outline" value={`${item.driverName || 'N/A'} · ${item.plateNumber || 'N/A'}`} />
             <DetailRow icon="business-outline" value={`Vendor: ${item.vendorName || 'N/A'}`} />
+            {item.pricePerLiter ? (
+              <>
+                <DetailRow icon="cash-outline" value={`${item.pricePerLiter?.toFixed(2)} KES/L`} />
+                {item.totalCost ? (
+                  <DetailRow icon="wallet-outline" value={`Total: KES ${item.totalCost?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
+                ) : null}
+              </>
+            ) : null}
             <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: Spacing.sm }}>
               Dispensed: {formatEAT(item.dispensedAt || item.createdAt)}
             </Text>

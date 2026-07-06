@@ -98,7 +98,7 @@ export default function ManagementLayout() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: '#1B2A4A',
@@ -122,7 +122,7 @@ export default function ManagementLayout() {
           headerTintColor: '#1E293B',
           headerTitleStyle: { fontWeight: '700', fontSize: 16 },
           headerShadowVisible: false,
-          headerRight: () => (
+          headerRight: Platform.OS === 'web' ? undefined : () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity onPress={() => router.push('/screens/notifications' as any)} style={{ paddingHorizontal: 6, paddingVertical: 8 }}>
                 <Ionicons name="notifications-outline" size={22} color="#1B2A4A" />
@@ -222,7 +222,7 @@ export default function ManagementLayout() {
           </View>
         </View>
       </Modal>
-    </View>
+      </View>
   );
 }
 

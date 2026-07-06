@@ -948,18 +948,7 @@ export default function OperatorSiteHistoryScreen() {
                     {item.materialName || "—"}
                   </Text>
                 </View>
-                <View style={styles.tableCell}>
-                  <Text
-                    style={[styles.tableLabel, { color: colors.textMuted }]}
-                  >
-                    Qty
-                  </Text>
-                 <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.weightOut
-                      ? `${parseFloat(item.weightOut).toFixed(1)} t`
-                      : "—"}
-                  </Text>
-                </View>
+               
               </View>
               <View style={styles.tableRow}>
                 <View style={styles.tableCell}>
@@ -1065,16 +1054,7 @@ export default function OperatorSiteHistoryScreen() {
                     {item.materialName || "—"}
                   </Text>
                 </View>
-                <View style={styles.tableCell}>
-                  <Text
-                    style={[styles.tableLabel, { color: colors.textMuted }]}
-                  >
-                    Qty Ordered
-                  </Text>
-                  <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.quantityOrdered ?? "—"} t
-                  </Text>
-                </View>
+               
               </View>
 
               {/* Weight Summary Row */}

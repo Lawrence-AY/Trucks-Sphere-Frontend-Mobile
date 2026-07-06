@@ -334,12 +334,7 @@ export default function OperatorQuarryHistoryScreen() {
                   {item.materialName || '—'}
                 </Text>
               </View>
-              <View style={styles.tableCell}>
-                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Qty</Text>
-                <Text style={[styles.tableValue, { color: colors.text }]}>
-                  {item.quantityOrdered ?? '—'} t
-                </Text>
-              </View>
+             
             </View>
             <Text style={[styles.tableTimestamp, { color: colors.textTertiary }]}>
               Updated: {formatEAT(item.updatedAt || item.createdAt)}
@@ -397,12 +392,7 @@ export default function OperatorQuarryHistoryScreen() {
                   {item.materialName || '—'}
                 </Text>
               </View>
-              <View style={styles.tableCell}>
-                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Qty</Text>
-                <Text style={[styles.tableValue, { color: colors.text }]}>
-                  {item.quantityOrdered ?? '—'} t
-                </Text>
-              </View>
+           
             </View>
 
             {/* Weight Summary Row for Completed */}
