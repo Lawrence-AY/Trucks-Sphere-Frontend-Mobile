@@ -134,46 +134,7 @@ export default function DeliveryNoteScreen() {
             </View>
           </View>
 
-          {/* Journey Timeline */}
-          <View style={{ marginTop: Spacing.sm }}>
-            <Text style={[styles.sectTitle, { color: colors.text }]}>Journey Timeline</Text>
-            <View style={[styles.timelineWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              {JOURNEY_STEPS.map((step, idx) => {
-                const matchingCp = sortedCheckpoints.find(cp => cp.type === step.type);
-                const isCompleted = !!matchingCp;
-                const isCurrent = !isCompleted && (currentStepIdx === idx - 1);
-                const isLast = idx === JOURNEY_STEPS.length - 1;
-                let dotBg = '#CBD5E1';
-                if (isCompleted) { dotBg = '#16A34A'; }
-                else if (isCurrent) { dotBg = '#3B82F6'; }
-                return (
-                  <View key={step.type} style={styles.tRow}>
-                    <View style={styles.tLeft}>
-                      <View style={[styles.tDot, { backgroundColor: dotBg }]}>
-                        {isCompleted && <Ionicons name="checkmark" size={12} color="#FFF" />}
-                        {isCurrent && <Ionicons name="ellipse" size={6} color="#FFF" />}
-                      </View>
-                      {!isLast && <View style={[styles.tLine, { backgroundColor: isCompleted ? '#16A34A' : '#E2E8F0' }]} />}
-                    </View>
-                    <View style={[styles.tContent, { borderColor: isCompleted ? '#16A34A30' : isCurrent ? '#3B82F630' : colors.border }, isCurrent && { borderColor: '#3B82F6', borderWidth: 1.5 }]}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        <Ionicons name={step.icon as any} size={14} color={dotBg} />
-                        <Text style={{ fontSize: 14, color: isCompleted ? '#16A34A' : isCurrent ? '#3B82F6' : '#94A3B8', fontWeight: isCurrent ? '700' : '400' }}>{step.label}</Text>
-                        {isCompleted && matchingCp?.location && <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, backgroundColor: '#16A34A15' }}><Text style={{ fontSize: 10, color: '#16A34A' }}>{matchingCp.location.split(',')[0]}</Text></View>}
-                        {isCurrent && <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, backgroundColor: '#3B82F620' }}><Text style={{ fontSize: 10, color: '#3B82F6', fontWeight: '700' }}>ACTIVE</Text></View>}
-                      </View>
-                      {isCompleted && matchingCp && (
-                        <>
-                          <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 4 }}><Ionicons name="location-outline" size={11} /> {matchingCp.location}</Text>
-                          <Text style={{ fontSize: 14, color: colors.textMuted, marginTop: 2 }}><Ionicons name="time-outline" size={11} /> {formatEAT(matchingCp.timestamp)}</Text>
-                        </>
-                      )}
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
+         
 
           {/* Share */}
           <TouchableOpacity style={[styles.btn, { backgroundColor: NAVY }]} onPress={() => setShareVisible(true)}>

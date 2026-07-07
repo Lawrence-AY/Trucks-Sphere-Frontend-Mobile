@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import {
   Platform, StyleSheet, View, Text, TouchableOpacity, Animated, Pressable, useWindowDimensions, ScrollView, Modal, ActivityIndicator,
+  type ColorValue,
 } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,13 +17,13 @@ const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings'];
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'grid-outline', label: 'Dashboard', family: 'Ionicons' },
   drivers: { icon: 'people-outline', label: 'Drivers', family: 'Ionicons' },
-  trucks: { icon: 'car-outline', label: 'Trucks', family: 'Ionicons' },
+ // trucks: { icon: 'car-outline', label: 'Trucks', family: 'Ionicons' },
   orders: { icon: 'document-text-outline', label: 'Orders', family: 'Ionicons' },
   active: { icon: 'pulse-outline', label: 'Active', family: 'Ionicons' },
   materials: { icon: 'cube-outline', label: 'Materials', family: 'Ionicons' },
 };
 
-const getTabIcon = (name: string, color: string) => {
+const getTabIcon = (name: string, color: ColorValue) => {
   const config = TAB_ICONS[name];
   if (!config) return <Ionicons name="ellipse" size={22} color={color} />;
   switch (config.family) {
@@ -43,7 +44,6 @@ const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: 
   { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
   { label: 'History', icon: 'time-outline', route: '/(tabs)/history' },
   { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details' },
-  { label: 'Fuel', icon: 'water-outline', route: '/screens/fuel' },
   { label: 'Export Data', icon: 'cloud-download-outline', route: '/management/settings' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];

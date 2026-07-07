@@ -116,12 +116,7 @@ export default function VendorDetailsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.listHeader}>
-          <Text style={[styles.listTitle, { color: colors.text }]}>Vendors</Text>
-          <Text style={[styles.listSubtitle, { color: colors.textSecondary }]}>
-            {filteredVendors.length} vendor{filteredVendors.length !== 1 ? 's' : ''} found
-          </Text>
-        </View>
+        
 
         <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
@@ -191,9 +186,7 @@ export default function VendorDetailsScreen() {
                   </View>
                   {v.status && (
                     <View style={[styles.statusBadgeSmall, { backgroundColor: getStatusColor(v.status) + '18' }]}>
-                      <Text style={[styles.statusBadgeText, { color: getStatusColor(v.status) }]}>
-                        {formatStatus(v.status)}
-                      </Text>
+                       
                     </View>
                   )}
                 </View>
@@ -300,8 +293,7 @@ export default function VendorDetailsScreen() {
                   <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{order.materialName} · {order.quantity} {order.unit}</Text>
                 </View>
                 <View style={[styles.badge, { backgroundColor: getStatusColor(order.status) + '15' }]}>
-                  <Text style={[styles.badgeText, { color: getStatusColor(order.status) }]}>{formatStatus(order.status)}</Text>
-                </View>
+                 </View>
               </View>
               <View style={styles.orderMetrics}>
                 <Metric label="Ordered" value={`${order.quantity} ${order.unit}`} />

@@ -126,7 +126,7 @@ export default function VendorTrucksScreen() {
                       {vehicle.make} {vehicle.model} ({vehicle.year || 'N/A'})
                     </Text>
                   </View>
-                  <StatusPill status={vehicle.status} compact />
+            
                 </View>
               </View>
             </View>

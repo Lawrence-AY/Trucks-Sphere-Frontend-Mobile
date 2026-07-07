@@ -21,6 +21,7 @@ import {
   fetchPurchaseOrders,
   fetchVehicles,
 } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { formatEAT, generateId, generateJobId } from '../../utils/helpers';
 import {
   DataCard,
@@ -33,6 +34,7 @@ import {
 
 export default function OperatorQuarryDashboardScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -79,7 +81,7 @@ export default function OperatorQuarryDashboardScreen() {
   const matchingPurchaseOrders = useMemo(() => {
     const term = poSearch.trim().toLowerCase();
     return purchaseOrders
-      .filter((order) => ['approved', 'in_progress', 'pending'].includes(order.status))
+      .filter((order) => ['approved', 'pending', 'in_progress'].includes(order.status))
       .filter(
         (order) =>
           !term ||
@@ -102,6 +104,19 @@ export default function OperatorQuarryDashboardScreen() {
       (vehicle) => vehicle.vendorId === selectedPo.vendorId && vehicle.status === 'active',
     );
   }, [vehicles, selectedPo]);
+
+  // Check if a driver+vehicle combo has an active (non-completed) job
+  const driverVehicleActiveJob = useMemo(() => {
+    if (!selectedDriver || !selectedVehicle) return null;
+    return deliveries.find(
+      (d) =>
+        d.driverId === selectedDriver.id &&
+        d.plateNumber === (selectedVehicle.plateNumber || selectedVehicle.plate) &&
+        !['delivered', 'completed', 'cancelled'].includes(d.status),
+    );
+  }, [deliveries, selectedDriver, selectedVehicle]);
+
+  const isDriverVehicleBusy = !!driverVehicleActiveJob;
 
   const closeAddForm = () => {
     setAddVisible(false);
@@ -135,11 +150,10 @@ export default function OperatorQuarryDashboardScreen() {
       materialName: selectedPo.materialName,
       quantityOrdered: Number(selectedPo.quantity || 0),
       quantityDelivered: 0,
-      quarryId: selectedPo.quarryId || '',
+      quarryId: selectedPo.quarryId || user?.quarryId || '',
       quarryName: selectedPo.quarryName || 'Quarry',
-      siteId: selectedPo.siteId || '',
+      siteId: selectedPo.siteId || user?.siteId || '',
       siteName: selectedPo.siteName || 'Site',
-      status: '',
       createdBy: 'operator_quarry',
       createdAt: now,
       updatedAt: now,
@@ -150,6 +164,7 @@ export default function OperatorQuarryDashboardScreen() {
       closeAddForm();
     } catch (error: any) {
       setSubmitError(error?.response?.data?.error || error?.message || 'Failed to create job card.');
+      // Don't close the form — let the user fix & retry
     } finally {
       setSubmitting(false);
     }
@@ -197,7 +212,7 @@ export default function OperatorQuarryDashboardScreen() {
                   </View>
                 </View>
                 <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
-                <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
+                <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
                 <DetailRow icon="business-outline" value={`${item.vendorName || 'N/A'}`} />
                 <View style={[styles.stageBadge, { backgroundColor: `${s.color}15`, borderColor: `${s.color}44` }]}>
                   <Ionicons name={s.icon as any} size={14} color={s.color} />
@@ -267,7 +282,7 @@ export default function OperatorQuarryDashboardScreen() {
                   <Text style={[styles.prefillTitle, { color: colors.text }]}>Order Details</Text>
                   <DetailRow icon="document-outline" value={`Order: ${selectedPo.poNumber}`} />
                   <DetailRow icon="business-outline" value={`Vendor: ${selectedPo.vendorName}`} />
-                  <DetailRow icon="cube-outline" value={`Material: ${selectedPo.materialName} - ${selectedPo.quantity} ${selectedPo.unit}`} />
+                  <DetailRow icon="cube-outline" value={`Material: ${selectedPo.materialName}`} />
                 </View>
               )}
 
@@ -327,12 +342,22 @@ export default function OperatorQuarryDashboardScreen() {
                 </>
               )}
 
+              {/* Driver-Vehicle busy warning */}
+              {isDriverVehicleBusy && selectedDriver && selectedVehicle && (
+                <View style={[styles.busyWarning, { backgroundColor: '#EF444410', borderColor: '#EF444433' }]}>
+                  <Ionicons name="warning-outline" size={16} color="#EF4444" />
+                  <Text style={[styles.busyWarningText, { color: '#EF4444' }]}>
+                    This driver and truck already have an active job ({driverVehicleActiveJob?.jobId}). They must complete it before a new job can be created.
+                  </Text>
+                </View>
+              )}
+
               {submitError ? <Text style={[styles.submitError, { color: colors.danger }]}>{submitError}</Text> : null}
 
               <TouchableOpacity
-                style={[styles.createBtn, { backgroundColor: selectedPo && selectedDriver && selectedVehicle && !submitting ? colors.primary : colors.border }]}
+                style={[styles.createBtn, { backgroundColor: selectedPo && selectedDriver && selectedVehicle && !submitting && !isDriverVehicleBusy ? colors.primary : colors.border }]}
                 onPress={createQueueJob}
-                disabled={!selectedPo || !selectedDriver || !selectedVehicle || submitting}
+                disabled={!selectedPo || !selectedDriver || !selectedVehicle || submitting || isDriverVehicleBusy}
               >
                 {submitting ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Ionicons name="add-circle-outline" size={19} color="#FFFFFF" />}
                 <Text style={styles.createBtnText}>{submitting ? 'Creating...' : 'Create Job Card'}</Text>
@@ -374,4 +399,7 @@ const styles = StyleSheet.create({
   submitError: { fontSize: 13, fontWeight: '800', lineHeight: 18 },
   createBtn: { minHeight: 50, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   createBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  // Busy warning styles
+  busyWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
+  busyWarningText: { fontSize: 12, fontWeight: '700', flex: 1, lineHeight: 17 },
 });

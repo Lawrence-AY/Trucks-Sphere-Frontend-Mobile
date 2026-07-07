@@ -57,7 +57,7 @@ export default function OperatorSiteReceiveScreen() {
              
             </View>
             <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
-            <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
+            <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
             <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
           </DataCard>
         ))

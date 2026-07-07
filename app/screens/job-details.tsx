@@ -141,12 +141,7 @@ export default function JobDetailsScreen() {
 
   return (
     <PageShell>
-      <CommandHeader
-        eyebrow={job.poNumber || purchaseOrder?.poNumber || 'Job operations'}
-        title={job.jobId}
-        subtitle={`${job.materialName || purchaseOrder?.materialName || 'Material'} to ${job.siteName || 'Destination'} | ${job.jobId}`}
-        right={<StatusPill status={job.status} compact />}
-      />
+    
 
       <DataCard>
         <View style={styles.summaryHead}>

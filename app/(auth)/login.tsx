@@ -121,7 +121,7 @@ export default function LoginScreen() {
             {isLoading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.loginBtnText}>Login</Text>}
           </TouchableOpacity>
 
-          <Text style={styles.hint}>Login with one of the test accounts:</Text>
+    
          
           <View style={{ height: 16 }} />
           <Text style={styles.version}>v1.0.0</Text>

@@ -100,7 +100,7 @@ export default function MaterialDetailsScreen() {
       <CommandHeader
         eyebrow={material.category || 'Material'}
         title={material.name}
-        subtitle={`${orders.length} purchase orders · ${summary.vendors} vendors`}
+      
       />
 
       <View style={styles.metricRow}>
@@ -120,7 +120,7 @@ export default function MaterialDetailsScreen() {
                   <Text style={[styles.poNumber, { color: colors.text }]}>{order.poNumber}</Text>
                   <Text style={[styles.summarySub, { color: colors.textMuted }]}>{order.vendorName}</Text>
                 </View>
-                <StatusPill status={order.status} compact />
+              
               </View>
               <DetailRow icon="cube-outline" value={`${Math.round(order.quantity || 0)} ${order.unit || material.unit || 'units'} ordered`} />
               <DetailRow icon="navigate-outline" value={`${order.quarryName || 'Origin'} to ${order.siteName || 'Destination'}`} />
@@ -135,7 +135,7 @@ export default function MaterialDetailsScreen() {
                   <Text style={[styles.jobMeta, { color: colors.textMuted }]}>
                     {job.driverName || 'Unassigned'} - {job.plateNumber || 'No vehicle'}
                   </Text>
-                  <StatusPill status={job.status} compact />
+                 
                 </View>
               ))}
             </DataCard>

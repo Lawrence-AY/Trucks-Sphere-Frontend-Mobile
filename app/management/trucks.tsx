@@ -49,7 +49,7 @@ export default function ManagementTrucksScreen() {
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
         
       <SearchField value={search} onChangeText={setSearch} placeholder="Search plate, model..." />
-      <SectionTitle title={`${filtered.length} vehicles`} />
+    
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading vehicles...</Text></DataCard>
       ) : filtered.length ? (

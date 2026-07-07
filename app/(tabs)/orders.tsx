@@ -74,11 +74,7 @@ export default function OrdersScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader
-        eyebrow="Procurement execution"
-        title="Purchase orders"
-        subtitle={`${orders.length} orders`}
-      />
+      
 
       <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, vendor, material..." />
 

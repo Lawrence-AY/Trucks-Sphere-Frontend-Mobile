@@ -17,7 +17,6 @@ export default function SiteLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Deliveries' }} />
-      <Stack.Screen name="receive" options={{ title: 'Receive Delivery' }} />
     </Stack>
   );
 }

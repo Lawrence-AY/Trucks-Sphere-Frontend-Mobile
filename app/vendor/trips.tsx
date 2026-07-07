@@ -142,7 +142,7 @@ export default function VendorTripsScreen() {
                     PO: {item.poNumber || 'N/A'}
                   </Text>
                 </View>
-                <StatusPill status={item.status} />
+             
               </View>
               <DetailRow
                 icon="person-outline"
@@ -150,7 +150,7 @@ export default function VendorTripsScreen() {
               />
               <DetailRow
                 icon="cube-outline"
-                value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} ${item.unit || 'tonnes'}`}
+                value={`${item.materialName || 'Material'} `}
               />
               {jobFuel > 0 && (
                 <View style={[styles.fuelRow, { backgroundColor: '#F59E0B10' }]}>

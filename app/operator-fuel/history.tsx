@@ -74,9 +74,7 @@ export default function FuelHistoryScreen() {
                   <Text style={{ fontSize: 13, fontWeight: '800', color: isComplete ? '#10B981' : '#F59E0B' }}>
                     {item.fuelId || item.id || item.jobId}
                   </Text>
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginTop: 1 }}>
-                    Job: {item.jobId}
-                  </Text>
+                
                 </View>
                 <View style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                   {item.fuelAmount > 0 ? (

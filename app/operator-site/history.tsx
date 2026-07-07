@@ -233,7 +233,7 @@ export default function OperatorSiteHistoryScreen() {
       0,
     );
 
-    // Discrepancy count (jobs where site vs expected difference > 0.5T)
+ 
     const discrepancies = completedRecords.filter(
       (r) =>
         r.siteWeightDifference != null &&
@@ -506,16 +506,7 @@ export default function OperatorSiteHistoryScreen() {
                     {item.materialName || "N/A"}
                   </Text>
                 </View>
-                <View style={styles.detailRow}>
-                  <Text
-                    style={[styles.detailLabel, { color: colors.textMuted }]}
-                  >
-                    Ordered
-                  </Text>
-                  <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.quantityOrdered ?? "—"} tonnes
-                  </Text>
-                </View>
+                 
               </View>
 
               {/* Weights */}
@@ -638,11 +629,7 @@ export default function OperatorSiteHistoryScreen() {
                 {/* Difference */}
                 {diff != null && (
                   <View style={styles.detailDiffRow}>
-                    <Text
-                      style={[styles.detailLabel, { color: colors.textMuted }]}
-                    >
-                      vs Expected ({item.quantityOrdered ?? 0}T)
-                    </Text>
+                    
                     <Text
                       style={[
                         styles.detailValue,
@@ -891,7 +878,7 @@ export default function OperatorSiteHistoryScreen() {
       )}
 
       {/* ─── Pending Jobs ─── */}
-      <SectionTitle title={`Pending (${pendingJobs.length})`} />
+    
       {loading ? (
         <DataCard>
           <Text style={{ fontSize: 14, color: colors.textMuted }}>

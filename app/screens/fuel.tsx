@@ -108,8 +108,7 @@ export default function FuelScreen() {
                 <Text style={{ fontSize: 14, fontWeight: '800', color: '#F59E0B' }}>{item.fuelAmount?.toFixed(1)} L</Text>
               </View>
             </View>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted, marginBottom: Spacing.sm }}>Job: {item.jobId}</Text>
-            <DetailRow icon="person-outline" value={`${item.driverName || 'N/A'} · ${item.plateNumber || 'N/A'}`} />
+             <DetailRow icon="person-outline" value={`${item.driverName || 'N/A'} · ${item.plateNumber || 'N/A'}`} />
             <DetailRow icon="business-outline" value={`Vendor: ${item.vendorName || 'N/A'}`} />
             {item.pricePerLiter ? (
               <>

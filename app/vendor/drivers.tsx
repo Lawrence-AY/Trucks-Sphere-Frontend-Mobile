@@ -121,7 +121,7 @@ export default function VendorDriversScreen() {
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                     {driver.name}
                   </Text>
-                  <StatusPill status={driver.status} compact />
+                
                 </View>
                 <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
                   {driver.phone || 'No phone'}

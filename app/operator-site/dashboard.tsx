@@ -63,9 +63,15 @@ export default function OperatorSiteDashboardScreen() {
 
   /* ─── Filtered & categorized data ─── */
 
-  // Trucks that have been dispatched from quarry (non-cancelled, non-completed)
+  // Only show trucks that have been weighed at quarry (weighIn + weighOut weight recorded)
+  // and have NOT been weighed in at site yet — once weighed in, they move to Weights tab
   const allScheduled = useMemo(
-    () => deliveries.filter((d) => !['cancelled', 'completed', 'delivered'].includes(d.status)),
+    () => deliveries.filter((d) => {
+      if (['cancelled', 'completed', 'delivered', 'weighed_in'].includes(d.status)) return false;
+      if (d.siteWeighInWeight != null) return false; // already weighed in — move off schedule
+      // Must have been weighed at quarry (has both weigh in and weigh out weights)
+      return d.weighInWeight != null && d.weighOutWeight != null;
+    }),
     [deliveries],
   );
 
@@ -149,12 +155,12 @@ export default function OperatorSiteDashboardScreen() {
       return;
     }
 
-    // Optional: warn if weight seems unreasonable compared to expected
+   
     const expected = job.quantityOrdered || 0;
     if (weightInNum < expected * 0.3) {
       Alert.alert(
         'Low Weight Warning',
-        `The Site Arrival Weight (${weightInNum.toFixed(1)}T) is significantly lower than the expected load (${expected}T). Do you want to proceed?`,
+        `The Site Arrival Weight (${weightInNum.toFixed(1)}T) Do you want to proceed?`,
         [
           { text: 'No', style: 'cancel' },
           {
@@ -262,8 +268,6 @@ export default function OperatorSiteDashboardScreen() {
           </DataCard>
         ) : filtered.length ? (
           filtered.slice(0, 30).map((item) => {
-            const hasSiteWeighIn =
-              item.siteWeighInWeight != null || item.status === 'weighed_in';
             const hasQuarryWeights =
               item.weighInWeight != null && item.weighOutWeight != null;
             const quarryNet =
@@ -275,17 +279,13 @@ export default function OperatorSiteDashboardScreen() {
             const isSubmitting = submitting[item.id];
             const error = submitErrors[item.id];
             const weightInVal = getWeightInput(item.id);
-            const isCompleted =
-              item.status === 'completed' || item.status === 'delivered';
-            const isWeighedIn =
-              hasSiteWeighIn && !isCompleted;
 
             return (
               <DataCard key={item.id}>
                 {/* Card Header */}
                 <TouchableOpacity
-                  onPress={() => !isCompleted && toggleExpand(item.id)}
-                  activeOpacity={isCompleted ? 1 : 0.7}
+                  onPress={() => toggleExpand(item.id)}
+                  activeOpacity={0.7}
                   style={styles.cardHeaderTouchable}
                 >
                   <View style={styles.cardHeader}>
@@ -300,28 +300,6 @@ export default function OperatorSiteDashboardScreen() {
                       </Text>
                     </View>
                     <View style={styles.cardHeaderRight}>
-                      {isWeighedIn && (
-                        <View
-                          style={[
-                            styles.weighedInBadge,
-                            { backgroundColor: '#3B82F615', borderColor: '#3B82F633' },
-                          ]}
-                        >
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={14}
-                            color="#3B82F6"
-                          />
-                          <Text
-                            style={[
-                              styles.weighedInBadgeText,
-                              { color: '#3B82F6' },
-                            ]}
-                          >
-                            Weighed In
-                          </Text>
-                        </View>
-                      )}
                  
                     </View>
                   </View>
@@ -332,7 +310,7 @@ export default function OperatorSiteDashboardScreen() {
                   />
                   <DetailRow
                     icon="cube-outline"
-                    value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`}
+                    value={`${item.materialName || 'Material'}`}
                   />
                   <DetailRow
                     icon="business-outline"
@@ -362,38 +340,14 @@ export default function OperatorSiteDashboardScreen() {
                     </View>
                   )}
 
-                  {/* Site Weigh In value (if already completed) */}
-                  {hasSiteWeighIn && item.siteWeighInWeight != null && (
-                    <View
-                      style={[
-                        styles.siteWeightBadge,
-                        { backgroundColor: '#10B98112', borderColor: '#10B98133' },
-                      ]}
-                    >
-                      <Ionicons name="scale-outline" size={12} color="#10B981" />
-                      <Text
-                        style={[
-                          styles.siteWeightLabel,
-                          { color: '#10B981' },
-                        ]}
-                      >
-                        Site Arrival: {item.siteWeighInWeight.toFixed(1)}T
-                      </Text>
-                    </View>
-                  )}
-
                   <Text
                     style={[styles.timestamp, { color: colors.textTertiary }]}
                   >
-                    {isCompleted
-                      ? `Completed: ${formatEAT(item.receivedAt || item.updatedAt || item.createdAt)}`
-                      : hasSiteWeighIn
-                      ? `Weighed In: ${formatEAT(item.siteWeighInAt || item.updatedAt)}`
-                      : `Dispatched: ${formatEAT(item.weighOutAt || item.updatedAt || item.createdAt)}`}
+                    {`Dispatched: ${formatEAT(item.weighOutAt || item.updatedAt || item.createdAt)}`}
                   </Text>
 
-                  {/* Tap hint for non-completed items */}
-                  {!isCompleted && !isExpanded && (
+                  {/* Tap hint */}
+                  {!isExpanded && (
                     <View
                       style={[
                         styles.tapHint,
@@ -408,16 +362,14 @@ export default function OperatorSiteDashboardScreen() {
                       <Text
                         style={[styles.tapHintText, { color: colors.primary }]}
                       >
-                        {hasSiteWeighIn
-                          ? 'Weigh In completed — go to Weights tab'
-                          : 'Tap to record Site Arrival Weight'}
+                        Tap to record Site Arrival Weight
                       </Text>
                     </View>
                   )}
                 </TouchableOpacity>
 
                 {/* ─── Expanded Weight In Form ─── */}
-                {isExpanded && !isCompleted && !hasSiteWeighIn && (
+                {isExpanded && (
                   <View style={styles.weightInSection}>
                     <View
                       style={[
@@ -662,28 +614,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   quarryNetLabel: { fontSize: 12, fontWeight: '700' },
-  siteWeightBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    marginTop: Spacing.xs,
-  },
-  siteWeightLabel: { fontSize: 12, fontWeight: '700' },
-  weighedInBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-  },
-  weighedInBadgeText: { fontSize: 11, fontWeight: '700' },
   timestamp: { fontSize: 12, marginTop: Spacing.sm },
   tapHint: {
     flexDirection: 'row',

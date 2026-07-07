@@ -198,7 +198,7 @@ export default function PurchaseOrderScreen() {
             <TouchableOpacity onPress={() => { router.back(); }}>
               <Ionicons name="arrow-back" size={22} color={colors.text} />
             </TouchableOpacity>
-            <Text style={[styles.createTitle, { color: colors.text }]}>New Purchase Order</Text>
+            <Text style={[styles.createTitle, { color: colors.text }]}> </Text>
             <View style={{ width: 22 }} />
           </View>
           <View style={[styles.receipt, { backgroundColor: colors.surface, borderColor: colors.border }]}>

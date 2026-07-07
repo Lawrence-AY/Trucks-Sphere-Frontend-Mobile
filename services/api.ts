@@ -17,7 +17,7 @@ function getBaseUrl(): string {
   // Android emulator can't reach localhost — use 10.0.2.2
   if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
   // iOS simulator and web can use localhost
-  return 'http://192.168.1.4:5000';
+  return 'http://192.168.1.112:5000';
 }
 
 const API_BASE_URL = getBaseUrl();
@@ -147,15 +147,10 @@ export async function fetchDeliveryOrders(params?: { search?: string; status?: s
 }
 
 export async function createDeliveryOrder(payload: any): Promise<any> {
-  try {
-    console.log('[API] Creating delivery order...', payload);
-    const result = unwrapOne(await backendRequest('post', '/api/delivery-orders', payload), payload);
-    console.log('[API] Delivery order created:', result);
-    return result;
-  } catch (error: any) {
-    console.warn('[API] createDeliveryOrder failed:', error?.message || error);
-    return payload;
-  }
+  console.log('[API] Creating delivery order...', payload);
+  const result = unwrapOne(await backendRequest('post', '/api/delivery-orders', payload), payload);
+  console.log('[API] Delivery order created:', result);
+  return result;
 }
 
 export async function updateDeliveryOrder(id: string, payload: any): Promise<any> {

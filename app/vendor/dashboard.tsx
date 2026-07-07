@@ -80,11 +80,7 @@ export default function VendorDashboardScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader
-        eyebrow={`Vendor ${vendorId.toUpperCase()}`}
-        title={vendorName}
-        subtitle={`${drivers.length} drivers · ${vehicles.length} trucks · ${orders.length} POs`}
-      />
+    
       <View style={styles.metricRow}>
         <MetricTile icon="document-text" label="Orders" value={orders.length} tone={colors.primary} onPress={() => router.push('/vendor/orders' as any)} />
         <MetricTile icon="people" label="Drivers" value={drivers.length} tone={colors.accent} onPress={() => router.push('/vendor/drivers' as any)} />
@@ -113,10 +109,10 @@ export default function VendorDashboardScreen() {
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId || item.id}</Text>
                   <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>PO: {item.poNumber || 'N/A'}</Text>
                 </View>
-                <StatusPill status={item.status} />
+              
               </View>
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No vehicle'}`} />
-              <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} ${item.unit || 'tonnes'}`} />
+              <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}   `} />
               {jobFuel > 0 && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, backgroundColor: '#F59E0B10' }}>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: '#F59E0B' }}>{jobFuel.toFixed(1)} L fuel</Text>

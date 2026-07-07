@@ -209,11 +209,13 @@ export default function OperatorSiteWeightsScreen() {
 
   /* ─── Filtering & Categorizing ─── */
 
-  // Only show jobs that have completed site weigh-in (status = 'weighed_in') or are still in progress
+  // Only show jobs that have completed site weigh-in but NOT yet weighed out.
+  // Once weighed out (completed/delivered), they move to history.
   const eligibleJobs = useMemo(() => {
     return deliveries.filter(
       (d) =>
-        d.status !== 'cancelled' &&
+        !['cancelled', 'completed', 'delivered'].includes(d.status) &&
+        d.siteWeighOutWeight == null &&
         (d.siteWeighInWeight != null || d.status === 'weighed_in'),
     );
   }, [deliveries]);
@@ -480,10 +482,10 @@ export default function OperatorSiteWeightsScreen() {
               icon="person-outline"
               value={`${activeJob.driverName || 'N/A'} · ${activeJob.plateNumber || 'N/A'}`}
             />
-            <DetailRow
-              icon="cube-outline"
-              value={`${activeJob.materialName || 'Material'} · ${activeJob.quantityOrdered || 0} tonnes`}
-            />
+              <DetailRow
+                icon="cube-outline"
+                value={`${activeJob.materialName || 'Material'}`}
+              />
             <DetailRow
               icon="business-outline"
               value={`Vendor: ${activeJob.vendorName || 'N/A'}`}
@@ -1029,7 +1031,7 @@ export default function OperatorSiteWeightsScreen() {
               />
               <DetailRow
                 icon="cube-outline"
-                value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`}
+                value={`${item.materialName || 'Material'}`}
               />
 
               {/* Site Arrival Weight Badge */}
@@ -1050,34 +1052,6 @@ export default function OperatorSiteWeightsScreen() {
                   Site Arrival: {siteIn.toFixed(1)} T
                 </Text>
               </View>
-
-              {/* If completed, show net + diff */}
-              {isCompleted && siteNet != null && (
-                <View
-                  style={[
-                    styles.listNetBadge,
-                    { backgroundColor: '#8B5CF610' },
-                  ]}
-                >
-                  <Ionicons
-                    name="checkmark-done-circle"
-                    size={12}
-                    color="#8B5CF6"
-                  />
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: '700',
-                      color: '#8B5CF6',
-                    }}
-                  >
-                    Net: {siteNet.toFixed(1)}T
-                    {diff != null
-                      ? `  (Δ ${diff > 0 ? '+' : ''}${diff.toFixed(1)}T)`
-                      : ''}
-                  </Text>
-                </View>
-              )}
 
               {!isCompleted && (
                 <View

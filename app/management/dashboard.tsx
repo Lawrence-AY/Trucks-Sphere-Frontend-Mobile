@@ -103,13 +103,15 @@ export default function ManagementDashboardScreen() {
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading operational feed...</Text></DataCard>
       ) : recentDeliveries.length ? (
         recentDeliveries.map((item) => (
-          <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}` as any)}>
+           <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}` as any)}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber || 'Unlinked PO'}</Text>
+              <View>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber || 'Unlinked PO'}</Text>
+                <Text style={{ fontSize: 12, marginTop: 2, fontWeight: '700', color: colors.textMuted }}>{item.jobId}</Text>
+              </View>
             </View>
             <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No vehicle'}`} />
-            <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
-            <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} → ${item.siteName || 'Destination'}`} />
+            <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} `} />
             <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
           </DataCard>
         ))

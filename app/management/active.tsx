@@ -233,8 +233,8 @@ export default function ManagementActiveScreen() {
                 </View>
               </View>
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
-              <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || 0} tonnes`} />
-              <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} → ${item.siteName || 'Destination'}`} />
+              <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} `} />
+
               {item.netWeight != null && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.success}15`, marginTop: Spacing.sm }}>
                   <Ionicons name="scale-outline" size={12} color={colors.success} />
