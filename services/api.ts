@@ -17,7 +17,7 @@ function getBaseUrl(): string {
   // Android emulator can't reach localhost — use 10.0.2.2
   if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
   // iOS simulator and web can use localhost
-  return 'http://192.168.1.112:5000';
+  return 'http://192.168.1.132:5000';
 }
 
 const API_BASE_URL = getBaseUrl();
@@ -200,6 +200,53 @@ export async function fetchFuelRecords(params?: { search?: string; vendorId?: st
   return safeFetch('fuel-records', () =>
     backendRequest<any>('get', '/api/fuel', undefined, params).then(unwrapItems)
   );
+}
+
+export async function requestFuelAuthorization(payload: any): Promise<any> {
+  try {
+    console.log('[API] Requesting fuel authorization...', payload);
+    const result = unwrapOne(await backendRequest('post', '/api/fuel-authorization/request', payload), payload);
+    console.log('[API] Fuel authorization requested:', result);
+    return result;
+  } catch (error: any) {
+    console.warn('[API] requestFuelAuthorization failed:', error?.message || error);
+    return payload;
+  }
+}
+
+export async function verifyFuelAuthorization(authId: string, otp: string, authorize: boolean): Promise<any> {
+  try {
+    console.log('[API] Verifying fuel authorization:', authId, authorize);
+    const result = unwrapOne(await backendRequest('post', '/api/fuel-authorization/verify', { authId, otp, authorize }), { status: 'error' });
+    console.log('[API] Fuel authorization verified:', result);
+    return result;
+  } catch (error: any) {
+    console.warn('[API] verifyFuelAuthorization failed:', error?.message || error);
+    throw error;
+  }
+}
+
+export async function getFuelAuthorizationStatus(authId: string): Promise<any> {
+  try {
+    console.log('[API] Checking fuel authorization status:', authId);
+    const result = await backendRequest<any>('get', `/api/fuel-authorization/status/${authId}`);
+    console.log('[API] Fuel authorization status:', result);
+    return result;
+  } catch (error: any) {
+    console.warn('[API] getFuelAuthorizationStatus failed:', error?.message || error);
+    return { status: 'error' };
+  }
+}
+
+export async function getPendingAuthorizations(vendorId: string): Promise<any[]> {
+  try {
+    console.log('[API] Fetching pending authorizations for vendor:', vendorId);
+    const result = await backendRequest<any[]>('get', `/api/fuel-authorization/pending/${vendorId}`);
+    return result as any[];
+  } catch (error: any) {
+    console.warn('[API] getPendingAuthorizations failed:', error?.message || error);
+    return [];
+  }
 }
 
 export async function createFuelRecord(payload: any): Promise<any> {

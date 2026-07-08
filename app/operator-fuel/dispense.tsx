@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   RefreshControl,
   ScrollView,
@@ -19,43 +20,28 @@ import {
   createFuelRecord,
   fetchFuelRecords,
   fetchVendors,
-  fetchDrivers,
-  fetchVehicles,
+  requestFuelAuthorization,
+  getFuelAuthorizationStatus,
 } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { formatEAT, generateFuelRecordId, normalizeVendorId, padToThree } from '../../utils/helpers';
+import { formatEAT, generateFuelRecordId } from '../../utils/helpers';
 import {
   DataCard,
   DetailRow,
   EmptyState,
   PageShell,
-  SearchField,
-  SectionTitle,
 } from '../../components/EnterpriseUI';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-type FlowStep = 'list' | 'vendor' | 'driver' | 'truck' | 'form';
+type FlowStep = 'list' | 'authorization' | 'form';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function typePrefix(id: string): 'V' | 'D' | 'T' | 'J' {
-  const upper = String(id).toUpperCase();
-  if (upper.startsWith('V')) return 'V';
-  if (upper.startsWith('D')) return 'D';
-  if (upper.startsWith('T')) return 'T';
-  return 'J';
-}
 
-function buildFuelId(vendorId: string, driverId: string, truckId: string, fuelSeq: number): string {
-  const v = `${typePrefix(vendorId)}${padToThree(vendorId)}`;
-  const d = `${typePrefix(driverId)}${padToThree(driverId)}`;
-  const t = `${typePrefix(truckId)}${padToThree(truckId)}`;
-  return `${v}/${d}/${t}/F${String(fuelSeq).padStart(3, '0')}`;
-}
-
+// Sequential fuel counter per job (in-memory)
 const fuelSeqMap: Record<string, number> = {};
 function nextFuelSeq(key: string): number {
   if (!fuelSeqMap[key]) fuelSeqMap[key] = 0;
@@ -74,308 +60,812 @@ export default function FuelDispenseScreen() {
   const [fuelRecords, setFuelRecords] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
 
   const [activeJob, setActiveJob] = useState<any>(null);
   const [fuelAmount, setFuelAmount] = useState('');
-  const [pricePerLiter, setPricePerLiter] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Flow modal state
   const [flowStep, setFlowStep] = useState<FlowStep>('list');
   const [flowVisible, setFlowVisible] = useState(false);
-
-  const [selectedVendor, setSelectedVendor] = useState<any>(null);
-  const [selectedDriver, setSelectedDriver] = useState<any>(null);
-  const [selectedTruck, setSelectedTruck] = useState<any>(null);
-
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [trucks, setTrucks] = useState<any[]>([]);
-
-  const [vendorSearch, setVendorSearch] = useState('');
-  const [driverSearch, setDriverSearch] = useState('');
-  const [truckSearch, setTruckSearch] = useState('');
-
   const [flowFuelAmount, setFlowFuelAmount] = useState('');
-  const [flowPricePerLiter, setFlowPricePerLiter] = useState('');
+
+  // Authorization state
+  const [authId, setAuthId] = useState<string | null>(null);
+  const [authStatus, setAuthStatus] = useState<string>('pending');
+  const [authPolling, setAuthPolling] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fuel price from management
+  const [fuelPrice, setFuelPrice] = useState<number>(0);
+
+  // Vendors lookup for phone numbers (delivery orders don't carry vendorPhone)
+  const [vendorsMap, setVendorsMap] = useState<Record<string, any>>({});
 
   // ============================ Data Fetching ==============================
 
   const loadData = async (silent?: boolean) => {
     if (!silent) setRefreshing(true);
     try {
-      const [deliveryData, fuelData] = await Promise.all([
+      const [deliveryData, fuelData, vendorData] = await Promise.all([
         fetchDeliveryOrders(),
         fetchFuelRecords(),
+        fetchVendors(),
       ]);
-      setDeliveries((deliveryData || []).filter((d: any) => !['completed', 'delivered', 'cancelled'].includes(d.status)));
+      setDeliveries((deliveryData || []).filter((d: any) =>
+        !['completed', 'delivered', 'cancelled'].includes(d.status)
+      ));
       setFuelRecords(fuelData || []);
+      // Build vendors lookup map by ID for phone resolution
+      const map: Record<string, any> = {};
+      (vendorData || []).forEach((v: any) => {
+        if (v.id) map[v.id] = v;
+        if (v.vendorId) map[v.vendorId] = v;
+      });
+      setVendorsMap(map);
     } catch {} finally {
       setRefreshing(false);
       setLoading(false);
     }
   };
 
-  const loadVendors = async () => {
-    try { const data = await fetchVendors({ status: 'active' }); setVendors(data || []); } catch {}
-  };
-
-  const loadAllDrivers = async () => {
-    try { const data = await fetchDrivers({ status: 'active' }); setDrivers(data || []); } catch {}
-  };
-
-  const loadAllTrucks = async () => {
-    try { const data = await fetchVehicles({ status: 'active' }); setTrucks(data || []); } catch {}
-  };
-
-  // Filter drivers linked to this vendor via delivery orders, or by vendorId field.
-  // Falls back to all active drivers if none matched.
-  const loadDriversForVendor = async (vendor: any) => {
+  const loadFuelPrice = async () => {
     try {
-      const freshDeliveries = (await fetchDeliveryOrders().catch(() => [])) || [];
-      const allDrivers = await fetchDrivers({ status: 'active' });
-      const list = allDrivers || [];
-      const nid = normalizeVendorId(vendor.id);
-      const vendorOrders = freshDeliveries.filter((d: any) => normalizeVendorId(d.vendorId) === nid);
-      const linkedIds = new Set(vendorOrders.map((d: any) => d.driverId).filter(Boolean));
-      if (linkedIds.size > 0) { const matched = list.filter((d: any) => linkedIds.has(d.id)); if (matched.length > 0) { setDrivers(matched); return; } }
-      const byField = list.filter((d: any) => d.vendorId && normalizeVendorId(d.vendorId) === nid);
-      if (byField.length > 0) { setDrivers(byField); return; }
-      setDrivers(list);
-    } catch { loadAllDrivers(); }
+      setFuelPrice(0);
+    } catch {
+      setFuelPrice(0);
+    }
   };
 
-  // Filter trucks linked to this vendor via delivery orders, or by vendorId field.
-  // Falls back to all active trucks if none matched.
-  const loadTrucksForVendor = async (vendor: any) => {
-    try {
-      const freshDeliveries = (await fetchDeliveryOrders().catch(() => [])) || [];
-      const allTrucks = await fetchVehicles({ status: 'active' });
-      const list = allTrucks || [];
-      const nid = normalizeVendorId(vendor.id);
-      const vendorOrders = freshDeliveries.filter((d: any) => normalizeVendorId(d.vendorId) === nid);
-      const linkedPlates = new Set(vendorOrders.map((d: any) => d.plateNumber).filter(Boolean));
-      if (linkedPlates.size > 0) {
-        const matched = list.filter((t: any) => linkedPlates.has(t.plateNumber || t.registrationNumber));
-        if (matched.length > 0) { setTrucks(matched); return; }
+  useEffect(() => { loadData(); loadFuelPrice(); }, []);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
       }
-      const byVendorField = list.filter((t: any) => t.vendorId && normalizeVendorId(t.vendorId) === nid);
-      if (byVendorField.length > 0) { setTrucks(byVendorField); return; }
-      setTrucks(list);
-    } catch { loadAllTrucks(); }
-  };
-
-  useEffect(() => { loadData(); loadVendors(); loadAllDrivers(); loadAllTrucks(); }, []);
+    };
+  }, []);
 
   // ========================= Derived Lists ================================
 
   const getJobFuelAmount = (jobId: string): number =>
     fuelRecords.filter((f) => f.jobId === jobId).reduce((s, f) => s + (f.fuelAmount || 0), 0);
-  const getJobFuelRecordCount = (jobId: string): number =>
-    fuelRecords.filter((f) => f.jobId === jobId).length;
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return deliveries.filter((d) => !q || [d.jobId, d.driverName, d.plateNumber, d.vendorName].some((v) => String(v || '').toLowerCase().includes(q)));
-  }, [deliveries, search]);
+  const activeDeliveries = useMemo(() => {
+    return deliveries.filter((d) =>
+      !['completed', 'delivered', 'received', 'cancelled'].includes(d.status)
+    );
+  }, [deliveries]);
 
-  // ====================== Delivery-Order Fuel Form ========================
+  // =========================== Authorization Polling ======================
 
-  const openFuelForm = (job: any) => { setActiveJob(job); setFuelAmount(''); setPricePerLiter(''); };
-  const closeFuelForm = () => { setActiveJob(null); setFuelAmount(''); setPricePerLiter(''); setSubmitting(false); };
+  const startAuthPolling = (id: string) => {
+    setAuthPolling(true);
+    if (pollingRef.current) clearInterval(pollingRef.current);
 
-  const handleSubmit = async () => {
-    const amount = parseFloat(fuelAmount);
-    if (isNaN(amount) || amount <= 0) { Alert.alert('Invalid Amount', 'Please enter a valid fuel amount.'); return; }
-    setSubmitting(true);
-    try {
-      const price = parseFloat(pricePerLiter) || 0;
-      const fuelId = generateFuelRecordId(activeJob.jobId);
-      await createFuelRecord({
-        fuelId, jobId: activeJob.jobId, deliveryOrderId: activeJob.id,
-        driverId: activeJob.driverId, driverName: activeJob.driverName || 'N/A',
-        plateNumber: activeJob.plateNumber || 'N/A',
-        vendorId: activeJob.vendorId, vendorName: activeJob.vendorName || 'N/A',
-        materialName: activeJob.materialName || 'N/A',
-        fuelAmount: amount, pricePerLiter: price, totalCost: price > 0 ? amount * price : 0, unit: 'Litres',
-        dispensedBy: user?.email || 'Fuel Operator', dispensedByEmail: user?.email || '',
-        dispensedByName: user?.displayName || user?.name || 'Fuel Operator', dispensedAt: new Date().toISOString(),
-      });
-      Alert.alert('Fuel Dispensed', `${amount.toFixed(1)} litres recorded as ${fuelId}.`, [{ text: 'OK', onPress: () => { closeFuelForm(); loadData(); } }]);
-    } catch (error: any) { Alert.alert('Error', error?.message || 'Failed to record fuel'); } finally { setSubmitting(false); }
+    pollingRef.current = setInterval(async () => {
+      try {
+        const status = await getFuelAuthorizationStatus(id);
+        setAuthStatus(status.status);
+
+        if (status.status === 'authorized') {
+          clearInterval(pollingRef.current!);
+          pollingRef.current = null;
+          setAuthPolling(false);
+        } else if (status.status === 'denied') {
+          clearInterval(pollingRef.current!);
+          pollingRef.current = null;
+          setAuthPolling(false);
+          Alert.alert('Authorization Denied', 'The vendor has denied the fuel dispensing request.', [
+            { text: 'OK', onPress: () => { setFlowStep('list'); } }
+          ]);
+        } else if (status.status === 'expired') {
+          clearInterval(pollingRef.current!);
+          pollingRef.current = null;
+          setAuthPolling(false);
+          Alert.alert('OTP Expired', 'The authorization request has expired. Please request again.', [
+            { text: 'OK', onPress: () => { setFlowStep('list'); } }
+          ]);
+        }
+      } catch {
+        // Silently retry
+      }
+    }, 5000);
   };
 
   // =========================== FAB Flow ===================================
 
   const openFlow = () => {
-    setFlowStep('vendor'); setFlowVisible(true);
-    setVendorSearch(''); setDriverSearch(''); setTruckSearch('');
-    setFlowFuelAmount(''); setFlowPricePerLiter('');
-    setSelectedVendor(null); setSelectedDriver(null); setSelectedTruck(null);
-    loadVendors();
+    setFlowStep('list');
+    setFlowVisible(true);
+    setFlowFuelAmount('');
+    setActiveJob(null);
+    setAuthId(null);
+    setAuthStatus('pending');
+    setAuthPolling(false);
+    loadData(); // refresh active jobs
   };
-  const closeFlow = () => { setFlowVisible(false); setFlowStep('list'); };
 
-  const handleSelectVendor = (v: any) => {
-    setSelectedVendor(v);
-    setDriverSearch('');
-    setTruckSearch('');
-    setFlowStep('driver');
-    loadDriversForVendor(v);
-    loadTrucksForVendor(v);
+  const closeFlow = () => {
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    setFlowVisible(false);
+    setFlowStep('list');
   };
-  const handleSelectDriver = (d: any) => { setSelectedDriver(d); setTruckSearch(''); setFlowStep('truck'); };
-  const handleSelectTruck = (t: any) => { setSelectedTruck(t); setFlowFuelAmount(''); setFlowPricePerLiter(''); setFlowStep('form'); };
 
-  const handleFlowSubmit = async () => {
-    const amount = parseFloat(flowFuelAmount);
-    if (isNaN(amount) || amount <= 0) { Alert.alert('Invalid Amount', 'Please enter a valid fuel amount.'); return; }
-    if (!selectedVendor || !selectedDriver || !selectedTruck) { Alert.alert('Incomplete', 'Please select vendor, driver and truck.'); return; }
+  // Select an active job from the list
+  const handleSelectJob = (job: any) => {
+    setActiveJob(job);
+    setFlowFuelAmount('');
+    // Auto-request authorization immediately after selecting job
+    setFlowStep('authorization');
+  };
+
+  // Request authorization from vendor (no fuel amount yet)
+  const handleRequestAuthorization = async () => {
+    if (!activeJob) {
+      Alert.alert('Error', 'No active job selected.');
+      return;
+    }
+
+    // Resolve vendor phone from the vendors lookup map (delivery orders don't carry vendorPhone)
+    const vendor = vendorsMap[activeJob.vendorId];
+    const vendorPhone = vendor?.phone || vendor?.mobile || activeJob.vendorPhone || '';
+    const driverPhone = activeJob.driverPhone || '';
+
     setSubmitting(true);
     try {
-      const price = parseFloat(flowPricePerLiter) || 0;
-      const comboKey = `${selectedVendor.id}-${selectedDriver.id}-${selectedTruck.id}`;
-      const seq = nextFuelSeq(comboKey);
-      const fuelId = buildFuelId(selectedVendor.id, selectedDriver.id, selectedTruck.id, seq);
-      await createFuelRecord({
-        fuelId, jobId: null, deliveryOrderId: null,
-        driverId: selectedDriver.id, driverName: selectedDriver.name || selectedDriver.fullName || 'N/A',
-        plateNumber: selectedTruck.plateNumber || selectedTruck.registrationNumber || selectedTruck.id || 'N/A',
-        vendorId: selectedVendor.id, vendorName: selectedVendor.name || selectedVendor.companyName || 'N/A',
-        materialName: 'N/A', fuelAmount: amount, pricePerLiter: price,
-        totalCost: price > 0 ? amount * price : 0, unit: 'Litres',
-        dispensedBy: user?.email || 'Fuel Operator', dispensedByEmail: user?.email || '',
-        dispensedByName: user?.displayName || user?.name || 'Fuel Operator', dispensedAt: new Date().toISOString(),
+      const result = await requestFuelAuthorization({
+        vendorId: activeJob.vendorId,
+        vendorName: activeJob.vendorName || 'Unknown Vendor',
+        vendorPhone,
+        driverId: activeJob.driverId,
+        driverName: activeJob.driverName || 'Unknown Driver',
+        driverPhone,
+        vehicleId: activeJob.vehicleId || activeJob.id,
+        plateNumber: activeJob.plateNumber || 'N/A',
+        fuelAmount: 0, // Amount will be entered after authorization
+        jobId: activeJob.jobId || activeJob.id,
       });
-      Alert.alert('Fuel Dispensed', `${amount.toFixed(1)} litres recorded as ${fuelId}.`, [{ text: 'OK', onPress: () => { closeFlow(); loadData(); } }]);
-    } catch (error: any) { Alert.alert('Error', error?.message || 'Failed to record fuel'); } finally { setSubmitting(false); }
-  };
 
-  // ======================= Filtered Lists =================================
-
-  const filteredVendors = useMemo(() => {
-    const q = vendorSearch.trim().toLowerCase();
-    return vendors.filter((v) => !q || (v.name || v.companyName || '').toLowerCase().includes(q) || (v.id || '').toLowerCase().includes(q));
-  }, [vendors, vendorSearch]);
-  const filteredDrivers = useMemo(() => {
-    const q = driverSearch.trim().toLowerCase();
-    return drivers.filter((d) => !q || (d.name || d.fullName || '').toLowerCase().includes(q) || (d.id || '').toLowerCase().includes(q));
-  }, [drivers, driverSearch]);
-  const filteredTrucks = useMemo(() => {
-    const q = truckSearch.trim().toLowerCase();
-    return trucks.filter((t) => !q || (t.plateNumber || t.registrationNumber || t.id || '').toLowerCase().includes(q) || (t.make || t.model || '').toLowerCase().includes(q));
-  }, [trucks, truckSearch]);
-
-  // ======================== Render: Fuel Form =============================
-
-  if (activeJob) {
-    const amt = getJobFuelAmount(activeJob.jobId || activeJob.id);
-    const cnt = getJobFuelRecordCount(activeJob.jobId || activeJob.id);
-    return (
-      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
-        <View  style={{ display: 'none' }}>
-
-        <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.jobCardHeader}><View style={{ flex: 1 }}><Text style={[styles.jobCardTitle, { color: colors.text }]}>{activeJob.jobId}</Text></View></View>
-          <DetailRow icon="person-outline" value={`Driver: ${activeJob.driverName || 'N/A'}`} />
-          <DetailRow icon="car-outline" value={`Truck: ${activeJob.plateNumber || 'N/A'}`} />
-          <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
-          {amt > 0 && (<View style={[styles.existingFuel, { backgroundColor: '#F59E0B10', borderColor: '#F59E0B30' }]}><Ionicons name="water" size={16} color="#F59E0B" /><Text style={{ fontSize: 13, fontWeight: '700', color: '#F59E0B' }}>{amt.toFixed(1)} L already dispensed ({cnt} record{cnt !== 1 ? 's' : ''})</Text></View>)}
-        </View>
-        <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.inputHeader}><View style={[styles.inputIcon, { backgroundColor: '#F59E0B15' }]}><Ionicons name="water-outline" size={22} color="#F59E0B" /></View><View style={{ flex: 1 }}><Text style={[styles.inputTitle, { color: colors.text }]}>Fuel Amount</Text><Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter fuel amount in litres.</Text></View></View>
-          <View style={[styles.fuelInputWrap, { borderColor: '#F59E0B', backgroundColor: colors.inputBg }]}><TextInput style={[styles.fuelInput, { color: colors.text }]} placeholder="0.0" placeholderTextColor={colors.textTertiary} keyboardType="decimal-pad" value={fuelAmount} onChangeText={setFuelAmount} autoFocus /><Text style={[styles.fuelSuffix, { color: colors.textMuted }]}>Litres</Text></View>
-        </View>
-        <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.inputHeader}><View style={[styles.inputIcon, { backgroundColor: '#10B98115' }]}><Ionicons name="cash-outline" size={22} color="#10B981" /></View><View style={{ flex: 1 }}><Text style={[styles.inputTitle, { color: colors.text }]}>Price per Litre</Text><Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter price per litre (KES).</Text></View></View>
-          <View style={[styles.fuelInputWrap, { borderColor: '#10B981', backgroundColor: colors.inputBg }]}><TextInput style={[styles.fuelInput, { color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textTertiary} keyboardType="decimal-pad" value={pricePerLiter} onChangeText={setPricePerLiter} /><Text style={[styles.fuelSuffix, { color: colors.textMuted }]}>KES/L</Text></View>
-          {fuelAmount && pricePerLiter ? (<View style={{ marginTop: Spacing.sm, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}><Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Total Cost:</Text><Text style={{ fontSize: 16, fontWeight: '800', color: '#10B981' }}>KES {(parseFloat(fuelAmount) * parseFloat(pricePerLiter)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text></View>) : null}
-        </View>
-        <TouchableOpacity style={[styles.submitBtn, { backgroundColor: fuelAmount && !submitting ? '#F59E0B' : colors.border }]} onPress={handleSubmit} disabled={submitting || !fuelAmount || parseFloat(fuelAmount) <= 0}>
-          {submitting ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />}<Text style={styles.submitBtnText}>{submitting ? 'Dispensing...' : 'Dispense Fuel'}</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.cancelBtn, { borderColor: colors.border }]} onPress={closeFuelForm} disabled={submitting}><Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text></TouchableOpacity>
-        </View>
-      </ScrollView>
-    );
-  }
-
-  // ================== Render: List + FAB + Modal ==========================
-
-  const flowTitle = () => ({ vendor: 'Select Vendor', driver: 'Select Driver', truck: 'Select Truck', form: 'Dispense Fuel', list: '' }[flowStep] || '');
-  const flowSubtitle = () => {
-    switch (flowStep) {
-      case 'vendor': return 'Choose a vendor for fuel dispensing.';
-      case 'driver': return 'Choose the driver linked to this vendor.';
-      case 'truck': return 'Choose the truck linked to this vendor.';
-      case 'form': return `Vendor: ${selectedVendor?.name || selectedVendor?.companyName || 'N/A'}  ·  Driver: ${selectedDriver?.name || selectedDriver?.fullName || 'N/A'}  ·  Truck: ${selectedTruck?.plateNumber || selectedTruck?.registrationNumber || selectedTruck?.id || 'N/A'}`;
-      default: return '';
+      setAuthId(result.id);
+      setAuthStatus('pending');
+      startAuthPolling(result.id);
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to request authorization');
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  // After authorization, enter fuel amount and dispense
+  const handleFlowSubmit = async () => {
+    const amount = parseFloat(flowFuelAmount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid fuel amount.');
+      return;
+    }
+    if (!activeJob) {
+      Alert.alert('Error', 'No active job selected.');
+      return;
+    }
+
+    if (authStatus !== 'authorized') {
+      Alert.alert('Not Authorized', 'Vendor authorization is required before dispensing fuel.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const jobId = activeJob.jobId || activeJob.id;
+      const fuelId = generateFuelRecordId(jobId);
+
+      await createFuelRecord({
+        fuelId,
+        jobId,
+        deliveryOrderId: activeJob.id,
+        driverId: activeJob.driverId,
+        driverName: activeJob.driverName || 'N/A',
+        plateNumber: activeJob.plateNumber || 'N/A',
+        vendorId: activeJob.vendorId,
+        vendorName: activeJob.vendorName || 'N/A',
+        materialName: activeJob.materialName || 'N/A',
+        fuelAmount: amount,
+        pricePerLiter: fuelPrice,
+        totalCost: fuelPrice > 0 ? amount * fuelPrice : 0,
+        unit: 'Litres',
+        dispensedBy: user?.email || 'Fuel Operator',
+        dispensedByEmail: user?.email || '',
+        dispensedByName: user?.displayName || user?.name || 'Fuel Operator',
+        dispensedAt: new Date().toISOString(),
+        authorizationId: authId,
+      });
+
+      Alert.alert('Fuel Dispensed', `${amount.toFixed(1)} litres recorded as ${fuelId}.`, [
+        { text: 'OK', onPress: () => { closeFlow(); loadData(); } }
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Failed to record fuel');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Driver photo URL helper
+  const getDriverPhotoUrl = (driver: any): string | undefined => {
+    return driver?.photoURL || driver?.profilePicture || driver?.photoUrl || undefined;
+  };
+
+  // ======================== Render: Main Screen ============================
 
   return (
     <View style={{ flex: 1 }}>
       <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-         <Text style={[{ color: colors.textMuted }]}>Select a Vendor - Driver - Truck to dispense fuel</Text>
-        {loading ? (<DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>) : filtered.length ? (filtered.map((item) => {
-          const amt = getJobFuelAmount(item.jobId || item.id); const cnt = getJobFuelRecordCount(item.jobId || item.id);
-          return (<DataCard  style={{ display: 'none' }} key={item.id} onPress={() => openFuelForm(item)}><View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><View style={{ flex: 1 }}><Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text></View></View><DetailRow icon="person-outline" value={`Driver: ${item.driverName || 'N/A'}`} /><DetailRow icon="car-outline" value={`Truck: ${item.plateNumber || 'N/A'}`} /><DetailRow icon="business-outline" value={`Vendor: ${item.vendorName || 'N/A'}`} />{amt > 0 && (<View style={[styles.fuelInfo, { backgroundColor: '#F59E0B10' }]}><Ionicons name="water" size={14} color="#F59E0B" /><Text style={{ fontSize: 12, fontWeight: '700', color: '#F59E0B' }}>{amt.toFixed(1)} L dispensed ({cnt} record{cnt !== 1 ? 's' : ''})</Text></View>)}<View style={[styles.tapHint, { backgroundColor: `${colors.primary}08` }]}><Ionicons name="hand-left-outline" size={12} color={colors.primary} /><Text style={[styles.tapHintText, { color: colors.primary }]}>Tap to dispense fuel</Text></View><Text style={{ fontSize: 12, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text></DataCard>);
-        })) : (<EmptyState icon="water-outline" title="No trucks" subtitle="No matching jobs found." />)}
+        <Text style={{ color: colors.textMuted }}>
+          Press the + button to select an active job and dispense fuel
+        </Text>
+        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 4 }}>
+          Fuel price is managed by Management
+        </Text>
+        {loading ? (
+          <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
+        ) : activeDeliveries.length ? (
+          <DataCard>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+              <Ionicons name="document-text-outline" size={18} color="#F59E0B" />
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>
+                {activeDeliveries.length} active job{activeDeliveries.length !== 1 ? 's' : ''} available
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
+              Tap the + button to view and dispense fuel
+            </Text>
+          </DataCard>
+        ) : (
+          <EmptyState icon="water-outline" title="No active jobs" subtitle="No active delivery orders available for fuel dispensing." />
+        )}
       </PageShell>
-      <TouchableOpacity style={[styles.fab, { backgroundColor: '#F59E0B' }]} onPress={openFlow} activeOpacity={0.86}><Ionicons name="add" size={32} color="#FFFFFF" /></TouchableOpacity>
+
+      {/* FAB Button */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: '#F59E0B' }]}
+        onPress={openFlow}
+        activeOpacity={0.86}
+      >
+        <Ionicons name="add" size={32} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      {/* Flow Modal */}
       <Modal visible={flowVisible} transparent animationType="slide" onRequestClose={closeFlow}>
-        <View style={styles.modalBackdrop}><View style={[styles.flowSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.flowHead}><View style={{ flex: 1 }}><Text style={[styles.sheetTitle, { color: colors.text }]}>{flowTitle()}</Text><Text style={[styles.sheetSub, { color: colors.textMuted }]} numberOfLines={2}>{flowSubtitle()}</Text></View><TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.inputBg }]} onPress={closeFlow}><Ionicons name="close" size={20} color={colors.textSecondary} /></TouchableOpacity></View>
-          <View style={styles.stepRow}>{(['vendor', 'driver', 'truck', 'form'] as FlowStep[]).map((s, idx) => {
-            const completed = (s === 'vendor' && ['driver', 'truck', 'form'].includes(flowStep)) || (s === 'driver' && ['truck', 'form'].includes(flowStep)) || (s === 'truck' && flowStep === 'form');
-            return (<React.Fragment key={s}><View style={[styles.stepDot, completed ? { backgroundColor: '#10B981' } : flowStep === s ? { backgroundColor: '#F59E0B' } : { backgroundColor: colors.border }]} />{idx < 3 && <View style={[styles.stepLine, completed ? { backgroundColor: '#10B981' } : { backgroundColor: colors.border }]} />}</React.Fragment>);
-          })}</View>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md }} keyboardShouldPersistTaps="handled">
-            {flowStep === 'vendor' && (<><View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}><Ionicons name="search-outline" size={18} color={colors.textMuted} /><TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search vendors..." placeholderTextColor={colors.textTertiary} value={vendorSearch} onChangeText={setVendorSearch} /></View>{filteredVendors.length ? filteredVendors.map((v) => (<TouchableOpacity key={v.id} style={[styles.selectCard, { borderColor: colors.border }]} onPress={() => handleSelectVendor(v)}><View style={[styles.selectIconCircle, { backgroundColor: '#F59E0B15' }]}><Ionicons name="business-outline" size={20} color="#F59E0B" /></View><View style={{ flex: 1 }}><Text style={[styles.selectTitle, { color: colors.text }]}>{v.name || v.companyName || v.id}</Text><Text style={[styles.selectSub, { color: colors.textMuted }]}>{v.id} {v.email ? `· ${v.email}` : ''}</Text></View><Ionicons name="chevron-forward" size={20} color={colors.textTertiary} /></TouchableOpacity>)) : <EmptyState icon="business-outline" title="No vendors" subtitle="No active vendors found." />}</>)}
-            {flowStep === 'driver' && (<><View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}><TouchableOpacity style={[styles.backBtn, { borderColor: colors.border }]} onPress={() => setFlowStep('vendor')}><Ionicons name="arrow-back" size={18} color={colors.textSecondary} /><Text style={[styles.backText, { color: colors.textSecondary }]}>Back</Text></TouchableOpacity><View style={[styles.chip, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B30' }]}><Text style={{ fontSize: 12, fontWeight: '700', color: '#F59E0B' }}>{selectedVendor?.name || selectedVendor?.companyName || selectedVendor?.id}</Text></View></View><View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}><Ionicons name="search-outline" size={18} color={colors.textMuted} /><TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search drivers..." placeholderTextColor={colors.textTertiary} value={driverSearch} onChangeText={setDriverSearch} /></View>{filteredDrivers.length ? filteredDrivers.map((d) => (<TouchableOpacity key={d.id} style={[styles.selectCard, { borderColor: colors.border }]} onPress={() => handleSelectDriver(d)}><View style={[styles.selectIconCircle, { backgroundColor: '#3B82F615' }]}><Ionicons name="person-outline" size={20} color="#3B82F6" /></View><View style={{ flex: 1 }}><Text style={[styles.selectTitle, { color: colors.text }]}>{d.name || d.fullName || d.id}</Text><Text style={[styles.selectSub, { color: colors.textMuted }]}>{d.id} {d.phone ? `· ${d.phone}` : ''}</Text></View><Ionicons name="chevron-forward" size={20} color={colors.textTertiary} /></TouchableOpacity>)) : <EmptyState icon="person-outline" title="No drivers" subtitle="No drivers linked to this vendor." />}</>)}
-            {flowStep === 'truck' && (<><View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}><TouchableOpacity style={[styles.backBtn, { borderColor: colors.border }]} onPress={() => setFlowStep('driver')}><Ionicons name="arrow-back" size={18} color={colors.textSecondary} /><Text style={[styles.backText, { color: colors.textSecondary }]}>Back</Text></TouchableOpacity><View style={[styles.chip, { backgroundColor: '#3B82F615', borderColor: '#3B82F630' }]}><Text style={{ fontSize: 12, fontWeight: '700', color: '#3B82F6' }}>{selectedDriver?.name || selectedDriver?.fullName || selectedDriver?.id}</Text></View></View><View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}><Ionicons name="search-outline" size={18} color={colors.textMuted} /><TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search trucks..." placeholderTextColor={colors.textTertiary} value={truckSearch} onChangeText={setTruckSearch} /></View>{filteredTrucks.length ? filteredTrucks.map((t) => (<TouchableOpacity key={t.id} style={[styles.selectCard, { borderColor: colors.border }]} onPress={() => handleSelectTruck(t)}><View style={[styles.selectIconCircle, { backgroundColor: '#10B98115' }]}><Ionicons name="car-outline" size={20} color="#10B981" /></View><View style={{ flex: 1 }}><Text style={[styles.selectTitle, { color: colors.text }]}>{t.plateNumber || t.registrationNumber || t.id}</Text><Text style={[styles.selectSub, { color: colors.textMuted }]}>{t.make || ''} {t.model || ''} {t.id ? `· ${t.id}` : ''}</Text></View><Ionicons name="chevron-forward" size={20} color={colors.textTertiary} /></TouchableOpacity>)) : <EmptyState icon="car-outline" title="No trucks" subtitle="No trucks linked to this vendor." />}</>)}
-            {flowStep === 'form' && (<><View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}><TouchableOpacity style={[styles.backBtn, { borderColor: colors.border }]} onPress={() => setFlowStep('truck')}><Ionicons name="arrow-back" size={18} color={colors.textSecondary} /><Text style={[styles.backText, { color: colors.textSecondary }]}>Back</Text></TouchableOpacity><View style={[styles.chip, { backgroundColor: '#10B98115', borderColor: '#10B98130' }]}><Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>{selectedTruck?.plateNumber || selectedTruck?.registrationNumber || selectedTruck?.id}</Text></View></View><View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.inputHeader}><View style={[styles.inputIcon, { backgroundColor: '#F59E0B15' }]}><Ionicons name="water-outline" size={22} color="#F59E0B" /></View><View style={{ flex: 1 }}><Text style={[styles.inputTitle, { color: colors.text }]}>Fuel Amount</Text><Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter fuel amount in litres.</Text></View></View><View style={[styles.fuelInputWrap, { borderColor: '#F59E0B', backgroundColor: colors.inputBg }]}><TextInput style={[styles.fuelInput, { color: colors.text }]} placeholder="0.0" placeholderTextColor={colors.textTertiary} keyboardType="decimal-pad" value={flowFuelAmount} onChangeText={setFlowFuelAmount} autoFocus /><Text style={[styles.fuelSuffix, { color: colors.textMuted }]}>Litres</Text></View></View><View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.inputHeader}><View style={[styles.inputIcon, { backgroundColor: '#10B98115' }]}><Ionicons name="cash-outline" size={22} color="#10B981" /></View><View style={{ flex: 1 }}><Text style={[styles.inputTitle, { color: colors.text }]}>Price per Litre</Text><Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter price per litre (KES).</Text></View></View><View style={[styles.fuelInputWrap, { borderColor: '#10B981', backgroundColor: colors.inputBg }]}><TextInput style={[styles.fuelInput, { color: colors.text }]} placeholder="0.00" placeholderTextColor={colors.textTertiary} keyboardType="decimal-pad" value={flowPricePerLiter} onChangeText={setFlowPricePerLiter} /><Text style={[styles.fuelSuffix, { color: colors.textMuted }]}>KES/L</Text></View>{flowFuelAmount && flowPricePerLiter ? (<View style={{ marginTop: Spacing.sm, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}><Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Total Cost:</Text><Text style={{ fontSize: 16, fontWeight: '800', color: '#10B981' }}>KES {(parseFloat(flowFuelAmount) * parseFloat(flowPricePerLiter)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text></View>) : null}</View><TouchableOpacity style={[styles.submitBtn, { backgroundColor: flowFuelAmount && !submitting ? '#F59E0B' : colors.border }]} onPress={handleFlowSubmit} disabled={submitting || !flowFuelAmount || parseFloat(flowFuelAmount) <= 0}>{submitting ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />}<Text style={styles.submitBtnText}>{submitting ? 'Dispensing...' : 'Dispense Fuel'}</Text></TouchableOpacity></>)}
-            <View style={{ height: Spacing.xl }} />
-          </ScrollView>
-        </View></View>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.flowSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {/* Header */}
+            <View style={styles.flowHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>
+                  {flowStep === 'list' ? 'Active Jobs' : flowStep === 'authorization' ? 'Vendor Authorization' : 'Dispense Fuel'}
+                </Text>
+                <Text style={[styles.sheetSub, { color: colors.textMuted }]} numberOfLines={2}>
+                  {flowStep === 'list'
+                    ? 'Select an active job to dispense fuel'
+                    : flowStep === 'authorization'
+                      ? `Job: ${activeJob?.jobId || activeJob?.id || 'N/A'}`
+                      : `Job: ${activeJob?.jobId || activeJob?.id || 'N/A'}  ·  Driver: ${activeJob?.driverName || 'N/A'}  ·  Truck: ${activeJob?.plateNumber || 'N/A'}`}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.iconButton, { backgroundColor: colors.inputBg }]}
+                onPress={closeFlow}
+              >
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Step indicators */}
+            <View style={styles.stepRow}>
+              {(['list', 'authorization', 'form'] as FlowStep[]).map((s, idx) => {
+                const steps: FlowStep[] = ['list', 'authorization', 'form'];
+                const currentIdx = steps.indexOf(flowStep);
+                const stepIdx = steps.indexOf(s);
+                const completed = stepIdx < currentIdx;
+                const isCurrent = stepIdx === currentIdx;
+                let dotColor = colors.border;
+                if (completed) dotColor = '#10B981';
+                else if (isCurrent) dotColor = '#F59E0B';
+                let lineColor = colors.border;
+                if (stepIdx < 2 && stepIdx < currentIdx) lineColor = '#10B981';
+                return (
+                  <React.Fragment key={s}>
+                    <View style={[styles.stepDot, { backgroundColor: dotColor }]} />
+                    {stepIdx < 2 && <View style={[styles.stepLine, { backgroundColor: lineColor }]} />}
+                  </React.Fragment>
+                );
+              })}
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ gap: Spacing.md }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* ============ STEP 1: Active Jobs List ============ */}
+              {flowStep === 'list' && (
+                <>
+                  {activeDeliveries.length ? activeDeliveries.map((job) => {
+                    const existingFuel = getJobFuelAmount(job.jobId || job.id);
+                    return (
+                      <TouchableOpacity
+                        key={job.id}
+                        style={[styles.jobSelectCard, { borderColor: colors.border }]}
+                        onPress={() => handleSelectJob(job)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.selectIconCircle, { backgroundColor: '#F59E0B15' }]}>
+                          <Ionicons name="document-text-outline" size={20} color="#F59E0B" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.selectTitle, { color: colors.text }]}>
+                            {job.jobId || job.id}
+                          </Text>
+                          <Text style={[styles.selectSub, { color: colors.textMuted }]}>
+                            Driver: {job.driverName || 'N/A'} · {job.plateNumber || 'N/A'}
+                          </Text>
+                          <Text style={[styles.selectSub, { color: colors.textMuted }]}>
+                            Vendor: {job.vendorName || 'N/A'} · Material: {job.materialName || 'N/A'}
+                          </Text>
+                          {existingFuel > 0 && (
+                            <View style={[styles.fuelChip, { backgroundColor: '#F59E0B10', borderColor: '#F59E0B30' }]}>
+                              <Ionicons name="water" size={12} color="#F59E0B" />
+                              <Text style={{ fontSize: 11, fontWeight: '700', color: '#F59E0B' }}>
+                                {existingFuel.toFixed(1)} L already dispensed
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+                      </TouchableOpacity>
+                    );
+                  }) : (
+                    <EmptyState icon="document-text-outline" title="No active jobs" subtitle="No active delivery orders available." />
+                  )}
+                </>
+              )}
+
+              {/* ============ STEP 2: Authorization ============ */}
+              {flowStep === 'authorization' && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                    <TouchableOpacity
+                      style={[styles.backBtn, { borderColor: colors.border }]}
+                      onPress={() => {
+                        if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+                        setFlowStep('list');
+                        setAuthPolling(false);
+                      }}
+                    >
+                      <Ionicons name="arrow-back" size={18} color={colors.textSecondary} />
+                      <Text style={[styles.backText, { color: colors.textSecondary }]}>Back</Text>
+                    </TouchableOpacity>
+                    <View style={[styles.chip, { backgroundColor: '#F59E0B15', borderColor: '#F59E0B30' }]}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#F59E0B' }}>
+                        {activeJob?.jobId || activeJob?.id || 'Job'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Selected job summary */}
+                  {activeJob && (
+                    <View style={[styles.jobSummaryCard, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+                      {/* Driver info with photo */}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                        {getDriverPhotoUrl(activeJob) ? (
+                          <Image source={{ uri: getDriverPhotoUrl(activeJob) }} style={styles.driverPhotoLarge} />
+                        ) : (
+                          <View style={[styles.driverPhotoLarge, { backgroundColor: '#3B82F615', alignItems: 'center', justifyContent: 'center' }]}>
+                            <Ionicons name="person" size={32} color="#3B82F6" />
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.selectTitle, { color: colors.text }]}>
+                            {activeJob.driverName || 'Unknown Driver'}
+                          </Text>
+                          <Text style={[styles.selectSub, { color: colors.textMuted }]}>
+                            {activeJob.plateNumber || 'N/A'}
+                          </Text>
+                          <Text style={[styles.selectSub, { color: colors.textMuted }]}>
+                            {activeJob.vendorName || 'Unknown Vendor'}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Authorization status display */}
+                  <View style={[styles.authStatusCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={{ alignItems: 'center', gap: Spacing.lg, paddingVertical: Spacing.xl }}>
+                      {authStatus === 'pending' ? (
+                        <>
+                          <View style={[styles.authIconCircle, { backgroundColor: '#F59E0B15' }]}>
+                            <Ionicons name="time-outline" size={48} color="#F59E0B" />
+                          </View>
+                          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' }}>
+                            Waiting for Vendor Authorization
+                          </Text>
+                          <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
+                            An OTP has been sent to the vendor. They must verify and authorize this fuel dispense.
+                          </Text>
+                          {authPolling && (
+                            <ActivityIndicator size="large" color="#F59E0B" style={{ marginTop: Spacing.md }} />
+                          )}
+                          <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: 'center' }}>
+                            Checking authorization status every 5 seconds...
+                          </Text>
+                        </>
+                      ) : authStatus === 'authorized' ? (
+                        <>
+                          <View style={[styles.authIconCircle, { backgroundColor: '#10B98115' }]}>
+                            <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                          </View>
+                          <Text style={{ fontSize: 18, fontWeight: '800', color: '#10B981', textAlign: 'center' }}>
+                            Authorized!
+                          </Text>
+                          <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
+                            The vendor has authorized fuel dispensing. Please enter fuel amount below.
+                          </Text>
+                          <TouchableOpacity
+                            style={[styles.submitBtn, { backgroundColor: '#10B981' }]}
+                            onPress={() => setFlowStep('form')}
+                          >
+                            <Ionicons name="water-outline" size={20} color="#FFFFFF" />
+                            <Text style={styles.submitBtnText}>Enter Fuel Amount</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : authStatus === 'denied' ? (
+                        <>
+                          <View style={[styles.authIconCircle, { backgroundColor: '#EF444415' }]}>
+                            <Ionicons name="close-circle" size={48} color="#EF4444" />
+                          </View>
+                          <Text style={{ fontSize: 18, fontWeight: '800', color: '#EF4444', textAlign: 'center' }}>
+                            Authorization Denied
+                          </Text>
+                          <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
+                            The vendor has denied this fuel dispensing request.
+                          </Text>
+                          <TouchableOpacity
+                            style={[styles.submitBtn, { backgroundColor: '#3B82F6' }]}
+                            onPress={() => { setAuthId(null); setAuthStatus('pending'); setFlowStep('list'); }}
+                          >
+                            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+                            <Text style={styles.submitBtnText}>Back to Jobs</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : authStatus === 'expired' ? (
+                        <>
+                          <View style={[styles.authIconCircle, { backgroundColor: '#94A3B815' }]}>
+                            <Ionicons name="time-outline" size={48} color="#94A3B8" />
+                          </View>
+                          <Text style={{ fontSize: 18, fontWeight: '800', color: '#94A3B8', textAlign: 'center' }}>
+                            OTP Expired
+                          </Text>
+                          <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
+                            The OTP has expired. Please select a job and request a new authorization.
+                          </Text>
+                          <TouchableOpacity
+                            style={[styles.submitBtn, { backgroundColor: '#3B82F6' }]}
+                            onPress={() => { setAuthId(null); setAuthStatus('pending'); setFlowStep('list'); }}
+                          >
+                            <Ionicons name="refresh" size={20} color="#FFFFFF" />
+                            <Text style={styles.submitBtnText}>Back to Jobs</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : null}
+
+                      {/* Initial request button (only when not yet requested) */}
+                      {!authId && authStatus === 'pending' && !authPolling && (
+                        <TouchableOpacity
+                          style={[styles.submitBtn, { backgroundColor: '#3B82F6' }]}
+                          onPress={handleRequestAuthorization}
+                          disabled={submitting}
+                        >
+                          {submitting ? (
+                            <ActivityIndicator color="#FFFFFF" size="small" />
+                          ) : (
+                            <Ionicons name="key-outline" size={20} color="#FFFFFF" />
+                          )}
+                          <Text style={styles.submitBtnText}>
+                            {submitting ? 'Requesting...' : 'Request Authorization'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                </>
+              )}
+
+              {/* ============ STEP 3: Fuel Amount Form ============ */}
+              {flowStep === 'form' && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' }}>
+                    <TouchableOpacity
+                      style={[styles.backBtn, { borderColor: colors.border }]}
+                      onPress={() => setFlowStep('authorization')}
+                    >
+                      <Ionicons name="arrow-back" size={18} color={colors.textSecondary} />
+                      <Text style={[styles.backText, { color: colors.textSecondary }]}>Back</Text>
+                    </TouchableOpacity>
+                    <View style={[styles.chip, { backgroundColor: '#10B98115', borderColor: '#10B98130' }]}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>Authorized ✓</Text>
+                    </View>
+                  </View>
+
+                  {/* Driver info card */}
+                  {activeJob && (
+                    <View style={[styles.driverInfoCard, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                        {getDriverPhotoUrl(activeJob) ? (
+                          <Image source={{ uri: getDriverPhotoUrl(activeJob) }} style={styles.driverPhotoLarge} />
+                        ) : (
+                          <View style={[styles.driverPhotoLarge, { backgroundColor: '#3B82F615', alignItems: 'center', justifyContent: 'center' }]}>
+                            <Ionicons name="person" size={32} color="#3B82F6" />
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.selectTitle, { color: colors.text }]}>
+                            {activeJob.driverName || 'Unknown Driver'}
+                          </Text>
+                          <Text style={[styles.selectSub, { color: colors.textMuted }]}>
+                            ID: {activeJob.driverId} · {activeJob.plateNumber || 'N/A'}
+                          </Text>
+                          <Text style={[styles.selectSub, { color: colors.textMuted }]}>
+                            Job: {activeJob.jobId || activeJob.id}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Fuel amount input */}
+                  <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={styles.inputHeader}>
+                      <View style={[styles.inputIcon, { backgroundColor: '#F59E0B15' }]}>
+                        <Ionicons name="water-outline" size={22} color="#F59E0B" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.inputTitle, { color: colors.text }]}>Fuel Amount</Text>
+                        <Text style={[styles.inputSub, { color: colors.textMuted }]}>
+                          Enter fuel amount in litres.
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={[styles.fuelInputWrap, { borderColor: '#F59E0B', backgroundColor: colors.inputBg }]}>
+                      <TextInput
+                        style={[styles.fuelInput, { color: colors.text }]}
+                        placeholder="0.0"
+                        placeholderTextColor={colors.textTertiary}
+                        keyboardType="decimal-pad"
+                        value={flowFuelAmount}
+                        onChangeText={setFlowFuelAmount}
+                        autoFocus
+                      />
+                      <Text style={[styles.fuelSuffix, { color: colors.textMuted }]}>Litres</Text>
+                    </View>
+                  </View>
+
+                  {/* Fuel price info */}
+                  <View style={[styles.priceInfoCard, { backgroundColor: '#10B98110', borderColor: '#10B98120' }]}>
+                    <Ionicons name="information-circle-outline" size={18} color="#10B981" />
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#10B981', flex: 1 }}>
+                      Fuel Price (managed by Management): KES {fuelPrice.toFixed(2)}/L
+                    </Text>
+                  </View>
+
+                  {flowFuelAmount && fuelPrice > 0 ? (
+                    <View style={{ marginTop: Spacing.sm, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.sm }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Total Cost:</Text>
+                      <Text style={{ fontSize: 16, fontWeight: '800', color: '#10B981' }}>
+                        KES {(parseFloat(flowFuelAmount) * fuelPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* Existing fuel dispensed for this job */}
+                  {activeJob && (() => {
+                    const existingFuel = getJobFuelAmount(activeJob.jobId || activeJob.id);
+                    return existingFuel > 0 ? (
+                      <View style={[styles.existingFuel, { backgroundColor: '#F59E0B10', borderColor: '#F59E0B30' }]}>
+                        <Ionicons name="water" size={16} color="#F59E0B" />
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#F59E0B' }}>
+                          {existingFuel.toFixed(1)} L already dispensed for this job
+                        </Text>
+                      </View>
+                    ) : null;
+                  })()}
+
+                  {/* Submit button */}
+                  <TouchableOpacity
+                    style={[styles.submitBtn, { backgroundColor: flowFuelAmount && !submitting ? '#F59E0B' : colors.border }]}
+                    onPress={handleFlowSubmit}
+                    disabled={submitting || !flowFuelAmount || parseFloat(flowFuelAmount) <= 0}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                    )}
+                    <Text style={styles.submitBtnText}>
+                      {submitting ? 'Dispensing...' : 'Dispense Fuel'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <View style={{ height: Spacing.xl }} />
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
     </View>
   );
 }
 
-// Styles
+// ================================ Styles =====================================
 const styles = StyleSheet.create({
-  container: { flex: 1 }, formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  jobCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  jobCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.sm },
-  jobCardTitle: { fontSize: 18, fontWeight: '800' },
+  container: { flex: 1 },
+  formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
+
+  // Job selection cards (in list step)
+  jobSelectCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    padding: Spacing.md,
+  },
+  selectIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectTitle: { fontSize: 15, fontWeight: '700' },
+  selectSub: { fontSize: 12, marginTop: 2 },
+  fuelChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 6,
+  },
+
+  // Input card
   inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
   inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
   inputIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  inputTitle: { fontSize: 16, fontWeight: '700' }, inputSub: { fontSize: 12, marginTop: 2 },
+  inputTitle: { fontSize: 16, fontWeight: '700' },
+  inputSub: { fontSize: 12, marginTop: 2 },
   fuelInputWrap: { borderRadius: Radius.md, borderWidth: 2, paddingHorizontal: Spacing.md, height: 64, flexDirection: 'row', alignItems: 'center' },
-  fuelInput: { flex: 1, fontSize: 28, fontWeight: '800' }, fuelSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm, minHeight: 50, marginTop: Spacing.sm },
+  fuelInput: { flex: 1, fontSize: 28, fontWeight: '800' },
+  fuelSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
+
+  // Buttons
+  submitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
+    gap: Spacing.sm,
+    minHeight: 50,
+    marginTop: Spacing.sm,
+  },
   submitBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.sm },
-  cancelText: { fontSize: 14, fontWeight: '600' },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.md, borderWidth: 1 },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
   backText: { fontSize: 13, fontWeight: '600' },
-  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: 6 },
-  tapHintText: { fontSize: 11, fontWeight: '700' },
-  fuelInfo: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  existingFuel: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.sm },
-  chip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.full, borderWidth: 1 },
-  fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: '#000000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, zIndex: 100 },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+
+  // Driver info
+  driverInfoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.xs,
+  },
+  driverPhotoLarge: { width: 56, height: 56, borderRadius: 28 },
+  jobSummaryCard: {
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.xs,
+  },
+
+  // Price info
+  priceInfoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  existingFuel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginTop: Spacing.sm,
+  },
+
+  // Authorization
+  authStatusCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg },
+  authIconCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+
+  // FAB
+  fab: {
+    position: 'absolute',
+    right: Spacing.xl,
+    bottom: Spacing.xl,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    zIndex: 100,
+  },
+
+  // Modal
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
-  flowSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%' },
-  flowHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md, marginBottom: Spacing.sm },
-  sheetTitle: { fontSize: 18, fontWeight: '900' }, sheetSub: { fontSize: 13, lineHeight: 18, marginTop: 4 },
+  flowSheet: {
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    maxHeight: '90%',
+  },
+  flowHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  sheetTitle: { fontSize: 18, fontWeight: '900' },
+  sheetSub: { fontSize: 13, lineHeight: 18, marginTop: 4 },
   iconButton: { width: 38, height: 38, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
+
+  // Step dots
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md, gap: 0 },
-  stepDot: { width: 10, height: 10, borderRadius: 5 }, stepLine: { width: 36, height: 3, borderRadius: 2 },
-  searchWrap: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md },
-  searchInput: { flex: 1, height: 46, fontSize: 14, fontWeight: '700' },
-  selectCard: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md },
-  selectIconCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  selectTitle: { fontSize: 15, fontWeight: '700' }, selectSub: { fontSize: 12, marginTop: 2 },
+  stepDot: { width: 10, height: 10, borderRadius: 5 },
+  stepLine: { width: 48, height: 3, borderRadius: 2 },
 });

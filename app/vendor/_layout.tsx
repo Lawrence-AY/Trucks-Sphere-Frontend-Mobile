@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import {
   Platform,
@@ -12,15 +12,21 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
+  Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
-import { getRoleLabel } from '../../utils/helpers';
+import { getRoleLabel, normalizeVendorId } from '../../utils/helpers';
+import {
+  getPendingAuthorizations,
+  verifyFuelAuthorization,
+} from '../../services/api';
 
-const BOTTOM_TABS = ['dashboard', 'trips', 'drivers', 'trucks', 'orders', 'materials'];
-const HIDDEN_TABS = ['profile', 'settings'];
+const BOTTOM_TABS = ['dashboard', 'trips', 'orders', 'materials'];
+const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   dashboard: { icon: 'home-outline', label: 'Home' },
@@ -31,12 +37,12 @@ const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: s
   materials: { icon: 'cube-outline', label: 'Materials' },
 };
 
-// Menu items for vendor drawer
 const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
+  { label: 'Drivers', icon: 'people-outline', route: '/vendor/drivers' },
+  { label: 'Trucks', icon: 'car-outline', route: '/vendor/trucks' },
   { label: 'Profile', icon: 'person-outline', route: '/vendor/profile' },
   { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
-  { label: 'My Drivers', icon: 'people-outline', route: '/vendor/drivers' },
-  { label: 'My Trucks', icon: 'car-outline', route: '/vendor/trucks' },
+  { label: 'Fuel', icon: 'water-outline', route: '/vendor/fuel' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
 
@@ -52,6 +58,95 @@ export default function VendorLayout() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const menuWidth = Math.min(screenWidth * 0.8, 320);
+
+  // ===================== Fuel Authorization (Root-level) =====================
+
+  const vendorId = user?.vendorId || '';
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
+
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [pendingAuths, setPendingAuths] = useState<any[]>([]);
+  const [activeAuth, setActiveAuth] = useState<any>(null);
+  const [otpInput, setOtpInput] = useState('');
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Poll for pending fuel authorization requests
+  const checkPendingAuth = async () => {
+    try {
+      if (!normalizedUserVendorId) return;
+      const pending = await getPendingAuthorizations(normalizedUserVendorId);
+      setPendingAuths(pending || []);
+
+      // If there's a new pending request, show the modal
+      if (pending.length > 0 && !authModalVisible && !activeAuth) {
+        setActiveAuth(pending[0]);
+        setOtpInput('');
+        setAuthModalVisible(true);
+      }
+    } catch {
+      // Silently retry
+    }
+  };
+
+  useEffect(() => {
+    checkPendingAuth();
+    pollingRef.current = setInterval(checkPendingAuth, 30000);
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [normalizedUserVendorId]);
+
+  const closeAuthModal = () => {
+    setAuthModalVisible(false);
+    setActiveAuth(null);
+    setOtpInput('');
+    setAuthSubmitting(false);
+  };
+
+  const handleAuthorize = async (authorize: boolean) => {
+    if (!activeAuth?.id) {
+      Alert.alert('Error', 'No active authorization request.');
+      return;
+    }
+    if (!otpInput.trim()) {
+      Alert.alert('Missing OTP', 'Please enter the OTP sent to your phone.');
+      return;
+    }
+
+    setAuthSubmitting(true);
+    try {
+      const result = await verifyFuelAuthorization(activeAuth.id, otpInput.trim(), authorize);
+      if (authorize) {
+        Alert.alert('Authorized', 'Fuel dispensing has been authorized.', [
+          { text: 'OK', onPress: () => closeAuthModal() }
+        ]);
+      } else {
+        Alert.alert('Denied', 'Fuel dispensing has been denied.', [
+          { text: 'OK', onPress: () => closeAuthModal() }
+        ]);
+      }
+    } catch (error: any) {
+      const errMsg = error?.response?.data?.error || error?.message || 'Verification failed';
+      Alert.alert('Error', errMsg);
+    } finally {
+      setAuthSubmitting(false);
+    }
+  };
+
+  const formatExpiry = (expiresAt: string): string => {
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    if (diff <= 0) return 'Expired';
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    if (mins > 0) return `Expires in ${mins}m ${secs}s`;
+    return `Expires in ${secs}s`;
+  };
+
+  // ===================== Hamburger Menu =====================
 
   const toggleMenu = useCallback(() => {
     if (menuOpen) {
@@ -89,6 +184,8 @@ export default function VendorLayout() {
     router.replace('/(auth)/login' as any);
   };
 
+  // ===================== Render =====================
+
   return (
     <>
       <Tabs
@@ -116,12 +213,37 @@ export default function VendorLayout() {
           headerShadowVisible: false,
           headerRight: Platform.OS === 'web' ? undefined : () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {/* Pending auth notification bell */}
               <TouchableOpacity
-                onPress={() => router.push('/screens/notifications' as any)}
-                style={{ paddingHorizontal: 6, paddingVertical: 8 }}
+                onPress={() => {
+                  router.push('/screens/notifications' as any);
+                }}
+                style={{ paddingHorizontal: 6, paddingVertical: 8, position: 'relative' }}
               >
-                <Ionicons name="notifications-outline" size={22} color="#1B2A4A" />
+                <Ionicons
+                  name="notifications-outline"
+                  size={22}
+                  color={pendingAuths.length > 0 ? '#EF4444' : '#1B2A4A'}
+                />
+                {pendingAuths.length > 0 && (
+                  <View style={styles.authBadge}>
+                    <Text style={styles.authBadgeText}>{pendingAuths.length}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
+              {/* Pending auth quick-access key icon */}
+              {pendingAuths.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setActiveAuth(pendingAuths[0]);
+                    setOtpInput('');
+                    setAuthModalVisible(true);
+                  }}
+                  style={{ paddingHorizontal: 4, paddingVertical: 8 }}
+                >
+                  <Ionicons name="key-outline" size={20} color="#EF4444" />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={toggleMenu} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
                 <Ionicons name="menu-outline" size={24} color="#1B2A4A" />
               </TouchableOpacity>
@@ -254,6 +376,127 @@ export default function VendorLayout() {
           </View>
         </View>
       </Modal>
+
+      {/* ===================== Fuel Authorization Modal (Root-Level) ===================== */}
+      <Modal visible={authModalVisible} transparent animationType="slide" onRequestClose={closeAuthModal}>
+        <View style={styles.authOverlay}>
+          <View style={[styles.authModalContent, { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+            {/* Header */}
+            <View style={styles.authModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.authModalTitle}>Fuel Authorization</Text>
+                <Text style={styles.authModalSubtitle}>
+                  A fuel operator is requesting authorization to dispense fuel
+                </Text>
+              </View>
+              <TouchableOpacity style={[styles.closeButton, { backgroundColor: '#F1F5F9' }]} onPress={closeAuthModal}>
+                <Ionicons name="close" size={20} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            {activeAuth && (
+              <>
+                {/* Request Details */}
+                <View style={[styles.authDetailCard, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                  <View style={styles.authDetailRow}>
+                    <Ionicons name="water-outline" size={20} color="#F59E0B" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Fuel Amount</Text>
+                      <Text style={{ fontSize: 22, fontWeight: '800', color: '#F59E0B' }}>
+                        {activeAuth.fuelAmount || 0} Litres
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.authDivider} />
+
+                  <View style={styles.authDetailRow}>
+                    <Ionicons name="person-outline" size={20} color="#3B82F6" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Driver</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
+                        {activeAuth.driverName || 'Unknown'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.authDetailRow}>
+                    <Ionicons name="car-outline" size={20} color="#10B981" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Truck</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
+                        {activeAuth.plateNumber || 'Unknown'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.authDetailRow}>
+                    <Ionicons name="time-outline" size={20} color="#F59E0B" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Validity</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#F59E0B' }}>
+                        {formatExpiry(activeAuth.expiresAt)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* OTP Input */}
+                <View style={styles.otpSection}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: Spacing.sm }}>
+                    Enter OTP sent to your phone
+                  </Text>
+                  <TextInput
+                    style={[styles.otpInput, { color: '#1E293B', backgroundColor: '#F8FAFC', borderColor: '#3B82F6' }]}
+                    placeholder="Enter 6-digit OTP"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={otpInput}
+                    onChangeText={setOtpInput}
+                    autoFocus
+                  />
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.authActions}>
+                  <TouchableOpacity
+                    style={[styles.denyButton, { borderColor: '#EF4444', backgroundColor: '#FEF2F2' }]}
+                    onPress={() => handleAuthorize(false)}
+                    disabled={authSubmitting}
+                    activeOpacity={0.7}
+                  >
+                    {authSubmitting ? (
+                      <ActivityIndicator size="small" color="#EF4444" />
+                    ) : (
+                      <>
+                        <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
+                        <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 14 }}>Not Authorize</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.authorizeButton, { backgroundColor: '#10B981' }]}
+                    onPress={() => handleAuthorize(true)}
+                    disabled={authSubmitting}
+                    activeOpacity={0.7}
+                  >
+                    {authSubmitting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
+                        <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Authorize</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -373,4 +616,115 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
   },
-}); 
+
+  // Auth notification badge
+  authBadge: {
+    position: 'absolute',
+    top: 2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+  },
+
+  // Auth Modal Styles
+  authOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  authModalContent: {
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    borderWidth: 1,
+    padding: Spacing.xl,
+    maxHeight: '85%',
+  },
+  authModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  authModalTitle: {
+    color: '#1E293B',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  authModalSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
+  },
+  closeButton: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authDetailCard: {
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  authDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  authDivider: {
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: Spacing.xs,
+  },
+  otpSection: {},
+  otpInput: {
+    height: 56,
+    borderRadius: Radius.lg,
+    borderWidth: 2,
+    paddingHorizontal: Spacing.lg,
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 8,
+  },
+  authActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  denyButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    minHeight: 52,
+  },
+  authorizeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.lg,
+    minHeight: 52,
+  },
+});

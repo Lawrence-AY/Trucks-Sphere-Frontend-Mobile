@@ -1,27 +1,35 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import {
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
-import { fetchDeliveryOrders, fetchDrivers, fetchPurchaseOrders, fetchVehicles, fetchFuelRecords } from '../../services/api';
+import {
+  fetchDeliveryOrders,
+  fetchDrivers,
+  fetchPurchaseOrders,
+  fetchVehicles,
+  fetchFuelRecords,
+} from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import {
-  CommandHeader,
   DataCard,
   DetailRow,
   EmptyState,
   MetricTile,
   PageShell,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
 
 export default function VendorDashboardScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
   const vendorId = user?.vendorId || 'v1';
-  const vendorName = user?.displayName || 'Vendor';
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -80,7 +88,9 @@ export default function VendorDashboardScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-    
+
+      {/* Summary note: fuel authorization requests appear at the root vendor level (via _layout.tsx) */}
+
       <View style={styles.metricRow}>
         <MetricTile icon="document-text" label="Orders" value={orders.length} tone={colors.primary} onPress={() => router.push('/vendor/orders' as any)} />
         <MetricTile icon="people" label="Drivers" value={drivers.length} tone={colors.accent} onPress={() => router.push('/vendor/drivers' as any)} />
@@ -109,7 +119,6 @@ export default function VendorDashboardScreen() {
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId || item.id}</Text>
                   <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>PO: {item.poNumber || 'N/A'}</Text>
                 </View>
-              
               </View>
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No vehicle'}`} />
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}   `} />
