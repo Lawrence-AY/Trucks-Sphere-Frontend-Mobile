@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,7 +21,7 @@ import {
   fetchFuelRecords,
   fetchVendors,
   requestFuelAuthorization,
-  getFuelAuthorizationStatus,
+  verifyFuelAuthorization,
 } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { formatEAT, generateFuelRecordId } from '../../utils/helpers';
@@ -73,8 +73,9 @@ export default function FuelDispenseScreen() {
   // Authorization state
   const [authId, setAuthId] = useState<string | null>(null);
   const [authStatus, setAuthStatus] = useState<string>('pending');
-  const [authPolling, setAuthPolling] = useState(false);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [otpModalVisible, setOtpModalVisible] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
+  const [authVerifying, setAuthVerifying] = useState(false);
 
   // Fuel price from management
   const [fuelPrice, setFuelPrice] = useState<number>(0);
@@ -119,16 +120,6 @@ export default function FuelDispenseScreen() {
 
   useEffect(() => { loadData(); loadFuelPrice(); }, []);
 
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-    };
-  }, []);
-
   // ========================= Derived Lists ================================
 
   const getJobFuelAmount = (jobId: string): number =>
@@ -140,42 +131,6 @@ export default function FuelDispenseScreen() {
     );
   }, [deliveries]);
 
-  // =========================== Authorization Polling ======================
-
-  const startAuthPolling = (id: string) => {
-    setAuthPolling(true);
-    if (pollingRef.current) clearInterval(pollingRef.current);
-
-    pollingRef.current = setInterval(async () => {
-      try {
-        const status = await getFuelAuthorizationStatus(id);
-        setAuthStatus(status.status);
-
-        if (status.status === 'authorized') {
-          clearInterval(pollingRef.current!);
-          pollingRef.current = null;
-          setAuthPolling(false);
-        } else if (status.status === 'denied') {
-          clearInterval(pollingRef.current!);
-          pollingRef.current = null;
-          setAuthPolling(false);
-          Alert.alert('Authorization Denied', 'The vendor has denied the fuel dispensing request.', [
-            { text: 'OK', onPress: () => { setFlowStep('list'); } }
-          ]);
-        } else if (status.status === 'expired') {
-          clearInterval(pollingRef.current!);
-          pollingRef.current = null;
-          setAuthPolling(false);
-          Alert.alert('OTP Expired', 'The authorization request has expired. Please request again.', [
-            { text: 'OK', onPress: () => { setFlowStep('list'); } }
-          ]);
-        }
-      } catch {
-        // Silently retry
-      }
-    }, 5000);
-  };
-
   // =========================== FAB Flow ===================================
 
   const openFlow = () => {
@@ -185,14 +140,17 @@ export default function FuelDispenseScreen() {
     setActiveJob(null);
     setAuthId(null);
     setAuthStatus('pending');
-    setAuthPolling(false);
+    setOtpInput('');
+    setOtpModalVisible(false);
+    setAuthVerifying(false);
     loadData(); // refresh active jobs
   };
 
   const closeFlow = () => {
-    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
     setFlowVisible(false);
     setFlowStep('list');
+    setOtpModalVisible(false);
+    setOtpInput('');
   };
 
   // Select an active job from the list
@@ -215,6 +173,11 @@ export default function FuelDispenseScreen() {
     const vendorPhone = vendor?.phone || vendor?.mobile || activeJob.vendorPhone || '';
     const driverPhone = activeJob.driverPhone || '';
 
+    if (!vendorPhone) {
+      Alert.alert('Missing Vendor Phone', 'This job does not have a linked vendor phone number for the OTP.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const result = await requestFuelAuthorization({
@@ -230,13 +193,54 @@ export default function FuelDispenseScreen() {
         jobId: activeJob.jobId || activeJob.id,
       });
 
+      if (!result?.id) {
+        throw new Error('Authorization request was not created. Please try again.');
+      }
+
       setAuthId(result.id);
       setAuthStatus('pending');
-      startAuthPolling(result.id);
+      setOtpInput('');
+      setOtpModalVisible(true);
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Failed to request authorization');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const code = otpInput.trim();
+    if (!authId) {
+      Alert.alert('Error', 'No active authorization request.');
+      return;
+    }
+    if (!code) {
+      Alert.alert('Missing OTP', 'Enter the OTP sent to the linked vendor.');
+      return;
+    }
+    if (code.length < 4) {
+      Alert.alert('Invalid OTP', 'Please enter the full OTP code.');
+      return;
+    }
+
+    setAuthVerifying(true);
+    try {
+      const result = await verifyFuelAuthorization(authId, code, true);
+      if (result?.status !== 'authorized' && result?.authorized !== true) {
+        throw new Error(result?.message || 'OTP verification failed.');
+      }
+
+      setAuthStatus('authorized');
+      setOtpModalVisible(false);
+      setOtpInput('');
+      Alert.alert('Authorized', 'OTP verified. You can now dispense fuel.', [
+        { text: 'Enter Fuel Amount', onPress: () => setFlowStep('form') }
+      ]);
+    } catch (error: any) {
+      const message = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Invalid OTP. Please try again.';
+      Alert.alert('Verification Failed', message);
+    } finally {
+      setAuthVerifying(false);
     }
   };
 
@@ -440,9 +444,9 @@ export default function FuelDispenseScreen() {
                     <TouchableOpacity
                       style={[styles.backBtn, { borderColor: colors.border }]}
                       onPress={() => {
-                        if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
                         setFlowStep('list');
-                        setAuthPolling(false);
+                        setOtpModalVisible(false);
+                        setOtpInput('');
                       }}
                     >
                       <Ionicons name="arrow-back" size={18} color={colors.textSecondary} />
@@ -488,20 +492,23 @@ export default function FuelDispenseScreen() {
                       {authStatus === 'pending' ? (
                         <>
                           <View style={[styles.authIconCircle, { backgroundColor: '#F59E0B15' }]}>
-                            <Ionicons name="time-outline" size={48} color="#F59E0B" />
+                            <Ionicons name="key-outline" size={48} color="#F59E0B" />
                           </View>
                           <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' }}>
-                            Waiting for Vendor Authorization
+                            Request Vendor OTP
                           </Text>
                           <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
-                            An OTP has been sent to the vendor. They must verify and authorize this fuel dispense.
+                            Send an OTP to the linked vendor, then enter the code here to verify fuel dispensing.
                           </Text>
-                          {authPolling && (
-                            <ActivityIndicator size="large" color="#F59E0B" style={{ marginTop: Spacing.md }} />
-                          )}
-                          <Text style={{ fontSize: 12, color: colors.textTertiary, textAlign: 'center' }}>
-                            Checking authorization status every 5 seconds...
-                          </Text>
+                          {authId ? (
+                            <TouchableOpacity
+                              style={[styles.submitBtn, { backgroundColor: '#F59E0B' }]}
+                              onPress={() => setOtpModalVisible(true)}
+                            >
+                              <Ionicons name="keypad-outline" size={20} color="#FFFFFF" />
+                              <Text style={styles.submitBtnText}>Enter OTP</Text>
+                            </TouchableOpacity>
+                          ) : null}
                         </>
                       ) : authStatus === 'authorized' ? (
                         <>
@@ -563,7 +570,7 @@ export default function FuelDispenseScreen() {
                       ) : null}
 
                       {/* Initial request button (only when not yet requested) */}
-                      {!authId && authStatus === 'pending' && !authPolling && (
+                      {!authId && authStatus === 'pending' && (
                         <TouchableOpacity
                           style={[styles.submitBtn, { backgroundColor: '#3B82F6' }]}
                           onPress={handleRequestAuthorization}
@@ -703,6 +710,52 @@ export default function FuelDispenseScreen() {
 
               <View style={{ height: Spacing.xl }} />
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* OTP Verification Popup */}
+      <Modal visible={otpModalVisible} transparent animationType="fade" onRequestClose={() => setOtpModalVisible(false)}>
+        <View style={styles.otpBackdrop}>
+          <View style={[styles.otpCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.authIconCircle, { backgroundColor: '#F59E0B15', alignSelf: 'center' }]}>
+              <Ionicons name="keypad-outline" size={42} color="#F59E0B" />
+            </View>
+            <Text style={[styles.otpTitle, { color: colors.text }]}>Enter Vendor OTP</Text>
+            <Text style={[styles.otpSub, { color: colors.textMuted }]}>
+              Ask the linked vendor for the OTP sent to their phone, then enter it to verify this fuel dispense.
+            </Text>
+            <TextInput
+              style={[styles.otpInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.border }]}
+              placeholder="6-digit OTP"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="number-pad"
+              value={otpInput}
+              onChangeText={(value) => setOtpInput(value.replace(/\D/g, '').slice(0, 6))}
+              maxLength={6}
+              autoFocus
+            />
+            <View style={styles.otpActions}>
+              <TouchableOpacity
+                style={[styles.otpSecondaryBtn, { borderColor: colors.border }]}
+                onPress={() => setOtpModalVisible(false)}
+                disabled={authVerifying}
+              >
+                <Text style={[styles.otpSecondaryText, { color: colors.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.otpPrimaryBtn, { backgroundColor: otpInput.trim() && !authVerifying ? '#10B981' : colors.border }]}
+                onPress={handleVerifyOtp}
+                disabled={authVerifying || !otpInput.trim()}
+              >
+                {authVerifying ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                )}
+                <Text style={styles.otpPrimaryText}>{authVerifying ? 'Verifying...' : 'Verify'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -868,4 +921,53 @@ const styles = StyleSheet.create({
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md, gap: 0 },
   stepDot: { width: 10, height: 10, borderRadius: 5 },
   stepLine: { width: 48, height: 3, borderRadius: 2 },
+
+  // OTP popup
+  otpBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+  },
+  otpCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  otpTitle: { fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  otpSub: { fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  otpInput: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    height: 54,
+    paddingHorizontal: Spacing.md,
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 3,
+  },
+  otpActions: { flexDirection: 'row', gap: Spacing.sm },
+  otpSecondaryBtn: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  otpSecondaryText: { fontSize: 14, fontWeight: '800' },
+  otpPrimaryBtn: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  otpPrimaryText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 });
