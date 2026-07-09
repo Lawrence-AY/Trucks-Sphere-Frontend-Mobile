@@ -495,10 +495,10 @@ export default function FuelDispenseScreen() {
                             <Ionicons name="key-outline" size={48} color="#F59E0B" />
                           </View>
                           <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' }}>
-                            Request Vendor OTP
+                            Request Vendor Authorization
                           </Text>
                           <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
-                            Send an OTP to the linked vendor, then enter the code here to verify fuel dispensing.
+                            Send an Authorization request to the linked vendor, then enter the code here to verify fuel dispensing.
                           </Text>
                           {authId ? (
                             <TouchableOpacity
@@ -506,7 +506,7 @@ export default function FuelDispenseScreen() {
                               onPress={() => setOtpModalVisible(true)}
                             >
                               <Ionicons name="keypad-outline" size={20} color="#FFFFFF" />
-                              <Text style={styles.submitBtnText}>Enter OTP</Text>
+                              <Text style={styles.submitBtnText}>Enter Authorization Pin</Text>
                             </TouchableOpacity>
                           ) : null}
                         </>
@@ -554,10 +554,10 @@ export default function FuelDispenseScreen() {
                             <Ionicons name="time-outline" size={48} color="#94A3B8" />
                           </View>
                           <Text style={{ fontSize: 18, fontWeight: '800', color: '#94A3B8', textAlign: 'center' }}>
-                            OTP Expired
+                           Authorization pin expired
                           </Text>
                           <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
-                            The OTP has expired. Please select a job and request a new authorization.
+                            The authorization pin has expired. Please select a job and request a new authorization.
                           </Text>
                           <TouchableOpacity
                             style={[styles.submitBtn, { backgroundColor: '#3B82F6' }]}
@@ -721,13 +721,13 @@ export default function FuelDispenseScreen() {
             <View style={[styles.authIconCircle, { backgroundColor: '#F59E0B15', alignSelf: 'center' }]}>
               <Ionicons name="keypad-outline" size={42} color="#F59E0B" />
             </View>
-            <Text style={[styles.otpTitle, { color: colors.text }]}>Enter Vendor OTP</Text>
+            <Text style={[styles.otpTitle, { color: colors.text }]}>Enter Vendor authorization pin</Text>
             <Text style={[styles.otpSub, { color: colors.textMuted }]}>
-              Ask the linked vendor for the OTP sent to their phone, then enter it to verify this fuel dispense.
+              Ask the linked vendor for the authorization pin sent to their phone, then enter it to verify this fuel dispense.
             </Text>
             <TextInput
               style={[styles.otpInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.border }]}
-              placeholder="6-digit OTP"
+              placeholder="6-digit authorization pin"
               placeholderTextColor={colors.textTertiary}
               keyboardType="number-pad"
               value={otpInput}

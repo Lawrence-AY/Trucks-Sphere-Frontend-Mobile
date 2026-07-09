@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Image, RefreshControl, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
@@ -111,11 +111,15 @@ export default function VendorDriversScreen() {
             }
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
-              <View style={[styles.avatar, { backgroundColor: `${colors.primary}18` }]}>
-                <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>
-                  {(driver.name || 'D').charAt(0).toUpperCase()}
-                </Text>
-              </View>
+              {driver.photoURL ? (
+                <Image source={{ uri: driver.photoURL }} style={styles.avatarImage} />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: `${colors.primary}18` }]}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>
+                    {(driver.name || 'D').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
@@ -180,6 +184,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarImage: { width: 48, height: 48, borderRadius: 24 },
   statsRow: {
     flexDirection: 'row',
     gap: Spacing.md,

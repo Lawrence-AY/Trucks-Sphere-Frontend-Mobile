@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   RefreshControl,
   ScrollView,
@@ -69,7 +70,7 @@ export default function OperatorQuarryDashboardScreen() {
     }
   };
 
-  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
+  useEffect(() => { loadData(); }, []);
 
   const queue = deliveries.filter(
     (d) => !['delivered', 'completed', 'cancelled'].includes(d.status) && !d.weighInWeight,
@@ -211,7 +212,16 @@ export default function OperatorQuarryDashboardScreen() {
                     <Text style={[styles.jobMeta, { color: colors.textMuted }]}>{item.poNumber || 'No PO'}</Text>
                   </View>
                 </View>
-                <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                  {/* Quick driver photo lookup */}
+                  {(() => {
+                    const d = drivers.find((dr: any) => dr.id === item.driverId);
+                    return d?.photoURL ? (
+                      <Image source={{ uri: d.photoURL }} style={styles.queueDriverPhoto} />
+                    ) : null;
+                  })()}
+                  <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+                </View>
                 <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
                 <DetailRow icon="business-outline" value={`${item.vendorName || 'N/A'}`} />
                 <View style={[styles.stageBadge, { backgroundColor: `${s.color}15`, borderColor: `${s.color}44` }]}>
@@ -300,6 +310,15 @@ export default function OperatorQuarryDashboardScreen() {
                             onPress={() => setSelectedDriver(driver)}
                           >
                             <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={18} color={active ? colors.primary : colors.textMuted} />
+                            {driver.photoURL ? (
+                              <Image source={{ uri: driver.photoURL }} style={styles.modalDriverPhoto} />
+                            ) : (
+                              <View style={[styles.modalDriverPhoto, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
+                                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primary }}>
+                                  {(driver.name || driver.fullName || 'D').charAt(0).toUpperCase()}
+                                </Text>
+                              </View>
+                            )}
                             <View style={{ flex: 1 }}>
                               <Text style={[styles.optionTitle, { color: colors.text }]}>{driver.name || driver.fullName}</Text>
                               <Text style={[styles.optionMeta, { color: colors.textMuted }]}>License: {driver.licenseNumber}</Text>
@@ -378,6 +397,8 @@ const styles = StyleSheet.create({
   stageBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1, marginTop: Spacing.sm },
   stageText: { fontSize: 11, fontWeight: '700' },
   timestamp: { fontSize: 14, marginTop: Spacing.sm },
+  queueDriverPhoto: { width: 24, height: 24, borderRadius: 12 },
+  modalDriverPhoto: { width: 32, height: 32, borderRadius: 16 },
   fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 14 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
   addSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%' },

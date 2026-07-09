@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import { Image, View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
@@ -54,11 +54,15 @@ export default function DriverHistoryScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
-        <View style={[styles.chatAvatar, { backgroundColor: colors.accent + '15' }]}>
-          <Text style={[styles.chatAvatarText, { color: colors.accent }]}>
-            {driverName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
-          </Text>
-        </View>
+        {driver?.photoURL ? (
+          <Image source={{ uri: driver.photoURL }} style={styles.chatAvatarImage} />
+        ) : (
+          <View style={[styles.chatAvatar, { backgroundColor: colors.accent + '15' }]}>
+            <Text style={[styles.chatAvatarText, { color: colors.accent }]}>
+              {driverName.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+            </Text>
+          </View>
+        )}
         <View style={styles.chatHeaderInfo}>
           <Text style={[styles.chatName, { color: colors.text }]}>{driverName}</Text>
           <Text style={[styles.chatStatus, { color: colors.textSecondary }]}>
@@ -181,6 +185,7 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
   },
+  chatAvatarImage: { width: 40, height: 40, borderRadius: 20 },
   chatAvatarText: { fontSize: 14, fontWeight: '700' },
   chatHeaderInfo: { flex: 1 },
   chatName: { fontSize: 16, fontWeight: '700' },

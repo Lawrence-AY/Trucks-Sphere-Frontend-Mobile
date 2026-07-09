@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Image, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
@@ -57,11 +57,15 @@ export default function ManagementDriversScreen() {
           return (
             <DataCard key={item.id} onPress={() => router.push(`/screens/driver-history?id=${item.id}&name=${encodeURIComponent(name)}` as any)}>
               <View style={styles.cardHead}>
-                <View style={[styles.avatar, { backgroundColor: `${colors.primary}18` }]}>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
-                    {name.split(' ').map((part: string) => part[0]).join('').slice(0, 2)}
-                  </Text>
-                </View>
+                {item.photoURL ? (
+                  <Image source={{ uri: item.photoURL }} style={styles.avatarImage} />
+                ) : (
+                  <View style={[styles.avatar, { backgroundColor: `${colors.primary}18` }]}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: colors.primary }}>
+                      {name.split(' ').map((part: string) => part[0]).join('').slice(0, 2)}
+                    </Text>
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{name}</Text>
                   <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.licenseNumber || 'No license number'}</Text>
@@ -82,4 +86,5 @@ export default function ManagementDriversScreen() {
 const styles = StyleSheet.create({
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   avatar: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  avatarImage: { width: 48, height: 48, borderRadius: 16 },
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -245,6 +246,15 @@ export default function VendorDetailsScreen() {
         ListEmptyComponent={<Text style={[styles.emptyInline, { color: colors.textMuted }]}>No drivers found</Text>}
         renderItem={({ item }) => (
           <View style={[styles.personCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {item.photoURL ? (
+              <Image source={{ uri: item.photoURL }} style={styles.driverPhoto} />
+            ) : (
+              <View style={[styles.driverPhoto, { backgroundColor: colors.accent + '15', alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={[styles.driverPhotoText, { color: colors.accent }]}>
+                  {(item.name || 'D').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
             <Text style={[styles.itemTitle, { color: colors.text }]}>{item.name}</Text>
             <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{item.phone}</Text>
             <Text style={[styles.itemMeta, { color: colors.textMuted }]}>Lic: {item.licenseNumber}</Text>
@@ -387,7 +397,9 @@ const styles = StyleSheet.create({
   progressRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
   sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: Spacing.md, marginTop: Spacing.sm },
   horizontalList: { gap: Spacing.sm, paddingBottom: Spacing.md },
-  personCard: { width: 170, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md },
+  personCard: { width: 170, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, gap: 4 },
+  driverPhoto: { width: 40, height: 40, borderRadius: 20, marginBottom: 4 },
+  driverPhotoText: { fontSize: 15, fontWeight: '800' },
   truckCard: { width: 180, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md },
   itemTitle: { fontSize: 14, fontWeight: '700' },
   itemMeta: { fontSize: 12, marginTop: 3 },

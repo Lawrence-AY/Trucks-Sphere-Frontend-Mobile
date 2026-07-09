@@ -51,7 +51,7 @@ export default function OperatorQuarryWeighOutScreen() {
     }
   };
 
-  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
+  useEffect(() => { loadData(); }, []);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();

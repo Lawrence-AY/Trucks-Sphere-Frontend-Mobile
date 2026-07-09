@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   RefreshControl,
   ScrollView,
@@ -15,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
+import { fetchDeliveryOrders, fetchDrivers, updateDeliveryOrder } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import {
   DataCard,
@@ -47,11 +48,21 @@ export default function OperatorSiteDashboardScreen() {
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [successJob, setSuccessJob] = useState<any>(null);
 
+  // Driver lookup map for resolving photoURL
+  const [driverMap, setDriverMap] = useState<Record<string, any>>({});
+
   const loadData = async (silent?: boolean) => {
     if (!silent) setRefreshing(true);
     try {
-      const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data);
+      const [data, driverData] = await Promise.all([
+        fetchDeliveryOrders(),
+        fetchDrivers(),
+      ]);
+      setDeliveries(data || []);
+      // Build driver lookup map
+      const map: Record<string, any> = {};
+      (driverData || []).forEach((d: any) => { if (d.id) map[d.id] = d; });
+      setDriverMap(map);
     } catch {
     } finally {
       setRefreshing(false);
@@ -59,7 +70,7 @@ export default function OperatorSiteDashboardScreen() {
     }
   };
 
-  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
+  useEffect(() => { loadData(); }, []);
 
   /* ─── Filtered & categorized data ─── */
 
@@ -304,10 +315,15 @@ export default function OperatorSiteDashboardScreen() {
                     </View>
                   </View>
 
-                  <DetailRow
-                    icon="person-outline"
-                    value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`}
-                  />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                    {driverMap[item.driverId]?.photoURL ? (
+                      <Image source={{ uri: driverMap[item.driverId].photoURL }} style={styles.driverAvatarSmall} />
+                    ) : null}
+                    <DetailRow
+                      icon="person-outline"
+                      value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`}
+                    />
+                  </View>
                   <DetailRow
                     icon="cube-outline"
                     value={`${item.materialName || 'Material'}`}
@@ -588,6 +604,7 @@ export default function OperatorSiteDashboardScreen() {
 
 const styles = StyleSheet.create({
   metricRow: { flexDirection: 'row', gap: Spacing.sm },
+  driverAvatarSmall: { width: 24, height: 24, borderRadius: 12 },
   // Card
   cardHeaderTouchable: {},
   cardHeader: {
