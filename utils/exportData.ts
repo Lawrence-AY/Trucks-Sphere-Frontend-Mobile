@@ -1,4 +1,7 @@
 import { Platform, Alert, Share } from 'react-native';
+import { Paths, File } from 'expo-file-system';
+import * as ExpoSharing from 'expo-sharing';
+import * as Print from 'expo-print';
 import { fetchDrivers, fetchVehicles, fetchPurchaseOrders, fetchDeliveryOrders, fetchVendors } from '../services/api';
 
 function escapeCsvField(value: any): string {
@@ -41,30 +44,101 @@ function buildHtmlTable(headers: string[], rows: string[][], title: string): str
   `;
 }
 
-async function shareCsv(title: string, headers: string[], rows: string[][]) {
+/**
+ * Writes CSV content to a temp file and shares it as an actual .csv file.
+ * Uses the new expo-file-system v56 API (Paths.cache + File).
+ * Falls back to Share.share (plain text) on web or if file sharing fails.
+ */
+async function shareCsvFile(title: string, headers: string[], rows: string[][]) {
+  const csv = formatCsv(headers, rows);
+  const safeName = title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const fileName = `${safeName}.csv`;
+
   try {
-    const csv = formatCsv(headers, rows);
-    await Share.share({
-      message: csv,
-      title: title,
-    });
+    if (Platform.OS === 'web') {
+      // Web: use Blob download
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    // Native: write CSV to cache directory using new File API
+    const csvFile = new File(Paths.cache, fileName);
+    csvFile.write('\uFEFF' + csv);
+
+    const canShare = await ExpoSharing.isAvailableAsync();
+    if (canShare) {
+      await ExpoSharing.shareAsync(csvFile.uri, {
+        mimeType: 'text/csv',
+        dialogTitle: title,
+        UTI: 'public.comma-separated-values-text',
+      });
+    } else {
+      await Share.share({ message: csv, title });
+    }
   } catch (e: any) {
-    if (e?.message !== 'User did not share') {
-      Alert.alert('Export Error', e?.message || 'Failed to share CSV');
+    if (e?.message !== 'User did not share' && e?.message !== 'CANCELED') {
+      try {
+        await Share.share({ message: csv, title });
+      } catch (_: any) {
+        if (_?.message !== 'User did not share') {
+          Alert.alert('Export Error', _?.message || 'Failed to share CSV');
+        }
+      }
     }
   }
 }
 
-async function sharePdf(title: string, headers: string[], rows: string[][]) {
+/**
+ * Generates a PDF file from HTML and shares it as an actual .pdf file.
+ * Uses expo-print to generate the PDF, then expo-sharing to share it.
+ * Falls back to Share.share (HTML text) on web or if PDF sharing fails.
+ */
+async function sharePdfFile(title: string, headers: string[], rows: string[][]) {
+  const html = buildHtmlTable(headers, rows, title);
+  const safeName = title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const fileName = `${safeName}.pdf`;
+
   try {
-    const html = buildHtmlTable(headers, rows, title);
-    await Share.share({
-      message: html,
-      title: title,
-    });
+    if (Platform.OS === 'web') {
+      await Print.printAsync({ html, width: 595, height: 842 });
+      return;
+    }
+
+    // Generate PDF via expo-print
+    const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842, base64: false });
+
+    // Copy to cache with a friendly name using new File API
+    const pdfFile = new File(Paths.cache, fileName);
+    const tempFile = new File(uri);
+    await tempFile.copy(pdfFile);
+
+    const canShare = await ExpoSharing.isAvailableAsync();
+    if (canShare) {
+      await ExpoSharing.shareAsync(pdfFile.uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: title,
+        UTI: 'com.adobe.pdf',
+      });
+    } else {
+      await Share.share({ message: html, title });
+    }
   } catch (e: any) {
-    if (e?.message !== 'User did not share') {
-      Alert.alert('Export Error', e?.message || 'Failed to share');
+    if (e?.message !== 'User did not share' && e?.message !== 'CANCELED') {
+      try {
+        await Share.share({ message: html, title });
+      } catch (_: any) {
+        if (_?.message !== 'User did not share') {
+          Alert.alert('Export Error', _?.message || 'Failed to share PDF');
+        }
+      }
     }
   }
 }
@@ -106,7 +180,7 @@ export async function shareDeliveryNoteCSV(data: DeliveryNoteExportData) {
     ['Status', data.status.replace(/_/g, ' ').toUpperCase()],
     ['Date Created', data.createdAt],
   ];
-  await shareCsv(`Delivery_Note_${data.jobId}`, headers, rows);
+  await shareCsvFile(`Delivery_Note_${data.jobId}`, headers, rows);
 }
 
 export async function shareDeliveryNotePDF(data: DeliveryNoteExportData) {
@@ -127,7 +201,7 @@ export async function shareDeliveryNotePDF(data: DeliveryNoteExportData) {
     ['Status', data.status.replace(/_/g, ' ').toUpperCase()],
     ['Date Created', data.createdAt],
   ];
-  await sharePdf(`Delivery Note - ${data.jobId}`, headers, rows);
+  await sharePdfFile(`Delivery Note - ${data.jobId}`, headers, rows);
 }
 
 // ============== SYSTEM-WIDE EXPORTS ==============
@@ -257,11 +331,124 @@ async function doExport(entity: ExportEntity, format: 'csv' | 'pdf') {
     }
 
     if (format === 'csv') {
-      await shareCsv(title, headers, rows);
+      await shareCsvFile(title, headers, rows);
     } else {
-      await sharePdf(title, headers, rows);
+      await sharePdfFile(title, headers, rows);
     }
   } catch (e: any) {
     Alert.alert('Export Error', e?.message || 'Failed to export data');
   }
 }
+
+// ============== Exported helper functions (used by history screens inline) ==============
+
+/**
+ * Build CSV content string from headers and rows.
+ */
+export function buildCsvContent(headers: string[], rows: string[][]): string {
+  return formatCsv(headers, rows);
+}
+
+/**
+ * Build HTML table string for PDF generation from headers and rows.
+ */
+export function buildHtmlContent(headers: string[], rows: string[][], title: string): string {
+  return buildHtmlTable(headers, rows, title);
+}
+
+/**
+ * Share a CSV file using the new expo-file-system API (Paths.cache + File.write).
+ * Writes to the cache directory and shares as an actual .csv file.
+ * Falls back to plain text Share.share on failure.
+ */
+export async function shareCsvAsFile(title: string, csvContent: string): Promise<void> {
+  const safeName = title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const fileName = `${safeName}.csv`;
+
+  try {
+    if (Platform.OS === 'web') {
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    const csvFile = new File(Paths.cache, fileName);
+    csvFile.write('\uFEFF' + csvContent);
+
+    const canShare = await ExpoSharing.isAvailableAsync();
+    if (canShare) {
+      await ExpoSharing.shareAsync(csvFile.uri, {
+        mimeType: 'text/csv',
+        dialogTitle: title,
+        UTI: 'public.comma-separated-values-text',
+      });
+    } else {
+      await Share.share({ message: csvContent, title });
+    }
+  } catch (e: any) {
+    if (e?.message !== 'User did not share' && e?.message !== 'CANCELED') {
+      try {
+        await Share.share({ message: csvContent, title });
+      } catch (_: any) {
+        if (_?.message !== 'User did not share') {
+          Alert.alert('Export Error', _?.message || 'Failed to share CSV');
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Share a PDF file using expo-print + expo-sharing + new expo-file-system API.
+ * Generates PDF from HTML and shares as actual .pdf.
+ * Falls back to plain text Share.share on failure.
+ */
+export async function sharePdfAsFile(title: string, htmlContent: string): Promise<void> {
+  const safeName = title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const fileName = `${safeName}.pdf`;
+
+  try {
+    if (Platform.OS === 'web') {
+      await Print.printAsync({ html: htmlContent, width: 595, height: 842 });
+      return;
+    }
+
+    const { uri } = await Print.printToFileAsync({ html: htmlContent, width: 595, height: 842, base64: false });
+
+    // Copy generated PDF to cache with friendly name
+    const pdfFile = new File(Paths.cache, fileName);
+    const tempFile = new File(uri);
+    await tempFile.copy(pdfFile);
+
+    const canShare = await ExpoSharing.isAvailableAsync();
+    if (canShare) {
+      await ExpoSharing.shareAsync(pdfFile.uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: title,
+        UTI: 'com.adobe.pdf',
+      });
+    } else {
+      await Share.share({ message: htmlContent, title });
+    }
+  } catch (e: any) {
+    if (e?.message !== 'User did not share' && e?.message !== 'CANCELED') {
+      try {
+        await Share.share({ message: htmlContent, title });
+      } catch (_: any) {
+        if (_?.message !== 'User did not share') {
+          Alert.alert('Export Error', _?.message || 'Failed to share PDF');
+        }
+      }
+    }
+  }
+}
+
+// Legacy re-export (used by operator-quarry/history.tsx and operator-site/history.tsx)
+export { shareCsvFile, sharePdfFile };

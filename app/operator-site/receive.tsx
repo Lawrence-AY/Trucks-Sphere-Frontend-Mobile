@@ -28,7 +28,7 @@ export default function OperatorSiteReceiveScreen() {
     setRefreshing(true);
     try {
       const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data.filter((d: any) => !['delivered', 'completed', 'cancelled'].includes(d.status)));
+      setDeliveries(data.filter((d: any) => !['delivered', 'cancelled'].includes(d.status)));
     } catch {
     } finally {
       setRefreshing(false);

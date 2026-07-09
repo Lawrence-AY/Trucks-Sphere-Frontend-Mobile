@@ -80,7 +80,7 @@ export default function NotificationsScreen() {
       return;
     }
     if (!otpInput.trim()) {
-      Alert.alert('Missing OTP', 'Please enter the OTP sent to your phone.');
+      Alert.alert('Missing PIN', 'Please enter the Fuel Authorization PIN sent to your phone.');
       return;
     }
 
@@ -281,11 +281,11 @@ export default function NotificationsScreen() {
                 {/* OTP Input */}
                 <View style={styles.otpSection}>
                   <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: Spacing.sm }}>
-                    Enter OTP sent to your phone
+                    Enter Fuel Authorization PIN sent to your phone
                   </Text>
                   <TextInput
                     style={[styles.otpInput, { color: '#1E293B', backgroundColor: '#F8FAFC', borderColor: '#3B82F6' }]}
-                    placeholder="Enter 6-digit OTP"
+                    placeholder="Enter 6-digit PIN"
                     placeholderTextColor="#94A3B8"
                     keyboardType="number-pad"
                     maxLength={6}

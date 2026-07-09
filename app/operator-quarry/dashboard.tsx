@@ -32,6 +32,7 @@ import {
   PageShell,
   SectionTitle,
 } from '../../components/EnterpriseUI';
+import DriverProfileModal from '../../components/DriverProfileModal';
 
 export default function OperatorQuarryDashboardScreen() {
   const colors = useTheme();
@@ -49,6 +50,9 @@ export default function OperatorQuarryDashboardScreen() {
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [driverProfileVisible, setDriverProfileVisible] = useState(false);
+  const [selectedDriverId, setSelectedDriverId] = useState('');
+  const [selectedDriverData, setSelectedDriverData] = useState<any>(null);
 
   const loadData = async (silent?: boolean) => {
     if (!silent) setRefreshing(true);
@@ -73,10 +77,10 @@ export default function OperatorQuarryDashboardScreen() {
   useEffect(() => { loadData(); }, []);
 
   const queue = deliveries.filter(
-    (d) => !['delivered', 'completed', 'cancelled'].includes(d.status) && !d.weighInWeight,
+    (d) => !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status) && !d.weighInWeight,
   );
   const completed = deliveries.filter(
-    (d) => d.status === 'delivered' || d.status === 'completed',
+    (d) => d.status === 'delivered' || d.status === 'completed' || d.status === 'loaded',
   );
 
   const matchingPurchaseOrders = useMemo(() => {
@@ -212,16 +216,34 @@ export default function OperatorQuarryDashboardScreen() {
                     <Text style={[styles.jobMeta, { color: colors.textMuted }]}>{item.poNumber || 'No PO'}</Text>
                   </View>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}
+                  onPress={() => {
+                    const d = drivers.find((dr: any) => dr.id === item.driverId);
+                    if (d) {
+                      setSelectedDriverId(d.id);
+                      setSelectedDriverData(d);
+                      setDriverProfileVisible(true);
+                    }
+                  }}
+                  activeOpacity={0.6}
+                >
                   {/* Quick driver photo lookup */}
                   {(() => {
                     const d = drivers.find((dr: any) => dr.id === item.driverId);
                     return d?.photoURL ? (
                       <Image source={{ uri: d.photoURL }} style={styles.queueDriverPhoto} />
-                    ) : null;
+                    ) : (
+                      <View style={[styles.queueDriverPhoto, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: colors.primary }}>
+                          {(d?.name || d?.fullName || 'D').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    );
                   })()}
                   <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
-                </View>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.textTertiary} />
+                </TouchableOpacity>
                 <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
                 <DetailRow icon="business-outline" value={`${item.vendorName || 'N/A'}`} />
                 <View style={[styles.stageBadge, { backgroundColor: `${s.color}15`, borderColor: `${s.color}44` }]}>
@@ -385,6 +407,18 @@ export default function OperatorQuarryDashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Driver Profile Modal */}
+      <DriverProfileModal
+        visible={driverProfileVisible}
+        driverId={selectedDriverId}
+        driverData={selectedDriverData}
+        onClose={() => {
+          setDriverProfileVisible(false);
+          setSelectedDriverId('');
+          setSelectedDriverData(null);
+        }}
+      />
     </View>
   );
 }

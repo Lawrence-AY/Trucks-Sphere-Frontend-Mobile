@@ -43,7 +43,7 @@ export default function OperatorQuarryWeighOutScreen() {
     try {
       const data = (await fetchDeliveryOrders()) || [];
       // Show only jobs that have weigh-in but NOT weigh-out
-      setDeliveries(data.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'cancelled'].includes(d.status)));
+      setDeliveries(data.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status)));
     } catch {
     } finally {
       setRefreshing(false);
@@ -89,7 +89,7 @@ export default function OperatorQuarryWeighOutScreen() {
       setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
       closeWeighOutForm();
       Alert.alert('Completed', `Weigh-Out submitted.\n\nLoaded: ${numericWeightOut.toFixed(1)}T · Empty: ${weighIn.toFixed(1)}T · Net: ${netWeight.toFixed(1)}T`, [
-        { text: 'OK', onPress: () => router.navigate('/operator-quarry/dashboard' as any) },
+        { text: 'OK', onPress: () => closeWeighOutForm() },
       ]);
     } catch (error: any) {
       Alert.alert('Submission Failed', error?.message || 'Could not submit weigh-out data.');

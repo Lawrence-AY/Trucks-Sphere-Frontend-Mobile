@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
@@ -40,7 +41,7 @@ export default function OperatorQuarryWeighInScreen() {
     if (!silent) setRefreshing(true);
     try {
       const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data.filter((d: any) => !d.weighInWeight && !['delivered', 'completed', 'cancelled'].includes(d.status)));
+      setDeliveries(data.filter((d: any) => !d.weighInWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status)));
     } catch {
     } finally {
       setRefreshing(false);
@@ -75,7 +76,8 @@ export default function OperatorQuarryWeighInScreen() {
         updatedAt: now,
       });
       setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
-      Alert.alert('Saved', `Weigh-In of ${numericWeight.toFixed(1)} tonnes saved as draft. Job forwarded to Weigh-Out stage.`, [{ text: 'OK', onPress: closeWeighInForm }]);
+      closeWeighInForm();
+      router.navigate('/operator-quarry/weigh-out' as any);
     } catch (error: any) {
       Alert.alert('Save Failed', error?.message || 'Could not save weigh-in data.');
     } finally {

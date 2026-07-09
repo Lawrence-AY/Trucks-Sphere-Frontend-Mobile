@@ -28,6 +28,7 @@ import {
   SectionTitle,
   
 } from '../../components/EnterpriseUI';
+import DriverProfileModal from '../../components/DriverProfileModal';
 
 /* ─────────── Phase 1: Schedule Tab — Site Weight In ─────────── */
 
@@ -50,6 +51,11 @@ export default function OperatorSiteDashboardScreen() {
 
   // Driver lookup map for resolving photoURL
   const [driverMap, setDriverMap] = useState<Record<string, any>>({});
+
+  // Driver profile modal state
+  const [driverProfileVisible, setDriverProfileVisible] = useState(false);
+  const [selectedDriverId, setSelectedDriverId] = useState('');
+  const [selectedDriverData, setSelectedDriverData] = useState<any>(null);
 
   const loadData = async (silent?: boolean) => {
     if (!silent) setRefreshing(true);
@@ -78,7 +84,7 @@ export default function OperatorSiteDashboardScreen() {
   // and have NOT been weighed in at site yet — once weighed in, they move to Weights tab
   const allScheduled = useMemo(
     () => deliveries.filter((d) => {
-      if (['cancelled', 'completed', 'delivered', 'weighed_in'].includes(d.status)) return false;
+      if (['cancelled', 'delivered', 'weighed_in', 'completed'].includes(d.status)) return false;
       if (d.siteWeighInWeight != null) return false; // already weighed in — move off schedule
       // Must have been weighed at quarry (has both weigh in and weigh out weights)
       return d.weighInWeight != null && d.weighOutWeight != null;
@@ -293,7 +299,7 @@ export default function OperatorSiteDashboardScreen() {
 
             return (
               <DataCard key={item.id}>
-                {/* Card Header */}
+                {/* Card Header — entire card tappable for weigh-in */}
                 <TouchableOpacity
                   onPress={() => toggleExpand(item.id)}
                   activeOpacity={0.7}
@@ -310,20 +316,8 @@ export default function OperatorSiteDashboardScreen() {
                         {item.poNumber || 'No PO'}
                       </Text>
                     </View>
-                    <View style={styles.cardHeaderRight}>
-                 
-                    </View>
                   </View>
 
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                    {driverMap[item.driverId]?.photoURL ? (
-                      <Image source={{ uri: driverMap[item.driverId].photoURL }} style={styles.driverAvatarSmall} />
-                    ) : null}
-                    <DetailRow
-                      icon="person-outline"
-                      value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`}
-                    />
-                  </View>
                   <DetailRow
                     icon="cube-outline"
                     value={`${item.materialName || 'Material'}`}
@@ -382,6 +376,39 @@ export default function OperatorSiteDashboardScreen() {
                       </Text>
                     </View>
                   )}
+                </TouchableOpacity>
+
+                {/* Driver row — separate touchable to open driver profile */}
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm }}
+                  activeOpacity={0.6}
+                  onPress={() => {
+                    const d = driverMap[item.driverId];
+                    if (d) {
+                      setSelectedDriverId(d.id);
+                      setSelectedDriverData(d);
+                      setDriverProfileVisible(true);
+                    }
+                  }}
+                >
+                  {driverMap[item.driverId]?.photoURL ? (
+                    <Image source={{ uri: driverMap[item.driverId].photoURL }} style={styles.driverAvatarSmall} />
+                  ) : (
+                    <View style={[styles.driverAvatarSmall, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: colors.primary }}>
+                        {(driverMap[item.driverId]?.name || item.driverName || 'D').charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                      {item.driverName || 'Unassigned'}
+                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted }}>
+                      {item.plateNumber || 'N/A'}
+                    </Text>
+                  </View>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.textTertiary} />
                 </TouchableOpacity>
 
                 {/* ─── Expanded Weight In Form ─── */}
@@ -596,6 +623,18 @@ export default function OperatorSiteDashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Driver Profile Modal */}
+      <DriverProfileModal
+        visible={driverProfileVisible}
+        driverId={selectedDriverId}
+        driverData={selectedDriverData}
+        onClose={() => {
+          setDriverProfileVisible(false);
+          setSelectedDriverId('');
+          setSelectedDriverData(null);
+        }}
+      />
     </View>
   );
 }

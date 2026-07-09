@@ -114,7 +114,9 @@ export default function ActiveScreen() {
               <View style={styles.detailGrid}>
                 <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
                 <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} · ${item.quantityOrdered || item.quantity || 0} tonnes`} />
-                <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} -> ${item.siteName || 'Destination'}`} />
+                {user?.role !== 'operator_quarry' && (
+                  <DetailRow icon="navigate-outline" value={`${item.quarryName || 'Origin'} -> ${item.siteName || 'Destination'}`} />
+                )}
                 <DetailRow icon="scale-outline" value={`Net ${item.netWeight || 'pending'} t`} />
               </View>
 

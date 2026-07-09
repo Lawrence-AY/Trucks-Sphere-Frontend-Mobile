@@ -101,8 +101,7 @@ export default function VendorDashboardScreen() {
       </View>
       <View style={styles.metricRow}>
         <MetricTile icon="checkmark-done" label="Completed" value={completedTrips} tone="#10B981" />
-        <MetricTile icon="water" label="Total Fuel" value={`${totalFuelForVendor.toFixed(0)} L`} tone="#F59E0B" />
-      </View>
+       </View>
 
       <SectionTitle title="Recent trips" action={
         <Text style={{ fontSize: 13, fontWeight: '600', color: colors.accent }} onPress={() => router.push('/vendor/trips' as any)}>View all</Text>

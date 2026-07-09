@@ -76,6 +76,7 @@ export default function FuelDispenseScreen() {
   const [otpModalVisible, setOtpModalVisible] = useState(false);
   const [otpInput, setOtpInput] = useState('');
   const [authVerifying, setAuthVerifying] = useState(false);
+  const [authCode, setAuthCode] = useState<string | null>(null); // stored authorization code
 
   // Fuel price from management
   const [fuelPrice, setFuelPrice] = useState<number>(0);
@@ -143,6 +144,7 @@ export default function FuelDispenseScreen() {
     setOtpInput('');
     setOtpModalVisible(false);
     setAuthVerifying(false);
+    setAuthCode(null);
     loadData(); // refresh active jobs
   };
 
@@ -174,7 +176,7 @@ export default function FuelDispenseScreen() {
     const driverPhone = activeJob.driverPhone || '';
 
     if (!vendorPhone) {
-      Alert.alert('Missing Vendor Phone', 'This job does not have a linked vendor phone number for the OTP.');
+      Alert.alert('Missing Vendor Phone', 'This job does not have a linked vendor phone number for the Authorization PIN.');
       return;
     }
 
@@ -215,11 +217,11 @@ export default function FuelDispenseScreen() {
       return;
     }
     if (!code) {
-      Alert.alert('Missing OTP', 'Enter the OTP sent to the linked vendor.');
+      Alert.alert('Missing PIN', 'Enter the Authorization PIN sent to the linked vendor.');
       return;
     }
     if (code.length < 4) {
-      Alert.alert('Invalid OTP', 'Please enter the full OTP code.');
+      Alert.alert('Invalid PIN', 'Please enter the full Authorization PIN code.');
       return;
     }
 
@@ -227,17 +229,18 @@ export default function FuelDispenseScreen() {
     try {
       const result = await verifyFuelAuthorization(authId, code, true);
       if (result?.status !== 'authorized' && result?.authorized !== true) {
-        throw new Error(result?.message || 'OTP verification failed.');
+        throw new Error(result?.message || 'Authorization PIN verification failed.');
       }
 
+      setAuthCode(code);
       setAuthStatus('authorized');
       setOtpModalVisible(false);
       setOtpInput('');
-      Alert.alert('Authorized', 'OTP verified. You can now dispense fuel.', [
+      Alert.alert('Authorized', 'Authorization PIN verified. You can now dispense fuel.', [
         { text: 'Enter Fuel Amount', onPress: () => setFlowStep('form') }
       ]);
     } catch (error: any) {
-      const message = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Invalid OTP. Please try again.';
+      const message = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Invalid Authorization PIN. Please try again.';
       Alert.alert('Verification Failed', message);
     } finally {
       setAuthVerifying(false);
@@ -285,6 +288,7 @@ export default function FuelDispenseScreen() {
         dispensedByName: user?.displayName || user?.name || 'Fuel Operator',
         dispensedAt: new Date().toISOString(),
         authorizationId: authId,
+        authorizationCode: authCode,
       });
 
       Alert.alert('Fuel Dispensed', `${amount.toFixed(1)} litres recorded as ${fuelId}.`, [
@@ -310,9 +314,7 @@ export default function FuelDispenseScreen() {
         <Text style={{ color: colors.textMuted }}>
           Press the + button to select an active job and dispense fuel
         </Text>
-        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 4 }}>
-          Fuel price is managed by Management
-        </Text>
+         
         {loading ? (
           <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
         ) : activeDeliveries.length ? (
@@ -661,13 +663,7 @@ export default function FuelDispenseScreen() {
                   </View>
 
                   {/* Fuel price info */}
-                  <View style={[styles.priceInfoCard, { backgroundColor: '#10B98110', borderColor: '#10B98120' }]}>
-                    <Ionicons name="information-circle-outline" size={18} color="#10B981" />
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#10B981', flex: 1 }}>
-                      Fuel Price (managed by Management): KES {fuelPrice.toFixed(2)}/L
-                    </Text>
-                  </View>
-
+                   
                   {flowFuelAmount && fuelPrice > 0 ? (
                     <View style={{ marginTop: Spacing.sm, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.sm }}>
                       <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Total Cost:</Text>
@@ -721,7 +717,7 @@ export default function FuelDispenseScreen() {
             <View style={[styles.authIconCircle, { backgroundColor: '#F59E0B15', alignSelf: 'center' }]}>
               <Ionicons name="keypad-outline" size={42} color="#F59E0B" />
             </View>
-            <Text style={[styles.otpTitle, { color: colors.text }]}>Enter Vendor authorization pin</Text>
+      <Text style={[styles.otpTitle, { color: colors.text }]}>Enter Fuel Authorization PIN</Text>
             <Text style={[styles.otpSub, { color: colors.textMuted }]}>
               Ask the linked vendor for the authorization pin sent to their phone, then enter it to verify this fuel dispense.
             </Text>
