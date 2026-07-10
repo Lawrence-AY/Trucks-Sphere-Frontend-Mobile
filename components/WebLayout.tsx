@@ -2,6 +2,7 @@ import React from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { usePathname } from 'expo-router';
 import Sidebar from './Sidebar';
+import { useAuthStore } from '../store/authStore';
 
 const AUTH_ROUTES = ['/(auth)', '/login', '/auth'];
 
@@ -12,14 +13,16 @@ interface WebLayoutProps {
 export default function WebLayout({ children }: WebLayoutProps) {
   const { width } = useWindowDimensions();
   const pathname = usePathname();
+  const isLoading = useAuthStore((state) => state.isLoading);
 
   // Only apply sidebar layout on web with sufficient width
   const isDesktopWeb = Platform.OS === 'web' && width >= 768;
 
   // Hide sidebar on auth screens
   const isAuthScreen = pathname && AUTH_ROUTES.some((route) => pathname.startsWith(route));
+  const isSplashScreen = !pathname || pathname === '/';
 
-  if (!isDesktopWeb || isAuthScreen) {
+  if (!isDesktopWeb || isAuthScreen || isSplashScreen || isLoading) {
     // On mobile/narrow screens or auth screens, just render children (the existing tabs/stack layout)
     return <>{children}</>;
   }

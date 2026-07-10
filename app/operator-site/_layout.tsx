@@ -88,12 +88,13 @@ export default function OperatorSiteLayout() {
   return (
     <>
       <Tabs
+        tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
           tabBarActiveTintColor: '#1B2A4A',
           tabBarInactiveTintColor: '#94A3B8',
-          tabBarShowLabel: true,
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-          tabBarStyle: {
+          tabBarShowLabel: Platform.OS !== 'web',
+          tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
+          tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
             backgroundColor: '#FFFFFF',
             borderTopColor: '#E2E8F0',
             borderTopWidth: 1,
@@ -106,6 +107,7 @@ export default function OperatorSiteLayout() {
             shadowOpacity: 0.06,
             shadowRadius: 8,
           },
+          headerShown: Platform.OS !== 'web',
           headerStyle: { backgroundColor: '#FFFFFF' },
           headerTintColor: '#1E293B',
           headerTitleStyle: { fontWeight: '700', fontSize: 16 },
