@@ -5,7 +5,6 @@ import {
   Modal,
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +13,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
@@ -104,7 +106,7 @@ function buildReceiptHtml(data: {
     <body>
       <div class="header">
         <h1>Trucks Sphere</h1>
-        <div class="subtitle">Good Receipt Note (GRN)</div>
+        <div class="subtitle">Goods Receipt Note (GRN)</div>
       </div>
 
       <div class="section">
@@ -380,14 +382,18 @@ export default function OperatorSiteWeightsScreen() {
     if (!data) return;
     try {
       const html = buildReceiptHtml(data);
-      await Share.share({
-        message: html,
-        title: `GRN_${data.receiptNoteId || data.jobId}`,
-      });
-    } catch (e: any) {
-      if (e?.message !== 'User did not share') {
-        Alert.alert('Export Error', e?.message || 'Failed to share PDF');
+      const { uri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Download Goods Receipt Note (PDF)',
+          UTI: 'com.adobe.pdf',
+        });
+      } else {
+        Alert.alert('Success', 'Goods Receipt Note PDF generated.');
       }
+    } catch (e: any) {
+      Alert.alert('Export Error', e?.message || 'Failed to generate PDF');
     }
   };
 
@@ -418,27 +424,23 @@ export default function OperatorSiteWeightsScreen() {
         ['Date', data.timestamp],
       ];
       const csv = formatCsv(headers, rows);
-      await Share.share({
-        message: csv,
-        title: `GRN_${data.receiptNoteId || data.jobId}`,
-      });
-    } catch (e: any) {
-      if (e?.message !== 'User did not share') {
-        Alert.alert('Export Error', e?.message || 'Failed to share CSV');
+      const fileName = `GRN_${data.receiptNoteId || data.jobId}.csv`;
+      const fs: any = FileSystem;
+      const dir = (fs.documentDirectory || fs.cacheDirectory || '');
+      const dest = `${dir}${fileName}`;
+      await fs.writeAsStringAsync(dest, csv, { encoding: fs.EncodingType?.UTF8 ?? 0 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(dest, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Download Goods Receipt Note (CSV)',
+          UTI: 'public.comma-separated-values-text',
+        });
+      } else {
+        Alert.alert('Success', `CSV saved: ${fileName}`);
       }
+    } catch (e: any) {
+      Alert.alert('Export Error', e?.message || 'Failed to generate CSV');
     }
-  };
-
-  const handleShareGRN = async () => {
-    const data = buildGrnExportData();
-    if (!data) return;
-    try {
-      const html = buildReceiptHtml(data);
-      await Share.share({
-        message: html,
-        title: `GRN_${data.receiptNoteId || data.jobId}`,
-      });
-    } catch {}
   };
 
   /* ─── Active Weigh Form View ─── */
@@ -831,7 +833,7 @@ export default function OperatorSiteWeightsScreen() {
               </View>
 
               <Text style={[styles.grnTitle, { color: colors.text }]}>
-                Good Receipt Note
+                Goods Receipt Note
               </Text>
               <Text style={[styles.grnSub, { color: colors.textMuted }]}>
                 Delivery finalized successfully. GRN generated.
@@ -917,28 +919,28 @@ export default function OperatorSiteWeightsScreen() {
               )}
 
               {/* Export Actions */}
-              <View style={styles.grnActions}>
-                <TouchableOpacity
-                  style={[styles.grnActionBtn, { backgroundColor: '#2563EB' }]}
-                  onPress={handleDownloadPDF}
-                >
-                  <Ionicons name="document-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.grnActionText}>Download PDF</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.grnActionBtn, { backgroundColor: '#7C3AED' }]}
-                  onPress={handleDownloadCSV}
-                >
-                  <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.grnActionText}>Download CSV</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.grnActionBtn, { backgroundColor: '#059669' }]}
-                  onPress={handleShareGRN}
-                >
-                  <Ionicons name="share-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.grnActionText}>Share</Text>
-                </TouchableOpacity>
+              <View style={styles.grnExportSection}>
+                <Text style={[styles.grnExportTitle, { color: colors.text }]}>
+                  Download Controls
+                </Text>
+                <View style={styles.grnDownloadRow}>
+                  <TouchableOpacity
+                    style={[styles.grnDownloadBtn, { backgroundColor: '#2563EB' }]}
+                    onPress={handleDownloadPDF}
+                  >
+                    <Ionicons name="document-outline" size={22} color="#FFFFFF" />
+                    <Text style={styles.grnDownloadBtnText}>Download PDF</Text>
+                    <Text style={styles.grnDownloadBtnSub}>Printable / Archival</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.grnDownloadBtn, { backgroundColor: '#7C3AED' }]}
+                    onPress={handleDownloadCSV}
+                  >
+                    <Ionicons name="grid-outline" size={22} color="#FFFFFF" />
+                    <Text style={styles.grnDownloadBtnText}>Download CSV</Text>
+                    <Text style={styles.grnDownloadBtnSub}>Structured Line Items</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Dismiss */}
@@ -1385,4 +1387,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   grnDoneText: { fontSize: 14, fontWeight: '700' },
+  // GRN Download Controls
+  grnExportSection: {
+    marginBottom: Spacing.lg,
+  },
+  grnExportTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: Spacing.sm,
+  },
+  grnDownloadRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  grnDownloadBtn: {
+    flex: 1,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  grnDownloadBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  grnDownloadBtnSub: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
 });
