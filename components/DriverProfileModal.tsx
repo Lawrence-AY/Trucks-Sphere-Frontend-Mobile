@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Image,
   Linking,
   Modal,
@@ -17,6 +18,20 @@ import { Radius, Spacing } from '../constants/theme';
 import { fetchDeliveryOrders, fetchDrivers, fetchVehicles } from '../services/api';
 import { formatEAT } from '../utils/helpers';
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const GALLERY_COLS = 3;
+const GALLERY_GAP = 6;
+const GALLERY_ITEM_SIZE = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.xl * 2 - GALLERY_GAP * (GALLERY_COLS - 1)) / GALLERY_COLS;
+
+// Build storage URLs for quarry verification images
+const STORAGE_BASE = 'https://storage.googleapis.com/trucksphere.firebasestorage.app';
+
+function buildVerificationImageUrl(job: any): string {
+  const jobId = job.jobId || job.id || 'unknown';
+  const encodedPath = encodeURIComponent(`Deliveries/${jobId}.jpg`);
+  return `${STORAGE_BASE}/${encodedPath}`;
+}
+
 interface DriverProfileModalProps {
   visible: boolean;
   driverId: string;
@@ -30,6 +45,8 @@ export default function DriverProfileModal({ visible, driverId, driverData, onCl
   const [driver, setDriver] = useState<any>(driverData || null);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [assignedVehicle, setAssignedVehicle] = useState<any>(null);
+  const [verificationImages, setVerificationImages] = useState<{ uri: string; jobId: string; timestamp: string }[]>([]);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
 
   const loadProfile = async () => {
     if (!driverId) return;
@@ -51,6 +68,17 @@ export default function DriverProfileModal({ visible, driverId, driverData, onCl
         .sort((a:any, b:any) => new Date(b.createdAt || b.updatedAt).getTime() - new Date(a.createdAt || a.updatedAt).getTime())
         .slice(0, 10);
       setRecentJobs(driverJobs);
+
+      // Build verification image gallery from jobs with weighOut photos
+      const imgs = driverJobs
+        .filter((d: any) => d.quarryId && d.vendorId && d.driverId && d.vehicleId)
+        .map((d: any) => ({
+          uri: buildVerificationImageUrl(d),
+          jobId: d.jobId || d.id || 'unknown',
+          timestamp: d.weighOutAt || d.updatedAt || d.createdAt || '',
+        }));
+      setVerificationImages(imgs);
+      setImageErrors({});
 
       // Find assigned vehicle (most recent plate number)
       const recentVehiclePlate = driverJobs.length > 0 ? driverJobs[0].plateNumber : null;
@@ -197,6 +225,40 @@ export default function DriverProfileModal({ visible, driverId, driverData, onCl
 
                  
               </View>
+
+              {/* Verification Image Gallery */}
+              {verificationImages.length > 0 && (
+                <View style={[styles.detailCard, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+                  <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Verification Gallery</Text>
+                  <Text style={[styles.gallerySubtitle, { color: colors.textMuted }]}>
+                    Quarry weigh-out verification photos
+                  </Text>
+                  <View style={styles.galleryGrid}>
+                    {verificationImages.map((img, idx) => (
+                      <View key={idx} style={styles.galleryItem}>
+                        {imageErrors[img.jobId] ? (
+                          <View style={[styles.galleryFallback, { backgroundColor: `${colors.primary}08`, borderColor: colors.border }]}>
+                            <Ionicons name="image-outline" size={20} color={colors.textTertiary} />
+                            <Text style={[styles.galleryFallbackText, { color: colors.textTertiary }]} numberOfLines={1}>{img.jobId}</Text>
+                          </View>
+                        ) : (
+                          <>
+                            <Image
+                              source={{ uri: img.uri }}
+                              style={styles.galleryImage}
+                              onError={() => setImageErrors((prev) => ({ ...prev, [img.jobId]: true }))}
+                            />
+                            <View style={styles.galleryOverlay}>
+                              <Text style={styles.galleryJobId} numberOfLines={1}>{img.jobId}</Text>
+                              <Text style={styles.galleryTimestamp}>{formatEAT(img.timestamp)}</Text>
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
 
               {/* Assigned Vehicle */}
               {assignedVehicle && (
@@ -403,5 +465,62 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
+  },
+  // Verification Gallery
+  gallerySubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: -4,
+    marginBottom: Spacing.sm,
+  },
+  galleryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GALLERY_GAP,
+  },
+  galleryItem: {
+    width: GALLERY_ITEM_SIZE,
+    height: GALLERY_ITEM_SIZE,
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  galleryImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: Radius.sm,
+  },
+  galleryFallback: {
+    width: '100%',
+    height: '100%',
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  galleryFallbackText: {
+    fontSize: 9,
+    fontWeight: '700',
+    paddingHorizontal: 4,
+  },
+  galleryOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+  },
+  galleryJobId: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontWeight: '800',
+  },
+  galleryTimestamp: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 7,
+    fontWeight: '600',
   },
 });
