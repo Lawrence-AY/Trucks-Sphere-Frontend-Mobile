@@ -156,6 +156,12 @@ export interface DeliveryOrder {
   weighOutLocation?: string;
   weighInPhoto?: string;
   weighOutPhoto?: string;
+  driverPhotoURL?: string;
+  weighOutGeoLocation?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+  };
   // Site-specific fields (Phase 2: Site Operator Workflow)
   siteWeighInWeight?: number;
   siteWeighOutWeight?: number;

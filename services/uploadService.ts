@@ -4,7 +4,7 @@
  * Uploads images to the backend which stores them in Firebase Storage
  * and returns the public URL which is saved to Firestore as photoURL.
  */
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Platform } from 'react-native';
 import { getStoredToken } from './database';
 
@@ -29,6 +29,40 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 export interface UploadResult {
   success: boolean;
   photoURL: string;
+}
+
+/**
+ * Extract a human-readable error message from an Axios error,
+ * falling back to the generic Error.message.
+ */
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof AxiosError) {
+    // No response from server (network down, wrong IP, timeout)
+    if (!error.response) {
+      if (error.code === 'ECONNABORTED') return 'Upload timed out. Please check your connection and try again.';
+      return 'Cannot reach the server. Please check your internet connection.';
+    }
+
+    const { status, data } = error.response;
+
+    // Try to pull the meaningful error from the backend response body
+    const backendError =
+      data?.error ||
+      data?.message ||
+      (typeof data === 'string' ? data : null);
+
+    if (backendError) {
+      // Include status code so the user knows if it's auth vs server vs validation
+      return `[${status}] ${backendError}`;
+    }
+
+    // No structured error from backend — use HTTP status text
+    return `[${status}] ${error.response.statusText || 'Upload failed'}`;
+  }
+
+  // Non-Axios error (unlikely but handle it)
+  if (error instanceof Error) return error.message;
+  return 'An unknown error occurred during upload.';
 }
 
 /**
@@ -73,6 +107,21 @@ export async function uploadReceiptNote(weighRecordId: string, fileUri: string):
   );
 }
 
+/**
+ * Upload a driver photo captured at weigh-out.
+ * Storage folder: "Deliveries/"
+ * Filename: {jobId}.jpg (e.g. PMAT001_V001_D001_T001.jpg)
+ * Firestore field: deliveryOrders/{deliveryOrderId}.driverPhotoURL
+ */
+export async function uploadDriverPhotoWeighOut(jobId: string, fileUri: string): Promise<UploadResult> {
+  return uploadFile(
+    `driver-photo-weigh-out/${jobId}`,
+    fileUri,
+    'file',
+    jobId
+  );
+}
+
 async function uploadFile(
   endpoint: string,
   fileUri: string,
@@ -90,10 +139,40 @@ async function uploadFile(
     type: 'image/jpeg',
   } as any);
 
-  const response = await axios.post(`${API_BASE_URL}/api/uploads/${endpoint}`, formData, {
-    headers: { ...headers, 'Content-Type': 'multipart/form-data' },
-    timeout: 30000,
-  });
+  const url = `${API_BASE_URL}/api/uploads/${endpoint}`;
 
-  return response.data;
+  try {
+    const response = await axios.post(url, formData, {
+      headers: { ...headers, 'Content-Type': 'multipart/form-data' },
+      timeout: 30000,
+    });
+
+    return response.data;
+  } catch (error: unknown) {
+    // Log full error details to console for debugging
+    console.error('[uploadService] Upload failed');
+    console.error('[uploadService] URL:', url);
+    console.error('[uploadService] fileUri:', fileUri);
+
+    if (error instanceof AxiosError) {
+      if (error.response) {
+        console.error('[uploadService] Status:', error.response.status);
+        console.error('[uploadService] Response data:', JSON.stringify(error.response.data));
+        console.error('[uploadService] Response headers:', JSON.stringify(error.response.headers));
+      } else if (error.request) {
+        console.error('[uploadService] No response received — network or CORS issue');
+        console.error('[uploadService] Axios code:', error.code);
+        console.error('[uploadService] Axios message:', error.message);
+      } else {
+        console.error('[uploadService] Request setup error:', error.message);
+      }
+    } else if (error instanceof Error) {
+      console.error('[uploadService] Non-Axios error:', error.message, error.stack);
+    } else {
+      console.error('[uploadService] Unknown error type:', error);
+    }
+
+    // Throw a new Error with a meaningful message that the UI can display
+    throw new Error(extractErrorMessage(error));
+  }
 }

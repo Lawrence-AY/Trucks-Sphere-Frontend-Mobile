@@ -15,10 +15,8 @@ import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } fro
 import {
   DataCard,
   EmptyState,
-  MetricTile,
   PageShell,
   SectionTitle,
- 
 } from '../../components/EnterpriseUI';
 
 /* ─────────── Filter Options ─────────── */
@@ -44,6 +42,7 @@ export default function OperatorQuarryHistoryScreen() {
     setRefreshing(true);
     try {
       const data = (await fetchDeliveryOrders()) || [];
+      // Backend already scopes by quarryId for operator_quarry role
       setDeliveries(data);
     } catch {
     } finally {
@@ -111,6 +110,7 @@ export default function OperatorQuarryHistoryScreen() {
     'Weigh In (t)',
     'Weigh Out (t)',
     'Net (t)',
+    'Location',
     'Status',
     'Updated',
   ];
@@ -126,6 +126,7 @@ export default function OperatorQuarryHistoryScreen() {
       r.weighInWeight != null ? r.weighInWeight.toFixed(1) : '—',
       r.weighOutWeight != null ? r.weighOutWeight.toFixed(1) : '—',
       r.netWeight != null ? r.netWeight.toFixed(1) : '—',
+      r.weighOutGeoLocation?.address || r.weighOutLocation || '—',
       r.status || '',
       r.updatedAt || r.createdAt || '',
     ]);
@@ -140,6 +141,47 @@ export default function OperatorQuarryHistoryScreen() {
     const rows = buildExportRows(completedRecords);
     const htmlContent = buildHtmlContent(exportHeaders, rows, `Quarry History — ${FILTER_LABELS[filter]}`);
     await sharePdfAsFile(`Quarry History — ${FILTER_LABELS[filter]}`, htmlContent);
+  };
+
+  /* ─── Per-Delivery Note Export ─── */
+
+  const buildDeliveryNoteHeaders = () => [
+    'Field', 'Value',
+  ];
+
+  const buildDeliveryNoteRows = (item: any): string[][] => [
+    ['Job ID', item.jobId || ''],
+    ['Purchase Order', item.poNumber || ''],
+    ['Vendor', item.vendorName || ''],
+    ['Driver', item.driverName || ''],
+    ['Truck Plate', item.plateNumber || ''],
+    ['Material', item.materialName || ''],
+    ['Quantity Ordered', item.quantityOrdered != null ? `${item.quantityOrdered} tonnes` : '—'],
+    ['Origin (Quarry)', item.quarryName || ''],
+    ['Destination (Site)', item.siteName || ''],
+    ['Weigh-In Weight', item.weighInWeight != null ? `${item.weighInWeight.toFixed(1)} t` : '—'],
+    ['Weigh-Out Weight', item.weighOutWeight != null ? `${item.weighOutWeight.toFixed(1)} t` : '—'],
+    ['Net Weight', item.netWeight != null ? `${item.netWeight.toFixed(1)} t` : '—'],
+    ['Weigh-Out Location', item.weighOutGeoLocation?.address || item.weighOutLocation || '—'],
+    ['Status', (item.status || '').replace(/_/g, ' ').toUpperCase()],
+    ['Assigned At', item.createdAt || ''],
+    ['Completed At', item.updatedAt || ''],
+  ];
+
+  const handleExportDeliveryNoteCSV = async (item: any) => {
+    const headers = buildDeliveryNoteHeaders();
+    const rows = buildDeliveryNoteRows(item);
+    const csvContent = buildCsvContent(headers, rows);
+    const safeName = `Delivery_Note_${item.jobId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+    await shareCsvAsFile(safeName, csvContent);
+  };
+
+  const handleExportDeliveryNotePDF = async (item: any) => {
+    const headers = buildDeliveryNoteHeaders();
+    const rows = buildDeliveryNoteRows(item);
+    const htmlContent = buildHtmlContent(headers, rows, `Delivery Note — ${item.jobId}`);
+    const safeName = `Delivery_Note_${item.jobId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+    await sharePdfAsFile(safeName, htmlContent);
   };
 
   /* ─── Summary Stats ─── */
@@ -159,8 +201,6 @@ export default function OperatorQuarryHistoryScreen() {
         />
       }
     >
-    
-
       {/* Filter Pills */}
       <View style={styles.filterRow}>
         {(['today', 'week', 'month'] as FilterPeriod[]).map((period) => {
@@ -184,8 +224,8 @@ export default function OperatorQuarryHistoryScreen() {
                   period === 'today'
                     ? 'today-outline'
                     : period === 'week'
-                    ? 'calendar-outline'
-                    : 'calendar-number-outline'
+                      ? 'calendar-outline'
+                      : 'calendar-number-outline'
                 }
                 size={14}
                 color={active ? '#FFFFFF' : colors.textSecondary}
@@ -221,57 +261,6 @@ export default function OperatorQuarryHistoryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Active Queue Logs */}
-      <SectionTitle title={`Active Queue (${activeQueue.length})`} />
-      {loading ? (
-        <DataCard>
-          <Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text>
-        </DataCard>
-      ) : activeQueue.length ? (
-        activeQueue.slice(0, 15).map((item) => (
-          <DataCard key={item.id}>
-            <View style={styles.tableHeaderRow}>
-              <Text style={[styles.tableJobId, { color: colors.text }]}>
-                {item.jobId}
-              </Text>
-          
-            </View>
-            <View style={styles.tableRow}>
-              <View style={styles.tableCell}>
-                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Driver</Text>
-                <Text style={[styles.tableValue, { color: colors.text }]}>
-                  {item.driverName || '—'}
-                </Text>
-              </View>
-              <View style={styles.tableCell}>
-                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Truck</Text>
-                <Text style={[styles.tableValue, { color: colors.text }]}>
-                  {item.plateNumber || '—'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.tableRow}>
-              <View style={styles.tableCell}>
-                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Material</Text>
-                <Text style={[styles.tableValue, { color: colors.text }]}>
-                  {item.materialName || '—'}
-                </Text>
-              </View>
-             
-            </View>
-            <Text style={[styles.tableTimestamp, { color: colors.textTertiary }]}>
-              Updated: {formatEAT(item.updatedAt || item.createdAt)}
-            </Text>
-          </DataCard>
-        ))
-      ) : (
-        <EmptyState
-          icon="clipboard-outline"
-          title="No active jobs"
-          subtitle="Queue is currently empty."
-        />
-      )}
-
       {/* Completed Submissions */}
       <SectionTitle
         title={`Completed — ${FILTER_LABELS[filter]} (${completedRecords.length})`}
@@ -292,7 +281,6 @@ export default function OperatorQuarryHistoryScreen() {
                   {item.poNumber || '—'}
                 </Text>
               </View>
-              
             </View>
             <View style={styles.tableRow}>
               <View style={styles.tableCell}>
@@ -315,7 +303,6 @@ export default function OperatorQuarryHistoryScreen() {
                   {item.materialName || '—'}
                 </Text>
               </View>
-           
             </View>
 
             {/* Weight Summary Row for Completed */}
@@ -338,6 +325,34 @@ export default function OperatorQuarryHistoryScreen() {
                   {item.netWeight != null ? `${item.netWeight.toFixed(1)}T` : '—'}
                 </Text>
               </View>
+            </View>
+
+            {/* Location if available */}
+            {item.weighOutGeoLocation?.address && (
+              <View style={styles.locationTag}>
+                <Ionicons name="location-outline" size={12} color={colors.textTertiary} />
+                <Text style={[styles.locationTagText, { color: colors.textTertiary }]} numberOfLines={1}>
+                  {item.weighOutGeoLocation.address}
+                </Text>
+              </View>
+            )}
+
+            {/* Per-Delivery Export Actions */}
+            <View style={styles.deliveryExportRow}>
+              <TouchableOpacity
+                style={[styles.deliveryExportBtn, { backgroundColor: '#2563EB12', borderColor: '#2563EB33' }]}
+                onPress={() => handleExportDeliveryNoteCSV(item)}
+              >
+                <Ionicons name="document-text-outline" size={14} color="#2563EB" />
+                <Text style={[styles.deliveryExportBtnText, { color: '#2563EB' }]}>CSV</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deliveryExportBtn, { backgroundColor: '#7C3AED12', borderColor: '#7C3AED33' }]}
+                onPress={() => handleExportDeliveryNotePDF(item)}
+              >
+                <Ionicons name="document-outline" size={14} color="#7C3AED" />
+                <Text style={[styles.deliveryExportBtnText, { color: '#7C3AED' }]}>PDF</Text>
+              </TouchableOpacity>
             </View>
 
             <Text style={[styles.tableTimestamp, { color: colors.textTertiary }]}>
@@ -434,4 +449,35 @@ const styles = StyleSheet.create({
   },
   wLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
   wValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
+  // Location tag
+  locationTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing.sm,
+  },
+  locationTagText: {
+    fontSize: 11,
+    fontWeight: '500',
+    flex: 1,
+  },
+  // Per-delivery export
+  deliveryExportRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  deliveryExportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  deliveryExportBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
 });

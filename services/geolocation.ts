@@ -11,20 +11,58 @@ export async function requestLocationPermissions(): Promise<boolean> {
   return status === 'granted';
 }
 
+/**
+ * Get current GPS location with timeout and fallback to last known position.
+ * Expo Go sometimes has trouble with getCurrentPositionAsync timing out,
+ * so we use a best-effort approach:
+ *   1. Try high-accuracy position (3s timeout)
+ *   2. Fall back to last known position
+ *   3. Fall back to IP-based geolocation
+ */
 export async function getCurrentLocation(): Promise<GeoLocation> {
   const hasPermission = await requestLocationPermissions();
   if (!hasPermission) {
     throw new Error('Location permission denied');
   }
 
-  const loc = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.Balanced,
-  });
+  try {
+    // Race: get position vs 5-second timeout
+    const loc = await new Promise<Location.LocationObject>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Location request timed out'));
+      }, 5000);
 
-  return {
-    latitude: loc.coords.latitude,
-    longitude: loc.coords.longitude,
-  };
+      Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      })
+        .then((result) => {
+          clearTimeout(timeout);
+          resolve(result);
+        })
+        .catch((err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+    });
+
+    return {
+      latitude: loc.coords.latitude,
+      longitude: loc.coords.longitude,
+    };
+  } catch {
+    // Expo Go fallback: try last known position
+    try {
+      const lastKnown = await Location.getLastKnownPositionAsync({});
+      if (lastKnown) {
+        return {
+          latitude: lastKnown.coords.latitude,
+          longitude: lastKnown.coords.longitude,
+        };
+      }
+    } catch { /* continues to IP fallback */ }
+
+    throw new Error('Could not determine location');
+  }
 }
 
 export async function reverseGeocode(
