@@ -134,10 +134,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, onCl
                 <Text style={[styles.driverName, { color: colors.text }]}>
                   {driver.name || driver.fullName || 'Unknown Driver'}
                 </Text>
-                <View style={[styles.statusBadge, { backgroundColor: `${statusColor}15`, borderColor: `${statusColor}44` }]}>
-                  <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-                  <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
-                </View>
+                
               </View>
 
               {/* Contact Actions */}
@@ -198,13 +195,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, onCl
                   </View>
                 ) : null}
 
-                {driver.createdAt ? (
-                  <View style={styles.detailRow}>
-                    <Ionicons name="calendar-outline" size={16} color={colors.textMuted} />
-                    <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Registered</Text>
-                    <Text style={[styles.detailValue, { color: colors.text }]}>{formatEAT(driver.createdAt)}</Text>
-                  </View>
-                ) : null}
+                 
               </View>
 
               {/* Assigned Vehicle */}
@@ -236,40 +227,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, onCl
                   ) : null}
                 </View>
               )}
-
-              {/* Recent Jobs */}
-              {recentJobs.length > 0 && (
-                <View style={[styles.detailCard, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
-                  <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-                    Recent Jobs ({recentJobs.length})
-                  </Text>
-                  {recentJobs.slice(0, 5).map((job, idx) => {
-                    const jobStatusColor =
-                      job.status === 'completed' || job.status === 'delivered'
-                        ? '#10B981'
-                        : job.status === 'cancelled'
-                        ? '#EF4444'
-                        : job.status === 'loaded'
-                        ? '#7C3AED'
-                        : '#F59E0B';
-                    return (
-                      <View key={job.id || idx} style={[styles.jobRow, { borderColor: colors.border }]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.jobIdText, { color: colors.text }]} numberOfLines={1}>
-                            {job.jobId}
-                          </Text>
-                          <Text style={[styles.jobMetaText, { color: colors.textMuted }]}>
-                            {job.materialName || 'Material'} · {job.poNumber || 'N/A'}
-                          </Text>
-                        </View>
-                        <View style={[styles.jobStatusBadge, { backgroundColor: `${jobStatusColor}15`, borderColor: `${jobStatusColor}44` }]}>
-                          <Text style={[styles.jobStatusText, { color: jobStatusColor }]}>{job.status}</Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
+ 
 
               <View style={{ height: Spacing['3xl'] }} />
             </ScrollView>
