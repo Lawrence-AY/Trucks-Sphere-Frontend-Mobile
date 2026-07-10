@@ -153,6 +153,18 @@ export async function createDeliveryOrder(payload: any): Promise<any> {
   return result;
 }
 
+export async function receiveLot(payload: { deliveryOrderId: string; storageLot: string }): Promise<any> {
+  try {
+    console.log('[API] Assigning storage lot...', payload);
+    const result = unwrapOne(await backendRequest('post', '/api/delivery-orders/receive-lot', payload), payload);
+    console.log('[API] Storage lot assigned:', result);
+    return result;
+  } catch (error: any) {
+    console.warn('[API] receiveLot failed:', error?.message || error);
+    throw error;
+  }
+}
+
 export async function updateDeliveryOrder(id: string, payload: any): Promise<any> {
   try {
     console.log('[API] Updating delivery order:', id, payload);

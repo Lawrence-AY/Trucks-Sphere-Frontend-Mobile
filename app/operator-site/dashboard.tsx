@@ -22,6 +22,7 @@ import {
   fetchDrivers,
   fetchPurchaseOrders,
   fetchVehicles,
+  receiveLot,
   updateDeliveryOrder,
 } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -244,12 +245,22 @@ export default function OperatorSiteDashboardScreen() {
 
     try {
       const now = new Date().toISOString();
+      const lotValue = getLotInput(job.id).trim();
       await updateDeliveryOrder(job.id, {
         siteWeighInWeight: weightInNum,
         siteWeighInAt: now,
         status: 'weighed_in',
         updatedAt: now,
       });
+
+      // Persist storage lot assignment if provided
+      if (lotValue) {
+        try {
+          await receiveLot({ deliveryOrderId: job.id, storageLot: lotValue });
+        } catch {
+          // Lot assignment is best-effort; don't block weigh-in
+        }
+      }
 
       // Update local state
       setDeliveries((current) =>
