@@ -909,8 +909,8 @@ export default function OperatorSiteHistoryScreen() {
                   style={[styles.rnBadge, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
                   onPress={(e) => { e.stopPropagation(); router.push(`/screens/receipt-note?id=${item.jobId}` as any); }}
                 >
-                  <Ionicons name="receipt-outline" size={12} color="#10B981" />
-                  <Text style={[styles.rnBadgeText, { color: '#10B981' }]}>{item.receiptNoteId}</Text>
+                  <Ionicons name="receipt-outline" size={12} color="#10B981" style={{ marginTop: 1 }} />
+                  <Text style={[styles.rnBadgeText, { color: '#10B981' }]} numberOfLines={2}>{item.receiptNoteId}</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.tableRow}>
@@ -1148,14 +1148,16 @@ const styles = StyleSheet.create({
   // RN Badge
   rnBadge: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.full,
     borderWidth: 1,
+    maxWidth: '50%',
+    minWidth: 0,
   },
-  rnBadgeText: { fontSize: 11, fontWeight: "700" },
+  rnBadgeText: { fontSize: 11, fontWeight: "700", flexShrink: 1 },
   // Detail Modal
   modalBackdrop: {
     flex: 1,

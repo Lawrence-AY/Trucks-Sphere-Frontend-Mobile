@@ -45,9 +45,10 @@ const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: 
   { label: 'History', icon: 'time-outline', route: '/(tabs)/history' },
   { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details' },
   { label: 'Export Data', icon: 'cloud-download-outline', route: '/management/settings' },
+  { label: 'Fuel', icon: 'water-outline', route: '/management/fuel' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
-
+ 
 export default function ManagementLayout() {
   const { user, logout } = useAuthStore();
   const colors = useTheme();

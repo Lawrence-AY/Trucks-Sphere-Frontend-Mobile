@@ -101,35 +101,59 @@ export default function OperatorQuarryHistoryScreen() {
   /* ─── Export Logic ─── */
 
   const exportHeaders = [
+    'Receipt Note',
     'Job ID',
     'PO Number',
+    'Vendor',
     'Driver',
     'Truck Plate',
     'Material',
     'Qty Ordered (t)',
-    'Weigh In (t)',
-    'Weigh Out (t)',
-    'Net (t)',
-    'Location',
+    'Quarry In (t)',
+    'Quarry Out (t)',
+    'Quarry Net (t)',
+    'Site In (t)',
+    'Site Out (t)',
+    'Site Net (t)',
+    'Expected (t)',
+    'Difference (t)',
     'Status',
-    'Updated',
+    'Finalized',
   ];
 
   const buildExportRows = (records: any[]): string[][] =>
-    records.map((r) => [
-      r.jobId || '',
-      r.poNumber || '',
-      r.driverName || '',
-      r.plateNumber || '',
-      r.materialName || '',
-      String(r.quantityOrdered ?? ''),
-      r.weighInWeight != null ? r.weighInWeight.toFixed(1) : '—',
-      r.weighOutWeight != null ? r.weighOutWeight.toFixed(1) : '—',
-      r.netWeight != null ? r.netWeight.toFixed(1) : '—',
-      r.weighOutGeoLocation?.address || r.weighOutLocation || '—',
-      r.status || '',
-      r.updatedAt || r.createdAt || '',
-    ]);
+    records.map((r) => {
+      const quarryIn = r.weighInWeight ?? null;
+      const quarryOut = r.weighOutWeight ?? null;
+      const quarryNet =
+        r.netWeight ??
+        (quarryIn != null && quarryOut != null ? quarryOut - quarryIn : null);
+      const siteIn = r.siteWeighInWeight ?? null;
+      const siteOut = r.siteWeighOutWeight ?? null;
+      const siteNet = r.siteNetWeight ?? r.quantityDelivered ?? null;
+      const diff = r.siteWeightDifference ?? null;
+
+      return [
+        r.receiptNoteId || '—',
+        r.jobId || '',
+        r.poNumber || '',
+        r.vendorName || '',
+        r.driverName || '',
+        r.plateNumber || '',
+        r.materialName || '',
+        String(r.quantityOrdered ?? ''),
+        quarryIn != null ? quarryIn.toFixed(1) : '—',
+        quarryOut != null ? quarryOut.toFixed(1) : '—',
+        quarryNet != null ? quarryNet.toFixed(1) : '—',
+        siteIn != null ? siteIn.toFixed(1) : '—',
+        siteOut != null ? siteOut.toFixed(1) : '—',
+        siteNet != null ? siteNet.toFixed(1) : '—',
+        r.quantityOrdered != null ? r.quantityOrdered.toFixed(1) : '—',
+        diff != null ? `${diff > 0 ? '+' : ''}${diff.toFixed(2)}` : '—',
+        r.status || '',
+        r.receivedAt || r.updatedAt || r.createdAt || '',
+      ];
+    });
 
   const handleDownloadCSV = async () => {
     const rows = buildExportRows(completedRecords);

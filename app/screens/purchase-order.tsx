@@ -13,7 +13,7 @@ function PORow({ label, value, bold }: { label: string; value: string; bold?: bo
   return (
     <View style={styles.rRow}>
       <Text style={styles.rLabel}>{label}</Text>
-      <Text style={[styles.rValue, bold && { fontWeight: '700' }]}>{value}</Text>
+      <Text style={[styles.rValue, bold && { fontWeight: '700' }]} numberOfLines={3}>{value}</Text>
     </View>
   );
 }
@@ -61,7 +61,7 @@ function ModalPicker({ label, value, options, onSelect, icon }: { label: string;
                 style={[styles.modalItem, item.id === value && { backgroundColor: colors.accent + '15' }]}
                 onPress={() => { onSelect(item.id); setVisible(false); }}
               >
-                <Text style={{ color: colors.text, fontSize: 16 }} numberOfLines={1}>{item.name}</Text>
+                <Text style={{ color: colors.text, fontSize: 16, flex: 1 }} numberOfLines={2}>{item.name}</Text>
                 {item.id === value && <Ionicons name="checkmark" size={18} color={colors.accent} />}
               </TouchableOpacity>
             )}
@@ -177,7 +177,7 @@ export default function PurchaseOrderScreen() {
       requestedBy: user ? user.uid || 'u1' : 'u1',
     }).then(function (res: any) {
       Alert.alert('Success', 'Purchase Order ' + poNumber + ' created!', [
-        { text: 'View Orders', onPress: function () { router.replace('/(tabs)/orders'); } },
+        { text: 'View Orders', onPress: function () { router.replace('/management/orders'); } },
       ]);
     }).catch(function (err: any) {
       var msg = err?.response?.data?.message || 'Failed to create purchase order';
@@ -234,13 +234,7 @@ export default function PurchaseOrderScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="search" size={18} color={colors.textSecondary} />
-          <TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search PO (e.g. POMAT001/V01)..." placeholderTextColor={colors.textMuted} value={searchPo} onChangeText={setSearchPo} onSubmitEditing={() => { loadData(searchPo.trim()); }} returnKeyType="search" />
-          <TouchableOpacity onPress={() => { loadData(searchPo.trim()); }}>
-            <Ionicons name="arrow-forward-circle" size={22} color={colors.accent} />
-          </TouchableOpacity>
-        </View>
+        
         {loading && <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>}
         {error && !loading && <View style={styles.center}><Ionicons name="alert-circle-outline" size={48} color={colors.danger} /><Text style={{ fontSize: 14, color: colors.danger, textAlign: 'center', marginTop: Spacing.md }}>{error}</Text></View>}
         {!loading && order && (
@@ -271,9 +265,9 @@ var styles = StyleSheet.create({
   receiptTitle: { fontSize: 16, fontWeight: '700', letterSpacing: 1, marginTop: 4 },
   receiptBody: { padding: Spacing.sm },
   rHead: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  rRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
-  rLabel: { fontSize: 14, color: '#666' },
-  rValue: { fontSize: 14, color: '#333' },
+  rRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 3, gap: Spacing.sm },
+  rLabel: { fontSize: 14, color: '#666', flexShrink: 0, marginTop: 1 },
+  rValue: { fontSize: 14, color: '#333', flex: 1, textAlign: 'right', flexWrap: 'wrap' },
   stamp: { alignItems: 'center', paddingVertical: 8, borderRadius: 6, borderWidth: 1, marginVertical: 8 },
   stampText: { fontSize: 14, fontWeight: '700', letterSpacing: 1 },
   inputGroup: { marginBottom: Spacing.md },

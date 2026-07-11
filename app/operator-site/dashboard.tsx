@@ -70,6 +70,7 @@ export default function OperatorSiteDashboardScreen() {
   const [driverProfileVisible, setDriverProfileVisible] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [selectedDriverData, setSelectedDriverData] = useState<any>(null);
+  const [selectedDriverJobId, setSelectedDriverJobId] = useState('');
 
   // ─── FAB / Unscheduled Arrival modal state ───
   const [fabVisible, setFabVisible] = useState(false);
@@ -557,6 +558,7 @@ export default function OperatorSiteDashboardScreen() {
                     if (d) {
                       setSelectedDriverId(d.id);
                       setSelectedDriverData(d);
+                      setSelectedDriverJobId(item.jobId);
                       setDriverProfileVisible(true);
                     }
                   }}
@@ -1055,10 +1057,12 @@ export default function OperatorSiteDashboardScreen() {
         visible={driverProfileVisible}
         driverId={selectedDriverId}
         driverData={selectedDriverData}
+        jobId={selectedDriverJobId}
         onClose={() => {
           setDriverProfileVisible(false);
           setSelectedDriverId('');
           setSelectedDriverData(null);
+          setSelectedDriverJobId('');
         }}
       />
     </View>

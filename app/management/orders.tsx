@@ -97,7 +97,7 @@ export default function ManagementOrdersScreen() {
         ) : (
           <EmptyState icon="document-text-outline" title="No orders found" subtitle="Adjust the search or filter." />
         )}
-      </PageShell>
+      </PageShell> 
 
       <TouchableOpacity style={styles.fab} onPress={() => router.push('/screens/purchase-order?new=true' as any)} activeOpacity={0.85}>
         <Ionicons name="add" size={28} color="#FFFFFF" />

@@ -301,11 +301,26 @@ export default function OperatorSiteWeightsScreen() {
         receiptNoteId = generateReceiptNoteId(activeJob.jobId);
       }
 
+      // Calculate weight differences: quarry net vs site net
+      const quarryNetWeight =
+        activeJob.netWeight ??
+        (activeJob.weighInWeight != null && activeJob.weighOutWeight != null
+          ? activeJob.weighOutWeight - activeJob.weighInWeight
+          : null);
+      const siteNetWeight = netWeight;
+      const weightDifference =
+        quarryNetWeight != null ? quarryNetWeight - siteNetWeight : null;
+
       await updateDeliveryOrder(activeJob.id, {
         siteWeighOutWeight: weightOutNum,
         siteWeighOutAt: now,
-        siteNetWeight: netWeight,
-        quantityDelivered: netWeight,
+        siteNetWeight: siteNetWeight,
+        quantityDelivered: siteNetWeight,
+        siteWeightDifference: weightDifference,
+        differenceNote:
+          weightDifference != null
+            ? `Quarry net: ${quarryNetWeight.toFixed(1)}T | Site net: ${siteNetWeight.toFixed(1)}T | Diff: ${weightDifference > 0 ? '+' : ''}${weightDifference.toFixed(2)}T`
+            : null,
         receivedAt: now,
         receivedLocation: activeJob.siteName || 'Site',
         receivedBy: 'Site Operator',

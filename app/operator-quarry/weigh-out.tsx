@@ -303,7 +303,7 @@ export default function OperatorQuarryWeighOutScreen() {
               )}
             </View>
             <Text style={[styles.sectionSub, { color: colors.textMuted }]}>
-              Capture a photo of the driver at the weighbridge. This photo is saved with the job record.
+              Capture a photo of the driver at the weighbridge.
             </Text>
 
             {/* Photo Preview */}
@@ -428,7 +428,7 @@ export default function OperatorQuarryWeighOutScreen() {
               <Text style={[styles.inputTitle, { color: colors.text }]}>Weigh-Out</Text>
             </View>
             <Text style={[styles.inputSub, { color: colors.textMuted }]}>
-              Enter the gross weight of the loaded truck (must be higher than empty weight).
+              Enter the gross weight of the loaded truck.
             </Text>
             <View style={[styles.weightInputWrap, { borderColor: '#7C3AED', backgroundColor: colors.inputBg }]}>
               <TextInput
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
   confirmSummary: { borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.lg, gap: 6 },
   confirmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
   confirmLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  confirmValue: { fontSize: 14, fontWeight: '700', maxWidth: '55%' },
+  confirmValue: { fontSize: 12, fontWeight: '700', maxWidth: '75%' },
   confirmDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 4 },
   confirmActions: { flexDirection: 'row', gap: Spacing.md },
   confirmCancelBtn: { flex: 1, minHeight: 48, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },

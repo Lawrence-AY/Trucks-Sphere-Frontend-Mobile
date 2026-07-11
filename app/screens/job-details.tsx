@@ -144,16 +144,7 @@ export default function JobDetailsScreen() {
     
 
       <DataCard>
-        <View style={styles.summaryHead}>
-          <View style={styles.summaryCopy}>
-            <Text style={[styles.summarySub, { color: colors.textMuted }]}>
-              {`${job.quarryName || 'Origin'} to ${job.siteName || 'Destination'}`}
-            </Text>
-          </View>
-          <View style={[styles.priorityBadge, { backgroundColor: `${getStatusColor(job.status)}18` }]}>
-            <Text style={[styles.priorityText, { color: getStatusColor(job.status) }]}>{formatStatus(job.status)}</Text>
-          </View>
-        </View>
+         
 
         {/* Receipt Note (RN) for completed jobs — tappable */}
         {receiptNoteId && (
@@ -165,7 +156,7 @@ export default function JobDetailsScreen() {
             <Ionicons name="receipt-outline" size={16} color="#10B981" />
             <View style={{ flex: 1 }}>
               <Text style={[styles.rnLabel, { color: colors.textMuted }]}>Receipt Note</Text>
-              <Text style={[styles.rnValue, { color: '#10B981' }]}>{receiptNoteId}</Text>
+              <Text style={[styles.rnValue, { color: '#10B981' }]} numberOfLines={3}>{receiptNoteId}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#10B981" />
           </TouchableOpacity>

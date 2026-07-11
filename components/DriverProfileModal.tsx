@@ -36,10 +36,11 @@ interface DriverProfileModalProps {
   visible: boolean;
   driverId: string;
   driverData?: any; // optional pre-fetched driver data
+  jobId?: string; // optional: filter gallery to specific job
   onClose: () => void;
 }
 
-export default function DriverProfileModal({ visible, driverId, driverData, onClose }: DriverProfileModalProps) {
+export default function DriverProfileModal({ visible, driverId, driverData, jobId: filterJobId, onClose }: DriverProfileModalProps) {
   const colors = useTheme();
   const [loading, setLoading] = useState(true);
   const [driver, setDriver] = useState<any>(driverData || null);
@@ -70,7 +71,11 @@ export default function DriverProfileModal({ visible, driverId, driverData, onCl
       setRecentJobs(driverJobs);
 
       // Build verification image gallery from jobs with weighOut photos
-      const imgs = driverJobs
+      // If filterJobId is provided, only show photos for that specific job
+      const filteredForGallery = filterJobId
+        ? driverJobs.filter((d: any) => d.jobId === filterJobId)
+        : driverJobs;
+      const imgs = filteredForGallery
         .filter((d: any) => d.quarryId && d.vendorId && d.driverId && d.vehicleId)
         .map((d: any) => ({
           uri: buildVerificationImageUrl(d),

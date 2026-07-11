@@ -1,125 +1,117 @@
 /**
- * Backend API Data Store
- * All data is fetched from the backend API (Firebase-backed).
- * No direct Firestore access from the frontend.
- * Data is cached locally via SecureStore for offline use.
+ * Backend API Data Hooks (Refactored)
+ *
+ * Powered by realTimeSyncStore (Zustand) which provides:
+ *   - Instant display from SecureStore cache (0ms)
+ *   - ETag-backed polling every 30s (only transfers changed data)
+ *   - Deduplicated requests across components
+ *   - Automatic cleanup on unmount
+ *
+ * Usage: Same API as before — drop-in replacement for existing hooks.
+ *   const vendors = useVendors();
+ *   const deliveryOrders = useDeliveryOrders({ status: 'in_transit' });
  */
-import { useEffect, useState } from 'react';
-import { setItem, getItem } from '../services/database';
-import * as api from '../services/api';
-
-const CACHE_PREFIX = 'rt_cache_';
+import { useEffect, useMemo, useRef } from 'react';
+import { useRealTimeSyncStore } from './realTimeSyncStore';
 
 // ============================================================
-// React hook for any collection with local caching + backend API
+// React hook for any collection — stale-while-revalidate
 // ============================================================
 export function useRealtimeCollection(
   collectionName: string,
   params?: Record<string, string>
-): any[] {
-  const [data, setData] = useState<any[]>([]);
-  const filterKey = params ? `_${Object.entries(params).map(([k, v]) => `${k}_${v}`).join('_')}` : '';
-  const cacheKey = CACHE_PREFIX + collectionName + filterKey;
+): { data: any[]; loading: boolean; error: string | null } {
+  const subscribe = useRealTimeSyncStore((s) => s.subscribe);
+  const unsubscribe = useRealTimeSyncStore((s) => s.unsubscribe);
+  const getData = useRealTimeSyncStore((s) => s.getData);
+  const isLoading = useRealTimeSyncStore((s) => s.isLoading);
+  const getError = useRealTimeSyncStore((s) => s.getError);
+
+  // Build a stable params key to avoid re-subscribing on every render
+  const paramsKey = JSON.stringify(params);
+
+  // Track previous subscription to clean up on params change
+  const prevKeyRef = useRef<string>(paramsKey);
 
   useEffect(() => {
-    let cancelled = false;
-
-    // Load cached data first for instant display
-    getItem(cacheKey)
-      .then((cached) => {
-        if (cached && !cancelled) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              console.log(`[Data] Loaded cached ${collectionName}:`, parsed.length, 'items');
-              setData(parsed);
-            }
-          } catch {}
-        }
-      })
-      .catch(() => {});
-
-    // Map collection names to API functions
-    const fetchers: Record<string, (p?: any) => Promise<any[]>> = {
-      vendors: api.fetchVendors,
-      drivers: api.fetchDrivers,
-      vehicles: api.fetchVehicles,
-      materials: api.fetchMaterials,
-      purchaseOrders: api.fetchPurchaseOrders,
-      deliveryOrders: api.fetchDeliveryOrders,
-      weighRecords: api.fetchWeighments,
-      checkpoints: api.fetchCheckpoints,
-      quarries: api.fetchQuarries,
-      sites: api.fetchSites,
-    };
-
-    const fetchFn = fetchers[collectionName];
-    if (!fetchFn) {
-      console.warn(`[Data] Unknown collection: ${collectionName}`);
-      return;
+    // Unsubscribe from previous params if they changed
+    if (prevKeyRef.current !== paramsKey) {
+      const prevParams = prevKeyRef.current !== '{}'
+        ? JSON.parse(prevKeyRef.current)
+        : undefined;
+      unsubscribe(collectionName, prevParams);
     }
+    prevKeyRef.current = paramsKey;
 
-    console.log(`[Data] Fetching ${collectionName} from backend...`);
-    fetchFn(params)
-      .then((result) => {
-        if (!cancelled) {
-          setData(result);
-          setItem(cacheKey, JSON.stringify(result)).catch(() => {});
-        }
-      })
-      .catch((err) => {
-        console.warn(`[Data] ${collectionName} fetch error:`, err?.message || err);
-      });
-
+    subscribe(collectionName, params);
     return () => {
-      cancelled = true;
+      unsubscribe(collectionName, params);
     };
-  }, [collectionName, filterKey]);
+  }, [collectionName, paramsKey, subscribe, unsubscribe]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return data;
+  const data = getData(collectionName);
+  const loading = isLoading(collectionName);
+  const error = getError(collectionName);
+
+  return { data, loading, error };
 }
 
 // ============================================================
 // Convenience hooks for each collection
 // ============================================================
 export function useVendors(params?: { search?: string; status?: string }) {
-  return useRealtimeCollection('vendors', params as Record<string, string>);
+  const { data } = useRealtimeCollection('vendors', params as Record<string, string>);
+  return data;
 }
 
 export function useDrivers(params?: { status?: string; search?: string }) {
-  return useRealtimeCollection('drivers', params as Record<string, string>);
+  const { data } = useRealtimeCollection('drivers', params as Record<string, string>);
+  return data;
 }
 
 export function useVehicles(params?: { status?: string; search?: string }) {
-  return useRealtimeCollection('vehicles', params as Record<string, string>);
+  const { data } = useRealtimeCollection('vehicles', params as Record<string, string>);
+  return data;
 }
 
 export function useMaterials(params?: { search?: string; category?: string }) {
-  return useRealtimeCollection('materials', params as Record<string, string>);
+  const { data } = useRealtimeCollection('materials', params as Record<string, string>);
+  return data;
 }
 
 export function usePurchaseOrders(params?: { search?: string; status?: string }) {
-  return useRealtimeCollection('purchaseOrders', params as Record<string, string>);
+  const { data } = useRealtimeCollection('purchaseOrders', params as Record<string, string>);
+  return data;
 }
 
 export function useDeliveryOrders(params?: { search?: string; status?: string; jobId?: string; purchaseOrderId?: string }) {
-  return useRealtimeCollection('deliveryOrders', params as Record<string, string>);
+  const { data } = useRealtimeCollection('deliveryOrders', params as Record<string, string>);
+  return data;
 }
 
 export function useWeighRecords(params?: { jobId?: string; type?: string }) {
-  return useRealtimeCollection('weighRecords', params as Record<string, string>);
+  const { data } = useRealtimeCollection('weighRecords', params as Record<string, string>);
+  return data;
 }
 
 export function useCheckpoints(params?: { jobId?: string; deliveryOrderId?: string }) {
-  return useRealtimeCollection('checkpoints', params as Record<string, string>);
+  const { data } = useRealtimeCollection('checkpoints', params as Record<string, string>);
+  return data;
 }
 
 export function useQuarries() {
-  return useRealtimeCollection('quarries');
+  const { data } = useRealtimeCollection('quarries');
+  return data;
 }
 
 export function useSites() {
-  return useRealtimeCollection('sites');
+  const { data } = useRealtimeCollection('sites');
+  return data;
+}
+
+export function useFuelRecords(params?: { search?: string; vendorId?: string; jobId?: string; plateNumber?: string }) {
+  const { data } = useRealtimeCollection('fuelRecords', params as Record<string, string>);
+  return data;
 }
 
 // ============================================================

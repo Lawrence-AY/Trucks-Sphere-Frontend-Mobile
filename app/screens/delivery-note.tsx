@@ -6,7 +6,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { fetchDeliveryOrders, fetchCheckpoints } from '../../services/api';
 import { formatEAT, formatStatus, getStatusColor, JOURNEY_STEPS } from '../../utils/helpers';
-import ShareModal from '../../components/ShareModal';
+import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
 
 const NAVY = '#1B2A4A';
 
@@ -18,7 +18,7 @@ export default function DeliveryNoteScreen() {
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [shareVisible, setShareVisible] = useState(false);
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
 
   const loadData = async (jobId: string) => {
     if (!jobId) return;
@@ -59,16 +59,70 @@ export default function DeliveryNoteScreen() {
 
   const netWeight = delivery?.netWeight || (delivery?.weighInWeight && delivery?.weighOutWeight ? (delivery.weighInWeight - delivery.weighOutWeight).toFixed(1) : null);
 
+  // Export helpers
+  const exportHeaders = ['Field', 'Value'];
+  const getExportRows = () => {
+    if (!delivery) return [];
+    return [
+      ['Delivery Note #', delivery.jobId],
+      ['Purchase Order', delivery.poNumber || 'N/A'],
+      ['Vendor', delivery.vendorName || 'N/A'],
+      ['Driver', delivery.driverName || 'N/A'],
+      ['Truck', delivery.plateNumber || 'N/A'],
+      ['Material', delivery.materialName || 'N/A'],
+      ['Ordered Qty', `${delivery.quantityOrdered || 0} tonnes`],
+      ['Origin', delivery.quarryName || 'N/A'],
+      ['Destination', delivery.siteName || 'N/A'],
+      ['Weigh-In', delivery.weighInWeight ? `${delivery.weighInWeight} t` : '—'],
+      ['Weigh-Out', delivery.weighOutWeight ? `${delivery.weighOutWeight} t` : '—'],
+      ['Net Weight', `${netWeight} tonnes`],
+      ['Status', (delivery.status || '').replace(/_/g, ' ').toUpperCase()],
+      ['Date Created', delivery.createdAt || ''],
+    ];
+  };
+
+  const handleDownloadCSV = async () => {
+    if (!delivery) return;
+    setExporting('csv');
+    try {
+      const csvContent = buildCsvContent(exportHeaders, getExportRows());
+      await shareCsvAsFile(`Delivery_Note_${delivery.jobId}`, csvContent);
+    } catch {} finally {
+      setExporting(null);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!delivery) return;
+    setExporting('pdf');
+    try {
+      const htmlContent = buildHtmlContent(exportHeaders, getExportRows(), `Delivery Note - ${delivery.jobId}`);
+      await sharePdfAsFile(`Delivery_Note_${delivery.jobId}`, htmlContent);
+    } catch {} finally {
+      setExporting(null);
+    }
+  };
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
-      {/* Search */}
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search Delivery Note (e.g. POMAT...)" placeholderTextColor={colors.textMuted} value={searchJobId} onChangeText={setSearchJobId} onSubmitEditing={handleSearch} returnKeyType="search" />
-        <TouchableOpacity onPress={handleSearch}>
-          <Ionicons name="arrow-forward-circle" size={22} color={NAVY} />
-        </TouchableOpacity>
-      </View>
+    
+      {!id && (
+        <View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Enter Delivery Note number..."
+            placeholderTextColor={colors.textMuted}
+            value={searchJobId}
+            onChangeText={setSearchJobId}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
+          />
+          <TouchableOpacity onPress={handleSearch}>
+            <Ionicons name="arrow-forward-circle" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {loading && (
         <View style={styles.center}>
@@ -122,11 +176,7 @@ export default function DeliveryNoteScreen() {
                 </>
               )}
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
-              <View style={[styles.stamp, { backgroundColor: '#FEF3C7', borderColor: '#D97706' }]}>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(delivery.status) + '20' }]}>
-                  <Text style={[styles.stampText, { color: getStatusColor(delivery.status) }]}>{formatStatus(delivery.status).toUpperCase()}</Text>
-                </View>
-              </View>
+            
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rBarcode}>||| ||| ||| ||| ||| ||| |||</Text>
               <Text style={styles.rFooter}>Site Operator Confirmation</Text>
@@ -134,13 +184,33 @@ export default function DeliveryNoteScreen() {
             </View>
           </View>
 
-         
-
-          {/* Share */}
-          <TouchableOpacity style={[styles.btn, { backgroundColor: NAVY }]} onPress={() => setShareVisible(true)}>
-            <Ionicons name="share-outline" size={20} color="#FFF" />
-            <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Share / Export</Text>
-          </TouchableOpacity>
+          {/* Download actions — Download CSV and PDF only, no share */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: '#2563EB' }]}
+              onPress={handleDownloadCSV}
+              disabled={exporting !== null}
+            >
+              {exporting === 'csv' ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
+              )}
+              <Text style={styles.actionBtnText}>Download CSV</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: '#7C3AED' }]}
+              onPress={handleDownloadPDF}
+              disabled={exporting !== null}
+            >
+              {exporting === 'pdf' ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="document-outline" size={18} color="#FFFFFF" />
+              )}
+              <Text style={styles.actionBtnText}>Download PDF</Text>
+            </TouchableOpacity>
+          </View>
         </>
       )}
 
@@ -150,18 +220,22 @@ export default function DeliveryNoteScreen() {
           <Text style={{ fontSize: 14, color: colors.textSecondary, textAlign: 'center' }}>Enter a Delivery Note number above</Text>
         </View>
       )}
-
-      <ShareModal visible={shareVisible} onClose={() => setShareVisible(false)} />
     </ScrollView>
   );
 }
 
 const DNRow = ({ label, value, bold }: { label: string; value: string | number; bold?: boolean }) => (
-  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
-    <Text style={{ fontSize: 14, color: '#666' }}>{label}</Text>
-    <Text style={{ fontSize: 14, color: '#333', fontWeight: bold ? '700' : '400' }}>{value}</Text>
+  <View style={dnStyles.row}>
+    <Text style={dnStyles.label}>{label}</Text>
+    <Text style={[dnStyles.value, bold && { fontWeight: '700' }]} numberOfLines={3}>{value}</Text>
   </View>
 );
+
+const dnStyles = StyleSheet.create({
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 3, gap: 8 },
+  label: { fontSize: 14, color: '#666', flexShrink: 0, marginTop: 1 },
+  value: { fontSize: 14, color: '#333', flex: 1, textAlign: 'right', flexWrap: 'wrap' },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -192,5 +266,15 @@ const styles = StyleSheet.create({
   tDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   tLine: { width: 2, flex: 1, marginTop: 2, marginBottom: 2 },
   tContent: { flex: 1, borderRadius: Radius.sm, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.sm, borderColor: '#E2E8F0' },
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm },
+  actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
+    gap: Spacing.sm,
+  },
+  actionBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 });
