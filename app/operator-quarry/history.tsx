@@ -1,0 +1,507 @@
+import { useEffect, useMemo, useState } from 'react';
+import {
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../hooks/useTheme';
+import { Radius, Spacing } from '../../constants/theme';
+import { fetchDeliveryOrders } from '../../services/api';
+import { formatEAT } from '../../utils/helpers';
+import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
+import {
+  DataCard,
+  EmptyState,
+  PageShell,
+  SectionTitle,
+} from '../../components/EnterpriseUI';
+
+/* ─────────── Filter Options ─────────── */
+
+type FilterPeriod = 'today' | 'week' | 'month';
+
+const FILTER_LABELS: Record<FilterPeriod, string> = {
+  today: 'Today',
+  week: 'This Week',
+  month: 'This Month',
+};
+
+/* ─────────── Component ─────────── */
+
+export default function OperatorQuarryHistoryScreen() {
+  const colors = useTheme();
+  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<FilterPeriod>('today');
+
+  const loadData = async () => {
+    setRefreshing(true);
+    try {
+      const data = (await fetchDeliveryOrders()) || [];
+      // Backend already scopes by quarryId for operator_quarry role
+      setDeliveries(data);
+    } catch {
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  /* ─── Filtering Logic ─── */
+
+  const now = new Date();
+
+  const getStartOfPeriod = (period: FilterPeriod): Date => {
+    const d = new Date(now);
+    if (period === 'today') {
+      d.setHours(0, 0, 0, 0);
+    } else if (period === 'week') {
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+      d.setDate(diff);
+      d.setHours(0, 0, 0, 0);
+    } else {
+      d.setDate(1);
+      d.setHours(0, 0, 0, 0);
+    }
+    return d;
+  };
+
+  const startDate = getStartOfPeriod(filter);
+
+  const activeQueue = deliveries.filter(
+    (d) => !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status),
+  );
+
+  const completedRecords = useMemo(() => {
+    return deliveries
+      .filter(
+        (d) =>
+          d.status === 'delivered' || d.status === 'completed' || d.status === 'loaded',
+      )
+      .filter((d) => {
+        const updated = new Date(d.updatedAt || d.createdAt);
+        return updated >= startDate;
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt || b.createdAt).getTime() -
+          new Date(a.updatedAt || a.createdAt).getTime(),
+      );
+  }, [deliveries, startDate]);
+
+  /* ─── Export Logic ─── */
+
+  const exportHeaders = [
+    'Receipt Note',
+    'Job ID',
+    'PO Number',
+    'Vendor',
+    'Driver',
+    'Truck Plate',
+    'Material',
+    'Qty Ordered (t)',
+    'Quarry In (t)',
+    'Quarry Out (t)',
+    'Quarry Net (t)',
+    'Site In (t)',
+    'Site Out (t)',
+    'Site Net (t)',
+    'Expected (t)',
+    'Difference (t)',
+    'Status',
+    'Finalized',
+  ];
+
+  const buildExportRows = (records: any[]): string[][] =>
+    records.map((r) => {
+      const quarryIn = r.weighInWeight ?? null;
+      const quarryOut = r.weighOutWeight ?? null;
+      const quarryNet =
+        r.netWeight ??
+        (quarryIn != null && quarryOut != null ? quarryOut - quarryIn : null);
+      const siteIn = r.siteWeighInWeight ?? null;
+      const siteOut = r.siteWeighOutWeight ?? null;
+      const siteNet = r.siteNetWeight ?? r.quantityDelivered ?? null;
+      const diff = r.siteWeightDifference ?? null;
+
+      return [
+        r.receiptNoteId || '—',
+        r.jobId || '',
+        r.poNumber || '',
+        r.vendorName || '',
+        r.driverName || '',
+        r.plateNumber || '',
+        r.materialName || '',
+        String(r.quantityOrdered ?? ''),
+        quarryIn != null ? quarryIn.toFixed(1) : '—',
+        quarryOut != null ? quarryOut.toFixed(1) : '—',
+        quarryNet != null ? quarryNet.toFixed(1) : '—',
+        siteIn != null ? siteIn.toFixed(1) : '—',
+        siteOut != null ? siteOut.toFixed(1) : '—',
+        siteNet != null ? siteNet.toFixed(1) : '—',
+        r.quantityOrdered != null ? r.quantityOrdered.toFixed(1) : '—',
+        diff != null ? `${diff > 0 ? '+' : ''}${diff.toFixed(2)}` : '—',
+        r.status || '',
+        r.receivedAt || r.updatedAt || r.createdAt || '',
+      ];
+    });
+
+  const handleDownloadCSV = async () => {
+    const rows = buildExportRows(completedRecords);
+    const csvContent = buildCsvContent(exportHeaders, rows);
+    await shareCsvAsFile(`Quarry_History_${FILTER_LABELS[filter]}`, csvContent);
+  };
+
+  const handleDownloadPDF = async () => {
+    const rows = buildExportRows(completedRecords);
+    const htmlContent = buildHtmlContent(exportHeaders, rows, `Quarry History — ${FILTER_LABELS[filter]}`);
+    await sharePdfAsFile(`Quarry History — ${FILTER_LABELS[filter]}`, htmlContent);
+  };
+
+  /* ─── Per-Delivery Note Export ─── */
+
+  const buildDeliveryNoteHeaders = () => [
+    'Field', 'Value',
+  ];
+
+  const buildDeliveryNoteRows = (item: any): string[][] => [
+    ['Job ID', item.jobId || ''],
+    ['Purchase Order', item.poNumber || ''],
+    ['Vendor', item.vendorName || ''],
+    ['Driver', item.driverName || ''],
+    ['Truck Plate', item.plateNumber || ''],
+    ['Material', item.materialName || ''],
+    ['Quantity Ordered', item.quantityOrdered != null ? `${item.quantityOrdered} tonnes` : '—'],
+    ['Origin (Quarry)', item.quarryName || ''],
+    ['Destination (Site)', item.siteName || ''],
+    ['Weigh-In Weight', item.weighInWeight != null ? `${item.weighInWeight.toFixed(1)} t` : '—'],
+    ['Weigh-Out Weight', item.weighOutWeight != null ? `${item.weighOutWeight.toFixed(1)} t` : '—'],
+    ['Net Weight', item.netWeight != null ? `${item.netWeight.toFixed(1)} t` : '—'],
+    ['Weigh-Out Location', item.weighOutGeoLocation?.address || item.weighOutLocation || '—'],
+    ['Status', (item.status || '').replace(/_/g, ' ').toUpperCase()],
+    ['Assigned At', item.createdAt || ''],
+    ['Completed At', item.updatedAt || ''],
+  ];
+
+  const handleExportDeliveryNoteCSV = async (item: any) => {
+    const headers = buildDeliveryNoteHeaders();
+    const rows = buildDeliveryNoteRows(item);
+    const csvContent = buildCsvContent(headers, rows);
+    const safeName = `Delivery_Note_${item.jobId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+    await shareCsvAsFile(safeName, csvContent);
+  };
+
+  const handleExportDeliveryNotePDF = async (item: any) => {
+    const headers = buildDeliveryNoteHeaders();
+    const rows = buildDeliveryNoteRows(item);
+    const htmlContent = buildHtmlContent(headers, rows, `Delivery Note — ${item.jobId}`);
+    const safeName = `Delivery_Note_${item.jobId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+    await sharePdfAsFile(safeName, htmlContent);
+  };
+
+  /* ─── Summary Stats ─── */
+
+  const totalNetToday = completedRecords.reduce(
+    (sum, r) => sum + (r.netWeight || 0),
+    0,
+  );
+
+  return (
+    <PageShell
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={loadData}
+          tintColor={colors.primary}
+        />
+      }
+    >
+      {/* Filter Pills */}
+      <View style={styles.filterRow}>
+        {(['today', 'week', 'month'] as FilterPeriod[]).map((period) => {
+          const active = filter === period;
+          return (
+            <TouchableOpacity
+              key={period}
+              style={[
+                styles.filterPill,
+                {
+                  backgroundColor: active
+                    ? colors.primary
+                    : colors.inputBg,
+                  borderColor: active ? colors.primary : colors.border,
+                },
+              ]}
+              onPress={() => setFilter(period)}
+            >
+              <Ionicons
+                name={
+                  period === 'today'
+                    ? 'today-outline'
+                    : period === 'week'
+                      ? 'calendar-outline'
+                      : 'calendar-number-outline'
+                }
+                size={14}
+                color={active ? '#FFFFFF' : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.filterPillText,
+                  { color: active ? '#FFFFFF' : colors.textSecondary },
+                ]}
+              >
+                {FILTER_LABELS[period]}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Export Actions */}
+      <View style={styles.exportRow}>
+        <TouchableOpacity
+          style={[styles.exportBtn, { backgroundColor: '#2563EB' }]}
+          onPress={handleDownloadCSV}
+        >
+          <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
+          <Text style={styles.exportBtnText}>Download CSV</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.exportBtn, { backgroundColor: '#7C3AED' }]}
+          onPress={handleDownloadPDF}
+        >
+          <Ionicons name="document-outline" size={16} color="#FFFFFF" />
+          <Text style={styles.exportBtnText}>Download PDF</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Completed Submissions */}
+      <SectionTitle
+        title={`Completed — ${FILTER_LABELS[filter]} (${completedRecords.length})`}
+      />
+      {loading ? (
+        <DataCard>
+          <Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text>
+        </DataCard>
+      ) : completedRecords.length ? (
+        completedRecords.map((item) => (
+          <DataCard key={item.id}>
+            <View style={styles.tableHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.tableJobId, { color: colors.text }]}>
+                  {item.jobId}
+                </Text>
+                <Text style={[styles.tablePo, { color: colors.textMuted }]}>
+                  {item.poNumber || '—'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.tableRow}>
+              <View style={styles.tableCell}>
+                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Driver</Text>
+                <Text style={[styles.tableValue, { color: colors.text }]}>
+                  {item.driverName || '—'}
+                </Text>
+              </View>
+              <View style={styles.tableCell}>
+                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Truck</Text>
+                <Text style={[styles.tableValue, { color: colors.text }]}>
+                  {item.plateNumber || '—'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.tableRow}>
+              <View style={styles.tableCell}>
+                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Material</Text>
+                <Text style={[styles.tableValue, { color: colors.text }]}>
+                  {item.materialName || '—'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Weight Summary Row for Completed */}
+            <View style={[styles.weightSummary, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+              <View style={styles.weightCell}>
+                <Text style={[styles.wLabel, { color: colors.textMuted }]}>IN</Text>
+                <Text style={[styles.wValue, { color: '#2563EB' }]}>
+                  {item.weighInWeight != null ? `${item.weighInWeight.toFixed(1)}T` : '—'}
+                </Text>
+              </View>
+              <View style={styles.weightCell}>
+                <Text style={[styles.wLabel, { color: colors.textMuted }]}>OUT</Text>
+                <Text style={[styles.wValue, { color: '#7C3AED' }]}>
+                  {item.weighOutWeight != null ? `${item.weighOutWeight.toFixed(1)}T` : '—'}
+                </Text>
+              </View>
+              <View style={styles.weightCell}>
+                <Text style={[styles.wLabel, { color: colors.textMuted }]}>NET</Text>
+                <Text style={[styles.wValue, { color: colors.success, fontSize: 18 }]}>
+                  {item.netWeight != null ? `${item.netWeight.toFixed(1)}T` : '—'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Location if available */}
+            {item.weighOutGeoLocation?.address && (
+              <View style={styles.locationTag}>
+                <Ionicons name="location-outline" size={12} color={colors.textTertiary} />
+                <Text style={[styles.locationTagText, { color: colors.textTertiary }]} numberOfLines={1}>
+                  {item.weighOutGeoLocation.address}
+                </Text>
+              </View>
+            )}
+
+            {/* Per-Delivery Export Actions */}
+            <View style={styles.deliveryExportRow}>
+              <TouchableOpacity
+                style={[styles.deliveryExportBtn, { backgroundColor: '#2563EB12', borderColor: '#2563EB33' }]}
+                onPress={() => handleExportDeliveryNoteCSV(item)}
+              >
+                <Ionicons name="document-text-outline" size={14} color="#2563EB" />
+                <Text style={[styles.deliveryExportBtnText, { color: '#2563EB' }]}>CSV</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deliveryExportBtn, { backgroundColor: '#7C3AED12', borderColor: '#7C3AED33' }]}
+                onPress={() => handleExportDeliveryNotePDF(item)}
+              >
+                <Ionicons name="document-outline" size={14} color="#7C3AED" />
+                <Text style={[styles.deliveryExportBtnText, { color: '#7C3AED' }]}>PDF</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={[styles.tableTimestamp, { color: colors.textTertiary }]}>
+              Completed: {formatEAT(item.updatedAt || item.createdAt)}
+            </Text>
+          </DataCard>
+        ))
+      ) : (
+        <EmptyState
+          icon="checkmark-done-outline"
+          title="No completed records"
+          subtitle={`No submissions found for ${FILTER_LABELS[filter].toLowerCase()}.`}
+        />
+      )}
+
+      {/* Bottom spacing */}
+      <View style={{ height: Spacing['4xl'] }} />
+    </PageShell>
+  );
+}
+
+/* ─── Styles ─── */
+
+const styles = StyleSheet.create({
+  metricRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  // Filters
+  filterRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  filterPillText: { fontSize: 13, fontWeight: '700' },
+  // Export
+  exportRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  exportBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.md,
+    minHeight: 44,
+  },
+  exportBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  // Table rows
+  tableHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  tableJobId: { fontSize: 15, fontWeight: '700' },
+  tablePo: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  tableRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: 4,
+  },
+  tableCell: { flex: 1 },
+  tableLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 },
+  tableValue: { fontSize: 13, fontWeight: '600' },
+  tableTimestamp: { fontSize: 12, marginTop: Spacing.sm },
+  // Weight summary for completed
+  weightSummary: {
+    flexDirection: 'row',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    padding: Spacing.sm,
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  weightCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  wLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  wValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
+  // Location tag
+  locationTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing.sm,
+  },
+  locationTagText: {
+    fontSize: 11,
+    fontWeight: '500',
+    flex: 1,
+  },
+  // Per-delivery export
+  deliveryExportRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  deliveryExportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  deliveryExportBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+});

@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "TruckApp",
+    "slug": "truck-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "truck-app",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#2563EB",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.truckapp.frontend",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need your location to capture weigh-in and delivery locations.",
+        "NSCameraUsageDescription": "We need camera access to capture weighment photos and receipts."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2563EB"
+      },
+      "package": "com.truckapp.frontend",
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-location",
+      "expo-image-picker",
+      "expo-secure-store",
+      "expo-asset",
+      "expo-status-bar",
+      "expo-splash-screen"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "26780c71-fb1c-4a27-a60b-b4bbd2d84151"
+      }
+    },
+    "owner": "larryrong"
+  }
+}
