@@ -11,11 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Spacing, Radius } from '../constants/theme';
-import {
-  exportDataAsCSV,
-  exportDataAsPDF,
-  ExportEntity,
-} from '../utils/exportData';
+import { exportDataAsCSV, ExportEntity } from '../utils/exportData';
 
 const EXPORT_ENTITIES: { key: ExportEntity; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'all', label: 'All Data', icon: 'albums-outline' },
@@ -37,14 +33,10 @@ export default function ShareModal({ visible, onClose }: ShareModalProps) {
   const colors = useTheme();
   const [exporting, setExporting] = useState<{ entity: string; format: string } | null>(null);
 
-  const handleExport = async (entity: ExportEntity, format: 'csv' | 'pdf') => {
-    setExporting({ entity, format });
+  const handleExport = async (entity: ExportEntity) => {
+    setExporting({ entity, format: 'csv' });
     try {
-      if (format === 'csv') {
-        await exportDataAsCSV(entity);
-      } else {
-        await exportDataAsPDF(entity);
-      }
+      await exportDataAsCSV(entity);
     } catch (e) {
       console.error('Export error:', e);
     } finally {
@@ -64,7 +56,7 @@ export default function ShareModal({ visible, onClose }: ShareModalProps) {
           </View>
 
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Export data as CSV or PDF. Linked exports include vendors, drivers, jobs, trucks, delivered and linked records.
+            Export data as CSV. Linked exports include vendors, drivers, jobs, trucks, delivered and linked records.
           </Text>
 
           <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
@@ -91,24 +83,13 @@ export default function ShareModal({ visible, onClose }: ShareModalProps) {
                   <View style={styles.actionBtns}>
                     <TouchableOpacity
                       style={[styles.formatBtn, { backgroundColor: colors.primary }]}
-                      onPress={() => handleExport(entity.key, 'csv')}
+                      onPress={() => handleExport(entity.key)}
                       disabled={exporting !== null}
                     >
                       {exporting?.entity === entity.key && exporting?.format === 'csv' ? (
                         <ActivityIndicator size="small" color="#FFF" />
                       ) : (
                         <Text style={styles.formatBtnText}>CSV</Text>
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.formatBtn, { backgroundColor: '#1B2A4A' }]}
-                      onPress={() => handleExport(entity.key, 'pdf')}
-                      disabled={exporting !== null}
-                    >
-                      {exporting?.entity === entity.key && exporting?.format === 'pdf' ? (
-                        <ActivityIndicator size="small" color="#FFF" />
-                      ) : (
-                        <Text style={styles.formatBtnText}>PDF</Text>
                       )}
                     </TouchableOpacity>
                   </View>

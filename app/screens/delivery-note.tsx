@@ -6,7 +6,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { fetchDeliveryOrders, fetchCheckpoints } from '../../services/api';
 import { formatEAT, formatStatus, getStatusColor, JOURNEY_STEPS } from '../../utils/helpers';
-import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
+import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 
 const NAVY = '#1B2A4A';
 
@@ -18,7 +18,7 @@ export default function DeliveryNoteScreen() {
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+  const [exporting, setExporting] = useState<'csv' | null>(null);
 
   const loadData = async (jobId: string) => {
     if (!jobId) return;
@@ -92,16 +92,7 @@ export default function DeliveryNoteScreen() {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    if (!delivery) return;
-    setExporting('pdf');
-    try {
-      const htmlContent = buildHtmlContent(exportHeaders, getExportRows(), `Delivery Note - ${delivery.jobId}`);
-      await sharePdfAsFile(`Delivery_Note_${delivery.jobId}`, htmlContent);
-    } catch {} finally {
-      setExporting(null);
-    }
-  };
+
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
@@ -184,7 +175,7 @@ export default function DeliveryNoteScreen() {
             </View>
           </View>
 
-          {/* Download actions — Download CSV and PDF only, no share */}
+          {/* Download actions — CSV only */}
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: '#2563EB' }]}
@@ -197,18 +188,6 @@ export default function DeliveryNoteScreen() {
                 <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
               )}
               <Text style={styles.actionBtnText}>Download CSV</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: '#7C3AED' }]}
-              onPress={handleDownloadPDF}
-              disabled={exporting !== null}
-            >
-              {exporting === 'pdf' ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="document-outline" size={18} color="#FFFFFF" />
-              )}
-              <Text style={styles.actionBtnText}>Download PDF</Text>
             </TouchableOpacity>
           </View>
         </>

@@ -122,6 +122,21 @@ export async function uploadDriverPhotoWeighOut(jobId: string, fileUri: string):
   );
 }
 
+/**
+ * Upload a fuel pump photo.
+ * Storage folder: "Fuel pump/"
+ * Filename: {jobId}.jpg
+ * Firestore field: fuelRecords/{fuelId}.pumpPhotoURL
+ */
+export async function uploadFuelPumpPhoto(jobId: string, fileUri: string): Promise<UploadResult> {
+  return uploadFile(
+    `fuel-pump-photo/${jobId}`,
+    fileUri,
+    'file',
+    `fuel-pump-${jobId}`
+  );
+}
+
 async function uploadFile(
   endpoint: string,
   fileUri: string,
@@ -143,7 +158,7 @@ async function uploadFile(
 
   try {
     const response = await axios.post(url, formData, {
-      headers: { ...headers, 'Content-Type': 'multipart/form-data' },
+      headers: { ...headers },
       timeout: 30000,
     });
 

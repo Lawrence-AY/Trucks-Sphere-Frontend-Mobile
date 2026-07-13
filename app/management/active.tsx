@@ -182,7 +182,7 @@ export default function ManagementActiveScreen() {
       <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
 
       {/* Material Filter */}
-      <View style={{ marginBottom: Spacing.sm, marginTop: Spacing.sm }}>
+      <View style={{ marginBottom: Spacing.xs, marginTop: Spacing.xs }}>
         <TouchableOpacity
           style={{ flexDirection: 'row', alignItems: 'center', height: 40, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: 6, borderColor: colors.border, backgroundColor: colors.surface }}
           onPress={() => { setMatDropdownOpen(!matDropdownOpen); setMatSearch(''); }}
@@ -236,7 +236,7 @@ export default function ManagementActiveScreen() {
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} `} />
 
               {item.netWeight != null && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.success}15`, marginTop: Spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.success}15`, marginTop: Spacing.xs }}>
                   <Ionicons name="scale-outline" size={12} color={colors.success} />
                   <Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>Net: {item.netWeight.toFixed(1)}T</Text>
                 </View>

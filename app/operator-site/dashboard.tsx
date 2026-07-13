@@ -41,6 +41,18 @@ import DriverProfileModal from '../../components/DriverProfileModal';
 
 /* ─────────── Phase 1: Schedule Tab — Site Weight In ─────────── */
 
+const MATERIAL_SOURCE_OPTIONS = [
+  'Hindi',
+  'Ngomeni',
+  'Jaribuni',
+  'Mjanaheri Malindi',
+  'Kilifi',
+  'Malindi',
+  'Local Borrow pit',
+  'Witu',
+  'Baragoni',
+];
+
 export default function OperatorSiteDashboardScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
@@ -78,11 +90,9 @@ export default function OperatorSiteDashboardScreen() {
   const [fabSelectedPo, setFabSelectedPo] = useState<any>(null);
   const [fabSelectedDriver, setFabSelectedDriver] = useState<any>(null);
   const [fabSelectedVehicle, setFabSelectedVehicle] = useState<any>(null);
-  const [fabIsCustomDriver, setFabIsCustomDriver] = useState(false);
-  const [fabCustomDriverName, setFabCustomDriverName] = useState('');
-  const [fabCustomLicense, setFabCustomLicense] = useState('');
-  const [fabIsCustomVehicle, setFabIsCustomVehicle] = useState(false);
-  const [fabCustomPlate, setFabCustomPlate] = useState('');
+  const [fabMaterialSource, setFabMaterialSource] = useState('');
+  const [fabMaterialSourceSearch, setFabMaterialSourceSearch] = useState('');
+  const [fabMaterialSourceOpen, setFabMaterialSourceOpen] = useState(false);
   const [fabWeightIn, setFabWeightIn] = useState('');
   const [fabLotNumber, setFabLotNumber] = useState('');
   const [fabSubmitting, setFabSubmitting] = useState(false);
@@ -345,17 +355,21 @@ export default function OperatorSiteDashboardScreen() {
     );
   }, [allVehicles, fabSelectedPo]);
 
+  const fabMaterialSourceMatches = useMemo(() => {
+    const term = fabMaterialSourceSearch.trim().toLowerCase();
+    if (!term) return MATERIAL_SOURCE_OPTIONS;
+    return MATERIAL_SOURCE_OPTIONS.filter((source) => source.toLowerCase().includes(term));
+  }, [fabMaterialSourceSearch]);
+
   const closeFab = () => {
     setFabVisible(false);
     setFabPoSearch('');
     setFabSelectedPo(null);
     setFabSelectedDriver(null);
     setFabSelectedVehicle(null);
-    setFabIsCustomDriver(false);
-    setFabCustomDriverName('');
-    setFabCustomLicense('');
-    setFabIsCustomVehicle(false);
-    setFabCustomPlate('');
+    setFabMaterialSource('');
+    setFabMaterialSourceSearch('');
+    setFabMaterialSourceOpen(false);
     setFabWeightIn('');
     setFabLotNumber('');
     setFabSubmitting(false);
@@ -367,19 +381,20 @@ export default function OperatorSiteDashboardScreen() {
     const weightInNum = parseFloat(fabWeightIn);
     if (isNaN(weightInNum) || weightInNum <= 0) return;
     if (!fabLotNumber.trim()) return;
-    const hasValidDriver = fabIsCustomDriver ? (fabCustomDriverName.trim() && fabCustomLicense.trim()) : !!fabSelectedDriver;
-    const hasValidVehicle = fabIsCustomVehicle ? !!fabCustomPlate.trim() : !!fabSelectedVehicle;
+    if (!fabMaterialSource.trim()) return;
+    const hasValidDriver = !!fabSelectedDriver;
+    const hasValidVehicle = !!fabSelectedVehicle;
     if (!hasValidDriver || !hasValidVehicle) return;
 
     const now = new Date().toISOString();
     setFabSubmitting(true);
     setFabSubmitError('');
 
-    const driverId = fabIsCustomDriver ? `custom_${Date.now()}` : fabSelectedDriver.id;
-    const driverName = fabIsCustomDriver ? fabCustomDriverName.trim() : (fabSelectedDriver.name || fabSelectedDriver.fullName);
-    const licenseNumber = fabIsCustomDriver ? fabCustomLicense.trim() : (fabSelectedDriver.licenseNumber || '');
-    const vehicleId = fabIsCustomVehicle ? `custom_${Date.now() + 1}` : fabSelectedVehicle.id;
-    const plateNumber = fabIsCustomVehicle ? fabCustomPlate.trim() : (fabSelectedVehicle.plateNumber || fabSelectedVehicle.plate || 'N/A');
+    const driverId = fabSelectedDriver.id;
+    const driverName = fabSelectedDriver.name || fabSelectedDriver.fullName;
+    const licenseNumber = fabSelectedDriver.licenseNumber || '';
+    const vehicleId = fabSelectedVehicle.id;
+    const plateNumber = fabSelectedVehicle.plateNumber || fabSelectedVehicle.plate || 'N/A';
 
     const jobId = generateJobId(fabSelectedPo.poNumber, fabSelectedPo.materialId, fabSelectedPo.vendorId, driverId, vehicleId);
 
@@ -404,9 +419,11 @@ export default function OperatorSiteDashboardScreen() {
       siteId: fabSelectedPo.siteId || user?.siteId || '',
       siteName: fabSelectedPo.siteName || 'Site',
       destinationLot: fabLotNumber.trim(),
+      materialSource: fabMaterialSource.trim(),
+      isUnscheduled: true,
       isScheduled: false,
-      isCustomDriver: fabIsCustomDriver,
-      isCustomVehicle: fabIsCustomVehicle,
+      isCustomDriver: false,
+      isCustomVehicle: false,
       status: 'weighed_in',
       siteWeighInWeight: weightInNum,
       siteWeighInAt: now,
@@ -804,141 +821,136 @@ export default function OperatorSiteDashboardScreen() {
               {/* Driver Selection */}
               {fabSelectedPo && (
                 <>
-                  <View style={styles.fabSectionHeader}>
-                    <Text style={[styles.fabLabel, { color: colors.text }]}>Select Driver</Text>
-                    <TouchableOpacity
-                      style={[styles.fabToggleBtn, { backgroundColor: fabIsCustomDriver ? colors.primary : colors.inputBg, borderColor: fabIsCustomDriver ? colors.primary : colors.border }]}
-                      onPress={() => { setFabIsCustomDriver(!fabIsCustomDriver); setFabSelectedDriver(null); }}
-                    >
-                      <Ionicons name={fabIsCustomDriver ? 'person-add' : 'person-add-outline'} size={13} color={fabIsCustomDriver ? '#FFFFFF' : colors.textMuted} />
-                      <Text style={[styles.fabToggleText, { color: fabIsCustomDriver ? '#FFFFFF' : colors.textMuted }]}>Add Custom Driver</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {fabIsCustomDriver ? (
-                    <View style={{ gap: Spacing.sm }}>
-                      <View style={[styles.fabInputWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
-                        <Ionicons name="person-outline" size={18} color={colors.textMuted} />
-                        <TextInput
-                          style={[styles.fabInput, { color: colors.text }]}
-                          placeholder="Driver Full Name"
-                          placeholderTextColor={colors.textTertiary}
-                          value={fabCustomDriverName}
-                          onChangeText={setFabCustomDriverName}
-                        />
-                      </View>
-                      <View style={[styles.fabInputWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
-                        <Ionicons name="card-outline" size={18} color={colors.textMuted} />
-                        <TextInput
-                          style={[styles.fabInput, { color: colors.text }]}
-                          placeholder="License Number"
-                          placeholderTextColor={colors.textTertiary}
-                          value={fabCustomLicense}
-                          onChangeText={setFabCustomLicense}
-                        />
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={styles.fabOptionList}>
-                      {fabVendorDrivers.length ? (
-                        fabVendorDrivers.map((driver) => {
-                          const active = fabSelectedDriver?.id === driver.id;
-                          return (
-                            <TouchableOpacity
-                              key={driver.id}
-                              style={[styles.fabDriverRow, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}10` : colors.surface }]}
-                              onPress={() => setFabSelectedDriver(driver)}
-                            >
-                              <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={18} color={active ? colors.primary : colors.textMuted} />
-                              {driver.photoURL ? (
-                                <Image source={{ uri: driver.photoURL }} style={styles.fabDriverPhoto} />
-                              ) : (
-                                <View style={[styles.fabDriverPhoto, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
-                                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primary }}>
-                                    {(driver.name || driver.fullName || 'D').charAt(0).toUpperCase()}
-                                  </Text>
-                                </View>
-                              )}
-                              <View style={{ flex: 1 }}>
-                                <Text style={[styles.fabOptionTitle, { color: colors.text }]}>{driver.name || driver.fullName}</Text>
-                                <Text style={[styles.fabOptionMeta, { color: colors.textMuted }]}>License: {driver.licenseNumber}</Text>
+                  <Text style={[styles.fabLabel, { color: colors.text }]}>Select Driver</Text>
+                  <View style={styles.fabOptionList}>
+                    {fabVendorDrivers.length ? (
+                      fabVendorDrivers.map((driver) => {
+                        const active = fabSelectedDriver?.id === driver.id;
+                        return (
+                          <TouchableOpacity
+                            key={driver.id}
+                            style={[styles.fabDriverRow, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}10` : colors.surface }]}
+                            onPress={() => setFabSelectedDriver(driver)}
+                          >
+                            <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={18} color={active ? colors.primary : colors.textMuted} />
+                            {driver.photoURL ? (
+                              <Image source={{ uri: driver.photoURL }} style={styles.fabDriverPhoto} />
+                            ) : (
+                              <View style={[styles.fabDriverPhoto, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
+                                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primary }}>
+                                  {(driver.name || driver.fullName || 'D').charAt(0).toUpperCase()}
+                                </Text>
                               </View>
-                            </TouchableOpacity>
-                          );
-                        })
-                      ) : (
-                        <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No active drivers for this vendor.</Text>
-                      )}
-                    </View>
-                  )}
+                            )}
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.fabOptionTitle, { color: colors.text }]}>{driver.name || driver.fullName}</Text>
+                              <Text style={[styles.fabOptionMeta, { color: colors.textMuted }]}>License: {driver.licenseNumber}</Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })
+                    ) : (
+                      <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No active drivers for this vendor.</Text>
+                    )}
+                  </View>
                 </>
               )}
 
               {/* Vehicle Selection */}
               {fabSelectedPo && (
                 <>
-                  <View style={styles.fabSectionHeader}>
-                    <Text style={[styles.fabLabel, { color: colors.text }]}>Select Vehicle (Number Plate)</Text>
-                    <TouchableOpacity
-                      style={[styles.fabToggleBtn, { backgroundColor: fabIsCustomVehicle ? colors.primary : colors.inputBg, borderColor: fabIsCustomVehicle ? colors.primary : colors.border }]}
-                      onPress={() => { setFabIsCustomVehicle(!fabIsCustomVehicle); setFabSelectedVehicle(null); }}
-                    >
-                      <Ionicons name={fabIsCustomVehicle ? 'car-sport' : 'car-sport-outline'} size={13} color={fabIsCustomVehicle ? '#FFFFFF' : colors.textMuted} />
-                      <Text style={[styles.fabToggleText, { color: fabIsCustomVehicle ? '#FFFFFF' : colors.textMuted }]}>Add Custom Vehicle</Text>
-                    </TouchableOpacity>
+                  <Text style={[styles.fabLabel, { color: colors.text }]}>Select Vehicle (Number Plate)</Text>
+                  <View style={styles.fabOptionList}>
+                    {fabVendorVehicles.length ? (
+                      fabVendorVehicles.map((vehicle) => {
+                        const active = fabSelectedVehicle?.id === vehicle.id;
+                        return (
+                          <TouchableOpacity
+                            key={vehicle.id}
+                            style={[styles.fabDriverRow, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}10` : colors.surface }]}
+                            onPress={() => setFabSelectedVehicle(vehicle)}
+                          >
+                            <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={18} color={active ? colors.primary : colors.textMuted} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.fabOptionTitle, { color: colors.text }]}>{vehicle.plateNumber || vehicle.plate}</Text>
+                              <Text style={[styles.fabOptionMeta, { color: colors.textMuted }]}>{vehicle.make} {vehicle.model} ({vehicle.capacity}t)</Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })
+                    ) : (
+                      <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No active vehicles for this vendor.</Text>
+                    )}
                   </View>
-
-                  {fabIsCustomVehicle ? (
-                    <View style={[styles.fabInputWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
-                      <Ionicons name="car-outline" size={18} color={colors.textMuted} />
-                      <TextInput
-                        style={[styles.fabInput, { color: colors.text }]}
-                        placeholder="Number Plate (e.g. KAA 123B)"
-                        placeholderTextColor={colors.textTertiary}
-                        value={fabCustomPlate}
-                        onChangeText={setFabCustomPlate}
-                      />
-                    </View>
-                  ) : (
-                    <View style={styles.fabOptionList}>
-                      {fabVendorVehicles.length ? (
-                        fabVendorVehicles.map((vehicle) => {
-                          const active = fabSelectedVehicle?.id === vehicle.id;
-                          return (
-                            <TouchableOpacity
-                              key={vehicle.id}
-                              style={[styles.fabDriverRow, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}10` : colors.surface }]}
-                              onPress={() => setFabSelectedVehicle(vehicle)}
-                            >
-                              <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={18} color={active ? colors.primary : colors.textMuted} />
-                              <View style={{ flex: 1 }}>
-                                <Text style={[styles.fabOptionTitle, { color: colors.text }]}>{vehicle.plateNumber || vehicle.plate}</Text>
-                                <Text style={[styles.fabOptionMeta, { color: colors.textMuted }]}>{vehicle.make} {vehicle.model} ({vehicle.capacity}t)</Text>
-                              </View>
-                            </TouchableOpacity>
-                          );
-                        })
-                      ) : (
-                        <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No active vehicles for this vendor.</Text>
-                      )}
-                    </View>
-                  )}
                 </>
               )}
 
               {/* Site Arrival Weight (Weight In) */}
               {fabSelectedPo && (
-                <View style={[styles.weightInputContainer, { borderColor: '#F59E0B', backgroundColor: colors.inputBg }]}>
-                  <TextInput
-                    style={[styles.weightInputField, { color: colors.text }]}
-                    placeholder="0.0"
-                    placeholderTextColor={colors.textTertiary}
-                    keyboardType="decimal-pad"
-                    value={fabWeightIn}
-                    onChangeText={setFabWeightIn}
-                  />
-                  <Text style={[styles.weightInputSuffix, { color: colors.textMuted }]}>Tonnes</Text>
-                </View>
+                <>
+                  <View style={styles.fabSourceBlock}>
+                    <Text style={[styles.fabLabel, { color: colors.text }]}>Material Source (Unscheduled)</Text>
+                    <TouchableOpacity
+                      style={[styles.fabInputWrap, { borderColor: fabMaterialSource ? colors.primary : colors.border, backgroundColor: colors.inputBg }]}
+                      activeOpacity={0.8}
+                      onPress={() => setFabMaterialSourceOpen((open) => !open)}
+                    >
+                      <Ionicons name="map-outline" size={18} color={colors.textMuted} />
+                      <TextInput
+                        style={[styles.fabInput, { color: colors.text }]}
+                        placeholder="Select material source"
+                        placeholderTextColor={colors.textTertiary}
+                        value={fabMaterialSourceOpen ? fabMaterialSourceSearch : fabMaterialSource}
+                        onFocus={() => {
+                          setFabMaterialSourceOpen(true);
+                          setFabMaterialSourceSearch('');
+                        }}
+                        onChangeText={(value) => {
+                          setFabMaterialSourceSearch(value);
+                          setFabMaterialSourceOpen(true);
+                        }}
+                      />
+                      <Ionicons name={fabMaterialSourceOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {fabMaterialSourceOpen && (
+                      <View style={[styles.fabDropdown, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                        {fabMaterialSourceMatches.length ? (
+                          fabMaterialSourceMatches.map((source) => {
+                            const active = fabMaterialSource === source;
+                            return (
+                              <TouchableOpacity
+                                key={source}
+                                style={[styles.fabDropdownItem, active && { backgroundColor: `${colors.primary}10` }]}
+                                onPress={() => {
+                                  setFabMaterialSource(source);
+                                  setFabMaterialSourceSearch('');
+                                  setFabMaterialSourceOpen(false);
+                                }}
+                              >
+                                <Text style={[styles.fabDropdownText, { color: colors.text }]}>{source}</Text>
+                                {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                              </TouchableOpacity>
+                            );
+                          })
+                        ) : (
+                          <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No matching source.</Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={[styles.weightInputContainer, { borderColor: '#F59E0B', backgroundColor: colors.inputBg }]}>
+                    <TextInput
+                      style={[styles.weightInputField, { color: colors.text }]}
+                      placeholder="0.0"
+                      placeholderTextColor={colors.textTertiary}
+                      keyboardType="decimal-pad"
+                      value={fabWeightIn}
+                      onChangeText={setFabWeightIn}
+                    />
+                    <Text style={[styles.weightInputSuffix, { color: colors.textMuted }]}>Tonnes</Text>
+                  </View>
+                </>
               )}
 
               {/* Storage Lot Input */}
@@ -961,17 +973,17 @@ export default function OperatorSiteDashboardScreen() {
                 style={[styles.fabCreateBtn, { backgroundColor: (() => {
                   const weightInNum = parseFloat(fabWeightIn);
                   const hasValidWeight = !isNaN(weightInNum) && weightInNum > 0;
-                  const hasValidDriver = fabIsCustomDriver ? (fabCustomDriverName.trim() && fabCustomLicense.trim()) : !!fabSelectedDriver;
-                  const hasValidVehicle = fabIsCustomVehicle ? !!fabCustomPlate.trim() : !!fabSelectedVehicle;
-                  return fabSelectedPo && hasValidWeight && hasValidDriver && hasValidVehicle && fabLotNumber.trim() && !fabSubmitting ? colors.primary : colors.border;
+                  const hasValidDriver = !!fabSelectedDriver;
+                  const hasValidVehicle = !!fabSelectedVehicle;
+                  return fabSelectedPo && hasValidWeight && hasValidDriver && hasValidVehicle && fabMaterialSource.trim() && fabLotNumber.trim() && !fabSubmitting ? colors.primary : colors.border;
                 })() }]}
                 onPress={handleFabSubmit}
                 disabled={(() => {
                   const weightInNum = parseFloat(fabWeightIn);
                   const hasValidWeight = !isNaN(weightInNum) && weightInNum > 0;
-                  const hasValidDriver = fabIsCustomDriver ? (fabCustomDriverName.trim() && fabCustomLicense.trim()) : !!fabSelectedDriver;
-                  const hasValidVehicle = fabIsCustomVehicle ? !!fabCustomPlate.trim() : !!fabSelectedVehicle;
-                  return !fabSelectedPo || !hasValidWeight || !hasValidDriver || !hasValidVehicle || !fabLotNumber.trim() || fabSubmitting;
+                  const hasValidDriver = !!fabSelectedDriver;
+                  const hasValidVehicle = !!fabSelectedVehicle;
+                  return !fabSelectedPo || !hasValidWeight || !hasValidDriver || !hasValidVehicle || !fabMaterialSource.trim() || !fabLotNumber.trim() || fabSubmitting;
                 })()}
               >
                 {fabSubmitting ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Ionicons name="checkmark-circle-outline" size={19} color="#FFFFFF" />}
@@ -1302,6 +1314,10 @@ const styles = StyleSheet.create({
   fabToggleText: { fontSize: 11, fontWeight: '800' },
   fabDriverRow: { minHeight: 58, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   fabDriverPhoto: { width: 32, height: 32, borderRadius: 16 },
+  fabSourceBlock: { gap: Spacing.sm },
+  fabDropdown: { borderWidth: 1, borderRadius: Radius.md, overflow: 'hidden' },
+  fabDropdownItem: { minHeight: 42, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  fabDropdownText: { fontSize: 14, fontWeight: '800' },
   fabEmpty: { fontSize: 13, fontWeight: '700', paddingVertical: Spacing.md },
   fabSubmitError: { fontSize: 13, fontWeight: '800', lineHeight: 18 },
   fabCreateBtn: { minHeight: 50, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },

@@ -12,7 +12,7 @@ import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 
 const BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
-const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings'];
+const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings','fuel'];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'grid-outline', label: 'Dashboard', family: 'Ionicons' },
