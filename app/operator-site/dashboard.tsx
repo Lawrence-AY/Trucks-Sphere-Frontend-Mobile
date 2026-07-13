@@ -41,6 +41,18 @@ import DriverProfileModal from '../../components/DriverProfileModal';
 
 /* ─────────── Phase 1: Schedule Tab — Site Weight In ─────────── */
 
+const MATERIAL_SOURCE_OPTIONS = [
+  'Hindi',
+  'Ngomeni',
+  'Jaribuni',
+  'Mjanaheri Malindi',
+  'Kilifi',
+  'Malindi',
+  'Local Borrow pit',
+  'Witu',
+  'Baragoni',
+];
+
 export default function OperatorSiteDashboardScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
@@ -83,6 +95,9 @@ export default function OperatorSiteDashboardScreen() {
   const [fabCustomLicense, setFabCustomLicense] = useState('');
   const [fabIsCustomVehicle, setFabIsCustomVehicle] = useState(false);
   const [fabCustomPlate, setFabCustomPlate] = useState('');
+  const [fabMaterialSource, setFabMaterialSource] = useState('');
+  const [fabMaterialSourceSearch, setFabMaterialSourceSearch] = useState('');
+  const [fabMaterialSourceOpen, setFabMaterialSourceOpen] = useState(false);
   const [fabWeightIn, setFabWeightIn] = useState('');
   const [fabLotNumber, setFabLotNumber] = useState('');
   const [fabSubmitting, setFabSubmitting] = useState(false);
@@ -345,6 +360,12 @@ export default function OperatorSiteDashboardScreen() {
     );
   }, [allVehicles, fabSelectedPo]);
 
+  const fabMaterialSourceMatches = useMemo(() => {
+    const term = fabMaterialSourceSearch.trim().toLowerCase();
+    if (!term) return MATERIAL_SOURCE_OPTIONS;
+    return MATERIAL_SOURCE_OPTIONS.filter((source) => source.toLowerCase().includes(term));
+  }, [fabMaterialSourceSearch]);
+
   const closeFab = () => {
     setFabVisible(false);
     setFabPoSearch('');
@@ -356,6 +377,9 @@ export default function OperatorSiteDashboardScreen() {
     setFabCustomLicense('');
     setFabIsCustomVehicle(false);
     setFabCustomPlate('');
+    setFabMaterialSource('');
+    setFabMaterialSourceSearch('');
+    setFabMaterialSourceOpen(false);
     setFabWeightIn('');
     setFabLotNumber('');
     setFabSubmitting(false);
@@ -367,6 +391,7 @@ export default function OperatorSiteDashboardScreen() {
     const weightInNum = parseFloat(fabWeightIn);
     if (isNaN(weightInNum) || weightInNum <= 0) return;
     if (!fabLotNumber.trim()) return;
+    if (!fabMaterialSource.trim()) return;
     const hasValidDriver = fabIsCustomDriver ? (fabCustomDriverName.trim() && fabCustomLicense.trim()) : !!fabSelectedDriver;
     const hasValidVehicle = fabIsCustomVehicle ? !!fabCustomPlate.trim() : !!fabSelectedVehicle;
     if (!hasValidDriver || !hasValidVehicle) return;
@@ -404,6 +429,8 @@ export default function OperatorSiteDashboardScreen() {
       siteId: fabSelectedPo.siteId || user?.siteId || '',
       siteName: fabSelectedPo.siteName || 'Site',
       destinationLot: fabLotNumber.trim(),
+      materialSource: fabMaterialSource.trim(),
+      isUnscheduled: true,
       isScheduled: false,
       isCustomDriver: fabIsCustomDriver,
       isCustomVehicle: fabIsCustomVehicle,
@@ -928,17 +955,70 @@ export default function OperatorSiteDashboardScreen() {
 
               {/* Site Arrival Weight (Weight In) */}
               {fabSelectedPo && (
-                <View style={[styles.weightInputContainer, { borderColor: '#F59E0B', backgroundColor: colors.inputBg }]}>
-                  <TextInput
-                    style={[styles.weightInputField, { color: colors.text }]}
-                    placeholder="0.0"
-                    placeholderTextColor={colors.textTertiary}
-                    keyboardType="decimal-pad"
-                    value={fabWeightIn}
-                    onChangeText={setFabWeightIn}
-                  />
-                  <Text style={[styles.weightInputSuffix, { color: colors.textMuted }]}>Tonnes</Text>
-                </View>
+                <>
+                  <View style={styles.fabSourceBlock}>
+                    <Text style={[styles.fabLabel, { color: colors.text }]}>Material Source (Unscheduled)</Text>
+                    <TouchableOpacity
+                      style={[styles.fabInputWrap, { borderColor: fabMaterialSource ? colors.primary : colors.border, backgroundColor: colors.inputBg }]}
+                      activeOpacity={0.8}
+                      onPress={() => setFabMaterialSourceOpen((open) => !open)}
+                    >
+                      <Ionicons name="map-outline" size={18} color={colors.textMuted} />
+                      <TextInput
+                        style={[styles.fabInput, { color: colors.text }]}
+                        placeholder="Select material source"
+                        placeholderTextColor={colors.textTertiary}
+                        value={fabMaterialSourceOpen ? fabMaterialSourceSearch : fabMaterialSource}
+                        onFocus={() => {
+                          setFabMaterialSourceOpen(true);
+                          setFabMaterialSourceSearch('');
+                        }}
+                        onChangeText={(value) => {
+                          setFabMaterialSourceSearch(value);
+                          setFabMaterialSourceOpen(true);
+                        }}
+                      />
+                      <Ionicons name={fabMaterialSourceOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                    {fabMaterialSourceOpen && (
+                      <View style={[styles.fabDropdown, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                        {fabMaterialSourceMatches.length ? (
+                          fabMaterialSourceMatches.map((source) => {
+                            const active = fabMaterialSource === source;
+                            return (
+                              <TouchableOpacity
+                                key={source}
+                                style={[styles.fabDropdownItem, active && { backgroundColor: `${colors.primary}10` }]}
+                                onPress={() => {
+                                  setFabMaterialSource(source);
+                                  setFabMaterialSourceSearch('');
+                                  setFabMaterialSourceOpen(false);
+                                }}
+                              >
+                                <Text style={[styles.fabDropdownText, { color: colors.text }]}>{source}</Text>
+                                {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                              </TouchableOpacity>
+                            );
+                          })
+                        ) : (
+                          <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No matching source.</Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={[styles.weightInputContainer, { borderColor: '#F59E0B', backgroundColor: colors.inputBg }]}>
+                    <TextInput
+                      style={[styles.weightInputField, { color: colors.text }]}
+                      placeholder="0.0"
+                      placeholderTextColor={colors.textTertiary}
+                      keyboardType="decimal-pad"
+                      value={fabWeightIn}
+                      onChangeText={setFabWeightIn}
+                    />
+                    <Text style={[styles.weightInputSuffix, { color: colors.textMuted }]}>Tonnes</Text>
+                  </View>
+                </>
               )}
 
               {/* Storage Lot Input */}
@@ -963,7 +1043,7 @@ export default function OperatorSiteDashboardScreen() {
                   const hasValidWeight = !isNaN(weightInNum) && weightInNum > 0;
                   const hasValidDriver = fabIsCustomDriver ? (fabCustomDriverName.trim() && fabCustomLicense.trim()) : !!fabSelectedDriver;
                   const hasValidVehicle = fabIsCustomVehicle ? !!fabCustomPlate.trim() : !!fabSelectedVehicle;
-                  return fabSelectedPo && hasValidWeight && hasValidDriver && hasValidVehicle && fabLotNumber.trim() && !fabSubmitting ? colors.primary : colors.border;
+                  return fabSelectedPo && hasValidWeight && hasValidDriver && hasValidVehicle && fabMaterialSource.trim() && fabLotNumber.trim() && !fabSubmitting ? colors.primary : colors.border;
                 })() }]}
                 onPress={handleFabSubmit}
                 disabled={(() => {
@@ -971,7 +1051,7 @@ export default function OperatorSiteDashboardScreen() {
                   const hasValidWeight = !isNaN(weightInNum) && weightInNum > 0;
                   const hasValidDriver = fabIsCustomDriver ? (fabCustomDriverName.trim() && fabCustomLicense.trim()) : !!fabSelectedDriver;
                   const hasValidVehicle = fabIsCustomVehicle ? !!fabCustomPlate.trim() : !!fabSelectedVehicle;
-                  return !fabSelectedPo || !hasValidWeight || !hasValidDriver || !hasValidVehicle || !fabLotNumber.trim() || fabSubmitting;
+                  return !fabSelectedPo || !hasValidWeight || !hasValidDriver || !hasValidVehicle || !fabMaterialSource.trim() || !fabLotNumber.trim() || fabSubmitting;
                 })()}
               >
                 {fabSubmitting ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Ionicons name="checkmark-circle-outline" size={19} color="#FFFFFF" />}
@@ -1302,6 +1382,10 @@ const styles = StyleSheet.create({
   fabToggleText: { fontSize: 11, fontWeight: '800' },
   fabDriverRow: { minHeight: 58, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   fabDriverPhoto: { width: 32, height: 32, borderRadius: 16 },
+  fabSourceBlock: { gap: Spacing.sm },
+  fabDropdown: { borderWidth: 1, borderRadius: Radius.md, overflow: 'hidden' },
+  fabDropdownItem: { minHeight: 42, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  fabDropdownText: { fontSize: 14, fontWeight: '800' },
   fabEmpty: { fontSize: 13, fontWeight: '700', paddingVertical: Spacing.md },
   fabSubmitError: { fontSize: 13, fontWeight: '800', lineHeight: 18 },
   fabCreateBtn: { minHeight: 50, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
