@@ -4,28 +4,29 @@
  * No mock data — every function calls the backend.
  * Gracefully returns empty arrays on network errors.
  */
-import axios from 'axios';
-import { getStoredToken, clearAuthData } from './database';
+import axios from "axios";
+import { getStoredToken, clearAuthData } from "./database";
 
-import { Platform } from 'react-native';
+import { Platform } from "react-native";
 
 // Detect environment for API URL
 function getBaseUrl(): string {
   if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
   // Physical device or custom IP from env
-  if (process.env.EXPO_PUBLIC_API_IP) return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
+  if (process.env.EXPO_PUBLIC_API_IP)
+    return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
   // Android emulator can't reach localhost — use 10.0.2.2
-  if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
+  if (Platform.OS === "android") return "http://10.0.2.2:5000";
   // iOS simulator and web can use localhost
-  return 'http://192.168.1.211:5000';
+  return "http://192.168.1.211:5000";
 }
 
 const API_BASE_URL = getBaseUrl();
 
-console.log('[API] Base URL:', API_BASE_URL);
-console.log('[API] Platform:', Platform.OS, '| ENV vars:', {
-  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL || '(not set)',
-  EXPO_PUBLIC_API_IP: process.env.EXPO_PUBLIC_API_IP || '(not set)',
+console.log("[API] Base URL:", API_BASE_URL);
+console.log("[API] Platform:", Platform.OS, "| ENV vars:", {
+  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL || "(not set)",
+  EXPO_PUBLIC_API_IP: process.env.EXPO_PUBLIC_API_IP || "(not set)",
 });
 
 // ============== HTTP Helpers ==============
@@ -39,17 +40,17 @@ export function setOnAuthExpired(handler: () => void) {
 }
 
 async function backendRequest<T>(
-  method: 'get' | 'post' | 'put' | 'delete',
+  method: "get" | "post" | "put" | "delete",
   url: string,
   data?: any,
-  params?: any
+  params?: any,
 ): Promise<T> {
   const token = await getStoredToken();
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
   try {
     const response = await axios.request<T>({
@@ -64,10 +65,18 @@ async function backendRequest<T>(
     return response.data;
   } catch (error: any) {
     const status = error?.response?.status;
-    const errorCode = error?.response?.data?.code || error?.response?.data?.errorInfo?.code || '';
+    const errorCode =
+      error?.response?.data?.code ||
+      error?.response?.data?.errorInfo?.code ||
+      "";
     // Firebase token expired → auto logout
-    if (status === 401 && (errorCode === 'auth/id-token-expired' || errorCode.includes('token-expired') || errorCode.includes('TOKEN_EXPIRED'))) {
-      console.warn('[API] Token expired detected, triggering auto-logout');
+    if (
+      status === 401 &&
+      (errorCode === "auth/id-token-expired" ||
+        errorCode.includes("token-expired") ||
+        errorCode.includes("TOKEN_EXPIRED"))
+    ) {
+      console.warn("[API] Token expired detected, triggering auto-logout");
       await clearAuthData();
       if (onAuthExpired) onAuthExpired();
     }
@@ -84,7 +93,7 @@ function unwrapItems<T = any>(data: any): T[] {
 }
 
 function unwrapOne<T = any>(data: any, fallback: T): T {
-  return (data?.item || data?.data || data) as T || fallback;
+  return ((data?.item || data?.data || data) as T) || fallback;
 }
 
 /**
@@ -93,12 +102,12 @@ function unwrapOne<T = any>(data: any, fallback: T): T {
  */
 async function safeFetch<T>(
   label: string,
-  fetcher: () => Promise<T[]>
+  fetcher: () => Promise<T[]>,
 ): Promise<T[]> {
   try {
     console.log(`[API] Fetching ${label} from backend...`);
     const result = await fetcher();
-    console.log(`[API] ${label} fetched:`, result.length, 'items', result);
+    console.log(`[API] ${label} fetched:`, result.length, "items", result);
     return result;
   } catch (error: any) {
     const msg = error?.message || error?.code || String(error);
@@ -109,189 +118,346 @@ async function safeFetch<T>(
 
 // ============== Fetch Functions (all via backend, graceful fallback) ==============
 
-export async function fetchVendors(params?: { search?: string; status?: string }): Promise<any[]> {
-  return safeFetch('vendors', () =>
-    backendRequest<any>('get', '/api/vendors', undefined, params).then(unwrapItems)
+export async function fetchVendors(params?: {
+  search?: string;
+  status?: string;
+}): Promise<any[]> {
+  return safeFetch("vendors", () =>
+    backendRequest<any>("get", "/api/vendors", undefined, params).then(
+      unwrapItems,
+    ),
   );
 }
 
-export async function fetchDrivers(params?: { search?: string; status?: string }): Promise<any[]> {
-  return safeFetch('drivers', () =>
-    backendRequest<any>('get', '/api/drivers', undefined, params).then(unwrapItems)
+export async function fetchDrivers(params?: {
+  search?: string;
+  status?: string;
+}): Promise<any[]> {
+  return safeFetch("drivers", () =>
+    backendRequest<any>("get", "/api/drivers", undefined, params).then(
+      unwrapItems,
+    ),
   );
 }
 
-export async function fetchVehicles(params?: { search?: string; status?: string }): Promise<any[]> {
-  return safeFetch('vehicles', () =>
-    backendRequest<any>('get', '/api/vehicles', undefined, params).then(unwrapItems)
+export async function fetchVehicles(params?: {
+  search?: string;
+  status?: string;
+}): Promise<any[]> {
+  return safeFetch("vehicles", () =>
+    backendRequest<any>("get", "/api/vehicles", undefined, params).then(
+      unwrapItems,
+    ),
   );
 }
 
-export async function fetchMaterials(params?: { search?: string; category?: string }): Promise<any[]> {
-  return safeFetch('materials', () =>
-    backendRequest<any>('get', '/api/materials', undefined, params).then(unwrapItems)
+export async function fetchMaterials(params?: {
+  search?: string;
+  category?: string;
+}): Promise<any[]> {
+  return safeFetch("materials", () =>
+    backendRequest<any>("get", "/api/materials", undefined, params).then(
+      unwrapItems,
+    ),
   );
 }
 
-export async function fetchPurchaseOrders(params?: { search?: string; status?: string }): Promise<any[]> {
-  return safeFetch('purchase-orders', () =>
-    backendRequest<any>('get', '/api/purchase-orders', undefined, params).then(unwrapItems)
+export async function fetchPurchaseOrders(params?: {
+  search?: string;
+  status?: string;
+}): Promise<any[]> {
+  return safeFetch("purchase-orders", () =>
+    backendRequest<any>("get", "/api/purchase-orders", undefined, params).then(
+      unwrapItems,
+    ),
   );
 }
 
-export async function fetchDeliveryOrders(params?: { search?: string; status?: string; jobId?: string; purchaseOrderId?: string }): Promise<any[]> {
-  return safeFetch('delivery-orders', () => {
-    const url = '/api/delivery-orders';
-    return backendRequest<any>('get', url, undefined, params).then(unwrapItems);
+export async function fetchDeliveryOrders(params?: {
+  search?: string;
+  status?: string;
+  jobId?: string;
+  purchaseOrderId?: string;
+}): Promise<any[]> {
+  return safeFetch("delivery-orders", () => {
+    const url = "/api/delivery-orders";
+    return backendRequest<any>("get", url, undefined, params).then(unwrapItems);
   });
 }
 
 export async function createDeliveryOrder(payload: any): Promise<any> {
-  console.log('[API] Creating delivery order...', payload);
-  const result = unwrapOne(await backendRequest('post', '/api/delivery-orders', payload), payload);
-  console.log('[API] Delivery order created:', result);
+  console.log("[API] Creating delivery order...", payload);
+  const result = unwrapOne(
+    await backendRequest("post", "/api/delivery-orders", payload),
+    payload,
+  );
+  console.log("[API] Delivery order created:", result);
   return result;
 }
 
-export async function receiveLot(payload: { deliveryOrderId: string; storageLot: string }): Promise<any> {
+export async function receiveLot(payload: {
+  deliveryOrderId: string;
+  storageLot: string;
+}): Promise<any> {
   try {
-    console.log('[API] Assigning storage lot...', payload);
-    const result = unwrapOne(await backendRequest('post', '/api/delivery-orders/receive-lot', payload), payload);
-    console.log('[API] Storage lot assigned:', result);
+    console.log("[API] Assigning storage lot...", payload);
+    const result = unwrapOne(
+      await backendRequest("post", "/api/delivery-orders/receive-lot", payload),
+      payload,
+    );
+    console.log("[API] Storage lot assigned:", result);
     return result;
   } catch (error: any) {
-    console.warn('[API] receiveLot failed:', error?.message || error);
+    console.warn("[API] receiveLot failed:", error?.message || error);
     throw error;
   }
 }
 
-export async function updateDeliveryOrder(id: string, payload: any): Promise<any> {
+export async function updateDeliveryOrder(
+  id: string,
+  payload: any,
+): Promise<any> {
   try {
-    console.log('[API] Updating delivery order:', id, payload);
-    const result = unwrapOne(await backendRequest('put', `/api/delivery-orders/${id}`, payload), payload);
-    console.log('[API] Delivery order updated:', result);
+    console.log("[API] Updating delivery order:", id, payload);
+    const result = unwrapOne(
+      await backendRequest("put", `/api/delivery-orders/${id}`, payload),
+      payload,
+    );
+    console.log("[API] Delivery order updated:", result);
     return result;
   } catch (error: any) {
-    console.warn('[API] updateDeliveryOrder failed:', error?.message || error);
+    console.warn("[API] updateDeliveryOrder failed:", error?.message || error);
     return payload;
   }
 }
 
-export async function fetchWeighments(params?: { jobId?: string; type?: string }): Promise<any[]> {
-  return safeFetch('weighments', () =>
-    backendRequest<any>('get', '/api/weighbridge', undefined, params).then(unwrapItems)
+export async function fetchWeighments(params?: {
+  jobId?: string;
+  type?: string;
+}): Promise<any[]> {
+  return safeFetch("weighments", () =>
+    backendRequest<any>("get", "/api/weighbridge", undefined, params).then(
+      unwrapItems,
+    ),
   );
 }
 
 export async function fetchQuarries(): Promise<any[]> {
-  return safeFetch('quarries', () =>
-    backendRequest<any>('get', '/api/quarries').then(unwrapItems)
+  return safeFetch("quarries", () =>
+    backendRequest<any>("get", "/api/quarries").then(unwrapItems),
   );
 }
 
 export async function fetchSites(): Promise<any[]> {
-  return safeFetch('sites', () =>
-    backendRequest<any>('get', '/api/sites').then(unwrapItems)
+  return safeFetch("sites", () =>
+    backendRequest<any>("get", "/api/sites").then(unwrapItems),
   );
 }
 
 export async function fetchNextCounter(entityType: string): Promise<string> {
   try {
-    const result = await backendRequest<{ id: string }>('get', `/api/counter/${entityType}`);
+    const result = await backendRequest<{ id: string }>(
+      "get",
+      `/api/counter/${entityType}`,
+    );
     return result.id;
   } catch (error: any) {
-    console.warn(`[API] fetchNextCounter(${entityType}) failed:`, error?.message || error);
+    console.warn(
+      `[API] fetchNextCounter(${entityType}) failed:`,
+      error?.message || error,
+    );
     // Fallback: generate a local timestamp-based ID
-    const fallback = Math.floor(Date.now() / 1000).toString(36).toUpperCase();
-    if (entityType === 'receipt_note') return `RN${fallback}`;
+    const fallback = Math.floor(Date.now() / 1000)
+      .toString(36)
+      .toUpperCase();
+    if (entityType === "receipt_note") return `RN${fallback}`;
     return `${entityType.substring(0, 3).toUpperCase()}${fallback}`;
   }
 }
 
-export async function fetchFuelRecords(params?: { search?: string; vendorId?: string; jobId?: string; plateNumber?: string }): Promise<any[]> {
-  return safeFetch('fuel-records', () =>
-    backendRequest<any>('get', '/api/fuel', undefined, params).then(unwrapItems)
+export async function fetchFuelRecords(params?: {
+  search?: string;
+  vendorId?: string;
+  jobId?: string;
+  plateNumber?: string;
+}): Promise<any[]> {
+  return safeFetch("fuel-records", () =>
+    backendRequest<any>("get", "/api/fuel", undefined, params).then(
+      unwrapItems,
+    ),
   );
 }
 
 export async function requestFuelAuthorization(payload: any): Promise<any> {
   try {
-    console.log('[API] Requesting fuel authorization...', payload);
-    const result = unwrapOne(await backendRequest('post', '/api/fuel-authorization/request', payload), payload);
-    console.log('[API] Fuel authorization requested:', result);
+    console.log("[API] Requesting fuel authorization...", payload);
+    const result = unwrapOne(
+      await backendRequest("post", "/api/fuel-authorization/request", payload),
+      payload,
+    );
+    console.log("[API] Fuel authorization requested:", result);
     return result;
   } catch (error: any) {
-    console.warn('[API] requestFuelAuthorization failed:', error?.message || error);
+    console.warn(
+      "[API] requestFuelAuthorization failed:",
+      error?.message || error,
+    );
     return payload;
   }
 }
 
-export async function verifyFuelAuthorization(authId: string, otp: string, authorize: boolean): Promise<any> {
+export async function verifyFuelAuthorization(
+  authId: string,
+  otp: string,
+  authorize: boolean,
+): Promise<any> {
   try {
-    console.log('[API] Verifying fuel authorization:', authId, authorize);
-    const result = unwrapOne(await backendRequest('post', '/api/fuel-authorization/verify', { authId, otp, authorize }), { status: 'error' });
-    console.log('[API] Fuel authorization verified:', result);
+    console.log("[API] Verifying fuel authorization:", authId, authorize);
+    const result = unwrapOne(
+      await backendRequest("post", "/api/fuel-authorization/verify", {
+        authId,
+        otp,
+        authorize,
+      }),
+      { status: "error" },
+    );
+    console.log("[API] Fuel authorization verified:", result);
     return result;
   } catch (error: any) {
-    console.warn('[API] verifyFuelAuthorization failed:', error?.message || error);
+    console.warn(
+      "[API] verifyFuelAuthorization failed:",
+      error?.message || error,
+    );
     throw error;
   }
 }
 
 export async function getFuelAuthorizationStatus(authId: string): Promise<any> {
   try {
-    console.log('[API] Checking fuel authorization status:', authId);
-    const result = await backendRequest<any>('get', `/api/fuel-authorization/status/${authId}`);
-    console.log('[API] Fuel authorization status:', result);
+    console.log("[API] Checking fuel authorization status:", authId);
+    const result = await backendRequest<any>(
+      "get",
+      `/api/fuel-authorization/status/${authId}`,
+    );
+    console.log("[API] Fuel authorization status:", result);
     return result;
   } catch (error: any) {
-    console.warn('[API] getFuelAuthorizationStatus failed:', error?.message || error);
-    return { status: 'error' };
+    console.warn(
+      "[API] getFuelAuthorizationStatus failed:",
+      error?.message || error,
+    );
+    return { status: "error" };
   }
 }
 
-export async function getPendingAuthorizations(vendorId: string): Promise<any[]> {
+export async function getPendingAuthorizations(
+  vendorId: string,
+): Promise<any[]> {
   try {
-    console.log('[API] Fetching pending authorizations for vendor:', vendorId);
-    const result = await backendRequest<any[]>('get', `/api/fuel-authorization/pending/${vendorId}`);
+    console.log("[API] Fetching pending authorizations for vendor:", vendorId);
+    const result = await backendRequest<any[]>(
+      "get",
+      `/api/fuel-authorization/pending/${vendorId}`,
+    );
     return result as any[];
   } catch (error: any) {
-    console.warn('[API] getPendingAuthorizations failed:', error?.message || error);
+    console.warn(
+      "[API] getPendingAuthorizations failed:",
+      error?.message || error,
+    );
     return [];
   }
 }
 
 export async function createFuelRecord(payload: any): Promise<any> {
   try {
-    console.log('[API] Creating fuel record...', payload);
-    const result = unwrapOne(await backendRequest('post', '/api/fuel', payload), payload);
-    console.log('[API] Fuel record created:', result);
+    console.log("[API] Creating fuel record...", payload);
+    const result = unwrapOne(
+      await backendRequest("post", "/api/fuel", payload),
+      payload,
+    );
+    console.log("[API] Fuel record created:", result);
     return result;
   } catch (error: any) {
-    console.warn('[API] createFuelRecord failed:', error?.message || error);
+    console.warn("[API] createFuelRecord failed:", error?.message || error);
     return payload;
   }
 }
 
-export async function fetchUploads(params?: { deliveryOrderId?: string; type?: string }): Promise<any[]> {
-  return safeFetch('uploads', () =>
-    backendRequest<any>('get', '/api/uploads', undefined, params).then(unwrapItems)
+/**
+ * Mark a delivery order as "fueled" to prevent double-dispensing.
+ * Updates the delivery order status to reflect that fuel has been dispensed.
+ */
+export async function markJobAsFueled(
+  jobId: string,
+  fuelRecordId: string,
+): Promise<any> {
+  try {
+    console.log("[API] Marking job as fueled:", jobId, fuelRecordId);
+    const result = unwrapOne(
+      await backendRequest("put", `/api/delivery-orders/${jobId}/fueled`, {
+        fuelRecordId,
+        fueled: true,
+      }),
+      { success: true },
+    );
+    console.log("[API] Job marked as fueled:", result);
+    return result;
+  } catch (error: any) {
+    console.warn("[API] markJobAsFueled failed:", error?.message || error);
+    // Return success anyway — the fuel record was created
+    return { success: true };
+  }
+}
+
+/**
+ * Check if a delivery order has already been fueled.
+ * Returns the fuel record if found, or null if not fueled.
+ */
+export async function checkJobFuelStatus(
+  jobId: string,
+): Promise<{ fueled: boolean; fuelRecord?: any }> {
+  try {
+    console.log("[API] Checking fuel status for job:", jobId);
+    const records = await fetchFuelRecords({ jobId });
+    const hasFuel = Array.isArray(records) && records.length > 0;
+    return { fueled: hasFuel, fuelRecord: hasFuel ? records[0] : undefined };
+  } catch (error: any) {
+    console.warn("[API] checkJobFuelStatus failed:", error?.message || error);
+    return { fueled: false };
+  }
+}
+
+export async function fetchUploads(params?: {
+  deliveryOrderId?: string;
+  type?: string;
+}): Promise<any[]> {
+  return safeFetch("uploads", () =>
+    backendRequest<any>("get", "/api/uploads", undefined, params).then(
+      unwrapItems,
+    ),
   );
 }
 
 export async function createUpload(payload: any): Promise<any> {
   try {
-    return unwrapOne(await backendRequest('post', '/api/uploads', payload), payload);
+    return unwrapOne(
+      await backendRequest("post", "/api/uploads", payload),
+      payload,
+    );
   } catch (error: any) {
-    console.warn('[API] createUpload failed:', error?.message || error);
+    console.warn("[API] createUpload failed:", error?.message || error);
     return payload;
   }
 }
 
-export async function fetchCheckpoints(params?: { jobId?: string; deliveryOrderId?: string }): Promise<any[]> {
-  return safeFetch('checkpoints', () => {
-    const url = '/api/checkpoints';
-    return backendRequest<any>('get', url, undefined, params).then(unwrapItems);
+export async function fetchCheckpoints(params?: {
+  jobId?: string;
+  deliveryOrderId?: string;
+}): Promise<any[]> {
+  return safeFetch("checkpoints", () => {
+    const url = "/api/checkpoints";
+    return backendRequest<any>("get", url, undefined, params).then(unwrapItems);
   });
 }
 
@@ -306,18 +472,20 @@ interface ApiClient {
 
 const api: ApiClient = {
   async get<T>(url: string, params?: any): Promise<{ data: T }> {
-    console.log('[API] GET', url, params);
+    console.log("[API] GET", url, params);
     try {
-      const result = await backendRequest<T>('get', url, undefined, params);
+      const result = await backendRequest<T>("get", url, undefined, params);
       return { data: result };
     } catch (error: any) {
       // Auth profile failures are expected during session restore — use warn, not error
-      const isAuthProfile = url.includes('/auth/profile');
+      const isAuthProfile = url.includes("/auth/profile");
       const msg = error?.response?.status
-        ? `${error.response.status} ${error.response.statusText || ''}`
-        : (error?.message || 'Network Error');
+        ? `${error.response.status} ${error.response.statusText || ""}`
+        : error?.message || "Network Error";
       if (isAuthProfile) {
-        console.warn(`[API] GET ${url} @ ${API_BASE_URL} failed (${msg}) — handled by authStore`);
+        console.warn(
+          `[API] GET ${url} @ ${API_BASE_URL} failed (${msg}) — handled by authStore`,
+        );
       } else {
         console.error(`[API] GET ${url} @ ${API_BASE_URL} failed:`, msg);
       }
@@ -326,18 +494,20 @@ const api: ApiClient = {
   },
 
   async post<T>(url: string, data?: any): Promise<{ data: T }> {
-    console.log('[API] POST', url, data);
+    console.log("[API] POST", url, data);
     try {
-      const result = await backendRequest<T>('post', url, data);
+      const result = await backendRequest<T>("post", url, data);
       return { data: result };
     } catch (error: any) {
       // Auth-related failures (logout 404, login INVALID_EMAIL) are expected
-      const isAuthEndpoint = url.includes('/auth/');
+      const isAuthEndpoint = url.includes("/auth/");
       const msg = error?.response?.status
-        ? `${error.response.status} ${error.response.statusText || ''}`
-        : (error?.message || 'Network Error');
+        ? `${error.response.status} ${error.response.statusText || ""}`
+        : error?.message || "Network Error";
       if (isAuthEndpoint) {
-        console.warn(`[API] POST ${url} @ ${API_BASE_URL} failed (${msg}) — handled by caller`);
+        console.warn(
+          `[API] POST ${url} @ ${API_BASE_URL} failed (${msg}) — handled by caller`,
+        );
       } else {
         console.error(`[API] POST ${url} @ ${API_BASE_URL} failed:`, msg);
       }
@@ -346,9 +516,9 @@ const api: ApiClient = {
   },
 
   async put<T>(url: string, data?: any): Promise<{ data: T }> {
-    console.log('[API] PUT', url, data);
+    console.log("[API] PUT", url, data);
     try {
-      const result = await backendRequest<T>('put', url, data);
+      const result = await backendRequest<T>("put", url, data);
       return { data: result };
     } catch (error: any) {
       console.error(`[API] PUT ${url} failed:`, error?.message || error);
@@ -357,9 +527,9 @@ const api: ApiClient = {
   },
 
   async delete<T>(url: string): Promise<{ data: T }> {
-    console.log('[API] DELETE', url);
+    console.log("[API] DELETE", url);
     try {
-      const result = await backendRequest<T>('delete', url);
+      const result = await backendRequest<T>("delete", url);
       return { data: result };
     } catch (error: any) {
       console.error(`[API] DELETE ${url} failed:`, error?.message || error);
@@ -367,6 +537,37 @@ const api: ApiClient = {
     }
   },
 };
+
+// ============== Public Tracking API (no auth required) ==============
+
+/**
+ * Fetch public tracking data for a given tracking ID.
+ * This endpoint does NOT require authentication — it is a public URL.
+ *
+ * @param trackingId - e.g., "SA-A1B3C5D"
+ * @returns The sanitized public tracking data, or throws on 404/expired
+ */
+export async function fetchPublicTracking(trackingId: string): Promise<any> {
+  try {
+    console.log("[API] Fetching public tracking data for:", trackingId);
+    const response = await axios.get(
+      `${API_BASE_URL}/api/track/${encodeURIComponent(trackingId)}`,
+      { timeout: 8000, headers: { "Content-Type": "application/json" } },
+    );
+    return response.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+    const message =
+      error?.response?.data?.error ||
+      "This tracking link has expired or is no longer active.";
+    console.warn(
+      `[API] Public tracking ${trackingId} failed:`,
+      status,
+      message,
+    );
+    throw new Error(message);
+  }
+}
 
 export default api;
 export type { ApiClient };

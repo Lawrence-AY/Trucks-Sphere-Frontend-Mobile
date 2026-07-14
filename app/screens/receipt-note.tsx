@@ -13,7 +13,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
-import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
+import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { reverseGeocode } from '../../services/geolocation';
 
 export default function ReceiptNoteScreen() {
@@ -22,7 +22,7 @@ export default function ReceiptNoteScreen() {
   const [loading, setLoading] = useState(true);
   const [delivery, setDelivery] = useState<any>(null);
   const [resolvedQuarryName, setResolvedQuarryName] = useState<string | null>(null);
-  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+  const [exporting, setExporting] = useState<'csv' | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -122,15 +122,7 @@ export default function ReceiptNoteScreen() {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    setExporting('pdf');
-    try {
-      const htmlContent = buildHtmlContent(exportHeaders, exportRows, `Receipt Note - ${rn}`);
-      await sharePdfAsFile(`Receipt_Note_${rn}`, htmlContent);
-    } catch {} finally {
-      setExporting(null);
-    }
-  };
+
 
   return (
     <ScrollView
@@ -236,18 +228,6 @@ export default function ReceiptNoteScreen() {
             <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
           )}
           <Text style={styles.actionBtnText}>Download CSV</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: '#7C3AED' }]}
-          onPress={handleDownloadPDF}
-          disabled={exporting !== null}
-        >
-          {exporting === 'pdf' ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Ionicons name="document-outline" size={18} color="#FFFFFF" />
-          )}
-          <Text style={styles.actionBtnText}>Download PDF</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

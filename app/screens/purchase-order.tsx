@@ -195,9 +195,7 @@ export default function PurchaseOrderScreen() {
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.createHeader}>
-            <TouchableOpacity onPress={() => { router.back(); }}>
-              <Ionicons name="arrow-back" size={22} color={colors.text} />
-            </TouchableOpacity>
+            
             <Text style={[styles.createTitle, { color: colors.text }]}> </Text>
             <View style={{ width: 22 }} />
           </View>
@@ -255,7 +253,7 @@ export default function PurchaseOrderScreen() {
 
 var styles = StyleSheet.create({
   content: { padding: Spacing.md, paddingBottom: Spacing['4xl'] },
-  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.lg },
+  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 },
   createTitle: { fontSize: 20, fontWeight: '700' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, height: 46, gap: Spacing.sm, marginBottom: Spacing.md },
   searchInput: { flex: 1, fontSize: 14 },

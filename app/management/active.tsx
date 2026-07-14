@@ -182,7 +182,7 @@ export default function ManagementActiveScreen() {
       <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
 
       {/* Material Filter */}
-      <View style={{ marginBottom: Spacing.sm, marginTop: Spacing.sm }}>
+      <View style={{ marginBottom: Spacing.xs, marginTop: Spacing.xs }}>
         <TouchableOpacity
           style={{ flexDirection: 'row', alignItems: 'center', height: 40, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: 6, borderColor: colors.border, backgroundColor: colors.surface }}
           onPress={() => { setMatDropdownOpen(!matDropdownOpen); setMatSearch(''); }}
@@ -235,12 +235,22 @@ export default function ManagementActiveScreen() {
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} `} />
 
+              {/* Net Weight Badge */}
               {item.netWeight != null && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.success}15`, marginTop: Spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.success}15`, marginTop: Spacing.xs }}>
                   <Ionicons name="scale-outline" size={12} color={colors.success} />
                   <Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>Net: {item.netWeight.toFixed(1)}T</Text>
                 </View>
               )}
+
+              {/* Tracking ID Badge — only shown when tracking is active */}
+              {item.trackingId && ['loaded', 'dispatched', 'in_transit', 'en_route'].includes(item.status) ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#2563EB12', borderWidth: 1, borderColor: '#2563EB33', marginTop: Spacing.xs }}>
+                  <Ionicons name="radio-outline" size={12} color="#2563EB" />
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#2563EB' }} selectable>Track: {item.trackingId}</Text>
+                </View>
+              ) : null}
+
               <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
             </DataCard>
           );

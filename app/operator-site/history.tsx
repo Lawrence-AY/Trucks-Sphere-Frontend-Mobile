@@ -14,7 +14,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { Radius, Spacing } from "../../constants/theme";
 import { fetchDeliveryOrders } from "../../services/api";
 import { formatEAT, generateReceiptNoteId } from "../../utils/helpers";
-import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from "../../utils/exportData";
+import { buildCsvContent, shareCsvAsFile } from "../../utils/exportData";
 import {
   DataCard,
   EmptyState,
@@ -246,11 +246,6 @@ export default function OperatorSiteHistoryScreen() {
     await shareCsvAsFile(`Site_History_${FILTER_LABELS[filter]}`, csvContent);
   };
 
-  const handleDownloadPDF = async () => {
-    const rows = buildExportRows(completedRecords);
-    const htmlContent = buildHtmlContent(exportHeaders, rows, `Site History — ${FILTER_LABELS[filter]}`);
-    await sharePdfAsFile(`Site History — ${FILTER_LABELS[filter]}`, htmlContent);
-  };
 
   const handleDownloadAllCSV = async () => {
     const rows = buildExportRows(completedRecords);
@@ -731,13 +726,6 @@ export default function OperatorSiteHistoryScreen() {
         >
           <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
           <Text style={styles.exportBtnText}>Download CSV</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: "#7C3AED" }]}
-          onPress={handleDownloadPDF}
-        >
-          <Ionicons name="document-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.exportBtnText}>Download PDF</Text>
         </TouchableOpacity>
       </View>
 

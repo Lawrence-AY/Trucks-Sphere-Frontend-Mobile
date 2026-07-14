@@ -392,25 +392,6 @@ export default function OperatorSiteWeightsScreen() {
     };
   };
 
-  const handleDownloadPDF = async () => {
-    const data = buildGrnExportData();
-    if (!data) return;
-    try {
-      const html = buildReceiptHtml(data);
-      const { uri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Download Goods Receipt Note (PDF)',
-          UTI: 'com.adobe.pdf',
-        });
-      } else {
-        Alert.alert('Success', 'Goods Receipt Note PDF generated.');
-      }
-    } catch (e: any) {
-      Alert.alert('Export Error', e?.message || 'Failed to generate PDF');
-    }
-  };
 
   const handleDownloadCSV = async () => {
     const data = buildGrnExportData();
@@ -544,7 +525,7 @@ export default function OperatorSiteWeightsScreen() {
                 <View style={styles.quarryWeightRow}>
                   <View style={styles.qwCell}>
                     <Text style={[styles.qwLabel, { color: colors.textMuted }]}>Quarry In</Text>
-                    <Text style={[styles.qwValue, { color: '#2563EB' }]}>
+                    <Text style={[styles.qwValue, { color: '#7C3AED' }]}>
                       {quarryIn.toFixed(1)}T
                     </Text>
                   </View>
@@ -940,12 +921,12 @@ export default function OperatorSiteWeightsScreen() {
                 </Text>
                 <View style={styles.grnDownloadRow}>
                   <TouchableOpacity
-                    style={[styles.grnDownloadBtn, { backgroundColor: '#2563EB' }]}
-                    onPress={handleDownloadPDF}
+                    style={[styles.grnDownloadBtn, { backgroundColor: '#7C3AED' }]}
+                    onPress={handleDownloadCSV}
                   >
                     <Ionicons name="document-outline" size={22} color="#FFFFFF" />
-                    <Text style={styles.grnDownloadBtnText}>Download PDF</Text>
-                    <Text style={styles.grnDownloadBtnSub}>Printable / Archival</Text>
+                    <Text style={styles.grnDownloadBtnText}>Download GRN (CSV)</Text>
+                    <Text style={styles.grnDownloadBtnSub}>Structured Line Items</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.grnDownloadBtn, { backgroundColor: '#7C3AED' }]}

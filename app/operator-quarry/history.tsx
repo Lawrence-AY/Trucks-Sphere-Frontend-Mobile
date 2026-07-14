@@ -11,7 +11,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
-import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
+import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import {
   DataCard,
   EmptyState,
@@ -161,12 +161,6 @@ export default function OperatorQuarryHistoryScreen() {
     await shareCsvAsFile(`Quarry_History_${FILTER_LABELS[filter]}`, csvContent);
   };
 
-  const handleDownloadPDF = async () => {
-    const rows = buildExportRows(completedRecords);
-    const htmlContent = buildHtmlContent(exportHeaders, rows, `Quarry History — ${FILTER_LABELS[filter]}`);
-    await sharePdfAsFile(`Quarry History — ${FILTER_LABELS[filter]}`, htmlContent);
-  };
-
   /* ─── Per-Delivery Note Export ─── */
 
   const buildDeliveryNoteHeaders = () => [
@@ -198,14 +192,6 @@ export default function OperatorQuarryHistoryScreen() {
     const csvContent = buildCsvContent(headers, rows);
     const safeName = `Delivery_Note_${item.jobId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
     await shareCsvAsFile(safeName, csvContent);
-  };
-
-  const handleExportDeliveryNotePDF = async (item: any) => {
-    const headers = buildDeliveryNoteHeaders();
-    const rows = buildDeliveryNoteRows(item);
-    const htmlContent = buildHtmlContent(headers, rows, `Delivery Note — ${item.jobId}`);
-    const safeName = `Delivery_Note_${item.jobId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
-    await sharePdfAsFile(safeName, htmlContent);
   };
 
   /* ─── Summary Stats ─── */
@@ -267,7 +253,7 @@ export default function OperatorQuarryHistoryScreen() {
         })}
       </View>
 
-      {/* Export Actions */}
+      {/* Export Actions — CSV only */}
       <View style={styles.exportRow}>
         <TouchableOpacity
           style={[styles.exportBtn, { backgroundColor: '#2563EB' }]}
@@ -275,13 +261,6 @@ export default function OperatorQuarryHistoryScreen() {
         >
           <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
           <Text style={styles.exportBtnText}>Download CSV</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: '#7C3AED' }]}
-          onPress={handleDownloadPDF}
-        >
-          <Ionicons name="document-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.exportBtnText}>Download PDF</Text>
         </TouchableOpacity>
       </View>
 
@@ -361,7 +340,7 @@ export default function OperatorQuarryHistoryScreen() {
               </View>
             )}
 
-            {/* Per-Delivery Export Actions */}
+            {/* Per-Delivery Export Actions — CSV only */}
             <View style={styles.deliveryExportRow}>
               <TouchableOpacity
                 style={[styles.deliveryExportBtn, { backgroundColor: '#2563EB12', borderColor: '#2563EB33' }]}
@@ -369,13 +348,6 @@ export default function OperatorQuarryHistoryScreen() {
               >
                 <Ionicons name="document-text-outline" size={14} color="#2563EB" />
                 <Text style={[styles.deliveryExportBtnText, { color: '#2563EB' }]}>CSV</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.deliveryExportBtn, { backgroundColor: '#7C3AED12', borderColor: '#7C3AED33' }]}
-                onPress={() => handleExportDeliveryNotePDF(item)}
-              >
-                <Ionicons name="document-outline" size={14} color="#7C3AED" />
-                <Text style={[styles.deliveryExportBtnText, { color: '#7C3AED' }]}>PDF</Text>
               </TouchableOpacity>
             </View>
 
@@ -429,7 +401,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   exportBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -437,6 +408,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
     minHeight: 44,
+    paddingHorizontal: Spacing.xl,
   },
   exportBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   // Table rows
