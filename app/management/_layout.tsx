@@ -12,7 +12,23 @@ import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 
 const BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
-const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings','fuel'];
+const HIDDEN_TABS = [
+  'drivers',
+  'trucks',
+  'profile',
+  'settings',
+  'fuel',
+  'dispatch',
+  'quarries',
+  'sites',
+  'fuel-records',
+  'reports',
+  'analytics',
+  'audit-logs',
+  'users',
+  'roles',
+  'master-data',
+];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'grid-outline', label: 'Dashboard', family: 'Ionicons' },
@@ -36,17 +52,77 @@ const getTabIcon = (name: string, color: ColorValue) => {
   }
 };
 
-const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
-  { label: 'Drivers', icon: 'people-outline', route: '/management/drivers' },
-  { label: 'Trucks', icon: 'car-outline', route: '/management/trucks' },
-  { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
-  { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
-  { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
-  { label: 'History', icon: 'time-outline', route: '/(tabs)/history' },
-  { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details' },
-  { label: 'Export Data', icon: 'cloud-download-outline', route: '/management/settings' },
-  { label: 'Fuel', icon: 'water-outline', route: '/management/fuel' },
-  { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
+type DrawerItem = {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route?: string;
+};
+
+type DrawerSection = {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  items: DrawerItem[];
+};
+
+const DRAWER_SECTIONS: DrawerSection[] = [
+  {
+    title: 'Operations',
+    icon: 'radio-outline',
+    items: [
+      { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard' },
+      { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active' },
+      { label: 'Dispatch Queue', icon: 'git-branch-outline', route: '/management/dispatch' },
+    ],
+  },
+  {
+    title: 'Procurement',
+    icon: 'cube-outline',
+    items: [
+      { label: 'Purchase Orders', icon: 'document-text-outline', route: '/management/orders' },
+      { label: 'Materials', icon: 'cube-outline', route: '/management/materials' },
+    ],
+  },
+  {
+    title: 'Fleet',
+    icon: 'car-outline',
+    items: [
+      { label: 'Vendors', icon: 'business-outline', route: '/management/vendors' },
+      { label: 'Vehicles', icon: 'car-outline', route: '/management/trucks' },
+      { label: 'Drivers', icon: 'people-outline', route: '/management/drivers' },
+    ],
+  },
+  {
+    title: 'Locations',
+    icon: 'location-outline',
+    items: [
+      { label: 'Quarries', icon: 'business-outline', route: '/management/quarries' },
+      { label: 'Sites', icon: 'trail-sign-outline', route: '/management/sites' },
+      { label: 'Fuel Records', icon: 'water-outline', route: '/management/fuel-records' },
+    ],
+  },
+  {
+    title: 'Intelligence',
+    icon: 'analytics-outline',
+    items: [
+      { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports' },
+      { label: 'Analytics', icon: 'stats-chart-outline', route: '/management/analytics' },
+      { label: 'Audit Logs', icon: 'receipt-outline', route: '/management/audit-logs' },
+      { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
+    ],
+  },
+  {
+    title: 'Administration',
+    icon: 'settings-outline',
+    items: [
+      { label: 'Users', icon: 'person-add-outline', route: '/management/users' },
+      { label: 'Roles', icon: 'shield-checkmark-outline', route: '/management/roles' },
+      { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
+      { label: 'Master Data', icon: 'server-outline', route: '/management/master-data' },
+      { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
+      { label: 'Export Data', icon: 'cloud-download-outline', route: '/management/settings' },
+      { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
+    ],
+  },
 ];
  
 export default function ManagementLayout() {
@@ -78,7 +154,8 @@ export default function ManagementLayout() {
     }
   }, [menuOpen, slideAnim, fadeAnim, menuWidth]);
 
-  const handleMenuNav = (route: string) => {
+  const handleMenuNav = (route?: string) => {
+    if (!route) return;
     if (route === '__logout__') {
       setConfirmLogout(true);
       return;
@@ -182,11 +259,29 @@ export default function ManagementLayout() {
               </View>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
-              {MENU_ITEMS.map((item) => (
-                <TouchableOpacity key={item.label} style={styles.drawerItem} onPress={() => handleMenuNav(item.route)}>
-                  <Ionicons name={item.icon} size={20} color={item.label === 'Logout' ? '#EF4444' : '#1E293B'} />
-                  <Text style={[styles.drawerItemText, item.label === 'Logout' && { color: '#EF4444' }]}>{item.label}</Text>
-                </TouchableOpacity>
+              {DRAWER_SECTIONS.map((section) => (
+                <View key={section.title} style={styles.drawerSection}>
+                  <View style={styles.drawerSectionHeader}>
+                    <Ionicons name={section.icon} size={13} color="#94A3B8" />
+                    <Text style={styles.drawerSectionTitle}>{section.title}</Text>
+                  </View>
+                  {section.items.map((item) => {
+                    const disabled = !item.route;
+                    const isLogout = item.label === 'Logout';
+                    return (
+                      <TouchableOpacity
+                        key={`${section.title}-${item.label}`}
+                        style={[styles.drawerItem, disabled && styles.drawerItemDisabled]}
+                        onPress={() => handleMenuNav(item.route)}
+                        disabled={disabled}
+                      >
+                        <Ionicons name={item.icon} size={20} color={isLogout ? '#EF4444' : '#1E293B'} />
+                        <Text style={[styles.drawerItemText, isLogout && { color: '#EF4444' }, disabled && styles.drawerItemTextDisabled]}>{item.label}</Text>
+                        {disabled && <View style={styles.plannedDot} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               ))}
             </ScrollView>
           </Animated.View>
@@ -237,8 +332,14 @@ const styles = StyleSheet.create({
   },
   drawerUser: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   drawerAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  drawerSection: { paddingVertical: 4 },
+  drawerSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4 },
+  drawerSectionTitle: { fontSize: 10, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.2, textTransform: 'uppercase' },
   drawerItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 20 },
+  drawerItemDisabled: { opacity: 0.52 },
   drawerItemText: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
+  drawerItemTextDisabled: { color: '#94A3B8' },
+  plannedDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#CBD5E1', marginLeft: 'auto' },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',

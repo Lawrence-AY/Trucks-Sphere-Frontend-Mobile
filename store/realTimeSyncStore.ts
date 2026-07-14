@@ -17,6 +17,7 @@
 import { create } from 'zustand';
 import { setItem, getItem } from '../services/database';
 import * as api from '../services/api';
+import { API_BASE_URL } from '../services/config';
 
 // ─── Types ───
 interface CollectionEntry {
@@ -62,6 +63,11 @@ const fetchers: Record<string, (p?: any) => Promise<any[]>> = {
   sites: api.fetchSites,
   fuelRecords: api.fetchFuelRecords,
   uploads: api.fetchUploads,
+  customers: api.fetchCustomers,
+  fuelStations: api.fetchFuelStations,
+  auditLogs: api.fetchAuditLogs,
+  users: api.fetchUsers,
+  roles: api.fetchRoles,
 };
 
 // ─── ETag store for 304 support ───
@@ -93,14 +99,6 @@ async function fetchWithETag(
     const axios = (await import('axios')).default;
     const token = await (await import('../services/database')).getStoredToken();
 
-    const baseUrl = (() => {
-      const { Platform } = require('react-native');
-      if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-      if (process.env.EXPO_PUBLIC_API_IP) return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
-      if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
-      return 'http://192.168.1.211:5000';
-    })();
-
     // Map collection names to API paths
     const pathMap: Record<string, string> = {
       vendors: '/api/vendors',
@@ -115,6 +113,11 @@ async function fetchWithETag(
       sites: '/api/sites',
       fuelRecords: '/api/fuel',
       uploads: '/api/uploads',
+      customers: '/api/customers',
+      fuelStations: '/api/fuel-stations',
+      auditLogs: '/api/audit-logs',
+      users: '/api/users',
+      roles: '/api/roles',
     };
 
     const url = pathMap[collectionName] || `/api/${collectionName}`;
@@ -133,7 +136,7 @@ async function fetchWithETag(
     console.log(`[Sync] Fetching ${collectionName}${prevETag ? ' (with ETag)' : ''}...`);
 
     const response = await axios.get(url, {
-      baseURL: baseUrl,
+      baseURL: API_BASE_URL,
       params,
       headers,
       timeout: 10000,

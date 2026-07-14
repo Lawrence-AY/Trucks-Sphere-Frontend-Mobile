@@ -10,7 +10,6 @@ import {
   Vehicle,
   Material,
   PurchaseOrder,
-  DeliveryOrder,
   WeighRecord,
   DashboardStats,
 } from './types';
@@ -27,14 +26,22 @@ export const MOCK_DRIVERS: Driver[] = [];
 export const MOCK_TRUCKS: Vehicle[] = [];
 export const MOCK_MATERIALS: Material[] = [];
 export const MOCK_PURCHASE_ORDERS: PurchaseOrder[] = [];
-export const MOCK_DELIVERY_ORDERS: DeliveryOrder[] = [];
+export const MOCK_DELIVERY_ORDERS: any[] = [];
 export const MOCK_WEIGHMENTS: WeighRecord[] = [];
 
 export const MOCK_DASHBOARD_STATS: DashboardStats = {
-  activeTrucks: 0,
-  pendingDeliveries: 0,
-  todayWeighments: 0,
+  todayJobs: 0,
+  activeDeliveries: 0,
+  delayedJobs: 0,
+  pendingDispatch: 0,
+  activeVehicles: 0,
+  availableDrivers: 0,
+  totalVendors: 0,
+  totalDrivers: 0,
+  totalVehicles: 0,
   todayDeliveries: 0,
-  activeDrivers: 0,
   pendingOrders: 0,
+  fuelDispensedToday: 0,
+  weightAlerts: 0,
+  complianceAlerts: 0,
 };

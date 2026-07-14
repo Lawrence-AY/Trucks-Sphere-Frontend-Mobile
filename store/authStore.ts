@@ -61,6 +61,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
         vendorId: backendUser.vendorId || undefined,
         quarryId: backendUser.quarryId || undefined,
         siteId: backendUser.siteId || undefined,
+        isActive: true,
+        createdBy: backendUser.createdBy || 'system',
         createdAt: new Date().toISOString(),
       };
 

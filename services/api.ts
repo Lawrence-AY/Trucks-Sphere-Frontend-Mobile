@@ -6,28 +6,12 @@
  */
 import axios from "axios";
 import { getStoredToken, clearAuthData } from "./database";
+import { API_BASE_URL, logApiConfiguration } from "./config";
 
-import { Platform } from "react-native";
+logApiConfiguration();
 
-// Detect environment for API URL
-function getBaseUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  // Physical device or custom IP from env
-  if (process.env.EXPO_PUBLIC_API_IP)
-    return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
-  // Android emulator can't reach localhost — use 10.0.2.2
-  if (Platform.OS === "android") return "http://10.0.2.2:5000";
-  // iOS simulator and web can use localhost
-  return "http://192.168.1.211:5000";
-}
 
-const API_BASE_URL = getBaseUrl();
 
-console.log("[API] Base URL:", API_BASE_URL);
-console.log("[API] Platform:", Platform.OS, "| ENV vars:", {
-  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL || "(not set)",
-  EXPO_PUBLIC_API_IP: process.env.EXPO_PUBLIC_API_IP || "(not set)",
-});
 
 // ============== HTTP Helpers ==============
 
@@ -252,6 +236,82 @@ export async function fetchSites(): Promise<any[]> {
   return safeFetch("sites", () =>
     backendRequest<any>("get", "/api/sites").then(unwrapItems),
   );
+}
+
+export async function fetchCustomers(params?: {
+  search?: string;
+  status?: string;
+}): Promise<any[]> {
+  return safeFetch("customers", () =>
+    backendRequest<any>("get", "/api/customers", undefined, params).then(
+      unwrapItems,
+    ),
+  );
+}
+
+export async function fetchFuelStations(params?: {
+  search?: string;
+  status?: string;
+}): Promise<any[]> {
+  return safeFetch("fuel-stations", () =>
+    backendRequest<any>("get", "/api/fuel-stations", undefined, params).then(
+      unwrapItems,
+    ),
+  );
+}
+
+export async function fetchReports(): Promise<any[]> {
+  return safeFetch("reports", () =>
+    backendRequest<any>("get", "/api/reports").then(unwrapItems),
+  );
+}
+
+export async function fetchAuditLogs(params?: {
+  search?: string;
+  severity?: string;
+}): Promise<any[]> {
+  return safeFetch("audit-logs", () =>
+    backendRequest<any>("get", "/api/audit-logs", undefined, params).then(
+      unwrapItems,
+    ),
+  );
+}
+
+export async function fetchUsers(params?: {
+  search?: string;
+  status?: string;
+}): Promise<any[]> {
+  return safeFetch("users", () =>
+    backendRequest<any>("get", "/api/users", undefined, params).then(
+      unwrapItems,
+    ),
+  );
+}
+
+export async function fetchRoles(params?: {
+  search?: string;
+  status?: string;
+}): Promise<any[]> {
+  return safeFetch("roles", () =>
+    backendRequest<any>("get", "/api/roles", undefined, params).then(
+      unwrapItems,
+    ),
+  );
+}
+
+export async function fetchMasterData(): Promise<any[]> {
+  return safeFetch("master-data", () =>
+    backendRequest<any>("get", "/api/master-data").then(unwrapItems),
+  );
+}
+
+export async function fetchAnalyticsSummary(): Promise<any> {
+  try {
+    return await backendRequest<any>("get", "/api/analytics/summary");
+  } catch (error: any) {
+    console.warn("[API] analytics summary failed:", error?.message || error);
+    return {};
+  }
 }
 
 export async function fetchNextCounter(entityType: string): Promise<string> {

@@ -21,57 +21,120 @@ import type { UserRole } from '../store/types';
 type NavItem = {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  route: string;
+  route?: string;
   roles: UserRole[];
   activeRoutes?: string[];
 };
 
-const NAV_ITEMS: NavItem[] = [
-  // Management / Admin
-  { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard', roles: ['admin', 'management'], activeRoutes: ['/management/dashboard'] },
-  { label: 'Active Orders', icon: 'layers-outline', route: '/management/active', roles: ['admin', 'management'], activeRoutes: ['/management/active'] },
-  { label: 'Materials', icon: 'cube-outline', route: '/management/materials', roles: ['admin', 'management'], activeRoutes: ['/management/materials'] },
-  { label: 'Drivers', icon: 'people-outline', route: '/management/drivers', roles: ['admin', 'management'], activeRoutes: ['/management/drivers'] },
-  { label: 'Orders', icon: 'document-text-outline', route: '/management/orders', roles: ['admin', 'management'], activeRoutes: ['/management/orders'] },
-  { label: 'Trucks', icon: 'car-outline', route: '/management/trucks', roles: ['admin', 'management'], activeRoutes: ['/management/trucks'] },
-  { label: 'Profile', icon: 'person-outline', route: '/management/profile', roles: ['admin', 'management'], activeRoutes: ['/management/profile'] },
-  { label: 'Settings', icon: 'settings-outline', route: '/management/settings', roles: ['admin', 'management'], activeRoutes: ['/management/settings'] },
-  // Vendor
-  { label: 'Dashboard', icon: 'home-outline', route: '/vendor/dashboard', roles: ['vendor'], activeRoutes: ['/vendor/dashboard'] },
-  { label: 'Trips', icon: 'layers-outline', route: '/vendor/trips', roles: ['vendor'], activeRoutes: ['/vendor/trips'] },
-  { label: 'Drivers', icon: 'people-outline', route: '/vendor/drivers', roles: ['vendor'], activeRoutes: ['/vendor/drivers'] },
-  { label: 'Trucks', icon: 'car-outline', route: '/vendor/trucks', roles: ['vendor'], activeRoutes: ['/vendor/trucks'] },
-  { label: 'Purchase Orders', icon: 'document-text-outline', route: '/vendor/orders', roles: ['vendor'], activeRoutes: ['/vendor/orders'] },
-  { label: 'Materials', icon: 'cube-outline', route: '/vendor/materials', roles: ['vendor'], activeRoutes: ['/vendor/materials'] },
-  { label: 'Profile', icon: 'person-outline', route: '/vendor/profile', roles: ['vendor'], activeRoutes: ['/vendor/profile'] },
-  { label: 'Settings', icon: 'settings-outline', route: '/vendor/settings', roles: ['vendor'], activeRoutes: ['/vendor/settings'] },
-  // Operator Quarry
-  { label: 'Dashboard', icon: 'home-outline', route: '/operator-quarry/dashboard', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/dashboard'] },
-  { label: 'Weigh-In', icon: 'download-outline', route: '/operator-quarry/weigh-in', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-in'] },
-  { label: 'Weigh-Out', icon: 'arrow-up-circle-outline', route: '/operator-quarry/weigh-out', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-out'] },
-  { label: 'History', icon: 'time-outline', route: '/operator-quarry/history', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/history'] },
-  { label: 'Materials', icon: 'cube-outline', route: '/operator-quarry/materials', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/materials'] },
-  { label: 'Profile', icon: 'person-outline', route: '/operator-quarry/profile', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/profile'] },
-  { label: 'Settings', icon: 'settings-outline', route: '/operator-quarry/settings', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/settings'] },
-  // Operator Site
-  { label: 'Dashboard', icon: 'home-outline', route: '/operator-site/dashboard', roles: ['operator_site'], activeRoutes: ['/operator-site/dashboard'] },
-  { label: 'Receive', icon: 'checkmark-circle-outline', route: '/operator-site/receive', roles: ['operator_site'], activeRoutes: ['/operator-site/receive'] },
-  { label: 'Weights', icon: 'scale-outline', route: '/operator-site/weights', roles: ['operator_site'], activeRoutes: ['/operator-site/weights'] },
-  { label: 'History', icon: 'time-outline', route: '/operator-site/history', roles: ['operator_site'], activeRoutes: ['/operator-site/history'] },
-  { label: 'Materials', icon: 'cube-outline', route: '/operator-site/materials', roles: ['operator_site'], activeRoutes: ['/operator-site/materials'] },
-  { label: 'Profile', icon: 'person-outline', route: '/operator-site/profile', roles: ['operator_site'], activeRoutes: ['/operator-site/profile'] },
-  { label: 'Settings', icon: 'settings-outline', route: '/operator-site/settings', roles: ['operator_site'], activeRoutes: ['/operator-site/settings'] },
-  // Operator Fuel
-  { label: 'Dispense Fuel', icon: 'water-outline', route: '/operator-fuel/dispense', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/dispense'] },
-  { label: 'History', icon: 'time-outline', route: '/operator-fuel/history', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/history'] },
-  { label: 'Profile', icon: 'person-outline', route: '/operator-fuel/profile', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/profile'] },
+type NavSection = {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  items: NavItem[];
+};
+
+const MANAGEMENT_SECTIONS: NavSection[] = [
+  {
+    title: 'Operations',
+    icon: 'radio-outline',
+    items: [
+      { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard', roles: ['admin', 'management'], activeRoutes: ['/management/dashboard'] },
+      { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active', roles: ['admin', 'management'], activeRoutes: ['/management/active'] },
+      { label: 'Dispatch Queue', icon: 'git-branch-outline', route: '/management/dispatch', roles: ['admin', 'management'], activeRoutes: ['/management/dispatch'] },
+      { label: 'Journey Monitor', icon: 'map-outline', route: '/management/journey', roles: ['admin', 'management'], activeRoutes: ['/management/journey'] },
+    ],
+  },
+  {
+    title: 'Procurement',
+    icon: 'cube-outline',
+    items: [
+      { label: 'Purchase Orders', icon: 'document-text-outline', route: '/management/orders', roles: ['admin', 'management'], activeRoutes: ['/management/orders'] },
+      { label: 'Materials', icon: 'cube-outline', route: '/management/materials', roles: ['admin', 'management'], activeRoutes: ['/management/materials'] },
+      { label: 'Customers', icon: 'people-circle-outline', route: '/management/customers', roles: ['admin', 'management'], activeRoutes: ['/management/customers'] },
+    ],
+  },
+  {
+    title: 'Fleet',
+    icon: 'car-outline',
+    items: [
+      { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details', roles: ['admin', 'management'], activeRoutes: ['/screens/vendor-details'] },
+      { label: 'Vehicles', icon: 'car-outline', route: '/management/trucks', roles: ['admin', 'management'], activeRoutes: ['/management/trucks'] },
+      { label: 'Drivers', icon: 'people-outline', route: '/management/drivers', roles: ['admin', 'management'], activeRoutes: ['/management/drivers'] },
+    ],
+  },
+  {
+    title: 'Locations',
+    icon: 'location-outline',
+    items: [
+      { label: 'Quarries', icon: 'business-outline', route: '/management/quarries', roles: ['admin', 'management'], activeRoutes: ['/management/quarries'] },
+      { label: 'Sites', icon: 'trail-sign-outline', route: '/management/sites', roles: ['admin', 'management'], activeRoutes: ['/management/sites'] },
+      { label: 'Fuel Stations', icon: 'water-outline', route: '/management/fuel-stations', roles: ['admin', 'management'], activeRoutes: ['/management/fuel-stations'] },
+    ],
+  },
+  {
+    title: 'Intelligence',
+    icon: 'analytics-outline',
+    items: [
+      { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports', roles: ['admin', 'management'], activeRoutes: ['/management/reports'] },
+      { label: 'Analytics', icon: 'stats-chart-outline', route: '/management/analytics', roles: ['admin', 'management'], activeRoutes: ['/management/analytics'] },
+      { label: 'Audit Logs', icon: 'receipt-outline', route: '/management/audit-logs', roles: ['admin', 'management'], activeRoutes: ['/management/audit-logs'] },
+      { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management'], activeRoutes: ['/screens/issues'] },
+    ],
+  },
+  {
+    title: 'Administration',
+    icon: 'settings-outline',
+    items: [
+      { label: 'Users', icon: 'person-add-outline', route: '/management/users', roles: ['admin', 'management'], activeRoutes: ['/management/users'] },
+      { label: 'Roles', icon: 'shield-checkmark-outline', route: '/management/roles', roles: ['admin', 'management'], activeRoutes: ['/management/roles'] },
+      { label: 'Settings', icon: 'settings-outline', route: '/management/settings', roles: ['admin', 'management'], activeRoutes: ['/management/settings'] },
+      { label: 'Master Data', icon: 'server-outline', route: '/management/master-data', roles: ['admin', 'management'], activeRoutes: ['/management/master-data'] },
+      { label: 'Profile', icon: 'person-outline', route: '/management/profile', roles: ['admin', 'management'], activeRoutes: ['/management/profile'] },
+      { label: 'Notifications', icon: 'notifications-outline', route: '/screens/notifications', roles: ['admin', 'management'], activeRoutes: ['/screens/notifications'] },
+    ],
+  },
 ];
 
-const SHARED_ITEMS: NavItem[] = [
-  { label: 'Fuel Records', icon: 'water-outline', route: '/screens/fuel', roles: ['admin', 'management', 'vendor'], activeRoutes: ['/screens/fuel'] },
-  { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'], activeRoutes: ['/screens/issues'] },
-  { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details', roles: ['admin', 'management'], activeRoutes: ['/screens/vendor-details'] },
-  { label: 'Notifications', icon: 'notifications-outline', route: '/screens/notifications', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor', 'operator_fuel'], activeRoutes: ['/screens/notifications'] },
+const ROLE_SECTIONS: NavSection[] = [
+  {
+    title: 'Main',
+    icon: 'apps-outline',
+    items: [
+      { label: 'Dashboard', icon: 'home-outline', route: '/vendor/dashboard', roles: ['vendor'], activeRoutes: ['/vendor/dashboard'] },
+      { label: 'Trips', icon: 'layers-outline', route: '/vendor/trips', roles: ['vendor'], activeRoutes: ['/vendor/trips'] },
+      { label: 'Drivers', icon: 'people-outline', route: '/vendor/drivers', roles: ['vendor'], activeRoutes: ['/vendor/drivers'] },
+      { label: 'Trucks', icon: 'car-outline', route: '/vendor/trucks', roles: ['vendor'], activeRoutes: ['/vendor/trucks'] },
+      { label: 'Purchase Orders', icon: 'document-text-outline', route: '/vendor/orders', roles: ['vendor'], activeRoutes: ['/vendor/orders'] },
+      { label: 'Materials', icon: 'cube-outline', route: '/vendor/materials', roles: ['vendor'], activeRoutes: ['/vendor/materials'] },
+      { label: 'Profile', icon: 'person-outline', route: '/vendor/profile', roles: ['vendor'], activeRoutes: ['/vendor/profile'] },
+      { label: 'Settings', icon: 'settings-outline', route: '/vendor/settings', roles: ['vendor'], activeRoutes: ['/vendor/settings'] },
+      { label: 'Dashboard', icon: 'home-outline', route: '/operator-quarry/dashboard', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/dashboard'] },
+      { label: 'Weigh-In', icon: 'download-outline', route: '/operator-quarry/weigh-in', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-in'] },
+      { label: 'Weigh-Out', icon: 'arrow-up-circle-outline', route: '/operator-quarry/weigh-out', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-out'] },
+      { label: 'History', icon: 'time-outline', route: '/operator-quarry/history', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/history'] },
+      { label: 'Materials', icon: 'cube-outline', route: '/operator-quarry/materials', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/materials'] },
+      { label: 'Profile', icon: 'person-outline', route: '/operator-quarry/profile', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/profile'] },
+      { label: 'Settings', icon: 'settings-outline', route: '/operator-quarry/settings', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/settings'] },
+      { label: 'Dashboard', icon: 'home-outline', route: '/operator-site/dashboard', roles: ['operator_site'], activeRoutes: ['/operator-site/dashboard'] },
+      { label: 'Receive', icon: 'checkmark-circle-outline', route: '/operator-site/receive', roles: ['operator_site'], activeRoutes: ['/operator-site/receive'] },
+      { label: 'Weights', icon: 'scale-outline', route: '/operator-site/weights', roles: ['operator_site'], activeRoutes: ['/operator-site/weights'] },
+      { label: 'History', icon: 'time-outline', route: '/operator-site/history', roles: ['operator_site'], activeRoutes: ['/operator-site/history'] },
+      { label: 'Materials', icon: 'cube-outline', route: '/operator-site/materials', roles: ['operator_site'], activeRoutes: ['/operator-site/materials'] },
+      { label: 'Profile', icon: 'person-outline', route: '/operator-site/profile', roles: ['operator_site'], activeRoutes: ['/operator-site/profile'] },
+      { label: 'Settings', icon: 'settings-outline', route: '/operator-site/settings', roles: ['operator_site'], activeRoutes: ['/operator-site/settings'] },
+      { label: 'Dispense Fuel', icon: 'water-outline', route: '/operator-fuel/dispense', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/dispense'] },
+      { label: 'History', icon: 'time-outline', route: '/operator-fuel/history', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/history'] },
+      { label: 'Profile', icon: 'person-outline', route: '/operator-fuel/profile', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/profile'] },
+    ],
+  },
+  {
+    title: 'General',
+    icon: 'compass-outline',
+    items: [
+      { label: 'Fuel Records', icon: 'water-outline', route: '/screens/fuel', roles: ['vendor'], activeRoutes: ['/screens/fuel'] },
+      { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['operator_quarry', 'operator_site', 'vendor'], activeRoutes: ['/screens/issues'] },
+      { label: 'Notifications', icon: 'notifications-outline', route: '/screens/notifications', roles: ['operator_quarry', 'operator_site', 'vendor', 'operator_fuel'], activeRoutes: ['/screens/notifications'] },
+    ],
+  },
 ];
 
 export default function Sidebar() {
@@ -84,22 +147,25 @@ export default function Sidebar() {
 
   const role = (user?.role || '') as UserRole;
 
-  const roleNav = useMemo(() => {
-    return NAV_ITEMS.filter((item) => item.roles.includes(role));
-  }, [role]);
-
-  const sharedNav = useMemo(() => {
-    return SHARED_ITEMS.filter((item) => item.roles.includes(role));
+  const navSections = useMemo(() => {
+    const source = role === 'admin' || role === 'management' ? MANAGEMENT_SECTIONS : ROLE_SECTIONS;
+    return source
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => item.roles.includes(role)),
+      }))
+      .filter((section) => section.items.length > 0);
   }, [role]);
 
   const isActive = (item: NavItem): boolean => {
     if (item.activeRoutes) {
       return item.activeRoutes.some((r) => pathname === r || pathname.startsWith(r + '/'));
     }
-    return pathname.startsWith(item.route);
+    return item.route ? pathname.startsWith(item.route) : false;
   };
 
-  const handleNav = (route: string) => {
+  const handleNav = (route?: string) => {
+    if (!route) return;
     // @ts-ignore
     router.push(route);
   };
@@ -178,66 +244,48 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <ScrollView style={styles.navScroll} contentContainerStyle={styles.navContent}>
-        {/* Role-specific nav */}
-        <Text style={styles.navSectionTitle}>MAIN</Text>
-        {roleNav.map((item) => (
-          <TouchableOpacity
-            key={item.route + item.label}
-            style={[
-              styles.navItem,
-              isActive(item) && styles.navItemActive,
-            ]}
-            onPress={() => handleNav(item.route)}
-          >
-            <Ionicons
-              name={item.icon}
-              size={20}
-              color={isActive(item) ? '#1B2A4A' : '#94A3B8'}
-            />
-            <Text
-              style={[
-                styles.navItemText,
-                isActive(item) && styles.navItemTextActive,
-              ]}
-              numberOfLines={1}
-            >
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-
-        {/* Shared items */}
-        {sharedNav.length > 0 && (
-          <>
-            <View style={styles.divider} />
-            <Text style={styles.navSectionTitle}>GENERAL</Text>
-            {sharedNav.map((item) => (
+        {navSections.map((section, sectionIndex) => (
+          <View key={section.title}>
+            {sectionIndex > 0 && <View style={styles.divider} />}
+            <View style={styles.navSectionHeader}>
+              <Ionicons name={section.icon} size={13} color="#94A3B8" />
+              <Text style={styles.navSectionTitle}>{section.title}</Text>
+            </View>
+            {section.items.map((item) => {
+              const active = isActive(item);
+              const disabled = !item.route;
+              return (
               <TouchableOpacity
-                key={item.route + item.label}
+                key={(item.route || section.title) + item.label}
                 style={[
                   styles.navItem,
-                  isActive(item) && styles.navItemActive,
+                  active && styles.navItemActive,
+                  disabled && styles.navItemDisabled,
                 ]}
                 onPress={() => handleNav(item.route)}
+                disabled={disabled}
               >
                 <Ionicons
                   name={item.icon}
                   size={20}
-                  color={isActive(item) ? '#1B2A4A' : '#94A3B8'}
+                  color={active ? '#1B2A4A' : '#94A3B8'}
                 />
                 <Text
                   style={[
                     styles.navItemText,
-                    isActive(item) && styles.navItemTextActive,
+                    active && styles.navItemTextActive,
+                    disabled && styles.navItemTextDisabled,
                   ]}
                   numberOfLines={1}
                 >
                   {item.label}
                 </Text>
+                {disabled && <View style={styles.plannedDot} />}
               </TouchableOpacity>
-            ))}
-          </>
-        )}
+              );
+            })}
+          </View>
+        ))}
       </ScrollView>
 
       {/* Logout */}
@@ -346,14 +394,19 @@ const styles = StyleSheet.create({
   navContent: {
     paddingVertical: 12,
   },
+  navSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    marginBottom: 6,
+  },
   navSectionTitle: {
     fontSize: 10,
     fontWeight: '800',
     color: '#94A3B8',
     letterSpacing: 1.2,
-    marginBottom: 6,
-    paddingHorizontal: 20,
-    paddingTop: 8,
   },
   navItem: {
     flexDirection: 'row',
@@ -368,6 +421,9 @@ const styles = StyleSheet.create({
   navItemActive: {
     backgroundColor: '#1B2A4A12',
   },
+  navItemDisabled: {
+    opacity: 0.52,
+  },
   navItemText: {
     fontSize: 14,
     fontWeight: '600',
@@ -377,6 +433,15 @@ const styles = StyleSheet.create({
   navItemTextActive: {
     color: '#1B2A4A',
     fontWeight: '700',
+  },
+  navItemTextDisabled: {
+    color: '#94A3B8',
+  },
+  plannedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#CBD5E1',
   },
   divider: {
     height: 1,

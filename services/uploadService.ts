@@ -5,17 +5,8 @@
  * and returns the public URL which is saved to Firestore as photoURL.
  */
 import axios, { AxiosError } from 'axios';
-import { Platform } from 'react-native';
 import { getStoredToken } from './database';
-
-function getBaseUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  if (process.env.EXPO_PUBLIC_API_IP) return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
-  if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
-  return 'http://192.168.1.211:5000';
-}
-
-const API_BASE_URL = getBaseUrl();
+import { API_BASE_URL } from './config';
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getStoredToken();
@@ -154,10 +145,11 @@ async function uploadFile(
     type: 'image/jpeg',
   } as any);
 
-  const url = `${API_BASE_URL}/api/uploads/${endpoint}`;
+  const url = `/api/uploads/${endpoint}`;
 
   try {
     const response = await axios.post(url, formData, {
+      baseURL: API_BASE_URL,
       headers: { ...headers },
       timeout: 30000,
     });
@@ -166,7 +158,7 @@ async function uploadFile(
   } catch (error: unknown) {
     // Log full error details to console for debugging
     console.error('[uploadService] Upload failed');
-    console.error('[uploadService] URL:', url);
+    console.error('[uploadService] URL:', `${API_BASE_URL}${url}`);
     console.error('[uploadService] fileUri:', fileUri);
 
     if (error instanceof AxiosError) {
