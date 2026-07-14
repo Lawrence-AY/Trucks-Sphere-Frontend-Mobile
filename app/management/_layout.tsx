@@ -12,7 +12,7 @@ import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 
 const BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
-const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings','fuel'];
+const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings', 'fuel', 'reports'];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'grid-outline', label: 'Dashboard', family: 'Ionicons' },
@@ -44,8 +44,9 @@ const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: 
   { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
   { label: 'History', icon: 'time-outline', route: '/(tabs)/history' },
   { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details' },
-  { label: 'Export Data', icon: 'cloud-download-outline', route: '/management/settings' },
+  { label: 'Reports & Exports', icon: 'cloud-download-outline', route: '/management/reports' },
   { label: 'Fuel', icon: 'water-outline', route: '/management/fuel' },
+  { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
  

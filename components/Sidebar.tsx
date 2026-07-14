@@ -72,6 +72,7 @@ const SHARED_ITEMS: NavItem[] = [
   { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor'], activeRoutes: ['/screens/issues'] },
   { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details', roles: ['admin', 'management'], activeRoutes: ['/screens/vendor-details'] },
   { label: 'Notifications', icon: 'notifications-outline', route: '/screens/notifications', roles: ['admin', 'management', 'operator_quarry', 'operator_site', 'vendor', 'operator_fuel'], activeRoutes: ['/screens/notifications'] },
+  { label: 'Reports & Exports', icon: 'bar-chart-outline', route: '/management/reports', roles: ['admin', 'management'], activeRoutes: ['/management/reports'] },
 ];
 
 export default function Sidebar() {
