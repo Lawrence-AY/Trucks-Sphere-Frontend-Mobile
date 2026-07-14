@@ -598,5 +598,182 @@ const api: ApiClient = {
   },
 };
 
+// ============== Public Tracking API (no auth required) ==============
+
+/**
+ * Fetch public tracking data for a given tracking ID.
+ * This endpoint does NOT require authentication — it is a public URL.
+ *
+ * @param trackingId - e.g., "SA-A1B3C5D"
+ * @returns The sanitized public tracking data, or throws on 404/expired
+ */
+export async function fetchPublicTracking(trackingId: string): Promise<any> {
+  try {
+    console.log("[API] Fetching public tracking data for:", trackingId);
+    const response = await axios.get(
+      `${API_BASE_URL}/api/track/${encodeURIComponent(trackingId)}`,
+      { timeout: 8000, headers: { "Content-Type": "application/json" } },
+    );
+    return response.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+    const message =
+      error?.response?.data?.error ||
+      "This tracking link has expired or is no longer active.";
+    console.warn(
+      `[API] Public tracking ${trackingId} failed:`,
+      status,
+      message,
+    );
+    throw new Error(message);
+  }
+}
+
+// ============== Admin Reports API ==============
+
+/**
+ * Fetch summary metrics for the admin reports dashboard.
+ * @param params - filter, start_date, end_date
+ */
+export async function fetchReportSummary(params?: {
+  filter?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<any> {
+  try {
+    console.log('[API] Fetching report summary...', params);
+    const result = await backendRequest<any>(
+      'get',
+      '/api/admin/reports/summary',
+      undefined,
+      params,
+    );
+    return result;
+  } catch (error: any) {
+    console.warn('[API] fetchReportSummary failed:', error?.message || error);
+    return null;
+  }
+}
+
+/**
+ * Download the Master Audit Excel (.xlsx) report.
+ * Uses axios with arraybuffer response type for binary download.
+ *
+ * @param params - filter, start_date, end_date
+ * @returns Blob (web) or triggers download
+ */
+export async function downloadReportExcel(params?: {
+  filter?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<any> {
+  try {
+    const token = await getStoredToken();
+    const query = new URLSearchParams();
+    if (params?.filter) query.set('filter', params.filter);
+    if (params?.start_date) query.set('start_date', params.start_date);
+    if (params?.end_date) query.set('end_date', params.end_date);
+
+    const url = `${API_BASE_URL}/api/admin/reports/export?${query.toString()}`;
+    console.log('[API] Downloading report Excel from:', url);
+
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 30000,
+    });
+
+    // On web, trigger a browser download
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `TruckSphere_Audit_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[API] downloadReportExcel failed:', error?.message || error);
+    throw error;
+  }
+}
+
+// ============== Per-Category Reports API ==============
+
+/**
+ * Fetch per-category live summary for the tabbed reports dashboard.
+ * @param category - deliveries|fuel|vendors|trucks|drivers|materials|purchase-orders
+ * @param params - filter, start_date, end_date
+ */
+export async function fetchCategorySummary(
+  category: string,
+  params?: { filter?: string; start_date?: string; end_date?: string },
+): Promise<any> {
+  try {
+    console.log('[API] Fetching category summary:', category, params);
+    const result = await backendRequest<any>(
+      'get',
+      `/api/admin/reports/summary/${category}`,
+      undefined,
+      params,
+    );
+    return result;
+  } catch (error: any) {
+    console.warn(`[API] fetchCategorySummary(${category}) failed:`, error?.message || error);
+    return null;
+  }
+}
+
+/**
+ * Download a per-category CSV file.
+ * @param category - deliveries|fuel|vendors|trucks|drivers|materials|purchase-orders
+ * @param params - filter, start_date, end_date
+ */
+export async function downloadCategoryCSV(
+  category: string,
+  params?: { filter?: string; start_date?: string; end_date?: string },
+): Promise<void> {
+  try {
+    const token = await getStoredToken();
+    const query = new URLSearchParams();
+    if (params?.filter) query.set('filter', params.filter);
+    if (params?.start_date) query.set('start_date', params.start_date);
+    if (params?.end_date) query.set('end_date', params.end_date);
+
+    const url = `${API_BASE_URL}/api/admin/reports/export/csv/${category}?${query.toString()}`;
+    console.log('[API] Downloading category CSV:', url);
+
+    // Use axios with auth header + blob response
+    const response = await axios.get(url, {
+      responseType: 'blob',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 15000,
+    });
+
+    // Trigger browser download from blob (web) or share (mobile)
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8' });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `${category}_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error: any) {
+    console.error('[API] downloadCategoryCSV failed:', error?.message || error);
+    throw error;
+  }
+}
+
 export default api;
 export type { ApiClient };
