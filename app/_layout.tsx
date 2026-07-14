@@ -55,6 +55,7 @@ export default function RootLayout() {
           <Stack.Screen name="quarry" options={{ headerShown: false }} />
           <Stack.Screen name="site" options={{ headerShown: false }} />
           <Stack.Screen name="screens" options={{ headerShown: false }} />
+          <Stack.Screen name="track" options={{ headerShown: false }} />
         </Stack>
       </WebLayout>
       <Toast />
