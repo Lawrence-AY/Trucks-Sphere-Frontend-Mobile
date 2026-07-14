@@ -538,5 +538,36 @@ const api: ApiClient = {
   },
 };
 
+// ============== Public Tracking API (no auth required) ==============
+
+/**
+ * Fetch public tracking data for a given tracking ID.
+ * This endpoint does NOT require authentication — it is a public URL.
+ *
+ * @param trackingId - e.g., "SA-A1B3C5D"
+ * @returns The sanitized public tracking data, or throws on 404/expired
+ */
+export async function fetchPublicTracking(trackingId: string): Promise<any> {
+  try {
+    console.log("[API] Fetching public tracking data for:", trackingId);
+    const response = await axios.get(
+      `${API_BASE_URL}/api/track/${encodeURIComponent(trackingId)}`,
+      { timeout: 8000, headers: { "Content-Type": "application/json" } },
+    );
+    return response.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+    const message =
+      error?.response?.data?.error ||
+      "This tracking link has expired or is no longer active.";
+    console.warn(
+      `[API] Public tracking ${trackingId} failed:`,
+      status,
+      message,
+    );
+    throw new Error(message);
+  }
+}
+
 export default api;
 export type { ApiClient };
