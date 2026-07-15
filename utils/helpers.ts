@@ -162,12 +162,45 @@ export function generateId(): string {
   return generateTempId();
 }
 
-export function generateJobId(): string {
-  return `JOB-${Date.now().toString(36).toUpperCase()}`;
+// In-memory counter for job IDs per PO
+const jobCounters: Record<string, number> = {};
+
+function getJobNumber(key: string): number {
+  if (!jobCounters[key]) jobCounters[key] = 0;
+  jobCounters[key] += 1;
+  return jobCounters[key];
+}
+
+function padToThree(id: string): string {
+  const num = id.replace(/^[VvDdTtJj]/, '').replace(/[^0-9]/g, '');
+  const parsed = parseInt(num, 10);
+  return isNaN(parsed) ? num.padStart(3, '0') : String(parsed).padStart(3, '0');
+}
+
+function classifyId(id: string): string {
+  const upper = id.toUpperCase();
+  if (upper.startsWith('V')) return 'V';
+  if (upper.startsWith('D')) return 'D';
+  if (upper.startsWith('T')) return 'T';
+  return 'J';
+}
+
+/**
+ * Generate a job ID in format: POMAT###/V###/D###/T###/J####
+ * e.g. POMAT006/V002/D001/T001/J0001
+ */
+export function generateJobId(poNumber: string, materialId: string, vendorId: string, driverId: string, vehicleId: string): string {
+  const driverPrefix = classifyId(driverId);
+  const driverNum = padToThree(driverId);
+  const vehiclePrefix = classifyId(vehicleId);
+  const vehicleNum = padToThree(vehicleId);
+  const jobNum = getJobNumber(poNumber);
+  return `${poNumber}/${driverPrefix}${driverNum}/${vehiclePrefix}${vehicleNum}/J${String(jobNum).padStart(4, '0')}`;
 }
 
 export function generatePONumber(): string {
-  return `PO-${Date.now().toString(36).toUpperCase()}`;
+  // PO numbers are generated server-side as POMAT### via counterService
+  return '';
 }
 
 export function generateReceiptNoteId(): string {

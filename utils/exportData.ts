@@ -19,7 +19,7 @@ function formatCsv(headers: string[], rows: string[][]): string {
   return `${hdr}\n${body}`;
 }
 
-function buildHtmlTable(headers: string[], rows: string[][], title: string): string {
+export function buildHtmlTable(headers: string[], rows: string[][], title: string): string {
   const headerCells = headers.map(h => `<th style="padding:10px 14px; background:#1B2A4A; color:#fff; font-weight:700; text-align:left; border:1px solid #ddd;">${h}</th>`).join('');
   const bodyRows = rows.map((row, i) => {
     const bg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
@@ -214,6 +214,95 @@ export async function exportDataAsCSV(entity: ExportEntity) {
 
 export async function exportDataAsPDF(entity: ExportEntity) {
   await doExport(entity, 'pdf');
+}
+
+/**
+ * Fetches and builds exportable data as structured headers + rows for UI column selection.
+ */
+export async function fetchExportData(entity: ExportEntity): Promise<{
+  title: string;
+  headers: string[];
+  rows: string[][];
+}> {
+  try {
+    let title = '';
+    let headers: string[] = [];
+    let rows: string[][] = [];
+
+    if (entity === 'drivers') {
+      const drivers = await fetchDrivers();
+      title = 'Drivers';
+      headers = ['Name', 'Phone', 'Email', 'License', 'License Expiry', 'Status', 'Vendor ID', 'Assigned Truck', 'Created'];
+      rows = drivers.map((d: any) => [
+        d.name, d.phone, d.email || '', d.licenseNumber, d.licenseExpiry || '',
+        d.status, d.vendorId || '', d.assignedTruckId || '', d.createdAt || '',
+      ]);
+    } else if (entity === 'trucks') {
+      const vehicles = await fetchVehicles();
+      title = 'Trucks';
+      headers = ['Plate', 'Model', 'Make', 'Year', 'Color', 'Capacity (t)', 'Status', 'Vendor', 'Driver', 'Insurance', 'Last Inspection'];
+      rows = vehicles.map((v: any) => [
+        v.plateNumber, v.model, v.make, String(v.year), v.color, String(v.capacity),
+        v.status, v.vendorName || '', v.driverName || '', v.insuranceExpiry || '', v.lastInspection || '',
+      ]);
+    } else if (entity === 'purchase_orders') {
+      const orders = await fetchPurchaseOrders();
+      title = 'Purchase Orders';
+      headers = ['PO Number', 'Vendor', 'Material', 'Quantity', 'Unit', 'Unit Price', 'Total', 'Status', 'Quarry', 'Site', 'Created'];
+      rows = orders.map((o: any) => [
+        o.poNumber, o.vendorName, o.materialName, String(o.quantity), o.unit,
+        String(o.unitPrice), String(o.totalAmount), o.status, o.quarryName, o.siteName, o.createdAt,
+      ]);
+    } else if (entity === 'deliveries') {
+      const deliveries = await fetchDeliveryOrders();
+      title = 'Deliveries';
+      headers = ['Job ID', 'PO Number', 'Vendor', 'Driver', 'Truck', 'Material', 'Ordered Qty', 'Net Weight', 'Status', 'Quarry', 'Site', 'Created'];
+      rows = deliveries.map((d: any) => [
+        d.jobId, d.poNumber, d.vendorName, d.driverName, d.plateNumber, d.materialName,
+        `${d.quantityOrdered} ${d.unit || 'tonnes'}`, d.netWeight ? `${d.netWeight} t` : '—',
+        d.status, d.quarryName, d.siteName, d.createdAt,
+      ]);
+    } else if (entity === 'vendors') {
+      const vendors = await fetchVendors();
+      title = 'Vendors';
+      headers = ['Name', 'Phone', 'Email', 'Address', 'Status', 'Fleet Size', 'Created'];
+      rows = vendors.map((v: any) => [
+        v.name, v.phone, v.email || '', v.address || '', v.status, String(v.fleetSize), v.createdAt || '',
+      ]);
+    } else if (entity === 'all') {
+      // Build interlinked export similar to doExport
+      const [drivers, vehicles, orders, deliveries, vendors] = await Promise.all([
+        fetchDrivers(), fetchVehicles(), fetchPurchaseOrders(), fetchDeliveryOrders(), fetchVendors(),
+      ]);
+      title = 'Full_System_Export';
+      headers = ['Type', 'Name', 'Phone', 'Email', 'License', 'Status', 'Created'];
+      const dRows = drivers.map((d: any) => [
+        'Driver', d.name, d.phone, d.email || '', d.licenseNumber, d.status, d.createdAt || '',
+      ]);
+      const vhHeaders = ['Plate', 'Model', 'Make', 'Status', 'Capacity (t)'];
+      const vhRows = vehicles.map((v: any) => [
+        'Truck', v.plateNumber, v.model, v.make, v.status, String(v.capacity),
+      ]);
+      const poH = ['PO Number', 'Vendor', 'Material', 'Qty', 'Status', 'Total (KES)'];
+      const poRows = orders.map((o: any) => [
+        'Order', o.poNumber, o.vendorName, o.materialName, `${o.quantity} ${o.unit}`, o.status, `KES ${o.totalAmount?.toLocaleString()}`,
+      ]);
+      const delH = ['Job ID', 'Driver', 'Truck', 'Material', 'Status'];
+      const delRows = deliveries.map((d: any) => [
+        'Delivery', d.jobId, d.driverName, d.plateNumber, d.materialName, d.status,
+      ]);
+      const vH = ['Name', 'Phone', 'Status', 'Fleet'];
+      const vRows = vendors.map((v: any) => [
+        'Vendor', v.name, v.phone, v.status, String(v.fleetSize),
+      ]);
+      rows = [...dRows, ...vhRows, ...poRows, ...delRows, ...vRows];
+    }
+
+    return { title, headers, rows };
+  } catch (e: any) {
+    Alert.alert('Export Error', e?.message || 'Failed to fetch export data');
+    throw e;
+  }
 }
 
 async function doExport(entity: ExportEntity, format: 'csv' | 'pdf') {

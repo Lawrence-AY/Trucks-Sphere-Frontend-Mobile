@@ -13,7 +13,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
-import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
+import { buildCsvContent, shareCsvAsFile, buildHtmlContent, sharePdfAsFile } from '../../utils/exportData';
 import { reverseGeocode } from '../../services/geolocation';
 
 export default function ReceiptNoteScreen() {
@@ -22,7 +22,7 @@ export default function ReceiptNoteScreen() {
   const [loading, setLoading] = useState(true);
   const [delivery, setDelivery] = useState<any>(null);
   const [resolvedQuarryName, setResolvedQuarryName] = useState<string | null>(null);
-  const [exporting, setExporting] = useState<'csv' | null>(null);
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -32,7 +32,7 @@ export default function ReceiptNoteScreen() {
           const d = orders[0];
           setDelivery({
             ...d,
-            receiptNoteId: d.receiptNoteId || generateReceiptNoteId(d.jobId),
+            receiptNoteId: d.receiptNoteId || generateReceiptNoteId(),
           });
 
           // Resolve quarry name from coordinates if available
@@ -86,6 +86,7 @@ export default function ReceiptNoteScreen() {
   const materialName = delivery.materialName || 'N/A';
   const quantityOrdered = delivery.quantityOrdered || 0;
   const quarryName = resolvedQuarryName || delivery.quarryName || 'N/A';
+  const quarryCityTown = delivery.weighOutGeoLocation?.address || delivery.weighOutLocation || null;
   const siteName = delivery.siteName || 'N/A';
   const siteWeighIn = delivery.siteWeighInWeight ?? null;
   const siteWeighOut = delivery.siteWeighOutWeight ?? null;
@@ -117,6 +118,16 @@ export default function ReceiptNoteScreen() {
     try {
       const csvContent = buildCsvContent(exportHeaders, exportRows);
       await shareCsvAsFile(`Receipt_Note_${rn}`, csvContent);
+    } catch {} finally {
+      setExporting(null);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    setExporting('pdf');
+    try {
+      const htmlContent = buildHtmlContent(exportHeaders, exportRows, `Receipt Note - ${rn}`);
+      await sharePdfAsFile(`Receipt_Note_${rn}`, htmlContent);
     } catch {} finally {
       setExporting(null);
     }
@@ -176,6 +187,9 @@ export default function ReceiptNoteScreen() {
         {/* Route */}
         <SectionBlock title="ROUTE" colors={colors}>
           <RNRow label="Origin" value={quarryName} colors={colors} />
+          {quarryCityTown ? (
+            <RNRow label="City / Town" value={quarryCityTown} colors={colors} />
+          ) : null}
           <RNRow label="Destination" value={siteName} colors={colors} />
           <RNRow label="Material" value={materialName} colors={colors} />
         </SectionBlock>
@@ -215,7 +229,7 @@ export default function ReceiptNoteScreen() {
       
       </View>
 
-      {/* Actions — Download only (no share) */}
+      {/* Actions — Download CSV and PDF */}
       <View style={styles.actionRow}>
         <TouchableOpacity
           style={[styles.actionBtn, { backgroundColor: '#2563EB' }]}
@@ -228,6 +242,18 @@ export default function ReceiptNoteScreen() {
             <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
           )}
           <Text style={styles.actionBtnText}>Download CSV</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: '#DC2626' }]}
+          onPress={handleDownloadPDF}
+          disabled={exporting !== null}
+        >
+          {exporting === 'pdf' ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Ionicons name="document-outline" size={18} color="#FFFFFF" />
+          )}
+          <Text style={styles.actionBtnText}>Download PDF</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

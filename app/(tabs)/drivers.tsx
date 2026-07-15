@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
-import { fetchDrivers } from '../../services/api';
+import { fetchDrivers, fetchVendors } from '../../services/api';
 import {
   CommandHeader,
   DataCard,

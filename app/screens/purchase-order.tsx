@@ -122,6 +122,22 @@ export default function PurchaseOrderScreen() {
   var error = errorState[0];
   var setError = errorState[1];
 
+  // Normalize ID helpers for display
+  function formatVendorId(raw: string) {
+    if (!raw) return '';
+    const match = String(raw).match(/^([Vv]?)(\d+)$/);
+    if (match) return 'V' + String(parseInt(match[2], 10)).padStart(3, '0');
+    return raw.toUpperCase();
+  }
+  function formatMaterialId(raw: string) {
+    if (!raw) return '';
+    const match = String(raw).match(/^([Mm]?(?:at)?)(\d+)$/i);
+    if (match) return 'MAT' + String(parseInt(match[2], 10)).padStart(3, '0');
+    return raw.toUpperCase();
+  }
+
+  var [poPreview, setPoPreview] = useState('');
+
   useEffect(function () {
     if (createMode) {
       fetchMaterials().then(function (m) {
@@ -132,6 +148,17 @@ export default function PurchaseOrderScreen() {
       setLoading(false);
     }
   }, [createMode]);
+
+  // Compute live PO number preview locally — same formula as backend
+  useEffect(function () {
+    if (createMode && vendorId && materialId) {
+      const matNum = formatMaterialId(materialId).replace('MAT', 'POMAT');
+      const vendNum = formatVendorId(vendorId);
+      setPoPreview(vendNum ? `${matNum}/${vendNum}` : matNum);
+    } else {
+      setPoPreview('');
+    }
+  }, [vendorId, materialId, createMode]);
 
   function loadData(poIdOrNumber: string) {
     if (!poIdOrNumber) return;
@@ -162,8 +189,6 @@ export default function PurchaseOrderScreen() {
     var selectedMaterial = materials.find(function (m) { return m.id === materialId; });
     var selectedVendor = vendors.find(function (v) { return v.id === vendorId; });
     var qty = Number(quantity);
-    var poNumber = generatePONumber(materialId, vendorId);
-
     setSaving(true);
     api.post('/api/purchase-orders', {
       materialId: materialId,
@@ -173,10 +198,10 @@ export default function PurchaseOrderScreen() {
       quantity: qty,
       unit: selectedMaterial ? selectedMaterial.unit || 'tons' : 'tons',
       status: 'pending',
-      poNumber: poNumber,
       requestedBy: user ? user.uid || 'u1' : 'u1',
     }).then(function (res: any) {
-      Alert.alert('Success', 'Purchase Order ' + poNumber + ' created!', [
+      const newPoNumber = res?.data?.poNumber || res?.poNumber || 'POMAT###';
+      Alert.alert('Success', 'Purchase Order ' + newPoNumber + ' created!', [
         { text: 'View Orders', onPress: function () { router.replace('/management/orders'); } },
       ]);
     }).catch(function (err: any) {
@@ -194,14 +219,17 @@ export default function PurchaseOrderScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <ScrollView contentContainerStyle={styles.content}>
+          {/* Back + Title */}
           <View style={styles.createHeader}>
-            
-            <Text style={[styles.createTitle, { color: colors.text }]}> </Text>
+            <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.createTitle, { color: colors.text }]}>New Purchase Order</Text>
             <View style={{ width: 22 }} />
           </View>
           <View style={[styles.receipt, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <ModalPicker label="Material" value={materialId} options={materials.map(function (m) { return { id: m.id, name: m.name || m.id }; })} onSelect={setMaterialId} icon="cube-outline" />
-            <ModalPicker label="Vendor" value={vendorId} options={vendors.map(function (v) { return { id: v.id, name: v.name || v.id }; })} onSelect={setVendorId} icon="business-outline" />
+            <ModalPicker label="Material" value={materialId} options={materials.map(function (m) { return { id: m.id, name: (m.name || m.id) + ' (' + formatMaterialId(m.id) + ')' }; })} onSelect={setMaterialId} icon="cube-outline" />
+            <ModalPicker label="Vendor" value={vendorId} options={vendors.map(function (v) { return { id: v.id, name: (v.name || v.id) + ' (' + formatVendorId(v.id) + ')' }; })} onSelect={setVendorId} icon="business-outline" />
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.textMuted }]}>Quantity</Text>
@@ -215,7 +243,12 @@ export default function PurchaseOrderScreen() {
             {materialId && vendorId ? (
               <View style={[styles.poPreview, { backgroundColor: colors.accent + '12', borderColor: colors.accent }]}>
                 <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>PURCHASE ORDER NUMBER</Text>
-                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.accent }}>{generatePONumber(materialId, vendorId)}</Text>
+                {poPreview ? (
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: colors.accent }}>{poPreview}</Text>
+                ) : (
+                  <ActivityIndicator size="small" color={colors.accent} />
+                )}
+                <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>Number assigned on save</Text>
               </View>
             ) : null}
 
@@ -253,7 +286,7 @@ export default function PurchaseOrderScreen() {
 
 var styles = StyleSheet.create({
   content: { padding: Spacing.md, paddingBottom: Spacing['4xl'] },
-  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 },
+  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
   createTitle: { fontSize: 20, fontWeight: '700' },
   searchWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, height: 46, gap: Spacing.sm, marginBottom: Spacing.md },
   searchInput: { flex: 1, fontSize: 14 },

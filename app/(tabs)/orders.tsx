@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
-import { fetchPurchaseOrders, fetchMaterials } from '../../services/api';
+import { usePurchaseOrders } from '../../store/realtimeData';
+import { fetchMaterials } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import {
-  CommandHeader,
   DataCard,
   DetailRow,
   EmptyState,
@@ -20,62 +20,44 @@ import {
 export default function OrdersScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  const [orders, setOrders] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [materialFilter, setMaterialFilter] = useState('');
   const [matDropdownOpen, setMatDropdownOpen] = useState(false);
   const [matSearch, setMatSearch] = useState('');
 
-  const loadData = async () => {
-    setRefreshing(true);
-    try {
-      const [data, matData] = await Promise.all([
-        fetchPurchaseOrders(),
-        fetchMaterials(),
-      ]);
-      const filtered = user?.role === 'vendor' ? (data || []).filter((item: any) => item.vendorId === (user.vendorId || 'v1')) : data || [];
-      setOrders(filtered.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-      setMaterials(matData || []);
-    } catch (error) {
-      console.error('Orders load error:', error);
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  };
+  // Fast realtime data store — instant from cache, polls in background
+  const allOrders = usePurchaseOrders();
 
   useEffect(() => {
-    loadData();
-  }, [user?.role, user?.vendorId]);
+    fetchMaterials().then(m => setMaterials(m || [])).catch(() => {});
+  }, []);
+
+  // Scope to vendor if applicable
+  const scopedOrders = useMemo(() => {
+    return user?.role === 'vendor'
+      ? allOrders.filter((item: any) => item.vendorId === (user.vendorId || 'v1'))
+      : allOrders;
+  }, [allOrders, user?.role, user?.vendorId]);
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
-    return orders.filter((item) => {
+    return scopedOrders.filter((item) => {
       const matchesSearch = !query || [item.poNumber, item.vendorName, item.materialName]
         .some((value) => String(value || '').toLowerCase().includes(query));
-      const matchesFilter = true;
       const matchesMaterial = !materialFilter || item.materialId === materialFilter;
-      return matchesSearch && matchesFilter && matchesMaterial;
+      return matchesSearch && matchesMaterial;
     });
-  }, [materialFilter, orders, search]);
-
-  const materialOptions = useMemo(() => {
-    return [{ id: '', name: 'All Materials' }, ...materials.map((m: any) => ({ id: m.id, name: m.name || m.id }))];
-  }, [materials]);
+  }, [scopedOrders, search, materialFilter]);
 
   const matFiltered = matSearch.trim()
-    ? materialOptions.filter(m => (m.name || '').toLowerCase().includes(matSearch.toLowerCase()))
-    : materialOptions;
+    ? materials.filter(m => (m.name || '').toLowerCase().includes(matSearch.toLowerCase()))
+    : materials;
 
-  const selectedMaterial = materialOptions.find(m => m.id === materialFilter);
+  const selectedMaterial = materials.find(m => m.id === materialFilter);
 
   return (
-    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      
-
+    <PageShell>
       <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, vendor, material..." />
 
       {/* Material Dropdown Filter */}
@@ -85,8 +67,8 @@ export default function OrdersScreen() {
           onPress={() => { setMatDropdownOpen(!matDropdownOpen); setMatSearch(''); }}
         >
           <Ionicons name="cube-outline" size={16} color={colors.textMuted} />
-          <Text style={[styles.dropdownBtnText, { color: selectedMaterial?.id ? colors.text : colors.textMuted }]} numberOfLines={1}>
-            {selectedMaterial?.id ? selectedMaterial.name : 'Filter by material...'}
+          <Text style={[styles.dropdownBtnText, { color: selectedMaterial ? colors.text : colors.textMuted }]} numberOfLines={1}>
+            {selectedMaterial ? selectedMaterial.name : 'Filter by material...'}
           </Text>
           {materialFilter ? (
             <TouchableOpacity onPress={() => setMaterialFilter('')}>
@@ -104,7 +86,7 @@ export default function OrdersScreen() {
             </View>
             <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
               {matFiltered.map((m: any) => (
-                <TouchableOpacity key={m.id} style={[styles.dropdownItem, m.id === materialFilter && { backgroundColor: colors.accent + '15' }]} onPress={() => { setMaterialFilter(m.id || ''); setMatDropdownOpen(false); }}>
+                <TouchableOpacity key={m.id} style={[styles.dropdownItem, m.id === materialFilter && { backgroundColor: colors.accent + '15' }]} onPress={() => { setMaterialFilter(m.id); setMatDropdownOpen(false); }}>
                   <Text style={{ color: colors.text, fontSize: 14, flex: 1 }} numberOfLines={1}>{m.name}</Text>
                   {m.id === materialFilter && <Ionicons name="checkmark" size={16} color={colors.accent} />}
                 </TouchableOpacity>
@@ -120,11 +102,8 @@ export default function OrdersScreen() {
           <Ionicons name="add" size={22} color={colors.primary} />
         </TouchableOpacity>
       </View>
-      {loading ? (
-        <DataCard>
-          <Text style={[styles.summarySub, { color: colors.textMuted }]}>Loading purchase orders...</Text>
-        </DataCard>
-      ) : filtered.length ? (
+
+      {filtered.length ? (
         filtered.map((item) => {
           const ordered = Number(item.quantity || 0);
           return (
@@ -150,7 +129,6 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   fabRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   fabAdd: { width: 36, height: 36, borderRadius: Radius.md, borderWidth: 1, borderColor: '#25D366', alignItems: 'center', justifyContent: 'center' },
-  metricRow: { flexDirection: 'row', gap: Spacing.md },
   summarySub: { fontSize: 12, fontWeight: '700', marginTop: 3 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md },
   cardCopy: { flex: 1 },

@@ -1,12 +1,13 @@
-import { useMemo, useState, useEffect } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView, TextInput } from 'react-native';
-import { router } from 'expo-router';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View, ScrollView, TextInput, RefreshControl } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { usePurchaseOrders } from '../../store/realtimeData';
 import { fetchMaterials } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { DataCard, DetailRow, EmptyState, PageShell, SearchField, SectionTitle } from '../../components/EnterpriseUI';
 
 export default function ManagementOrdersScreen() {
@@ -16,10 +17,26 @@ export default function ManagementOrdersScreen() {
   const [materialFilter, setMaterialFilter] = useState('');
   const [matDropdownOpen, setMatDropdownOpen] = useState(false);
   const [matSearch, setMatSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
 
   useEffect(() => { fetchMaterials().then(m => setMaterials(m || [])).catch(() => {}); }, []);
 
   const orders = usePurchaseOrders();
+
+  // Refresh purchase orders when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refresh('purchaseOrders');
+    }, [refresh])
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh('purchaseOrders');
+    setRefreshing(false);
+  }, [refresh]);
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
@@ -40,7 +57,11 @@ export default function ManagementOrdersScreen() {
 
   return (
     <View style={styles.shell}>
-      <PageShell>
+      <PageShell
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+        }
+      >
         <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, vendor, material..." />
 
         {/* Material Dropdown Filter */}

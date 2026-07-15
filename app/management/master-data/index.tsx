@@ -23,8 +23,8 @@ import { Card } from '../../../components/ui/Card';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { materialRepository } from '../../../services/repositories/MaterialRepository';
 import { purchaseOrderRepository } from '../../../services/repositories/PurchaseOrderRepository';
-import { driverRepository } from '../../../services/repositories/DriverRepository';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
+import { driverRepository } from '../../../services/repositories/DriverRepository';
 
 interface MDTile {
   key: string;
@@ -47,12 +47,12 @@ export default function MasterDataScreen() {
 
   async function loadCounts() {
     try {
-      const [vendors, drivers, vehicles, materials, pos] = await Promise.all([
+      const [vendors, vehicles, materials, pos, drivers] = await Promise.all([
         vendorRepository.getAll(),
-        driverRepository.getAll(),
         vehicleRepository.getAll(),
         materialRepository.getAll(),
         purchaseOrderRepository.getAll(),
+        driverRepository.getAll(),
       ]);
 
       setTiles([
@@ -65,20 +65,20 @@ export default function MasterDataScreen() {
           count: vendors.length,
         },
         {
-          key: 'drivers',
-          label: 'Drivers',
-          icon: 'people-outline',
-          color: '#8B5CF6',
-          route: '/management/drivers',
-          count: drivers.length,
-        },
-        {
           key: 'vehicles',
           label: 'Vehicles',
           icon: 'car-outline',
           color: '#10B981',
           route: '/management/vehicles',
           count: vehicles.length,
+        },
+        {
+          key: 'drivers',
+          label: 'Drivers',
+          icon: 'people-outline',
+          color: '#8B5CF6',
+          route: '/management/drivers',
+          count: drivers.length,
         },
         {
           key: 'materials',

@@ -110,18 +110,38 @@ export default function OperatorQuarryDashboardScreen() {
     );
   }, [vehicles, selectedPo]);
 
-  // Check if a driver+vehicle combo has an active (non-completed) job
-  const driverVehicleActiveJob = useMemo(() => {
-    if (!selectedDriver || !selectedVehicle) return null;
+  // Check if the selected driver is on ANY active job
+  const driverActiveJob = useMemo(() => {
+    if (!selectedDriver) return null;
     return deliveries.find(
       (d) =>
         d.driverId === selectedDriver.id &&
-        d.plateNumber === (selectedVehicle.plateNumber || selectedVehicle.plate) &&
         !['delivered', 'completed', 'cancelled'].includes(d.status),
     );
-  }, [deliveries, selectedDriver, selectedVehicle]);
+  }, [deliveries, selectedDriver]);
 
-  const isDriverVehicleBusy = !!driverVehicleActiveJob;
+  // Check if the selected vehicle is on ANY active job
+  const vehicleActiveJob = useMemo(() => {
+    if (!selectedVehicle) return null;
+    return deliveries.find(
+      (d) =>
+        (d.vehicleId === selectedVehicle.id ||
+          d.plateNumber === (selectedVehicle.plateNumber || selectedVehicle.plate)) &&
+        !['delivered', 'completed', 'cancelled'].includes(d.status),
+    );
+  }, [deliveries, selectedVehicle]);
+
+  // Either driver or truck busy blocks assignment
+  const isDriverBusy = !!driverActiveJob;
+  const isVehicleBusy = !!vehicleActiveJob;
+  const isDriverVehicleBusy = isDriverBusy || isVehicleBusy;
+  const busyReason = isDriverBusy && isVehicleBusy
+    ? `This driver (${driverActiveJob?.jobId}) and truck (${vehicleActiveJob?.jobId}) each already have an active job.`
+    : isDriverBusy
+    ? `Driver "${selectedDriver?.name || selectedDriver?.fullName}" is already on an active job (${driverActiveJob?.jobId}).`
+    : isVehicleBusy
+    ? `Truck "${selectedVehicle?.plateNumber || selectedVehicle?.plate}" is already on an active job (${vehicleActiveJob?.jobId}).`
+    : '';
 
   const closeAddForm = () => {
     setAddVisible(false);
@@ -388,7 +408,7 @@ export default function OperatorQuarryDashboardScreen() {
                 <View style={[styles.busyWarning, { backgroundColor: '#EF444410', borderColor: '#EF444433' }]}>
                   <Ionicons name="warning-outline" size={16} color="#EF4444" />
                   <Text style={[styles.busyWarningText, { color: '#EF4444' }]}>
-                    This driver and truck already have an active job ({driverVehicleActiveJob?.jobId}). They must complete it before a new job can be created.
+                    {busyReason}
                   </Text>
                 </View>
               )}
@@ -433,7 +453,7 @@ const styles = StyleSheet.create({
   timestamp: { fontSize: 14, marginTop: Spacing.sm },
   queueDriverPhoto: { width: 24, height: 24, borderRadius: 12 },
   modalDriverPhoto: { width: 32, height: 32, borderRadius: 16 },
-  fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 14 },
+  fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
   addSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%' },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md },

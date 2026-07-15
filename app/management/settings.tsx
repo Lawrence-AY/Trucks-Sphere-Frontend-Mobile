@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, ScrollView, Modal } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
+import { showAlert } from '../../utils/webAlert';
 import ShareModal from '../../components/ShareModal';
 
 export default function ManagementSettingsScreen() {
@@ -18,19 +19,19 @@ export default function ManagementSettingsScreen() {
 
   const handlePasswordUpdate = () => {
     if (!currentPw || !newPw || !confirmPw) {
-      Alert.alert('Error', 'Please fill all password fields');
+      showAlert('Error', 'Please fill all password fields');
       return;
     }
     if (newPw !== confirmPw) {
-      Alert.alert('Error', 'New passwords do not match');
+      showAlert('Error', 'New passwords do not match');
       return;
     }
     if (newPw.length < 4) {
-      Alert.alert('Error', 'Password must be at least 4 characters');
+      showAlert('Error', 'Password must be at least 4 characters');
       return;
     }
     // In production, this would call an API
-    Alert.alert('Success', 'Password updated successfully');
+    showAlert('Success', 'Password updated successfully');
     setPwModal(false);
     setCurrentPw('');
     setNewPw('');

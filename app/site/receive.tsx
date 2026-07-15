@@ -265,7 +265,6 @@ const styles = StyleSheet.create({
   list: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   itemCard: {
     borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.sm,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   itemTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   itemBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
@@ -283,7 +282,7 @@ const styles = StyleSheet.create({
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm },
   actionBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
   // Receipt
-  receiptCard: { borderRadius: Radius.lg, padding: Spacing.xl, marginBottom: Spacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 4 },
+  receiptCard: { borderRadius: Radius.lg, padding: Spacing.xl, marginBottom: Spacing.lg },
   receiptHeader: { alignItems: 'center', marginBottom: Spacing.md },
   receiptIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
   receiptTitle: { fontSize: 16, fontWeight: '800', letterSpacing: 1 },

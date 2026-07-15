@@ -4,7 +4,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../services/api';
+import { fetchDrivers, fetchVehicles, fetchDeliveryOrders, fetchVendors } from '../../services/api';
 import { formatDate, formatTime } from '../../utils/helpers';
 
 export default function DriverHistoryScreen() {
@@ -14,10 +14,13 @@ export default function DriverHistoryScreen() {
   const [truck, setTruck] = useState<any>(null);
   const [trips, setTrips] = useState<any[]>([]);
 
+  const [vendors, setVendors] = useState<any[]>([]);
+
   useEffect(() => {
     console.log('[DriverHistory] Fetching data for driver:', id, name);
-    Promise.all([fetchDrivers(), fetchVehicles(), fetchDeliveryOrders()]).then(([drivers, vehicles, deliveries]) => {
+    Promise.all([fetchDrivers(), fetchVehicles(), fetchDeliveryOrders(), fetchVendors()]).then(([drivers, vehicles, deliveries, vendorData]) => {
       console.log('[DriverHistory] Loaded drivers:', drivers.length, 'vehicles:', vehicles.length, 'deliveries:', deliveries.length);
+      setVendors(vendorData || []);
       const foundDriver = drivers.find(d => d.id === id);
       setDriver(foundDriver || null);
       if (foundDriver?.assignedTruckId) {
@@ -32,11 +35,12 @@ export default function DriverHistoryScreen() {
     }).catch(err => console.error('[DriverHistory] Failed to load data:', err));
   }, [id, name]);
 
-  const driverName = driver?.name || name || 'Driver';
+  const driverName = driver?.fullName || driver?.name || name || 'Driver';
 
   const getCompanyName = (vendorId?: string) => {
     if (!vendorId) return '';
-    return vendorId;
+    const v = vendors.find((ven: any) => ven.id === vendorId || ven.vendorId === vendorId);
+    return v?.companyName || v?.name || v?.vendorId || vendorId;
   };
 
   // Group trips by date for chat-style grouping

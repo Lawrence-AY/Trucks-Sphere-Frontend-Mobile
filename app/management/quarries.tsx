@@ -8,7 +8,7 @@
  *   - View quarry details
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -24,28 +24,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
+import { fetchQuarries, fetchSites, fetchDeliveryOrders } from '../../services/api';
+import { DetailRow } from '../../components/EnterpriseUI';
 import { formatEAT } from '../../utils/helpers';
-
-interface Quarry {
-  id: string;
-  name: string;
-  location: string;
-  status: string;
-  contactPerson: string;
-  phone: string;
-  materialTypes: string[];
-  capacity: number;
-  createdAt: string;
-}
 
 export default function QuarriesScreen() {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
-  const [quarries, setQuarries] = useState<Quarry[]>([]);
-  const [filtered, setFiltered] = useState<Quarry[]>([]);
+  const [quarries, setQuarries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -54,14 +42,10 @@ export default function QuarriesScreen() {
     loadData();
   }, []);
 
-  useEffect(() => {
-    filterData();
-  }, [search, quarries]);
-
   async function loadData() {
     try {
-      // Mock data - replace with repository call
-      setQuarries([]);
+      const data = await fetchQuarries();
+      setQuarries(data || []);
     } catch {
       // Silent
     } finally {
@@ -75,18 +59,15 @@ export default function QuarriesScreen() {
     setRefreshing(false);
   }
 
-  function filterData() {
-    let result = [...quarries];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.name?.toLowerCase().includes(q) ||
-          item.location?.toLowerCase().includes(q)
-      );
-    }
-    setFiltered(result);
-  }
+  const filtered = useMemo(() => {
+    if (!search.trim()) return quarries;
+    const q = search.toLowerCase();
+    return quarries.filter(
+      (item) =>
+        (item.name || '').toLowerCase().includes(q) ||
+        (item.location?.address || item.location || '').toLowerCase().includes(q)
+    );
+  }, [quarries, search]);
 
   if (loading) {
     return (
@@ -101,26 +82,11 @@ export default function QuarriesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.backTitle}>Quarries</Text>
-      </View>
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.count, { color: colors.textMuted }]}>
-              {quarries.length} quarry{quarries.length !== 1 ? 'ies' : ''}
-            </Text>
-          </View>
-          <Button
-            title="Add Quarry"
-            onPress={() => {}}
-            icon="add-circle-outline"
-            size="sm"
-          />
+          <Text style={[styles.count, { color: colors.textMuted }]}>
+            {quarries.length} quarrie{quarries.length !== 1 ? 's' : ''}
+          </Text>
         </View>
 
         <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
@@ -143,7 +109,31 @@ export default function QuarriesScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        renderItem={() => null}
+        renderItem={({ item }) => (
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.cardIcon, { backgroundColor: '#F59E0B15' }]}>
+                <Ionicons name="business-outline" size={20} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{item.name || 'Unnamed Quarry'}</Text>
+                <Text style={[styles.cardSub, { color: colors.textMuted }]}>
+                  {item.location?.address || item.location || 'No address'}
+                </Text>
+              </View>
+              <Badge label={item.status || 'active'} variant={item.status === 'active' ? 'success' : 'default'} size="sm" />
+            </View>
+            {item.contact ? (
+              <DetailRow icon="person-outline" value={`Contact: ${item.contact}`} />
+            ) : null}
+            {item.phone ? (
+              <DetailRow icon="call-outline" value={item.phone} />
+            ) : null}
+            <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
+              Created: {item.createdAt ? formatEAT(item.createdAt) : '—'}
+            </Text>
+          </View>
+        )}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -151,8 +141,8 @@ export default function QuarriesScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="map-outline"
-            title="No quarries yet"
-            subtitle="Quarries will appear here once configured"
+            title="No quarries found"
+            subtitle={search ? 'Try a different search term' : 'Quarries will appear here once configured'}
           />
         }
       />
@@ -162,28 +152,6 @@ export default function QuarriesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  backBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginLeft: 4,
-  },
   header: { padding: Spacing.lg, paddingBottom: Spacing.sm },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   title: { fontSize: 24, fontWeight: '800' },
@@ -191,4 +159,10 @@ const styles = StyleSheet.create({
   searchBar: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.sm },
   searchInput: { flex: 1, fontSize: 14 },
   list: { padding: Spacing.md, paddingTop: 0, paddingBottom: Spacing['4xl'] },
+  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.sm },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
+  cardIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700' },
+  cardSub: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  timestamp: { fontSize: 12, marginTop: Spacing.sm },
 });

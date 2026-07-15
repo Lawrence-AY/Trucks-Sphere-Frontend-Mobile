@@ -4,11 +4,10 @@
  * Features:
  *   - List all sites with location and status
  *   - Search and filter
- *   - Create new site
  *   - View site details
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -24,25 +23,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
-
-interface Site {
-  id: string;
-  name: string;
-  location: string;
-  status: string;
-  contactPerson: string;
-  phone: string;
-  createdAt: string;
-}
+import { fetchSites } from '../../services/api';
+import { DetailRow } from '../../components/EnterpriseUI';
+import { formatEAT } from '../../utils/helpers';
 
 export default function SitesScreen() {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
-  const [sites, setSites] = useState<Site[]>([]);
-  const [filtered, setFiltered] = useState<Site[]>([]);
+  const [sites, setSites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -51,13 +41,10 @@ export default function SitesScreen() {
     loadData();
   }, []);
 
-  useEffect(() => {
-    filterData();
-  }, [search, sites]);
-
   async function loadData() {
     try {
-      setSites([]);
+      const data = await fetchSites();
+      setSites(data || []);
     } catch {
       // Silent
     } finally {
@@ -71,18 +58,15 @@ export default function SitesScreen() {
     setRefreshing(false);
   }
 
-  function filterData() {
-    let result = [...sites];
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (item) =>
-          item.name?.toLowerCase().includes(q) ||
-          item.location?.toLowerCase().includes(q)
-      );
-    }
-    setFiltered(result);
-  }
+  const filtered = useMemo(() => {
+    if (!search.trim()) return sites;
+    const q = search.toLowerCase();
+    return sites.filter(
+      (item) =>
+        (item.name || '').toLowerCase().includes(q) ||
+        (item.location?.address || item.location || '').toLowerCase().includes(q)
+    );
+  }, [sites, search]);
 
   if (loading) {
     return (
@@ -97,7 +81,6 @@ export default function SitesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Back Button */}
       <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
@@ -106,17 +89,9 @@ export default function SitesScreen() {
       </View>
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.count, { color: colors.textMuted }]}>
-              {sites.length} site{sites.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-          <Button
-            title="Add Site"
-            onPress={() => {}}
-            icon="add-circle-outline"
-            size="sm"
-          />
+          <Text style={[styles.count, { color: colors.textMuted }]}>
+            {sites.length} site{sites.length !== 1 ? 's' : ''}
+          </Text>
         </View>
 
         <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
@@ -139,7 +114,31 @@ export default function SitesScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        renderItem={() => null}
+        renderItem={({ item }) => (
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.cardIcon, { backgroundColor: '#10B98115' }]}>
+                <Ionicons name="trail-sign-outline" size={20} color="#10B981" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{item.name || 'Unnamed Site'}</Text>
+                <Text style={[styles.cardSub, { color: colors.textMuted }]}>
+                  {item.location?.address || item.location || 'No address'}
+                </Text>
+              </View>
+              <Badge label={item.status || 'active'} variant={item.status === 'active' ? 'success' : 'default'} size="sm" />
+            </View>
+            {item.contact ? (
+              <DetailRow icon="person-outline" value={`Contact: ${item.contact}`} />
+            ) : null}
+            {item.phone ? (
+              <DetailRow icon="call-outline" value={item.phone} />
+            ) : null}
+            <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
+              Created: {item.createdAt ? formatEAT(item.createdAt) : '—'}
+            </Text>
+          </View>
+        )}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -147,8 +146,8 @@ export default function SitesScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="location-outline"
-            title="No sites yet"
-            subtitle="Delivery sites will appear here once configured"
+            title="No sites found"
+            subtitle={search ? 'Try a different search term' : 'Delivery sites will appear here once configured'}
           />
         }
       />
@@ -187,4 +186,10 @@ const styles = StyleSheet.create({
   searchBar: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: Spacing.sm, marginBottom: Spacing.sm },
   searchInput: { flex: 1, fontSize: 14 },
   list: { padding: Spacing.md, paddingTop: 0, paddingBottom: Spacing['4xl'] },
+  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.sm },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.sm },
+  cardIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700' },
+  cardSub: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  timestamp: { fontSize: 12, marginTop: Spacing.sm },
 });

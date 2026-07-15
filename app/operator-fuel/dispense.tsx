@@ -1545,7 +1545,7 @@ export default function FuelDispenseScreen() {
                       ) : null;
                     })()}
 
-                  {/* Dispense button */}
+                  {/* Confirm / Complete button */}
                   <TouchableOpacity
                     style={[
                       styles.submitBtn,
@@ -1561,13 +1561,13 @@ export default function FuelDispenseScreen() {
                       <ActivityIndicator color="#FFFFFF" size="small" />
                     ) : (
                       <Ionicons
-                        name="water-outline"
+                        name="checkmark-circle-outline"
                         size={20}
                         color="#FFFFFF"
                       />
                     )}
                     <Text style={styles.submitBtnText}>
-                      {store.submitting ? "Dispensing..." : "Dispense Fuel"}
+                      {store.submitting ? "Processing..." : "Confirm Fuel"}
                     </Text>
                   </TouchableOpacity>
                 </>
@@ -1687,11 +1687,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
   },
 
   // Modal backdrop

@@ -1,16 +1,15 @@
 /**
- * Drivers List Screen - Full CRUD with vendor filtering
+ * Driver List Screen - Full CRUD with search, filter, and pagination
  *
  * Features:
- *   - List all drivers with status indicators
- *   - Filter by vendor
- *   - Search by name, phone, license
+ *   - Search by name, phone, national ID
+ *   - Filter by status
  *   - Create new driver
- *   - Tap to view/edit driver details
- *   - Pull to refresh
+ *   - Tap to view driver details
+ *   - Shows vendor name and national ID
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,47 +17,42 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
   RefreshControl,
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
-import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { Select } from '../../../components/ui/Select';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
-import { vendorRepository } from '../../../services/repositories/VendorRepository';
-import { Driver, Vendor } from '../../../store/types';
 
-export default function DriversListScreen() {
+export default function DriverListScreen() {
   const colors = useTheme();
-  const insets = useSafeAreaInsets();
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [vendorFilter, setVendorFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   useEffect(() => {
-    loadData();
+    loadDrivers();
   }, []);
 
-  async function loadData() {
+  useEffect(() => {
+    filterDrivers();
+  }, [search, statusFilter, drivers]);
+
+  async function loadDrivers() {
     try {
-      const [d, v] = await Promise.all([
-        driverRepository.getAll(),
-        vendorRepository.getAll(),
-      ]);
-      setDrivers(d);
-      setVendors(v);
+      const data = await driverRepository.getAll();
+      setDrivers(data);
     } catch {
-      // Silent
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -67,45 +61,39 @@ export default function DriversListScreen() {
   async function onRefresh() {
     setRefreshing(true);
     driverRepository.invalidateCache();
-    vendorRepository.invalidateCache();
-    await loadData();
+    await loadDrivers();
     setRefreshing(false);
   }
 
-  function getFilteredDrivers(): Driver[] {
+  function filterDrivers() {
     let result = [...drivers];
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
-        (d) =>
-          d.fullName?.toLowerCase().includes(q) ||
-          d.phone?.includes(q) ||
-          d.licenseNumber?.toLowerCase().includes(q) ||
-          d.nationalId?.includes(q)
+        (d) => {
+          const name = d.name || d.fullName || '';
+          return (
+            name.toLowerCase().includes(q) ||
+            d.driverId?.toLowerCase().includes(q) ||
+            d.phone?.includes(q) ||
+            d.nationalId?.toLowerCase().includes(q) ||
+            d.vendorName?.toLowerCase().includes(q)
+          );
+        }
       );
     }
-    if (vendorFilter) {
-      result = result.filter((d) => d.vendorId === vendorFilter);
+    if (statusFilter !== 'all') {
+      result = result.filter((d) => d.status === statusFilter);
     }
-    return result;
+    setFiltered(result);
   }
 
-  function getVendorName(vendorId?: string): string {
-    if (!vendorId) return 'Unknown';
-    const vendor = vendors.find((v) => v.id === vendorId);
-    return vendor?.companyName || 'Unknown';
+  function getDriverName(item: any): string {
+    return item.name || item.fullName || 'Unknown Driver';
   }
 
-  function getStatusVariant(status?: string): 'success' | 'warning' | 'danger' | 'default' {
-    switch (status) {
-      case 'active': return 'success';
-      case 'on_trip': return 'warning';
-      case 'inactive': return 'danger';
-      default: return 'default';
-    }
-  }
-
-  function renderDriver({ item }: { item: Driver }) {
+  function renderDriver({ item }: { item: any }) {
+    const name = getDriverName(item);
     return (
       <TouchableOpacity
         style={[styles.driverCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -113,51 +101,40 @@ export default function DriversListScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.driverHeader}>
-          {/* Photo */}
-          <View style={[styles.avatar, { backgroundColor: colors.inputBg }]}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
             {item.photoURL ? (
               <Image source={{ uri: item.photoURL }} style={styles.avatarImage} />
             ) : (
-              <Ionicons name="person" size={22} color={colors.textMuted} />
+              <Text style={[styles.avatarText, { color: colors.primary }]}>
+                {name.charAt(0).toUpperCase()}
+              </Text>
             )}
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.driverName, { color: colors.text }]}>{item.fullName}</Text>
-            <Text style={[styles.driverVendor, { color: colors.textMuted }]}>
-              {getVendorName(item.vendorId)}
+          <View style={styles.driverInfo}>
+            <Text style={[styles.driverName, { color: colors.text }]} numberOfLines={1}>
+              {name}
             </Text>
-            <Text style={[styles.driverPhone, { color: colors.textMuted }]}>
-              {item.phone || 'No phone'}
-            </Text>
-          </View>
-          <View style={styles.driverStatus}>
-            <Badge
-              label={item.status || 'unknown'}
-              variant={getStatusVariant(item.status)}
-              size="sm"
-              dot
-            />
-            {item.availability && (
-              <Badge label="Available" variant="success" size="sm" dot />
-            )}
+            <View style={styles.vendorRow}>
+              <Ionicons name="business-outline" size={12} color={colors.textMuted} />
+              <Text style={[styles.vendorLabel, { color: colors.textMuted }]} numberOfLines={1}>
+                {item.vendorName || '—'}
+              </Text>
+            </View>
           </View>
         </View>
-        {item.licenseNumber && (
-          <View style={styles.driverMeta}>
+
+        <View style={[styles.driverMeta, { borderTopColor: colors.border }]}>
+          <View style={styles.metaItem}>
+            <Ionicons name="call-outline" size={14} color={colors.textMuted} />
+            <Text style={[styles.metaText, { color: colors.textMuted }]}>{item.phone || '-'}</Text>
+          </View>
+          <View style={styles.metaItem}>
             <Ionicons name="card-outline" size={14} color={colors.textMuted} />
-            <Text style={[styles.driverMetaText, { color: colors.textMuted }]}>
-              License: {item.licenseNumber} ({item.licenseClass || 'N/A'})
+            <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
+              {item.nationalId || 'No ID'}
             </Text>
           </View>
-        )}
-        {item.currentVehicleId && (
-          <View style={styles.driverMeta}>
-            <Ionicons name="car-outline" size={14} color={colors.textMuted} />
-            <Text style={[styles.driverMetaText, { color: colors.textMuted }]}>
-              Vehicle: {item.currentVehicleId}
-            </Text>
-          </View>
-        )}
+        </View>
       </TouchableOpacity>
     );
   }
@@ -165,38 +142,23 @@ export default function DriversListScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Drivers</Text>
-        </View>
-        <LoadingSkeleton lines={5} variant="card" />
+        <LoadingSkeleton lines={6} variant="card" />
       </View>
     );
   }
 
-  const filtered = getFilteredDrivers();
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.backTitle}>Drivers</Text>
-      </View>
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Drivers
+            </Text>
             <Text style={[styles.count, { color: colors.textMuted }]}>
               {drivers.length} driver{drivers.length !== 1 ? 's' : ''}
             </Text>
           </View>
-          <Button
-            title="Add Driver"
-            onPress={() => router.push('/management/drivers/create' as any)}
-            icon="add-circle-outline"
-            size="sm"
-          />
         </View>
 
         {/* Search */}
@@ -216,38 +178,64 @@ export default function DriversListScreen() {
           )}
         </View>
 
-        {/* Vendor Filter */}
-        <Select
-          label=""
-          value={vendorFilter || ''}
-          options={[
-            { id: '', name: 'All Vendors' },
-            ...vendors.map((v) => ({ id: v.id, name: v.companyName || v.id })),
-          ]}
-          onSelect={(v) => setVendorFilter(v || null)}
-          placeholder="Filter by vendor..."
-        />
+        {/* Status Filter */}
+        <View style={styles.filterRow}>
+          {['all', 'active', 'inactive', 'suspended', 'on_trip'].map((status) => (
+            <TouchableOpacity
+              key={status}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor: statusFilter === status ? colors.primary : colors.surface,
+                  borderColor: statusFilter === status ? colors.primary : colors.border,
+                },
+              ]}
+              onPress={() => setStatusFilter(status)}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  { color: statusFilter === status ? '#FFFFFF' : colors.textMuted },
+                ]}
+              >
+                {status === 'on_trip' ? 'On Trip' : status.charAt(0).toUpperCase() + status.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon="people-outline"
-          title={search || vendorFilter ? 'No drivers found' : 'No drivers yet'}
-          subtitle={search || vendorFilter ? 'Try different search or filter' : 'Add your first driver'}
-          actionLabel={search || vendorFilter ? undefined : 'Add Driver'}
-          onAction={search || vendorFilter ? undefined : () => router.push('/management/drivers/create' as any)}
-        />
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          renderItem={renderDriver}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-          }
-        />
-      )}
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.id}
+        renderItem={renderDriver}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        ListEmptyComponent={
+          <EmptyState
+            icon="people-outline"
+            title={search ? 'No drivers found' : 'No drivers yet'}
+            subtitle={
+              search
+                ? 'Try a different search term'
+                : 'Create your first driver to get started'
+            }
+            actionLabel={search ? undefined : 'Add Driver'}
+            onAction={search ? undefined : () => router.push('/management/drivers/create' as any)}
+          />
+        }
+      />
+
+      {/* FAB - Add Driver */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => router.push('/management/drivers/create' as any)}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -255,28 +243,6 @@ export default function DriversListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  backBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginLeft: 4,
   },
   header: {
     padding: Spacing.lg,
@@ -287,10 +253,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.md,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
   },
   count: {
     fontSize: 13,
@@ -310,6 +272,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
   },
+  filterRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  filterChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   list: {
     padding: Spacing.md,
     paddingTop: 0,
@@ -318,8 +295,8 @@ const styles = StyleSheet.create({
   driverCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   driverHeader: {
     flexDirection: 'row',
@@ -327,44 +304,72 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   avatarImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  driverInfo: {
+    flex: 1,
   },
   driverName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
-  driverVendor: {
-    fontSize: 12,
-    marginTop: 1,
-  },
-  driverPhone: {
-    fontSize: 12,
-    marginTop: 1,
-  },
-  driverStatus: {
+  vendorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 4,
-    alignItems: 'flex-end',
+    marginTop: 2,
+  },
+  vendorLabel: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   driverMeta: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
+    flexWrap: 'wrap',
+    gap: Spacing.lg,
+    paddingTop: Spacing.md,
+    marginTop: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
   },
-  driverMetaText: {
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
     fontSize: 12,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.27,
+    shadowRadius: 4.65,
   },
 });

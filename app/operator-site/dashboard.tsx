@@ -232,11 +232,19 @@ export default function OperatorSiteDashboardScreen() {
     }
 
    
-    const expected = job.quantityOrdered || 0;
-    if (weightInNum < expected * 0.3) {
+    // Low weight warning: 2% variation OR >5.0T absolute difference from quarry weighOut
+    const quarryWeighOut = job.weighOutWeight || 0;
+    const lowWeightThreshold = quarryWeighOut > 0 ? quarryWeighOut * 0.98 : (job.quantityOrdered || 0) * 0.3;
+    const weightDiff = quarryWeighOut > 0 ? quarryWeighOut - weightInNum : 0;
+
+    if (quarryWeighOut > 0 && (weightInNum < lowWeightThreshold || weightDiff > 5.0)) {
+      const variationPercent = ((quarryWeighOut - weightInNum) / quarryWeighOut * 100).toFixed(1);
+      const reason = weightDiff > 5.0
+        ? `The Site Arrival Weight (${weightInNum.toFixed(1)}T) differs by ${weightDiff.toFixed(1)}T from the Quarry Weigh Out (${quarryWeighOut.toFixed(1)}T). This exceeds the 5.0T tolerance.`
+        : `The Site Arrival Weight (${weightInNum.toFixed(1)}T) is ${variationPercent}% below the Quarry Weigh Out (${quarryWeighOut.toFixed(1)}T).`;
       Alert.alert(
-        'Low Weight Warning',
-        `The Site Arrival Weight (${weightInNum.toFixed(1)}T) Do you want to proceed?`,
+        'Weight Variance Alert',
+        `${reason} Do you want to proceed?`,
         [
           { text: 'No', style: 'cancel' },
           {
@@ -529,22 +537,37 @@ export default function OperatorSiteDashboardScreen() {
                     value={`From: ${item.quarryName || 'Quarry'}`}
                   />
 
-                  {/* Quarry Net Weight (if available) */}
-                  {quarryNet != null && (
-                    <View
-                      style={[
-                        styles.quarryNetBadge,
-                        { backgroundColor: '#2563EB12', borderColor: '#2563EB33' },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.quarryNetLabel,
-                          { color: '#2563EB' },
-                        ]}
-                      >
-                        Quarry Net: {quarryNet.toFixed(1)}T
-                      </Text>
+                  {/* Quarry Weights (Weigh Out + Net Weight) */}
+                  {hasQuarryWeights && (
+                    <View style={styles.quarryWeightsRow}>
+                      {item.weighOutWeight != null && (
+                        <View
+                          style={[
+                            styles.quarryWeightBadge,
+                            { backgroundColor: '#F59E0B12', borderColor: '#F59E0B33' },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.quarryWeightLabel, { color: '#D97706' }]}
+                          >
+                            Quarry WO: {item.weighOutWeight.toFixed(1)}T
+                          </Text>
+                        </View>
+                      )}
+                      {quarryNet != null && (
+                        <View
+                          style={[
+                            styles.quarryWeightBadge,
+                            { backgroundColor: '#2563EB12', borderColor: '#2563EB33' },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.quarryWeightLabel, { color: '#2563EB' }]}
+                          >
+                            Quarry Net: {quarryNet.toFixed(1)}T
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
 
@@ -1180,6 +1203,17 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   quarryNetLabel: { fontSize: 12, fontWeight: '700' },
+  quarryWeightsRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.sm, flexWrap: 'wrap' },
+  quarryWeightBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  quarryWeightLabel: { fontSize: 12, fontWeight: '700' },
   timestamp: { fontSize: 12, marginTop: Spacing.sm },
   tapHint: {
     flexDirection: 'row',
@@ -1360,7 +1394,7 @@ const styles = StyleSheet.create({
   lotInputWrap: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
   lotInputField: { flex: 1, height: 46, fontSize: 14, fontWeight: '700' },
   // FAB Button
-  fabBtn: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 14 },
+  fabBtn: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   // FAB Modal
   fabModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
   fabSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%' },

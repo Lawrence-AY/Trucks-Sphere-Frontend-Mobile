@@ -3,13 +3,11 @@
  *
  * Tabbed interface: Deliveries | Fuel | Vendors | Trucks | Drivers | Materials | POs
  * Fetches live data from the existing system APIs used by all other screens.
- * No mock data — same data pipeline as operator dashboards.
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,11 +25,10 @@ import {
   fetchMaterials,
   fetchPurchaseOrders,
   fetchFuelRecords,
-  downloadReportExcel,
-  downloadCategoryCSV,
 } from '../../services/api';
 import { DataCard, PageShell, SectionTitle } from '../../components/EnterpriseUI';
 import { formatEAT } from '../../utils/helpers';
+import ShareModal from '../../components/ShareModal';
 
 /* ─── Constants ─── */
 
@@ -82,10 +79,8 @@ export default function ReportsScreen() {
   const [filter, setFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('deliveries');
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState(false);
-  const [csvDownloading, setCsvDownloading] = useState(false);
+  const [shareVisible, setShareVisible] = useState(false);
 
-  // ─── Live data from existing proven APIs ───
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -124,14 +119,12 @@ export default function ReportsScreen() {
     loadAllData();
   }, [loadAllData]);
 
-  // ─── Compute metrics from live data (client-side, always accurate) ───
   const metrics = useMemo(() => {
-    // Filtered deliveries
     const filteredDeliveries = deliveries.filter((d) =>
       withinTimeframe(d.createdAt || d.updatedAt, filter),
     );
     const filteredFuel = fuelRecords.filter((r) =>
-      withinTimeframe(r.createdAt || r.timestamp, filter),
+      withinTimeframe(r.createdAt || r.timestamp || r.dispensedAt, filter),
     );
 
     return {
@@ -140,12 +133,13 @@ export default function ReportsScreen() {
         totalTonnage: filteredDeliveries.reduce((s, d) => s + (Number(d.netWeight) || Number(d.quantityDelivered) || 0), 0),
         completed: filteredDeliveries.filter((d) => ['completed', 'delivered'].includes(d.status)).length,
         inTransit: filteredDeliveries.filter((d) => ['loaded', 'dispatched', 'in_transit', 'en_route'].includes(d.status)).length,
-        preview: filteredDeliveries.slice(0, 5),
+        preview: filteredDeliveries.slice(0, 10),
       },
       fuel: {
-        totalLitres: filteredFuel.reduce((s, f) => s + (Number(f.litres) || 0), 0),
+        totalLitres: filteredFuel.reduce((s, f) => s + (Number(f.litres) || Number(f.fuelAmount) || 0), 0),
+        totalCost: filteredFuel.reduce((s, f) => s + (Number(f.totalCost) || Number(f.cost) || 0), 0),
         transactions: filteredFuel.length,
-        preview: filteredFuel.slice(0, 5),
+        preview: filteredFuel.slice(0, 10),
       },
       vendors: {
         total: vendors.length,
@@ -180,34 +174,11 @@ export default function ReportsScreen() {
   }, [deliveries, drivers, vehicles, vendors, materials, purchaseOrders, fuelRecords, filter]);
 
   const d = metrics[activeTab as keyof typeof metrics];
-
-  const handleExportMaster = async () => {
-    setExporting(true);
-    try {
-      const params: any = {};
-      if (filter && filter !== 'all') params.filter = filter;
-      await downloadReportExcel(params);
-    } catch (error: any) {
-      Alert.alert('Export Failed', error?.message || 'Could not download.');
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleDownloadCSV = async () => {
-    setCsvDownloading(true);
-    try {
-      const params: any = {};
-      if (filter && filter !== 'all') params.filter = filter;
-      await downloadCategoryCSV(activeTab, params);
-    } catch (error: any) {
-      Alert.alert('Download Failed', error?.message || 'Could not download.');
-    } finally {
-      setCsvDownloading(false);
-    }
-  };
-
   const currentCat = CATEGORIES.find((c) => c.key === activeTab) || CATEGORIES[0];
+
+  const handleOpenExport = () => {
+    setShareVisible(true);
+  };
 
   return (
     <PageShell>
@@ -229,13 +200,12 @@ export default function ReportsScreen() {
 
       {/* ─── Global Export Button ─── */}
       <TouchableOpacity
-        style={[styles.exportBtn, { backgroundColor: '#10B981', opacity: exporting ? 0.6 : 1 }]}
-        onPress={handleExportMaster}
-        disabled={exporting}
+        style={[styles.exportBtn, { backgroundColor: '#1B2A4A' }]}
+        onPress={handleOpenExport}
         activeOpacity={0.8}
       >
-        {exporting ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Ionicons name="download-outline" size={20} color="#FFFFFF" />}
-        <Text style={styles.exportBtnText}>{exporting ? 'Generating...' : 'Export Master Audit Excel'}</Text>
+        <Ionicons name="cloud-download-outline" size={20} color="#FFF" />
+        <Text style={styles.exportBtnText}>Export / Print Data</Text>
       </TouchableOpacity>
 
       {/* ─── Tab Bar ─── */}
@@ -255,16 +225,6 @@ export default function ReportsScreen() {
 
       {/* ─── Tab Content ─── */}
       <SectionTitle title={`${currentCat.label}`} />
-
-      <TouchableOpacity
-        style={[styles.csvBtn, { borderColor: currentCat.color, opacity: csvDownloading ? 0.5 : 1 }]}
-        onPress={handleDownloadCSV}
-        disabled={csvDownloading}
-        activeOpacity={0.7}
-      >
-        {csvDownloading ? <ActivityIndicator color={currentCat.color} size="small" /> : <Ionicons name="document-outline" size={16} color={currentCat.color} />}
-        <Text style={[styles.csvBtnText, { color: currentCat.color }]}>{csvDownloading ? 'Downloading...' : `Download ${currentCat.label} CSV`}</Text>
-      </TouchableOpacity>
 
       {loading ? (
         <DataCard>
@@ -290,11 +250,13 @@ export default function ReportsScreen() {
       )}
 
       <View style={{ height: 40 }} />
+
+      <ShareModal visible={shareVisible} onClose={() => setShareVisible(false)} />
     </PageShell>
   );
 }
 
-/* ─── Card Renderers (uses live data from system) ─── */
+/* ─── Card Renderers ─── */
 
 function renderCategoryCards(tab: string, d: any, colors: any, m: any) {
   switch (tab) {
@@ -302,7 +264,7 @@ function renderCategoryCards(tab: string, d: any, colors: any, m: any) {
       return (
         <>
           <MetricCard icon="cube-outline" label="Deliveries" value={d.total ?? 0} color="#2563EB" />
-          <MetricCard icon="scale-outline" label="Tonnage" value={`${(d.totalTonnage ?? 0).toFixed(1)}T`} color="#2563EB" />
+          <MetricCard icon="scale-outline" label="Tonnage" value={`${(d.totalTonnage ?? 0).toFixed(1)} T`} color="#2563EB" />
           <MetricCard icon="checkmark-circle-outline" label="Completed" value={d.completed ?? 0} color="#10B981" />
           <MetricCard icon="pulse-outline" label="In Transit" value={d.inTransit ?? 0} color="#F59E0B" />
         </>
@@ -310,7 +272,8 @@ function renderCategoryCards(tab: string, d: any, colors: any, m: any) {
     case 'fuel':
       return (
         <>
-          <MetricCard icon="water-outline" label="Litres" value={`${(d.totalLitres ?? 0).toFixed(0)}L`} color="#F59E0B" />
+          <MetricCard icon="water-outline" label="Litres" value={`${(d.totalLitres ?? 0).toFixed(1)} L`} color="#F59E0B" />
+          <MetricCard icon="cash-outline" label="Total Cost" value={`KES ${(d.totalCost ?? 0).toLocaleString()}`} color="#F59E0B" />
           <MetricCard icon="receipt-outline" label="Transactions" value={d.transactions ?? 0} color="#F59E0B" />
         </>
       );
@@ -364,23 +327,60 @@ function renderPreviewTable(tab: string, items: any[], colors: any, m: any) {
         <View key={i} style={{ marginBottom: i < items.length - 1 ? Spacing.sm : 0, paddingBottom: i < items.length - 1 ? Spacing.sm : 0, borderBottomWidth: i < items.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
           <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{d.jobId || d.id}</Text>
           <Text style={{ fontSize: 12, color: colors.textMuted }}>{d.vendorName || '—'} · {d.plateNumber || '—'} · {d.materialName || '—'}</Text>
+          {d.receiptNoteNumber ? (
+            <Text style={{ fontSize: 11, color: '#10B981', fontWeight: '700', marginTop: 1 }}>📄 Receipt: {d.receiptNoteNumber}</Text>
+          ) : d.receiptNoteId ? (
+            <Text style={{ fontSize: 11, color: '#10B981', fontWeight: '700', marginTop: 1 }}>📄 Receipt ID: {d.receiptNoteId}</Text>
+          ) : null}
+          {/* Show weighOutGeoLocation from the delivery order */}
+          {(function() {
+            const loc = d.weighOutGeoLocation?.address || d.weighOutGeoLocation?.name || d.weighOutLocation || d.quarryName;
+            if (loc) {
+              return <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>📍 {loc}</Text>;
+            }
+            return null;
+          })()}
+          {d.createdBy ? (
+            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>👤 Created by: {d.createdBy}</Text>
+          ) : null}
+          {d.updatedBy ? (
+            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>👤 Updated by: {d.updatedBy}</Text>
+          ) : null}
           <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: 2 }}>
-            <Text style={{ fontSize: 11, color: '#2563EB', fontWeight: '700' }}>{(d.netWeight || d.quantityDelivered) ? `${Number(d.netWeight || d.quantityDelivered).toFixed(1)}T` : '—'}</Text>
+            <Text style={{ fontSize: 11, color: '#2563EB', fontWeight: '700' }}>
+              {(d.netWeight || d.quantityDelivered) ? `${Number(d.netWeight || d.quantityDelivered).toFixed(1)} T` : '—'}
+            </Text>
             <Text style={{ fontSize: 11, color: colors.textTertiary }}>{d.status || '—'}</Text>
           </View>
+          <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+            Dispatched: {d.createdAt ? formatEAT(d.createdAt) : '—'}
+          </Text>
         </View>
       ));
     case 'fuel':
       return items.map((f, i) => (
         <View key={i} style={{ marginBottom: i < items.length - 1 ? Spacing.sm : 0, paddingBottom: i < items.length - 1 ? Spacing.sm : 0, borderBottomWidth: i < items.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{f.driverName || '—'} · {f.plateNumber || '—'}</Text>
-          <Text style={{ fontSize: 12, color: colors.textMuted }}>{Number(f.litres || 0).toFixed(1)}L · {f.attendantName || f.dispensedBy || '—'}</Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+            {f.driverName || '—'} · {f.plateNumber || '—'}
+          </Text>
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>
+            {Number(f.litres || f.fuelAmount || 0).toFixed(1)} L
+            {f.totalCost || f.cost ? ` · KES ${Number(f.totalCost || f.cost).toLocaleString()}` : ''}
+          </Text>
+          <Text style={{ fontSize: 11, color: colors.textMuted }}>
+            {f.stationName || f.attendantName || f.dispensedBy || '—'} · {f.fuelType || f.type || 'Diesel'}
+          </Text>
+          {f.createdBy ? (
+            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>👤 By: {f.createdBy}</Text>
+          ) : f.operatorName ? (
+            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>👤 By: {f.operatorName}</Text>
+          ) : null}
         </View>
       ));
     case 'vendors':
       return items.map((v, i) => (
         <View key={i} style={{ marginBottom: i < items.length - 1 ? Spacing.sm : 0, paddingBottom: i < items.length - 1 ? Spacing.sm : 0, borderBottomWidth: i < items.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{v.name || v.vendorName || v.id}</Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{v.name || v.companyName || v.id}</Text>
           <Text style={{ fontSize: 12, color: colors.textMuted }}>{v.status || 'active'} · {v.poCount || 0} POs</Text>
         </View>
       ));
@@ -402,14 +402,17 @@ function renderPreviewTable(tab: string, items: any[], colors: any, m: any) {
       return items.map((m, i) => (
         <View key={i} style={{ marginBottom: i < items.length - 1 ? Spacing.sm : 0, paddingBottom: i < items.length - 1 ? Spacing.sm : 0, borderBottomWidth: i < items.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
           <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{m.name || m.id}</Text>
-          <Text style={{ fontSize: 12, color: colors.textMuted }}>{m.category || '—'} · {m.unit || 'Tonnes'}</Text>
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>{m.category || '—'} · {m.materialId || m.id}</Text>
         </View>
       ));
     case 'purchase-orders':
       return items.map((p, i) => (
         <View key={i} style={{ marginBottom: i < items.length - 1 ? Spacing.sm : 0, paddingBottom: i < items.length - 1 ? Spacing.sm : 0, borderBottomWidth: i < items.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
           <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{p.poNumber || p.id}</Text>
-          <Text style={{ fontSize: 12, color: colors.textMuted }}>{p.vendorName || '—'} · {p.materialName || '—'} · {p.quantity || 0}T</Text>
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>{p.vendorName || '—'} · {p.materialName || '—'} · {p.quantity || 0} T</Text>
+          {p.createdBy ? (
+            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>👤 By: {p.createdBy}</Text>
+          ) : null}
           <Text style={{ fontSize: 11, color: colors.textTertiary }}>{p.status || '—'}</Text>
         </View>
       ));
@@ -442,8 +445,6 @@ const styles = StyleSheet.create({
   tabRow: { gap: Spacing.xs },
   tab: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 9, borderRadius: Radius.full, borderWidth: 1 },
   tabText: { fontSize: 12, fontWeight: '800' },
-  csvBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, borderRadius: Radius.md, borderWidth: 1.5, marginBottom: Spacing.sm },
-  csvBtnText: { fontSize: 13, fontWeight: '800' },
   metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.sm },
   metricCard: { width: '30%', flexGrow: 1, borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md, alignItems: 'center', gap: 4 },
   metricIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },

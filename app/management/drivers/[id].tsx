@@ -31,8 +31,11 @@ import { Button } from '../../../components/ui/Button';
 import { Tabs } from '../../../components/ui/Tabs';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { DetailRow } from '../../../components/EnterpriseUI';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
-import { Driver } from '../../../store/types';
+import { vendorRepository } from '../../../services/repositories/VendorRepository';
+import { jobRepository } from '../../../services/repositories/JobRepository';
+import { Driver, Vendor, Job } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
 
 const DRIVER_TABS = [
@@ -46,6 +49,8 @@ export default function DriverDetailScreen() {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
   const [driver, setDriver] = useState<Driver | null>(null);
+  const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [trips, setTrips] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
@@ -58,6 +63,28 @@ export default function DriverDetailScreen() {
     try {
       const d = await driverRepository.getById(id!);
       setDriver(d);
+      // Load vendor data
+      if (d?.vendorId) {
+        try {
+          const v = await vendorRepository.getById(d.vendorId);
+          setVendor(v);
+        } catch {
+          // Vendor fetch failure is non-critical
+        }
+      }
+      // Load trips for this driver (client-side filter by driverId & driverName)
+      try {
+        const allJobs = await jobRepository.getAll();
+        const driverTrips = allJobs.filter(
+          (job: Job) =>
+            job.driverId === id ||
+            job.driverName === ((d as any)?.name || d?.fullName) ||
+            (d as any)?.driverId === job.driverId
+        );
+        setTrips(driverTrips);
+      } catch {
+        // Trips fetch failure is non-critical
+      }
     } catch {
       Alert.alert('Error', 'Failed to load driver');
       router.back();
@@ -73,33 +100,32 @@ export default function DriverDetailScreen() {
     setRefreshing(false);
   }
 
+  const driverName = (driver as any)?.name || driver?.fullName;
+
   function renderDetails() {
     if (!driver) return null;
     return (
       <View>
+        {/* Driver Info Card */}
         <Card>
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Full Name</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>{driver.fullName}</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{driverName || 'N/A'}</Text>
           </View>
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Phone</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>{driver.phone}</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{driver.phone || 'N/A'}</Text>
           </View>
-          {driver.email && (
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Email</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>{driver.email}</Text>
-            </View>
-          )}
           <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Status</Text>
-            <Badge
-              label={driver.status || 'active'}
-              variant={driver.status === 'active' ? 'success' : 'default'}
-              dot
-            />
+            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Email</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{(driver as any).email || 'N/A'}</Text>
           </View>
+          {(driver as any).nationalId ? (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>National ID</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{(driver as any).nationalId}</Text>
+            </View>
+          ) : null}
           {driver.emergencyContact && (
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Emergency Contact</Text>
@@ -107,6 +133,27 @@ export default function DriverDetailScreen() {
             </View>
           )}
         </Card>
+
+        {/* Vendor Info Card */}
+        {vendor && (
+          <Card style={{ marginTop: Spacing.md }}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Vendor Information</Text>
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Company</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{(vendor as any).name || vendor.companyName || 'N/A'}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Email</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{vendor.email || 'N/A'}</Text>
+            </View>
+            {vendor.address && (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Address</Text>
+                <Text style={[styles.detailValue, { color: colors.text }]}>{vendor.address}</Text>
+              </View>
+            )}
+          </Card>
+        )}
 
         <Card style={{ marginTop: Spacing.md }}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Audit Trail</Text>
@@ -155,12 +202,53 @@ export default function DriverDetailScreen() {
   }
 
   function renderTrips() {
+    if (trips.length === 0) {
+      return (
+        <EmptyState
+          icon="car-outline"
+          title="No trips yet"
+          subtitle="This driver hasn't completed any trips."
+        />
+      );
+    }
     return (
-      <EmptyState
-        icon="car-outline"
-        title="Trip History"
-        subtitle="Trip history will appear here"
-      />
+      <View>
+        {trips.map((trip) => (
+          <Card key={trip.id} style={{ marginBottom: Spacing.sm }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+                {trip.jobId || trip.id}
+              </Text>
+              <Badge
+                label={trip.status}
+                variant={trip.status === 'completed' ? 'success' : trip.status === 'cancelled' ? 'danger' : 'default'}
+                dot
+              />
+            </View>
+            <DetailRow
+              icon="cube-outline"
+              value={`${trip.materialName || 'N/A'} · ${trip.quantityOrdered || 0} ${trip.unit || ''}`}
+            />
+            <DetailRow
+              icon="car-outline"
+              value={`${trip.plateNumber || 'N/A'}`}
+            />
+            <DetailRow
+              icon="location-outline"
+              value={`${trip.quarryName || '—'} → ${trip.siteName || '—'}`}
+            />
+            {trip.netWeight != null && (
+              <DetailRow
+                icon="scale-outline"
+                value={`Net: ${trip.netWeight} ${trip.unit || 'tonnes'}`}
+              />
+            )}
+            <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 4 }}>
+              {trip.createdAt ? formatEAT(trip.createdAt) : ''}
+            </Text>
+          </Card>
+        ))}
+      </View>
     );
   }
 
@@ -188,6 +276,7 @@ export default function DriverDetailScreen() {
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.backTitle}>Driver Details</Text>
+
       </View>
       <ScrollView
         contentContainerStyle={styles.content}
@@ -199,34 +288,20 @@ export default function DriverDetailScreen() {
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
-              {driver.photoUrl ? (
-                <Image source={{ uri: driver.photoUrl }} style={styles.avatarImage} />
+              {(driver as any).photoURL || (driver as any).photoUrl ? (
+                <Image source={{ uri: (driver as any).photoURL || (driver as any).photoUrl }} style={styles.avatarImage} />
               ) : (
                 <Ionicons name="person" size={32} color={colors.primary} />
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>{driver.fullName}</Text>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>{driverName || 'N/A'}</Text>
               <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-                {driver.phone}
+                {driver.phone || ''}{vendor ? ` · ${(vendor as any).name || vendor.companyName}` : ''}
               </Text>
             </View>
-            <Badge
-              label={driver.status || 'active'}
-              variant={driver.status === 'active' ? 'success' : 'default'}
-              dot
-            />
           </View>
 
-          <View style={styles.actionsRow}>
-            <Button
-              title="Edit"
-              onPress={() => Alert.alert('Coming Soon', 'Edit functionality coming soon')}
-              variant="secondary"
-              size="sm"
-              icon="create-outline"
-            />
-          </View>
         </View>
 
         <Tabs
@@ -304,10 +379,6 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     marginTop: 2,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
   },
   sectionTitle: {
     fontSize: 16,

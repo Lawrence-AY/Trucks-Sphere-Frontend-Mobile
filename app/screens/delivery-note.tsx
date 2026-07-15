@@ -156,6 +156,9 @@ export default function DeliveryNoteScreen() {
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>ROUTE</Text>
               <DNRow label="Origin" value={delivery.quarryName} />
+              {(delivery.weighOutGeoLocation?.address || delivery.weighOutLocation) ? (
+                <DNRow label="City / Town" value={delivery.weighOutGeoLocation?.address || delivery.weighOutLocation} />
+              ) : null}
               <DNRow label="Destination" value={delivery.siteName} />
               {netWeight !== null && (
                 <>

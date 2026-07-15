@@ -35,9 +35,17 @@ export default function VendorDetailsScreen() {
   const [vendorDriversCount, setVendorDriversCount] = useState<Record<string, number>>({});
 
   const isListView = !id;
-  const isWeb = Platform.OS === 'web';
-  const isLargeScreen = width >= 768;
-  const cardWidth = isWeb && isLargeScreen ? `${100 / 3}%` as const : isWeb ? '49%' as const : '100%' as const;
+
+  // Adaptive card grid: responsive columns based on screen width
+  const getCardColumns = () => {
+    if (width >= 1024) return 4;
+    if (width >= 768) return 3;
+    if (width >= 480) return 2;
+    return 1;
+  };
+  const cardColumns = getCardColumns();
+  const cardGap = Spacing.md;
+  const cardWidth = ((width - (Spacing.lg * 2) - (cardGap * (cardColumns - 1))) / cardColumns);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -143,7 +151,7 @@ export default function VendorDetailsScreen() {
             </Text>
           </View>
         ) : (
-          <View style={[styles.vendorGrid, { gap: Spacing.md }]}>
+          <View style={[styles.vendorGrid, { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md }]}>
             {filteredVendors.map((v: any) => (
               <TouchableOpacity
                 key={v.id}
@@ -185,11 +193,6 @@ export default function VendorDetailsScreen() {
                     <Text style={[styles.statValue, { color: colors.text }]}>{vendorDriversCount[v.id] || 0}</Text>
                     <Text style={[styles.statLabel, { color: colors.textMuted }]}>Drivers</Text>
                   </View>
-                  {v.status && (
-                    <View style={[styles.statusBadgeSmall, { backgroundColor: getStatusColor(v.status) + '18' }]}>
-                       
-                    </View>
-                  )}
                 </View>
               </TouchableOpacity>
             ))}
@@ -302,8 +305,6 @@ export default function VendorDetailsScreen() {
                   <Text style={[styles.poNumber, { color: colors.text }]}>{order.poNumber}</Text>
                   <Text style={[styles.itemMeta, { color: colors.textSecondary }]}>{order.materialName} · {order.quantity} {order.unit}</Text>
                 </View>
-                <View style={[styles.badge, { backgroundColor: getStatusColor(order.status) + '15' }]}>
-                 </View>
               </View>
               <View style={styles.orderMetrics}>
                 <Metric label="Ordered" value={`${order.quantity} ${order.unit}`} />

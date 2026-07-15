@@ -14,10 +14,10 @@ import { useAuthStore } from "../../store/authStore";
 import {
   fetchDeliveryOrders,
   fetchDrivers,
+  fetchFuelRecords,
   fetchPurchaseOrders,
   fetchVehicles,
   fetchVendors,
-  fetchFuelRecords,
 } from "../../services/api";
 import { formatEAT } from "../../utils/helpers";
 import {
@@ -103,6 +103,11 @@ export default function ManagementDashboardScreen() {
     };
   }, [deliveries, drivers, vehicles, vendors]);
 
+  const totalFuelDispensed = useMemo(
+    () => fuelRecords.reduce((s, r) => s + (r.fuelAmount || 0), 0),
+    [fuelRecords],
+  );
+
   const recentDeliveries = useMemo(() => {
     return [...deliveries]
       .sort(
@@ -112,22 +117,6 @@ export default function ManagementDashboardScreen() {
       )
       .slice(0, 4);
   }, [deliveries]);
-
-  // Fuel stats
-  const totalFuelDispensed = useMemo(
-    () => fuelRecords.reduce((s, r) => s + (r.fuelAmount || 0), 0),
-    [fuelRecords],
-  );
-
-  const recentFuelRecords = useMemo(() => {
-    return [...fuelRecords]
-      .sort(
-        (a, b) =>
-          new Date(b.dispensedAt || b.createdAt).getTime() -
-          new Date(a.dispensedAt || a.createdAt).getTime(),
-      )
-      .slice(0, 5);
-  }, [fuelRecords]);
 
   return (
     <PageShell
@@ -181,9 +170,11 @@ export default function ManagementDashboardScreen() {
             icon="people"
             label="Drivers"
             value={stats.totalDrivers}
-            tone={colors.primary}
-            onPress={() => router.push("/management/drivers")}
+            tone="#8B5CF6"
+            onPress={() => router.push("/management/drivers" as any)}
           />
+        </View>
+        <View style={styles.metricRow}>
           <MetricTile
             icon="car"
             label="Vehicles"
@@ -191,21 +182,12 @@ export default function ManagementDashboardScreen() {
             tone={colors.accent}
             onPress={() => router.push("/management/trucks")}
           />
-        </View>
-        <View style={styles.metricRow}>
           <MetricTile
             icon="water"
             label="Fuel Dispensed"
             value={`${totalFuelDispensed.toFixed(1)}L`}
             tone="#F59E0B"
             onPress={() => router.push("/management/fuel" as any)}
-          />
-          <MetricTile
-            icon="receipt"
-            label="Fuel Records"
-            value={fuelRecords.length}
-            tone="#8B5CF6"
-            onPress={() => router.push("/screens/fuel" as any)}
           />
         </View>
       </View>
@@ -267,119 +249,6 @@ export default function ManagementDashboardScreen() {
           title="No recent trips"
           subtitle="All visible delivery activity is currently settled."
         />
-      )}
-
-      {/* Recent Fuel Records Section */}
-      {recentFuelRecords.length > 0 && (
-        <>
-          <SectionTitle
-            title="Recent Fuel Dispensed"
-            action={
-              <TouchableOpacity
-                onPress={() => router.push("/screens/fuel" as any)}
-              >
-                <Text style={[styles.link, { color: colors.primary }]}>
-                  View all
-                </Text>
-              </TouchableOpacity>
-            }
-          />
-          {recentFuelRecords.map((item) => {
-            const authCode =
-              item.authorizationCode || item.authorizationId || "";
-            return (
-              <DataCard key={item.id}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 2,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "800",
-                        color: "#F59E0B",
-                      }}
-                    >
-                      {item.fuelId || item.id || item.jobId}
-                    </Text>
-                    {authCode ? (
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                          marginTop: 2,
-                        }}
-                      >
-                        <Ionicons
-                          name="key-outline"
-                          size={11}
-                          color="#8B5CF6"
-                        />
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            fontWeight: "600",
-                            color: "#8B5CF6",
-                            fontFamily: "monospace",
-                          }}
-                        >
-                          Auth PIN: {authCode}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <View
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 4,
-                      borderRadius: 20,
-                      backgroundColor: "#F59E0B15",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "800",
-                        color: "#F59E0B",
-                      }}
-                    >
-                      {item.fuelAmount?.toFixed(1)} L
-                    </Text>
-                  </View>
-                </View>
-                <DetailRow
-                  icon="person-outline"
-                  value={`${item.driverName || "N/A"} · ${item.plateNumber || "N/A"}`}
-                />
-                <DetailRow
-                  icon="business-outline"
-                  value={`Vendor: ${item.vendorName || "N/A"}`}
-                />
-                {item.totalCost ? (
-                  <DetailRow
-                    icon="cash-outline"
-                    value={`KES ${item.totalCost?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                  />
-                ) : null}
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: colors.textTertiary,
-                    marginTop: Spacing.sm,
-                  }}
-                >
-                  Dispensed: {formatEAT(item.dispensedAt || item.createdAt)}
-                </Text>
-              </DataCard>
-            );
-          })}
-        </>
       )}
     </PageShell>
   );

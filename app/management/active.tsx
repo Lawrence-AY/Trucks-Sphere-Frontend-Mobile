@@ -18,7 +18,7 @@ import { useAuthStore } from '../../store/authStore';
 import { fetchDeliveryOrders, fetchMaterials } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import {
- 
+  CommandHeader,
   DataCard,
   DetailRow,
   EmptyState,
@@ -109,6 +109,9 @@ export default function ManagementActiveScreen() {
     const periodStart = getStartOfPeriod(filter);
 
     return deliveries.filter((item) => {
+      // Exclude completed / delivered / cancelled — active board shows only open jobs
+      if (['delivered', 'completed', 'cancelled'].includes(item.status)) return false;
+
       const matchesSearch = !query || [
         item.jobId, item.poNumber, item.driverName, item.plateNumber, item.vendorName, item.materialName,
       ].some((value) => String(value || '').toLowerCase().includes(query));
@@ -131,6 +134,12 @@ export default function ManagementActiveScreen() {
     : materials;
 
   const selectedMaterial = materials.find(m => m.id === materialFilter);
+
+  /* ─── Counts for CommandHeader alerts ─── */
+  const activeCount = deliveries.filter(
+    (item) => !['delivered', 'completed', 'cancelled'].includes(item.status)
+  ).length;
+  const flaggedCount = deliveries.filter(isFlagged).length;
 
   /* ─── Export Helpers ─── */
   const buildDeliveryRows = (records: any[]): string[][] =>
@@ -176,7 +185,13 @@ export default function ManagementActiveScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor, material..." />
+      <CommandHeader
+        eyebrow="Delivery execution"
+        title="Active"
+        subtitle={`${activeCount} deliveries · ${flaggedCount} weight flags`}
+      />
+
+      <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor, material..." />
 
       {/* Period Filter */}
       <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
@@ -235,8 +250,16 @@ export default function ManagementActiveScreen() {
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} `} />
 
+              {/* Flagged Weight Alert */}
+              {isFlagged(item) && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#DC26261A', borderWidth: 1, borderColor: '#DC262633', marginTop: Spacing.xs }}>
+                  <Ionicons name="warning-outline" size={12} color="#DC2626" />
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#DC2626' }}>Weight flag: {item.netWeight.toFixed(1)}T</Text>
+                </View>
+              )}
+
               {/* Net Weight Badge */}
-              {item.netWeight != null && (
+              {item.netWeight != null && !isFlagged(item) && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.success}15`, marginTop: Spacing.xs }}>
                   <Ionicons name="scale-outline" size={12} color={colors.success} />
                   <Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>Net: {item.netWeight.toFixed(1)}T</Text>

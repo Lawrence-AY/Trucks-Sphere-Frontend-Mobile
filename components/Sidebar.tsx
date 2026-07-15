@@ -40,7 +40,6 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
       { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard', roles: ['admin', 'management'], activeRoutes: ['/management/dashboard'] },
       { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active', roles: ['admin', 'management'], activeRoutes: ['/management/active'] },
       { label: 'Dispatch Queue', icon: 'git-branch-outline', route: '/management/dispatch', roles: ['admin', 'management'], activeRoutes: ['/management/dispatch'] },
-      { label: 'Journey Monitor', icon: 'map-outline', route: '/management/journey', roles: ['admin', 'management'], activeRoutes: ['/management/journey'] },
     ],
   },
   {
@@ -49,7 +48,6 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     items: [
       { label: 'Purchase Orders', icon: 'document-text-outline', route: '/management/orders', roles: ['admin', 'management'], activeRoutes: ['/management/orders'] },
       { label: 'Materials', icon: 'cube-outline', route: '/management/materials', roles: ['admin', 'management'], activeRoutes: ['/management/materials'] },
-      { label: 'Customers', icon: 'people-circle-outline', route: '/management/customers', roles: ['admin', 'management'], activeRoutes: ['/management/customers'] },
     ],
   },
   {
@@ -58,7 +56,6 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     items: [
       { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details', roles: ['admin', 'management'], activeRoutes: ['/screens/vendor-details'] },
       { label: 'Vehicles', icon: 'car-outline', route: '/management/trucks', roles: ['admin', 'management'], activeRoutes: ['/management/trucks'] },
-      { label: 'Drivers', icon: 'people-outline', route: '/management/drivers', roles: ['admin', 'management'], activeRoutes: ['/management/drivers'] },
     ],
   },
   {
@@ -75,7 +72,6 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     icon: 'analytics-outline',
     items: [
       { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports', roles: ['admin', 'management'], activeRoutes: ['/management/reports'] },
-      { label: 'Analytics', icon: 'stats-chart-outline', route: '/management/analytics', roles: ['admin', 'management'], activeRoutes: ['/management/analytics'] },
       { label: 'Audit Logs', icon: 'receipt-outline', route: '/management/audit-logs', roles: ['admin', 'management'], activeRoutes: ['/management/audit-logs'] },
       { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management'], activeRoutes: ['/screens/issues'] },
     ],
@@ -137,13 +133,24 @@ const ROLE_SECTIONS: NavSection[] = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  drawerMode?: boolean;
+  onNavigate?: (route: string) => void;
+}
+
+export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps) {
   const { user, logout } = useAuthStore();
   const colors = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // In drawer mode on mobile web, the close button is handled by WebLayout;
+  // we still need to save vertical space by omitting the main container border style
+  const containerStyle = drawerMode
+    ? [styles.containerDrawer, { width: '100%', backgroundColor: '#FFFFFF' }]
+    : [styles.container, { width: Math.min(260, width * 0.25), backgroundColor: '#FFFFFF' }];
 
   const role = (user?.role || '') as UserRole;
 
@@ -168,6 +175,9 @@ export default function Sidebar() {
     if (!route) return;
     // @ts-ignore
     router.push(route);
+    if (drawerMode && onNavigate) {
+      onNavigate(route);
+    }
   };
 
   const handleLogout = async () => {
@@ -186,10 +196,8 @@ export default function Sidebar() {
     }
   };
 
-  const sidebarWidth = Math.min(260, width * 0.25);
-
   return (
-    <View style={[styles.container, { width: sidebarWidth, backgroundColor: '#FFFFFF' }]}>
+    <View style={containerStyle}>
       {/* Logo */}
       <TouchableOpacity
         style={styles.logoSection}
@@ -313,6 +321,10 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     borderRightWidth: 1,
     borderRightColor: '#E2E8F0',
+  } as any,
+  containerDrawer: {
+    height: '100%',
+    flexDirection: 'column',
   } as any,
   logoSection: {
     flexDirection: 'row',

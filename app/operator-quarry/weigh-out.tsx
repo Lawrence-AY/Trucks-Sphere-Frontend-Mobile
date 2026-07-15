@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,9 +14,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
+import { updateDeliveryOrder } from '../../services/api';
+import { useDeliveryOrders } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT } from '../../utils/helpers';
 import { uploadDriverPhotoWeighOut } from '../../services/uploadService';
 import { getCurrentLocation, reverseGeocode, getLocationFromIP } from '../../services/geolocation';
@@ -31,9 +34,7 @@ import {
 
 export default function OperatorQuarryWeighOutScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const [activeJob, setActiveJob] = useState<any>(null);
@@ -54,19 +55,20 @@ export default function OperatorQuarryWeighOutScreen() {
   } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
 
-  const loadData = async (silent?: boolean) => {
-    if (!silent) setRefreshing(true);
-    try {
-      const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status)));
-    } catch {
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  };
+  const allDeliveries = useDeliveryOrders();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
 
-  useEffect(() => { loadData(); }, []);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh('deliveryOrders');
+    setRefreshing(false);
+  }, [refresh]);
+
+  // Jobs that have been weighed in but not weighed out
+  const deliveries = useMemo(() =>
+    allDeliveries.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status)),
+    [allDeliveries]
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -94,12 +96,10 @@ export default function OperatorQuarryWeighOutScreen() {
   const captureLocation = async () => {
     setLocationLoading(true);
     try {
-      // Try GPS first
       const loc = await getCurrentLocation();
       const address = await reverseGeocode(loc.latitude, loc.longitude);
       setGeoLocation({ ...loc, address });
     } catch {
-      // GPS failed — try IP-based geolocation (works in Expo Go even without GPS)
       try {
         const fallback = await getLocationFromIP();
         setGeoLocation({
@@ -119,8 +119,6 @@ export default function OperatorQuarryWeighOutScreen() {
     }
   };
 
-  // ─── Driver Photo Capture (Camera only) ───
-
   const handleTakePhoto = async () => {
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -128,59 +126,40 @@ export default function OperatorQuarryWeighOutScreen() {
         Alert.alert('Permission needed', 'Camera access is required to take a photo.');
         return;
       }
-
-      // allowsEditing: false — skips the crop screen so the photo goes straight to upload
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: false,
         quality: 0.8,
       });
-
       if (result.canceled || !result.assets?.length) return;
-
       const fileUri = result.assets[0].uri;
-      // Pass activeJob.jobId directly from the captured state at this moment
-      // to avoid stale closure issues where activeJob may have changed
       await uploadDriverPhoto(fileUri, activeJob?.jobId);
     } catch (error: any) {
-      console.error('[weigh-out] handleTakePhoto error:', error?.message, error?.stack);
       Alert.alert('Error', error?.message || 'Failed to capture photo.');
     }
   };
 
   const uploadDriverPhoto = async (fileUri: string, jobId: string) => {
-    console.log('[weigh-out] uploadDriverPhoto called');
-    console.log('[weigh-out] jobId:', jobId);
-    console.log('[weigh-out] fileUri:', fileUri);
-
     if (!jobId) {
-      console.warn('[weigh-out] uploadDriverPhoto: no jobId provided, aborting');
       Alert.alert('Upload Error', 'No active job selected. Please go back and select a job.');
       return;
     }
     setDriverPhotoUri(fileUri);
     setDriverPhotoUploading(true);
     try {
-      console.log('[weigh-out] Calling uploadDriverPhotoWeighOut...');
       const result = await uploadDriverPhotoWeighOut(jobId, fileUri);
-      console.log('[weigh-out] uploadDriverPhotoWeighOut result:', JSON.stringify(result));
       if (result.success && result.photoURL) {
-        console.log('[weigh-out] Photo uploaded successfully, photoURL:', result.photoURL);
         setDriverPhotoURL(result.photoURL);
         setDriverPhotoUri(null);
       } else {
-        console.warn('[weigh-out] Upload returned success but no photoURL:', JSON.stringify(result));
         Alert.alert('Upload Warning', 'The server accepted the upload but did not return a photo URL. Please try again.');
       }
     } catch (error: any) {
-      console.error('[weigh-out] uploadDriverPhoto error:', error?.message, error?.stack);
       Alert.alert('Upload Failed', error?.message || 'Could not upload driver photo.');
       setDriverPhotoUri(null);
     } finally {
       setDriverPhotoUploading(false);
     }
   };
-
-  // ─── Weigh-Out Submission ───
 
   const handleSubmitPress = () => {
     const numericWeightOut = parseFloat(weightOut);
@@ -215,15 +194,13 @@ export default function OperatorQuarryWeighOutScreen() {
         weighOutWeight: numericWeightOut,
         netWeight,
         weighOutAt: now,
-        weighOutLocation: geoLocation?.address || (activeJob.quarryName ? `${activeJob.quarryName} Exit` : 'Quarry Exit'),
+        weighOutLocation: geoLocation?.address || 'Weigh-Out Location',
         status: 'loaded',
         updatedAt: now,
       };
-
       if (driverPhotoURL) {
         updatePayload.driverPhotoURL = driverPhotoURL;
       }
-
       if (geoLocation) {
         updatePayload.weighOutGeoLocation = {
           latitude: geoLocation.latitude,
@@ -231,15 +208,12 @@ export default function OperatorQuarryWeighOutScreen() {
           address: geoLocation.address,
         };
       }
-
-      const updated = await updateDeliveryOrder(activeJob.id, updatePayload);
-      setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
+      await updateDeliveryOrder(activeJob.id, updatePayload);
       closeWeighOutForm();
       Alert.alert('Completed', `Weigh-Out submitted.\n\nLoaded: ${numericWeightOut.toFixed(1)}T · Empty: ${weighIn.toFixed(1)}T · Net: ${netWeight.toFixed(1)}T`, [
         { text: 'OK' },
       ]);
     } catch (error: any) {
-      console.error('[weigh-out] handleConfirmSubmit error:', error?.message, error?.stack);
       Alert.alert('Submission Failed', error?.message || 'Could not submit weigh-out data.');
     } finally {
       setSubmitting(false);
@@ -260,7 +234,6 @@ export default function OperatorQuarryWeighOutScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={true}
         >
-          {/* Job Info Card */}
           <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.jobCardHeader}>
               <Text style={[styles.jobCardTitle, { color: colors.text }]}>{activeJob.jobId}</Text>
@@ -269,7 +242,13 @@ export default function OperatorQuarryWeighOutScreen() {
             <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
             <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
             <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
-            <DetailRow icon="location-outline" value={`${activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`} />
+            <DetailRow icon="location-outline" value={`Origin: ${geoLocation?.address || activeJob.quarryName || 'Quarry'}`} />
+            {geoLocation && (
+              <>
+                <DetailRow icon="pin-outline" value={`${geoLocation.latitude.toFixed(6)}, ${geoLocation.longitude.toFixed(6)}`} />
+              </>
+            )}
+            <DetailRow icon="flag-outline" value={`Dest: ${activeJob.siteName || '—'}`} />
             <View style={styles.divider} />
             <View style={styles.draftWeightRow}>
               <View style={{ flex: 1 }}>
@@ -283,7 +262,6 @@ export default function OperatorQuarryWeighOutScreen() {
             </View>
           </View>
 
-          {/* ─── Driver Photo Section ─── */}
           <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.sectionHeader}>
               <View style={[styles.sectionIcon, { backgroundColor: '#F59E0B15' }]}>
@@ -305,8 +283,6 @@ export default function OperatorQuarryWeighOutScreen() {
             <Text style={[styles.sectionSub, { color: colors.textMuted }]}>
               Capture a photo of the driver at the weighbridge.
             </Text>
-
-            {/* Photo Preview */}
             {(driverPhotoURL || driverPhotoUri) ? (
               <View style={styles.photoPreviewWrap}>
                 <Image
@@ -327,8 +303,6 @@ export default function OperatorQuarryWeighOutScreen() {
                 <Text style={styles.photoPlaceholderText}>No photo captured</Text>
               </View>
             )}
-
-            {/* Camera / Retake / Remove buttons */}
             <View style={styles.photoActions}>
               <TouchableOpacity
                 style={[
@@ -359,7 +333,6 @@ export default function OperatorQuarryWeighOutScreen() {
             </View>
           </View>
 
-          {/* ─── Location Section ─── */}
           <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.sectionHeader}>
               <View style={[styles.sectionIcon, { backgroundColor: '#10B98115' }]}>
@@ -380,7 +353,6 @@ export default function OperatorQuarryWeighOutScreen() {
                 </View>
               )}
             </View>
-
             {geoLocation ? (
               <View style={[styles.locationBox, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
                 <View style={styles.locationRow}>
@@ -419,7 +391,6 @@ export default function OperatorQuarryWeighOutScreen() {
             )}
           </View>
 
-          {/* Weigh-Out Input */}
           <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.inputHeader}>
               <View style={[styles.inputIcon, { backgroundColor: '#7C3AED15' }]}>
@@ -442,7 +413,6 @@ export default function OperatorQuarryWeighOutScreen() {
               />
               <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>
             </View>
-
             {net !== null && net > 0 && (
               <View style={[styles.netPreview, { backgroundColor: '#7C3AED08', borderColor: '#7C3AED33' }]}>
                 <Text style={[styles.netLabel, { color: colors.textMuted }]}>NET WEIGHT</Text>
@@ -454,7 +424,6 @@ export default function OperatorQuarryWeighOutScreen() {
             )}
           </View>
 
-          {/* Submit Button */}
           <TouchableOpacity
             style={[
               styles.submitBtn,
@@ -486,7 +455,6 @@ export default function OperatorQuarryWeighOutScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
 
-        {/* Confirmation Modal */}
         <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => setConfirmVisible(false)}>
           <View style={styles.modalBackdrop}>
             <View style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -567,10 +535,10 @@ export default function OperatorQuarryWeighOutScreen() {
 
   /* ─── List View ─── */
   return (
-    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}>
       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate..." />
       <SectionTitle title={`${filtered.length} to weigh out`} />
-      {loading ? (
+      {allDeliveries.length === 0 ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
       ) : filtered.length ? (
         filtered.map((item) => {
@@ -613,8 +581,6 @@ const styles = StyleSheet.create({
   draftValue: { fontSize: 18, fontWeight: '800', marginTop: 2 },
   draftBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.full },
   draftBadgeText: { fontSize: 11, fontWeight: '700' },
-
-  // ─── Section Card (Driver Photo + Location) ───
   sectionCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
   sectionIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
@@ -622,76 +588,23 @@ const styles = StyleSheet.create({
   sectionSub: { fontSize: 13, marginBottom: Spacing.md },
   photoStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full },
   photoStatusText: { fontSize: 11, fontWeight: '700' },
-
-  // ─── Photo Preview ───
-  photoPreviewWrap: {
-    width: '100%',
-    height: 220,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-    marginBottom: Spacing.md,
-    backgroundColor: '#F1F5F9',
-  },
+  photoPreviewWrap: { width: '100%', height: 220, borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.md, backgroundColor: '#F1F5F9' },
   photoPreview: { width: '100%', height: '100%' },
-  photoPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoPlaceholderText: {
-    fontSize: 13,
-    color: '#94A3B8',
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  photoOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  photoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  photoPlaceholderText: { fontSize: 13, color: '#94A3B8', fontWeight: '600', marginTop: 8 },
+  photoOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
   photoOverlayText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: 8 },
   photoActions: { flexDirection: 'row', gap: Spacing.sm },
-  photoBtnFull: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  photoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: 16,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
+  photoBtnFull: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.sm, borderRadius: Radius.md, borderWidth: 1 },
+  photoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.sm, paddingHorizontal: 16, borderRadius: Radius.md, borderWidth: 1 },
   photoBtnText: { fontSize: 13, fontWeight: '700' },
-
-  // ─── Location ───
   locationBox: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.xs },
   locationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   locationText: { fontSize: 13, fontWeight: '600', flex: 1, lineHeight: 18 },
   locationCoords: { marginTop: Spacing.sm, paddingLeft: 28 },
   coordText: { fontSize: 11, fontFamily: 'monospace' },
-  retryLocationBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    marginTop: Spacing.sm,
-  },
+  retryLocationBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1, marginTop: Spacing.sm },
   retryLocationText: { fontSize: 12, fontWeight: '700' },
-
   inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
   inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
   inputIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },

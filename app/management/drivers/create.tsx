@@ -50,6 +50,7 @@ export default function CreateDriverScreen() {
     fullName: '',
     phone: '',
     email: '',
+    nationalId: '',
     licenseNumber: '',
     licenseClass: '',
     licenseExpiry: '',
@@ -102,6 +103,7 @@ export default function CreateDriverScreen() {
         fullName: form.fullName.trim(),
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
+        nationalId: form.nationalId.trim() || undefined,
         licenseNumber: form.licenseNumber.trim(),
         licenseClass: form.licenseClass.trim() || undefined,
         licenseExpiry: form.licenseExpiry.trim() || undefined,
@@ -135,11 +137,11 @@ export default function CreateDriverScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Create Driver</Text>
+        <Text style={styles.backTitle}>Onboard Driver</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Create Driver</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Onboard Driver</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             Add a new driver to the system
           </Text>
@@ -176,6 +178,15 @@ export default function CreateDriverScreen() {
             keyboardType="phone-pad"
             required
             error={errors.phone}
+          />
+
+          <Input
+            label="National ID"
+            value={form.nationalId}
+            onChangeText={(v) => updateField('nationalId', v)}
+            placeholder="e.g. 12345678"
+            icon="finger-print-outline"
+            keyboardType="numeric"
           />
 
           <Input

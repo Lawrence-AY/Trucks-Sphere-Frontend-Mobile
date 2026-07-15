@@ -23,10 +23,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
-import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
@@ -132,12 +132,6 @@ export default function MaterialsListScreen() {
               {item.category} • {item.defaultUnit || item.measurementType || 'units'}
             </Text>
           </View>
-          <Badge
-            label={item.status || 'active'}
-            variant={item.status === 'active' ? 'success' : 'default'}
-            size="sm"
-            dot
-          />
         </View>
         {item.properties && item.properties.length > 0 && (
           <View style={styles.propertiesRow}>
@@ -187,13 +181,6 @@ export default function MaterialsListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.backTitle}>Materials</Text>
-      </View>
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View>
@@ -202,12 +189,14 @@ export default function MaterialsListScreen() {
               {materials.length} material{materials.length !== 1 ? 's' : ''}
             </Text>
           </View>
-          <Button
-            title="Add Material"
-            onPress={() => router.push('/management/materials/create' as any)}
-            icon="add-circle-outline"
-            size="sm"
-          />
+          {Platform.OS === 'web' && (
+            <Button
+              title="Add Material"
+              onPress={() => router.push('/management/materials/create' as any)}
+              icon="add-circle-outline"
+              size="sm"
+            />
+          )}
         </View>
 
         {/* Search */}
@@ -294,31 +283,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  backBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginLeft: 4,
-  },
   header: {
     padding: Spacing.lg,
     paddingBottom: Spacing.sm,
+    paddingTop: Spacing.xl,
   },
   headerRow: {
     flexDirection: 'row',

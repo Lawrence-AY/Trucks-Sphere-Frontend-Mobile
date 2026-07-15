@@ -4,10 +4,10 @@
  * Uploads images to the backend which stores them in Firebase Storage
  * and returns the public URL which is saved to Firestore as photoURL.
  */
+import { Platform } from 'react-native';
 import axios, { AxiosError } from 'axios';
 import { getStoredToken } from './database';
 import { API_BASE_URL } from './config';
-
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getStoredToken();
   const headers: Record<string, string> = {};
@@ -139,11 +139,24 @@ async function uploadFile(
   delete headers['Content-Type'];
 
   const formData = new FormData();
-  formData.append('file', {
-    uri: fileUri,
-    name: `${filename}.jpg`,
-    type: 'image/jpeg',
-  } as any);
+
+  // On web, expo-image-picker camera returns blob: URLs.
+  // React Native's { uri, name, type } object format is NOT understood
+  // by the browser's native FormData API — the blob must be fetched and
+  // appended directly. Without this, multer receives no file and returns
+  // 400 {"error":"No file provided"}.
+  if (Platform.OS === 'web' && (fileUri.startsWith('blob:') || fileUri.startsWith('data:'))) {
+    const blob: Blob = await fetch(fileUri).then((r) => r.blob());
+    formData.append('file', blob, `${filename}.jpg`);
+  } else {
+    // Native (iOS / Android): React Native's networking layer understands
+    // { uri, name, type } and will stream the file from disk.
+    formData.append('file', {
+      uri: fileUri,
+      name: `${filename}.jpg`,
+      type: 'image/jpeg',
+    } as any);
+  }
 
   const url = `/api/uploads/${endpoint}`;
 

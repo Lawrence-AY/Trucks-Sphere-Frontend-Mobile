@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, Alert, ScrollView, Modal } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
+import { showAlert } from '../../utils/webAlert';
 
 export default function VendorSettingsScreen() {
   const colors = useTheme();
@@ -15,10 +16,10 @@ export default function VendorSettingsScreen() {
   const [confirmPw, setConfirmPw] = useState('');
 
   const handlePasswordUpdate = () => {
-    if (!currentPw || !newPw || !confirmPw) { Alert.alert('Error', 'Please fill all password fields'); return; }
-    if (newPw !== confirmPw) { Alert.alert('Error', 'New passwords do not match'); return; }
-    if (newPw.length < 4) { Alert.alert('Error', 'Password must be at least 4 characters'); return; }
-    Alert.alert('Success', 'Password updated successfully');
+    if (!currentPw || !newPw || !confirmPw) { showAlert('Error', 'Please fill all password fields'); return; }
+    if (newPw !== confirmPw) { showAlert('Error', 'New passwords do not match'); return; }
+    if (newPw.length < 4) { showAlert('Error', 'Password must be at least 4 characters'); return; }
+    showAlert('Success', 'Password updated successfully');
     setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw('');
   };
 

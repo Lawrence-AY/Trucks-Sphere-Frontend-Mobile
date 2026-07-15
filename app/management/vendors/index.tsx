@@ -100,6 +100,12 @@ export default function VendorListScreen() {
   }
 
   function renderVendor({ item }: { item: Vendor }) {
+    const vendorNumber = item.vendorId || item.id;
+    // Format as V001, V002, etc.
+    const formattedVendorId = vendorNumber && vendorNumber.startsWith('V')
+      ? vendorNumber
+      : `V${String(vendorNumber).padStart(3, '0')}`;
+
     return (
       <TouchableOpacity
         style={[styles.vendorCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -117,10 +123,9 @@ export default function VendorListScreen() {
               {item.companyName || 'Unknown Vendor'}
             </Text>
             <Text style={[styles.vendorId, { color: colors.textMuted }]}>
-              {item.vendorId || item.id}
+              {formattedVendorId}
             </Text>
           </View>
-          {getStatusBadge(item.status)}
         </View>
 
         <View style={styles.vendorMeta}>
@@ -167,13 +172,6 @@ export default function VendorListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.backTitle}>Vendors</Text>
-      </View>
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View>
@@ -262,28 +260,6 @@ export default function VendorListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  backBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginLeft: 4,
   },
   header: {
     padding: Spacing.lg,

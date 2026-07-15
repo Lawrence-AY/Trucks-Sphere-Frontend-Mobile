@@ -95,8 +95,13 @@ class VendorRepository extends BaseRepository<Vendor> {
 
   /**
    * Get vendor documents.
+   * Gracefully skips API call for fallback/invalid vendor IDs like "v1".
    */
   async getDocuments(vendorId: string): Promise<any[]> {
+    // Skip invalid / fallback vendor IDs to avoid 404 errors
+    if (!vendorId || vendorId === 'v1' || vendorId.length < 5) {
+      return [];
+    }
     try {
       const token = await getStoredToken();
       const response = await api.get(`/api/vendors/${vendorId}/documents`, {

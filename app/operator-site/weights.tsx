@@ -281,6 +281,19 @@ export default function OperatorSiteWeightsScreen() {
       );
       return;
     }
+    // Check if site weigh-in is lower than quarry weigh-out (possible material loss)
+    const quarryOutWeight = activeJob?.weighOutWeight ?? 0;
+    if (quarryOutWeight > 0 && siteWeighIn < quarryOutWeight) {
+      Alert.alert(
+        'Weight Discrepancy',
+        `⚠️ Site arrival weight (${siteWeighIn.toFixed(1)}T) is lower than quarry loaded weight (${quarryOutWeight.toFixed(1)}T). This may indicate material loss in transit. Please verify before proceeding.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Proceed Anyway', onPress: () => setReviewVisible(true) },
+        ],
+      );
+      return;
+    }
     // Show receipt review note modal
     setReviewVisible(true);
   };
@@ -914,30 +927,6 @@ export default function OperatorSiteWeightsScreen() {
                 </View>
               )}
 
-              {/* Export Actions */}
-              <View style={styles.grnExportSection}>
-                <Text style={[styles.grnExportTitle, { color: colors.text }]}>
-                  Download Controls
-                </Text>
-                <View style={styles.grnDownloadRow}>
-                  <TouchableOpacity
-                    style={[styles.grnDownloadBtn, { backgroundColor: '#7C3AED' }]}
-                    onPress={handleDownloadCSV}
-                  >
-                    <Ionicons name="document-outline" size={22} color="#FFFFFF" />
-                    <Text style={styles.grnDownloadBtnText}>Download GRN (CSV)</Text>
-                    <Text style={styles.grnDownloadBtnSub}>Structured Line Items</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.grnDownloadBtn, { backgroundColor: '#7C3AED' }]}
-                    onPress={handleDownloadCSV}
-                  >
-                    <Ionicons name="grid-outline" size={22} color="#FFFFFF" />
-                    <Text style={styles.grnDownloadBtnText}>Download CSV</Text>
-                    <Text style={styles.grnDownloadBtnSub}>Structured Line Items</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
 
               {/* Dismiss */}
               <TouchableOpacity

@@ -629,6 +629,35 @@ export async function fetchPublicTracking(trackingId: string): Promise<any> {
   }
 }
 
+/**
+ * Fetch public tracking data by vehicle registration (plate) number.
+ * This endpoint does NOT require authentication — it is a public URL.
+ *
+ * @param plateNumber - e.g., "KAA 123B"
+ * @returns The sanitized public tracking data, or throws on 404/expired
+ */
+export async function fetchPublicTrackingByPlate(plateNumber: string): Promise<any> {
+  try {
+    console.log("[API] Fetching public tracking by plate:", plateNumber);
+    const response = await axios.get(
+      `${API_BASE_URL}/api/track/by-plate/${encodeURIComponent(plateNumber)}`,
+      { timeout: 8000, headers: { "Content-Type": "application/json" } },
+    );
+    return response.data;
+  } catch (error: any) {
+    const status = error?.response?.status;
+    const message =
+      error?.response?.data?.error ||
+      "This tracking link has expired or is no longer active.";
+    console.warn(
+      `[API] Public tracking by plate ${plateNumber} failed:`,
+      status,
+      message,
+    );
+    throw new Error(message);
+  }
+}
+
 // ============== Admin Reports API ==============
 
 /**

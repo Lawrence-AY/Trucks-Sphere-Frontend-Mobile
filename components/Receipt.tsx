@@ -341,11 +341,6 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     borderRadius: Radius.md,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
   },
   receiptPaper: {
     padding: Spacing.xl,

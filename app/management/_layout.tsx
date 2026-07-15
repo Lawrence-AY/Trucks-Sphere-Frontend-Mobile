@@ -14,6 +14,8 @@ import { getRoleLabel } from '../../utils/helpers';
 const BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
 const HIDDEN_TABS = [
   'drivers',
+  'drivers/[id]',
+  'drivers/create',
   'trucks',
   'profile',
   'settings',
@@ -28,12 +30,24 @@ const HIDDEN_TABS = [
   'users',
   'roles',
   'master-data',
+  'materials/[id]',
+  'materials/create',
+  'materials/edit/[id]',
+  'purchase-orders',
+  'purchase-orders/[id]',
+  'purchase-orders/create',
+  'purchase-orders/edit/[id]',
+  'vehicles',
+  'vehicles/[id]',
+  'vehicles/create',
+  'vendors',
+  'vendors/[id]',
+  'vendors/create',
+  'vendors/edit/[id]',
 ];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'grid-outline', label: 'Dashboard', family: 'Ionicons' },
-  drivers: { icon: 'people-outline', label: 'Drivers', family: 'Ionicons' },
- // trucks: { icon: 'car-outline', label: 'Trucks', family: 'Ionicons' },
   orders: { icon: 'document-text-outline', label: 'Orders', family: 'Ionicons' },
   active: { icon: 'pulse-outline', label: 'Active', family: 'Ionicons' },
   materials: { icon: 'cube-outline', label: 'Materials', family: 'Ionicons' },
@@ -124,7 +138,7 @@ const DRAWER_SECTIONS: DrawerSection[] = [
     ],
   },
 ];
- 
+
 export default function ManagementLayout() {
   const { user, logout } = useAuthStore();
   const colors = useTheme();
@@ -176,7 +190,7 @@ export default function ManagementLayout() {
   };
 
   return (
-      <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <Tabs
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
@@ -218,7 +232,7 @@ export default function ManagementLayout() {
           const config = TAB_ICONS[tabName];
           return (
             <Tabs.Screen
-              key={tabName} 
+              key={tabName}
               name={tabName}
               options={{
                 title: config?.label || tabName,
@@ -232,13 +246,38 @@ export default function ManagementLayout() {
             />
           );
         })}
-        {HIDDEN_TABS.map((tabName) => (
-          <Tabs.Screen
-            key={tabName}
-            name={tabName}
-            options={{ href: null }}
-          />
-        ))}
+        {HIDDEN_TABS.map((tabName) => {
+          const titleOverrides: Record<string, string> = {
+            'drivers': 'Drivers',
+            'drivers/create': 'Onboard Driver',
+            'trucks': 'Vehicles',
+            'fuel': 'Fuel Records',
+            'fuel-records': 'Fuel Records',
+            'quarries': 'Quarries',
+            'sites': 'Sites',
+            'reports': 'Reports',
+            'analytics': 'Analytics',
+            'audit-logs': 'Audit Logs',
+            'users': 'Users',
+            'roles': 'Roles',
+            'master-data': 'Master Data',
+            'vendors': 'Vendors',
+            'purchase-orders': 'Purchase Orders',
+            'vehicles': 'Vehicles',
+          };
+          const hideHeader = tabName === 'drivers/[id]' || tabName === 'drivers/create';
+          return (
+            <Tabs.Screen
+              key={tabName}
+              name={tabName}
+              options={{
+                href: null,
+                ...(titleOverrides[tabName] ? { title: titleOverrides[tabName] } : {}),
+                ...(hideHeader ? { headerShown: false } : {}),
+              }}
+            />
+          );
+        })}
       </Tabs>
 
       {/* Hamburger Drawer */}
@@ -320,7 +359,7 @@ export default function ManagementLayout() {
           </View>
         </View>
       </Modal>
-      </View>
+    </View>
   );
 }
 

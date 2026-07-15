@@ -36,6 +36,7 @@ import api from '../../services/api';
 
 const ROLE_OPTIONS = [
   { id: 'management', name: 'Management' },
+  { id: 'vendor', name: 'Vendor' },
   { id: 'quarry_operator', name: 'Quarry Operator' },
   { id: 'site_operator', name: 'Site Operator' },
   { id: 'fuel_operator', name: 'Fuel Operator' },
@@ -154,6 +155,7 @@ export default function UsersScreen() {
   function getRoleBadge(role: string) {
     const config: Record<string, { variant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple'; label: string }> = {
       management: { variant: 'purple', label: 'Management' },
+      vendor: { variant: 'info', label: 'Vendor' },
       quarry_operator: { variant: 'info', label: 'Quarry Op' },
       site_operator: { variant: 'warning', label: 'Site Op' },
       fuel_operator: { variant: 'success', label: 'Fuel Op' },

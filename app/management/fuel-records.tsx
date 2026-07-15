@@ -1,68 +1,78 @@
 /**
- * Fuel Records Screen - Shows fuel in/out summary with full CRUD
+ * Fuel Records Screen - Shows fuel in/out summary with dispensed values
  *
- * Features:
- *   - Fuel In: Fuel purchased from external suppliers and stored in tanks
- *   - Fuel Out: Fuel dispensed to trucks or for any other purpose
- *   - Summary cards with totals
- *   - Recent fuel records list
- *   - Create, Edit, Delete fuel records
- *   - Back button
+ * Uses EnterpriseUI components matching screens/fuel.tsx style
+ * - No stackscreen title (custom header)
+ * - No "new fuel" button
+ * - Shows dispensed values
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../hooks/useTheme";
+import { Spacing } from "../../constants/theme";
+import { fetchFuelRecords } from "../../services/api";
+import { formatEAT, formatNumber } from "../../utils/helpers";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  Modal,
-  TextInput,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
-import { Card } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
-import { fetchFuelRecords, createFuelRecord } from '../../services/api';
-import { formatEAT, formatNumber } from '../../utils/helpers';
-import api from '../../services/api';
+  DataCard,
+  DetailRow,
+  EmptyState,
+  PageShell,
+  SearchField,
+  SectionTitle,
+  FilterRail,
+} from "../../components/EnterpriseUI";
+
+const TIME_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "daily", label: "Daily" },
+  { key: "monthly", label: "Monthly" },
+  { key: "yearly", label: "Yearly" },
+];
+
+function getTimeFilterRange(filter: string): { start: Date; end: Date } | null {
+  const now = new Date();
+  switch (filter) {
+    case "daily": {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      return { start, end };
+    }
+    case "monthly": {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      return { start, end };
+    }
+    case "yearly": {
+      const start = new Date(now.getFullYear(), 0, 1);
+      const end = new Date(now.getFullYear() + 1, 0, 1);
+      return { start, end };
+    }
+    default:
+      return null;
+  }
+}
 
 export default function FuelRecordsScreen() {
   const colors = useTheme();
-  const insets = useSafeAreaInsets();
   const [records, setRecords] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<any>(null);
-  const [saving, setSaving] = useState(false);
-
-  // Form state
-  const [formType, setFormType] = useState<'in' | 'out'>('in');
-  const [formQuantity, setFormQuantity] = useState('');
-  const [formPlateNumber, setFormPlateNumber] = useState('');
-  const [formDriverName, setFormDriverName] = useState('');
-  const [formNotes, setFormNotes] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [timeFilter, setTimeFilter] = useState("all");
 
   const loadData = useCallback(async () => {
+    setRefreshing(true);
     try {
-      const data = await fetchFuelRecords();
+      const data = (await fetchFuelRecords()) || [];
       setRecords(data);
     } catch {
-      // Silent
+      // silent
     } finally {
-      setLoading(false);
       setRefreshing(false);
+      setLoading(false);
     }
   }, []);
 
@@ -70,607 +80,224 @@ export default function FuelRecordsScreen() {
     loadData();
   }, [loadData]);
 
-  function onRefresh() {
-    setRefreshing(true);
-    loadData();
-  }
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    const range = getTimeFilterRange(timeFilter);
 
-  // Calculate fuel in/out totals
-  const fuelIn = records
-    .filter((r) => r.type === 'in' || r.direction === 'in')
-    .reduce((sum, r) => sum + (r.quantity || r.amount || 0), 0);
-
-  const fuelOut = records
-    .filter((r) => r.type === 'out' || r.direction === 'out')
-    .reduce((sum, r) => sum + (r.quantity || r.amount || 0), 0);
-
-  const recentRecords = [...records]
-    .sort((a, b) => new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime())
-    .slice(0, 20);
-
-  function getRecordType(record: any): 'in' | 'out' {
-    return (record.type === 'in' || record.direction === 'in') ? 'in' : 'out';
-  }
-
-  function resetForm() {
-    setFormType('in');
-    setFormQuantity('');
-    setFormPlateNumber('');
-    setFormDriverName('');
-    setFormNotes('');
-  }
-
-  function openCreateModal() {
-    resetForm();
-    setShowCreateModal(true);
-  }
-
-  function openEditModal(record: any) {
-    setEditingRecord(record);
-    setFormType(getRecordType(record));
-    setFormQuantity(String(record.quantity || record.amount || 0));
-    setFormPlateNumber(record.plateNumber || record.vehicleNumber || '');
-    setFormDriverName(record.driverName || '');
-    setFormNotes(record.notes || '');
-    setShowEditModal(true);
-  }
-
-  async function handleCreate() {
-    if (!formQuantity || parseFloat(formQuantity) <= 0) {
-      Alert.alert('Error', 'Please enter a valid quantity');
-      return;
-    }
-    setSaving(true);
-    try {
-      const payload = {
-        type: formType,
-        direction: formType,
-        quantity: parseFloat(formQuantity),
-        plateNumber: formPlateNumber,
-        driverName: formDriverName,
-        notes: formNotes,
-      };
-      await createFuelRecord(payload);
-      setShowCreateModal(false);
-      resetForm();
-      loadData();
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to create fuel record');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleUpdate() {
-    if (!editingRecord || !formQuantity || parseFloat(formQuantity) <= 0) {
-      Alert.alert('Error', 'Please enter a valid quantity');
-      return;
-    }
-    setSaving(true);
-    try {
-      await api.put(`/api/fuel/${editingRecord.id}`, {
-        type: formType,
-        direction: formType,
-        quantity: parseFloat(formQuantity),
-        plateNumber: formPlateNumber,
-        driverName: formDriverName,
-        notes: formNotes,
-      });
-      setShowEditModal(false);
-      setEditingRecord(null);
-      resetForm();
-      loadData();
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to update fuel record');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDelete(record: any) {
-    Alert.alert(
-      'Delete Record',
-      'Are you sure you want to delete this fuel record?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(`/api/fuel/${record.id}`);
-              loadData();
-            } catch (error: any) {
-              Alert.alert('Error', error?.message || 'Failed to delete fuel record');
-            }
-          },
-        },
-      ]
-    );
-  }
-
-  function renderFormModal(isEdit: boolean) {
-    const visible = isEdit ? showEditModal : showCreateModal;
-    const onClose = () => {
-      if (isEdit) {
-        setShowEditModal(false);
-        setEditingRecord(null);
-      } else {
-        setShowCreateModal(false);
+    return records.filter((r) => {
+      if (
+        q &&
+        ![r.jobId, r.driverName, r.plateNumber, r.vendorName, r.notes].some(
+          (v) =>
+            String(v || "")
+              .toLowerCase()
+              .includes(q),
+        )
+      ) {
+        return false;
       }
-      resetForm();
-    };
-    const onSave = isEdit ? handleUpdate : handleCreate;
-    const title = isEdit ? 'Edit Fuel Record' : 'New Fuel Record';
 
-    return (
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={24} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
+      if (range) {
+        const date = new Date(r.dispensedAt || r.createdAt || r.date || 0);
+        if (date < range.start || date >= range.end) {
+          return false;
+        }
+      }
 
-            <ScrollView contentContainerStyle={styles.modalBody}>
-              {/* Type Toggle */}
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>Type</Text>
-              <View style={styles.typeToggle}>
-                <TouchableOpacity
-                  style={[styles.typeBtn, formType === 'in' && { backgroundColor: '#059669', borderColor: '#059669' }]}
-                  onPress={() => setFormType('in')}
-                >
-                  <Ionicons name="arrow-down-circle" size={18} color={formType === 'in' ? '#FFF' : '#059669'} />
-                  <Text style={[styles.typeBtnText, { color: formType === 'in' ? '#FFF' : '#059669' }]}>Fuel In</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.typeBtn, formType === 'out' && { backgroundColor: '#DC2626', borderColor: '#DC2626' }]}
-                  onPress={() => setFormType('out')}
-                >
-                  <Ionicons name="arrow-up-circle" size={18} color={formType === 'out' ? '#FFF' : '#DC2626'} />
-                  <Text style={[styles.typeBtnText, { color: formType === 'out' ? '#FFF' : '#DC2626' }]}>Fuel Out</Text>
-                </TouchableOpacity>
-              </View>
+      return true;
+    });
+  }, [records, search, timeFilter]);
 
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>Quantity (Liters) *</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                value={formQuantity}
-                onChangeText={setFormQuantity}
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-                placeholderTextColor={colors.textMuted}
-              />
+  const fuelIn = useMemo(
+    () =>
+      filtered
+        .filter((r) => r.type === "in" || r.direction === "in")
+        .reduce((sum, r) => sum + (r.quantity || r.fuelAmount || 0), 0),
+    [filtered],
+  );
 
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>Plate Number</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                value={formPlateNumber}
-                onChangeText={setFormPlateNumber}
-                placeholder="e.g. KCA 123T"
-                placeholderTextColor={colors.textMuted}
-              />
-
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>Driver Name</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, color: colors.text }]}
-                value={formDriverName}
-                onChangeText={setFormDriverName}
-                placeholder="Driver name"
-                placeholderTextColor={colors.textMuted}
-              />
-
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>Notes</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.border, color: colors.text, minHeight: 60 }]}
-                value={formNotes}
-                onChangeText={setFormNotes}
-                placeholder="Optional notes"
-                placeholderTextColor={colors.textMuted}
-                multiline
-              />
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveBtn, saving && { opacity: 0.7 }]}
-                onPress={onSave}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#FFF" size="small" />
-                ) : (
-                  <Text style={styles.saveBtnText}>{isEdit ? 'Update' : 'Create'}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  }
+  const fuelOut = useMemo(
+    () =>
+      filtered
+        .filter((r) => r.type === "out" || r.direction === "out")
+        .reduce((sum, r) => sum + (r.quantity || r.fuelAmount || 0), 0),
+    [filtered],
+  );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.backTitle}>Fuel Records</Text>
-        <TouchableOpacity onPress={openCreateModal} style={styles.addBtn}>
-          <Ionicons name="add-circle" size={28} color="#1B2A4A" />
-        </TouchableOpacity>
+    <PageShell
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={loadData}
+          tintColor={colors.primary}
+        />
+      }
+    >
+      {/* Time filter rail */}
+      <FilterRail
+        options={TIME_FILTERS}
+        value={timeFilter}
+        onChange={setTimeFilter}
+      />
+
+      {/* Stats Row */}
+      <View style={styles.statsRow}>
+        <View
+          style={[
+            styles.statCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Ionicons name="arrow-down-circle" size={18} color="#059669" />
+          <Text style={[styles.statValue, { color: colors.text }]}>
+            {formatNumber(fuelIn)} L
+          </Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+            Fuel In
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.statCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Ionicons name="arrow-up-circle" size={18} color="#DC2626" />
+          <Text style={[styles.statValue, { color: colors.text }]}>
+            {formatNumber(fuelOut)} L
+          </Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+            Cumulative Fuel Out
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.statCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Ionicons name="water" size={18} color="#F59E0B" />
+          <Text style={[styles.statValue, { color: colors.text }]}>
+            {formatNumber(fuelIn - fuelOut)} L
+          </Text>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+            Balance
+          </Text>
+        </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Summary Cards */}
-        <View style={styles.summaryRow}>
-          <View style={[styles.summaryCard, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-            <View style={[styles.summaryIcon, { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="arrow-down-circle" size={24} color="#059669" />
-            </View>
-            <Text style={styles.summaryLabel}>Fuel In</Text>
-            <Text style={[styles.summaryValue, { color: '#059669' }]}>
-              {formatNumber(fuelIn)} L
-            </Text>
-            <Text style={styles.summarySub}>Purchased & stored</Text>
-          </View>
+      <SearchField
+        value={search}
+        onChangeText={setSearch}
+        placeholder="Search job, driver, plate..."
+      />
+      <SectionTitle
+        title={`Fuel Records (${filtered.length})`}
+      />
 
-          <View style={[styles.summaryCard, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
-            <View style={[styles.summaryIcon, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="arrow-up-circle" size={24} color="#DC2626" />
-            </View>
-            <Text style={styles.summaryLabel}>Fuel Out</Text>
-            <Text style={[styles.summaryValue, { color: '#DC2626' }]}>
-              {formatNumber(fuelOut)} L
-            </Text>
-            <Text style={styles.summarySub}>Dispensed to trucks</Text>
-          </View>
-        </View>
-
-        {/* Balance Card */}
-        <Card>
-          <View style={styles.balanceRow}>
-            <View>
-              <Text style={[styles.balanceLabel, { color: colors.textMuted }]}>Net Balance</Text>
-              <Text style={[styles.balanceValue, { color: fuelIn - fuelOut >= 0 ? '#059669' : '#DC2626' }]}>
-                {formatNumber(fuelIn - fuelOut)} L
-              </Text>
-            </View>
-            <Ionicons
-              name={fuelIn - fuelOut >= 0 ? 'trending-up' : 'trending-down'}
-              size={32}
-              color={fuelIn - fuelOut >= 0 ? '#059669' : '#DC2626'}
-            />
-          </View>
-        </Card>
-
-        {/* Recent Records */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Records</Text>
-
-        {loading ? (
-          <LoadingSkeleton lines={5} variant="card" />
-        ) : recentRecords.length === 0 ? (
-          <EmptyState
-            icon="water-outline"
-            title="No fuel records yet"
-            subtitle="Fuel records will appear here once fuel operators start dispensing"
-          />
-        ) : (
-          <View style={styles.recordList}>
-            {recentRecords.map((record: any, i: number) => {
-              const type = getRecordType(record);
-              const qty = record.quantity || record.amount || 0;
-              return (
-                <View
-                  key={record.id || i}
-                  style={[styles.recordCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                >
-                  <TouchableOpacity
-                    style={styles.recordLeft}
-                    onPress={() => openEditModal(record)}
-                    activeOpacity={0.7}
+      {loading ? (
+        <DataCard>
+          <Text style={{ fontSize: 14, color: colors.textMuted }}>
+            Loading...
+          </Text>
+        </DataCard>
+      ) : filtered.length ? (
+        filtered.map((item) => {
+          const type = item.type === "in" || item.direction === "in" ? "in" : "out";
+          const qty = item.quantity || item.fuelAmount || 0;
+          return (
+            <DataCard key={item.id}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginBottom: 0.1,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "800",
+                      color: type === "in" ? "#059669" : "#DC2626",
+                    }}
                   >
-                    <View style={[styles.recordIcon, { backgroundColor: type === 'in' ? '#D1FAE5' : '#FEE2E2' }]}>
-                      <Ionicons
-                        name={type === 'in' ? 'arrow-down-circle' : 'arrow-up-circle'}
-                        size={20}
-                        color={type === 'in' ? '#059669' : '#DC2626'}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.recordTopRow}>
-                        <Text style={[styles.recordType, { color: colors.text }]}>
-                          {type === 'in' ? 'Fuel In' : 'Fuel Out'}
-                        </Text>
-                        <Badge
-                          label={type === 'in' ? 'Incoming' : 'Dispensed'}
-                          variant={type === 'in' ? 'success' : 'danger'}
-                          size="sm"
-                        />
-                      </View>
-                      <Text style={[styles.recordDetail, { color: colors.textMuted }]}>
-                        {record.plateNumber || record.vehicleNumber || record.vendorName || 'N/A'}
-                        {record.driverName ? ` - ${record.driverName}` : ''}
-                      </Text>
-                      <Text style={[styles.recordTime, { color: colors.textMuted }]}>
-                        {record.createdAt || record.date ? formatEAT(record.createdAt || record.date) : ''}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                  <View style={styles.recordActions}>
-                    <Text style={[styles.recordQty, { color: type === 'in' ? '#059669' : '#DC2626' }]}>
-                      {type === 'in' ? '+' : '-'}{formatNumber(qty)}L
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => handleDelete(record)}
-                      style={styles.deleteBtn}
-                    >
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
+                    {type === "in" ? "Fuel In" : "Fuel Out"}
+                  </Text>
                 </View>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Create Modal */}
-      {renderFormModal(false)}
-
-      {/* Edit Modal */}
-      {renderFormModal(true)}
-    </View>
+                <View
+                  style={[
+                    styles.fuelBadge,
+                    {
+                      backgroundColor:
+                        type === "in" ? "#05966915" : "#DC262615",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "800",
+                      color: type === "in" ? "#059669" : "#DC2626",
+                    }}
+                  >
+                    {type === "in" ? "+" : "-"}
+                    {formatNumber(qty)} L
+                  </Text>
+                </View>
+              </View>
+              <DetailRow
+                icon="person-outline"
+                value={`${item.driverName || "N/A"} · ${item.plateNumber || "N/A"}`}
+              />
+              {item.vendorName ? (
+                <DetailRow
+                  icon="business-outline"
+                  value={`Vendor: ${item.vendorName}`}
+                />
+              ) : null}
+              {item.notes ? (
+                <DetailRow icon="document-text-outline" value={item.notes} />
+              ) : null}
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: colors.textTertiary,
+                  marginTop: 0.1,
+                }}
+              >
+                Dispensed: {formatEAT(item.dispensedAt || item.createdAt || item.date)}
+              </Text>
+            </DataCard>
+          );
+        })
+      ) : (
+        <EmptyState
+          icon="water-outline"
+          title="No fuel records"
+          subtitle={
+            timeFilter !== "all"
+              ? "No fuel records found for the selected time period."
+              : "No fuel has been dispensed yet."
+          }
+        />
+      )}
+    </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  statsRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.md },
+  statCard: {
     flex: 1,
-  },
-  backBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginLeft: 4,
-    flex: 1,
-  },
-  addBtn: {
-    padding: 4,
-  },
-  content: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing['4xl'],
-    gap: Spacing.md,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  summaryCard: {
-    flex: 1,
-    borderRadius: Radius.md,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: Spacing.md,
-    alignItems: 'center',
+    padding: Spacing.xs,
+    alignItems: "center",
+    gap: 4,
   },
-  summaryIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.sm,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#64748B',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  summarySub: {
-    fontSize: 10,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    fontSize: 13,
-  },
-  balanceValue: {
-    fontSize: 24,
-    fontWeight: '900',
-    marginTop: 2,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: Spacing.sm,
-  },
-  recordList: {
-    gap: Spacing.sm,
-  },
-  recordCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    padding: Spacing.md,
-  },
-  recordLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    flex: 1,
-  },
-  recordIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recordTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  recordType: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  recordDetail: {
-    fontSize: 12,
-    marginTop: 1,
-  },
-  recordTime: {
-    fontSize: 11,
-    marginTop: 1,
-  },
-  recordQty: {
-    fontSize: 16,
-    fontWeight: '900',
-    marginLeft: Spacing.sm,
-  },
-  recordActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  deleteBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-    paddingBottom: 34,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  modalBody: {
-    padding: Spacing.lg,
-    gap: Spacing.md,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: -4,
-  },
-  input: {
-    height: 48,
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    fontSize: 15,
-  },
-  typeToggle: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  typeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 44,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-  },
-  typeBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E2E8F0',
-  },
-  cancelBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: Radius.md,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  saveBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: Radius.md,
-    backgroundColor: '#1B2A4A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtnText: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
+  statValue: { fontSize: 16, fontWeight: "800" },
+  statLabel: { fontSize: 11, fontWeight: "600" },
+  fuelBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
 });

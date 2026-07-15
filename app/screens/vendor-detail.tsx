@@ -311,7 +311,6 @@ const styles = StyleSheet.create({
   loadingText: { fontSize: 14, marginTop: Spacing.md },
   headerCard: {
     borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.lg,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   headerTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   vendorAvatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
@@ -325,13 +324,12 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
   statCard: {
     width: '48%', borderRadius: Radius.lg, padding: Spacing.md,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   statIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
   statValue: { fontSize: 18, fontWeight: '800' },
   statLabel: { fontSize: 12, marginTop: 2 },
   statSub: { fontSize: 10, marginTop: 1 },
-  progressCard: { borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  progressCard: { borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.lg },
   progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
   progressTitle: { fontSize: 15, fontWeight: '700' },
   progressStat: { fontSize: 13 },
@@ -343,7 +341,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: Spacing.md },
   itemCard: {
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
   itemTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   itemIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
