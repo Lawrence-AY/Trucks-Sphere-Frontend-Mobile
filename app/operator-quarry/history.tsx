@@ -101,57 +101,39 @@ export default function OperatorQuarryHistoryScreen() {
   /* ─── Export Logic ─── */
 
   const exportHeaders = [
-    'Receipt Note',
     'Job ID',
     'PO Number',
-    'Vendor',
-    'Driver',
-    'Truck Plate',
     'Material',
-    'Qty Ordered (t)',
-    'Quarry In (t)',
-    'Quarry Out (t)',
-    'Quarry Net (t)',
-    'Site In (t)',
-    'Site Out (t)',
-    'Site Net (t)',
-    'Expected (t)',
-    'Difference (t)',
-    'Status',
-    'Finalized',
+    'Size/Grade',
+    'Qty Loaded (t)',
+    'Truck Plate',
+    'Driver',
+    'Quarry In-Time',
+    'Quarry Out-Time',
+    'Quarry Geolocation',
+    'Operator',
   ];
 
   const buildExportRows = (records: any[]): string[][] =>
     records.map((r) => {
-      const quarryIn = r.weighInWeight ?? null;
-      const quarryOut = r.weighOutWeight ?? null;
       const quarryNet =
         r.netWeight ??
-        (quarryIn != null && quarryOut != null ? quarryOut - quarryIn : null);
-      const siteIn = r.siteWeighInWeight ?? null;
-      const siteOut = r.siteWeighOutWeight ?? null;
-      const siteNet = r.siteNetWeight ?? r.quantityDelivered ?? null;
-      const diff = r.siteWeightDifference ?? null;
+        (r.weighInWeight != null && r.weighOutWeight != null
+          ? r.weighOutWeight - r.weighInWeight
+          : null);
 
       return [
-        r.receiptNoteId || '—',
         r.jobId || '',
         r.poNumber || '',
-        r.vendorName || '',
-        r.driverName || '',
-        r.plateNumber || '',
         r.materialName || '',
-        String(r.quantityOrdered ?? ''),
-        quarryIn != null ? quarryIn.toFixed(1) : '—',
-        quarryOut != null ? quarryOut.toFixed(1) : '—',
-        quarryNet != null ? quarryNet.toFixed(1) : '—',
-        siteIn != null ? siteIn.toFixed(1) : '—',
-        siteOut != null ? siteOut.toFixed(1) : '—',
-        siteNet != null ? siteNet.toFixed(1) : '—',
-        r.quantityOrdered != null ? r.quantityOrdered.toFixed(1) : '—',
-        diff != null ? `${diff > 0 ? '+' : ''}${diff.toFixed(2)}` : '—',
-        r.status || '',
-        r.receivedAt || r.updatedAt || r.createdAt || '',
+        r.materialSize || r.materialGrade || '—',
+        quarryNet != null ? `${quarryNet.toFixed(1)}` : String(r.quantityOrdered ?? '—'),
+        r.plateNumber || '',
+        r.driverName || '',
+        r.quarryInTime || (r.weighInTime ? new Date(r.weighInTime).toISOString() : '—'),
+        r.quarryOutTime || (r.weighOutTime ? new Date(r.weighOutTime).toISOString() : '—'),
+        r.weighOutGeoLocation?.address || r.weighOutLocation || r.quarryName || '—',
+        r.operatorUsername || r.quarryOperator || '—',
       ];
     });
 
