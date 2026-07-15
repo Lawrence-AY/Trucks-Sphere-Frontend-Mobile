@@ -6,12 +6,25 @@
  */
 import axios from "axios";
 import { getStoredToken, clearAuthData } from "./database";
-import { API_BASE_URL, logApiConfiguration } from "./config";
 
-logApiConfiguration();
+import { Platform } from "react-native";
 
+// Detect environment for API URL
+function getBaseUrl(): string {
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  if (process.env.EXPO_PUBLIC_API_IP)
+    return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
+  if (Platform.OS === "android") return "http://10.0.2.2:5000";
+  return "http://192.168.1.211:5000";
+}
 
+const API_BASE_URL = getBaseUrl();
 
+console.log("[API] Base URL:", API_BASE_URL);
+console.log("[API] Platform:", Platform.OS, "| ENV vars:", {
+  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL || "(not set)",
+  EXPO_PUBLIC_API_IP: process.env.EXPO_PUBLIC_API_IP || "(not set)",
+});
 
 // ============== HTTP Helpers ==============
 
@@ -801,6 +814,31 @@ export async function downloadCategoryCSV(
   } catch (error: any) {
     console.error('[API] downloadCategoryCSV failed:', error?.message || error);
     throw error;
+  }
+}
+
+// ============== Password Self-Service ==============
+
+/**
+ * Change the authenticated user's password.
+ * Requires current password verification.
+ */
+export async function changePassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<any> {
+  try {
+    console.log('[API] Changing password...');
+    const result = await backendRequest<any>(
+      'post',
+      '/api/auth/change-password',
+      payload,
+    );
+    return result;
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || error?.message || 'Failed to change password.';
+    throw new Error(msg);
   }
 }
 
