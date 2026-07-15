@@ -109,9 +109,7 @@ const DRAWER_SECTIONS: DrawerSection[] = [
     title: 'Locations',
     icon: 'location-outline',
     items: [
-      { label: 'Quarries', icon: 'business-outline', route: '/management/quarries' },
-      { label: 'Sites', icon: 'trail-sign-outline', route: '/management/sites' },
-      { label: 'Fuel Records', icon: 'water-outline', route: '/management/fuel-records' },
+      { label: 'Fuel Records', icon: 'water-outline', route: '/management/fuel' },
     ],
   },
   {
@@ -120,7 +118,6 @@ const DRAWER_SECTIONS: DrawerSection[] = [
     items: [
       { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports' },
       { label: 'Analytics', icon: 'stats-chart-outline', route: '/management/analytics' },
-      { label: 'Audit Logs', icon: 'receipt-outline', route: '/management/audit-logs' },
       { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
     ],
   },
@@ -264,8 +261,10 @@ export default function ManagementLayout() {
             'vendors': 'Vendors',
             'purchase-orders': 'Purchase Orders',
             'vehicles': 'Vehicles',
+            'materials/[id]': 'Material Details',
+            'materials/edit/[id]': 'Edit Material',
           };
-          const hideHeader = tabName === 'drivers/[id]' || tabName === 'drivers/create';
+          const hideHeader = tabName === 'drivers/[id]' || tabName === 'drivers/create' || tabName === 'materials/[id]' || tabName === 'materials/create' || tabName === 'materials/edit/[id]';
           return (
             <Tabs.Screen
               key={tabName}

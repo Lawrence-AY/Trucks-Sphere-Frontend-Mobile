@@ -20,7 +20,7 @@ import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 
 const BOTTOM_TABS = ['dashboard', 'weights', 'history'];
-const HIDDEN_TABS = ['profile', 'settings', 'receive', 'materials'];
+const HIDDEN_TABS = ['profile', 'settings', 'receive', 'materials', 'downloads'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   dashboard: { icon: 'calendar-outline', label: 'Schedule' },
@@ -30,9 +30,10 @@ const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: s
 
 // Menu items for operator site drawer — includes Issues
 const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
+  { label: 'Downloads', icon: 'cloud-download-outline', route: '/operator-site/downloads' },
   { label: 'Issues', icon: 'warning-outline', route: '/screens/issues' },
   { label: 'Profile', icon: 'person-outline', route: '/operator-site/profile' },
-  { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
+  { label: 'Settings', icon: 'settings-outline', route: '/operator-site/settings' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
 

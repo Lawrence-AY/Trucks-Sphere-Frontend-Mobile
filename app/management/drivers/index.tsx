@@ -29,6 +29,8 @@ import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
+import { fetchVendors } from '../../../services/api';
+
 
 export default function DriverListScreen() {
   const colors = useTheme();
@@ -37,7 +39,7 @@ export default function DriverListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [vendorNameMap, setVendorNameMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadDrivers();
@@ -45,12 +47,24 @@ export default function DriverListScreen() {
 
   useEffect(() => {
     filterDrivers();
-  }, [search, statusFilter, drivers]);
+  }, [search, drivers]);
 
   async function loadDrivers() {
     try {
-      const data = await driverRepository.getAll();
-      setDrivers(data);
+      // Fetch drivers and vendors in parallel, then resolve vendor names
+      const [driverData, vendorData] = await Promise.all([
+        driverRepository.getAll(),
+        fetchVendors(),
+      ]);
+
+      // Build vendor name lookup: vendorId → vendor name
+      const nameMap: Record<string, string> = {};
+      vendorData.forEach((v: any) => {
+        nameMap[v.id] = v.name || v.companyName || 'Unknown';
+      });
+      setVendorNameMap(nameMap);
+
+      setDrivers(driverData);
     } catch {
       // Error handled silently
     } finally {
@@ -81,9 +95,6 @@ export default function DriverListScreen() {
           );
         }
       );
-    }
-    if (statusFilter !== 'all') {
-      result = result.filter((d) => d.status === statusFilter);
     }
     setFiltered(result);
   }
@@ -117,7 +128,7 @@ export default function DriverListScreen() {
             <View style={styles.vendorRow}>
               <Ionicons name="business-outline" size={12} color={colors.textMuted} />
               <Text style={[styles.vendorLabel, { color: colors.textMuted }]} numberOfLines={1}>
-                {item.vendorName || '—'}
+                {item.vendorName || vendorNameMap[item.vendorId] || '—'}
               </Text>
             </View>
           </View>
@@ -178,31 +189,6 @@ export default function DriverListScreen() {
           )}
         </View>
 
-        {/* Status Filter */}
-        <View style={styles.filterRow}>
-          {['all', 'active', 'inactive', 'suspended', 'on_trip'].map((status) => (
-            <TouchableOpacity
-              key={status}
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: statusFilter === status ? colors.primary : colors.surface,
-                  borderColor: statusFilter === status ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setStatusFilter(status)}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  { color: statusFilter === status ? '#FFFFFF' : colors.textMuted },
-                ]}
-              >
-                {status === 'on_trip' ? 'On Trip' : status.charAt(0).toUpperCase() + status.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </View>
 
       <FlatList
@@ -271,21 +257,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  filterChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   list: {
     padding: Spacing.md,

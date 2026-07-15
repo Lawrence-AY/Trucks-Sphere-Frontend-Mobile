@@ -161,11 +161,7 @@ export class BaseRepository<T extends { id: string }> {
    */
   private async fetchAndCache(params?: Record<string, string>): Promise<T[]> {
     try {
-      const token = await getStoredToken();
-      const response = await api.get(this.config.apiPath, {
-        params,
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get(this.config.apiPath, params);
 
       let items: T[] = [];
       const data = response.data;

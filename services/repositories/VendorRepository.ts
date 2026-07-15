@@ -95,11 +95,11 @@ class VendorRepository extends BaseRepository<Vendor> {
 
   /**
    * Get vendor documents.
-   * Gracefully skips API call for fallback/invalid vendor IDs like "v1".
+   * Gracefully skips API call for fallback/invalid vendor IDs.
    */
   async getDocuments(vendorId: string): Promise<any[]> {
     // Skip invalid / fallback vendor IDs to avoid 404 errors
-    if (!vendorId || vendorId === 'v1' || vendorId.length < 5) {
+    if (!vendorId || vendorId.length < 3) {
       return [];
     }
     try {

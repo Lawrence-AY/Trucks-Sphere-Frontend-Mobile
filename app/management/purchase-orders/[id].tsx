@@ -268,31 +268,10 @@ export default function PurchaseOrderDetailScreen() {
                 {po.poNumber || po.id}
               </Text>
               <Text style={[styles.poVendor, { color: colors.textMuted }]}>
-                {po.vendorName || 'Unknown Vendor'}
+                {po.companyName || po.vendorName || 'Unknown Vendor'}
               </Text>
             </View>
             {getStatusBadge(po.status)}
-          </View>
-
-          {/* Progress */}
-          <View style={styles.progressSection}>
-            <View style={styles.progressRow}>
-              <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
-                {formatNumber(delivered)} / {formatNumber(po.quantity || 0)} {po.unit || 'units'} delivered
-              </Text>
-              <Text style={[styles.progressPercent, { color: colors.primary }]}>{progress}%</Text>
-            </View>
-            <View style={[styles.progressBar, { backgroundColor: colors.inputBg }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    backgroundColor: progress >= 100 ? colors.success : colors.primary,
-                    width: `${progress}%`,
-                  },
-                ]}
-              />
-            </View>
           </View>
 
           {/* Actions */}
@@ -357,7 +336,7 @@ export default function PurchaseOrderDetailScreen() {
 function DetailsTab({ po, colors }: { po: PurchaseOrder; colors: any }) {
   const fields = [
     { label: 'PO Number', value: po.poNumber || po.id, icon: 'finger-print-outline' },
-    { label: 'Vendor', value: po.vendorName, icon: 'business-outline' },
+    { label: 'Company Name', value: po.companyName || po.vendorName || '-', icon: 'business-outline' },
     { label: 'Material', value: po.materialName, icon: 'cube-outline' },
     { label: 'Quantity', value: `${formatNumber(po.quantity || 0)} ${po.unit || 'units'}`, icon: 'scale-outline' },
     { label: 'Delivered', value: formatNumber(po.quantityDelivered || po.deliveredQuantity || 0), icon: 'checkmark-circle-outline' },

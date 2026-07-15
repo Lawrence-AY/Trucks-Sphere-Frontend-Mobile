@@ -10,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,7 +51,7 @@ export default function LoginScreen() {
     try {
       await login(username.trim(), password);
     } catch (err: any) {
-      setLocalError(err.message || 'Invalid credentials. Try admin / password');
+      setLocalError(err.message || 'Invalid credentials. Please check your username and password.');
     }
   };
 
@@ -61,9 +62,7 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={styles.panel}>
           <View style={styles.brand}>
-            <View style={styles.logoMark}>
-              <Text style={styles.logoLetters}>TS</Text>
-            </View>
+          
             <Text style={styles.brandName}>TRUCK<Text style={styles.brandAccent}>SPHERE</Text></Text>
             <Text style={styles.tagline}>Fleet operations</Text>
           </View>
@@ -141,14 +140,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#E2E8F0',
   },
   brand: { alignItems: 'center', marginBottom: Spacing.lg },
-  logoMark: {
-    width: 56, height: 56, borderRadius: 16,
-    borderWidth: 2, borderColor: '#1B2A4A',
-    alignItems: 'center', justifyContent: 'center',
+  appIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 16,
     marginBottom: Spacing.md,
-    backgroundColor: '#1B2A4A10',
   },
-  logoLetters: { color: '#1B2A4A', fontSize: 22, fontWeight: '700' },
   brandName: { color: '#1E293B', fontSize: 20, fontWeight: '700' },
   brandAccent: { color: '#1B2A4A' },
   tagline: { color: '#94A3B8', marginTop: 4, fontSize: 14 },

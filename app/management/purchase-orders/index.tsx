@@ -4,7 +4,6 @@
  * Features:
  *   - List all POs with status badges
  *   - Search by PO number, vendor, material
- *   - Filter by status
  *   - Create new PO
  *   - Tap to view/edit PO details
  *   - Pull to refresh
@@ -20,6 +19,7 @@ import {
   TouchableOpacity,
   TextInput,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -33,8 +33,6 @@ import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { purchaseOrderRepository } from '../../../services/repositories/PurchaseOrderRepository';
 import { PurchaseOrder } from '../../../store/types';
 import { formatEAT, formatNumber } from '../../../utils/helpers';
-
-const STATUS_FILTERS = ['all', 'draft', 'approved', 'in_progress', 'completed', 'cancelled', 'archived'];
 
 const STATUS_BADGE: Record<string, { variant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple'; label: string }> = {
   draft: { variant: 'default', label: 'Draft' },
@@ -53,7 +51,6 @@ export default function PurchaseOrderListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     loadOrders();
@@ -61,7 +58,7 @@ export default function PurchaseOrderListScreen() {
 
   useEffect(() => {
     filterOrders();
-  }, [search, statusFilter, orders]);
+  }, [search, orders]);
 
   async function loadOrders() {
     try {
@@ -93,9 +90,6 @@ export default function PurchaseOrderListScreen() {
           po.id?.toLowerCase().includes(q)
       );
     }
-    if (statusFilter !== 'all') {
-      result = result.filter((po) => po.status === statusFilter);
-    }
     setFiltered(result);
   }
 
@@ -124,7 +118,7 @@ export default function PurchaseOrderListScreen() {
               {item.poNumber || item.id}
             </Text>
             <Text style={[styles.poVendor, { color: colors.textMuted }]} numberOfLines={1}>
-              {item.vendorName || 'Unknown Vendor'}
+              {item.companyName || item.vendorName || 'Unknown Vendor'}
             </Text>
           </View>
           {getStatusBadge(item.status)}
@@ -145,27 +139,6 @@ export default function PurchaseOrderListScreen() {
           </View>
         </View>
 
-        {/* Progress Bar */}
-        <View style={styles.progressSection}>
-          <View style={styles.progressRow}>
-            <Text style={[styles.progressLabel, { color: colors.textMuted }]}>
-              {formatNumber(item.quantityDelivered || 0)} / {formatNumber(item.quantity || 0)} delivered
-            </Text>
-            <Text style={[styles.progressPercent, { color: colors.primary }]}>{progress}%</Text>
-          </View>
-          <View style={[styles.progressBar, { backgroundColor: colors.inputBg }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: progress >= 100 ? colors.success : colors.primary,
-                  width: `${progress}%`,
-                },
-              ]}
-            />
-          </View>
-        </View>
-
         <View style={styles.poFooter}>
           <Text style={[styles.footerText, { color: colors.textMuted }]}>
             Created {item.createdAt ? formatEAT(item.createdAt) : '-'}
@@ -176,6 +149,46 @@ export default function PurchaseOrderListScreen() {
             </Text>
           )}
         </View>
+
+        {/* Action Buttons */}
+        {item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'archived' && (
+          <View style={styles.poActions}>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: colors.primary + '15' }]}
+              onPress={() => router.push(`/management/purchase-orders/edit/${item.id}` as any)}
+            >
+              <Ionicons name="create-outline" size={16} color={colors.primary} />
+              <Text style={[styles.actionBtnText, { color: colors.primary }]}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: '#FEF2F2' }]}
+              onPress={async () => {
+                Alert.alert(
+                  'Cancel Order',
+                  `Are you sure you want to cancel PO ${item.poNumber || item.id}?`,
+                  [
+                    { text: 'No', style: 'cancel' },
+                    {
+                      text: 'Yes, Cancel',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await purchaseOrderRepository.update(item.id, { status: 'cancelled' });
+                          loadOrders();
+                        } catch (err) {
+                          Alert.alert('Error', 'Failed to cancel purchase order');
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
+              <Text style={[styles.actionBtnText, { color: '#EF4444' }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </TouchableOpacity>
     );
   }
@@ -209,7 +222,7 @@ export default function PurchaseOrderListScreen() {
           </View>
           <Button
             title="Create PO"
-            onPress={() => router.push('/management/purchase-orders/create' as any)}
+            onPress={() => router.push('/screens/purchase-order?new=true' as any)}
             icon="add-circle-outline"
             size="sm"
           />
@@ -231,36 +244,6 @@ export default function PurchaseOrderListScreen() {
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Status Filter */}
-        <FlatList
-          horizontal
-          data={STATUS_FILTERS}
-          keyExtractor={(s) => s}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-          renderItem={({ item: status }) => (
-            <TouchableOpacity
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: statusFilter === status ? colors.primary : colors.surface,
-                  borderColor: statusFilter === status ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setStatusFilter(status)}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  { color: statusFilter === status ? '#FFFFFF' : colors.textMuted },
-                ]}
-              >
-                {status === 'in_progress' ? 'In Progress' : status.charAt(0).toUpperCase() + status.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
       </View>
 
       <FlatList
@@ -277,7 +260,7 @@ export default function PurchaseOrderListScreen() {
             title={search ? 'No POs found' : 'No purchase orders yet'}
             subtitle={search ? 'Try a different search term' : 'Create your first purchase order'}
             actionLabel={search ? undefined : 'Create PO'}
-            onAction={search ? undefined : () => router.push('/management/purchase-orders/create' as any)}
+            onAction={search ? undefined : () => router.push('/screens/purchase-order?new=true' as any)}
           />
         }
       />
@@ -342,20 +325,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-  },
-  filterRow: {
-    gap: Spacing.sm,
-    paddingBottom: Spacing.sm,
-  },
-  filterChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   list: {
     padding: Spacing.md,
@@ -432,5 +401,26 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 11,
+  },
+  poActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingTop: Spacing.sm,
+    marginTop: Spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: Radius.md,
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

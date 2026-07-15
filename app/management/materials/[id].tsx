@@ -37,8 +37,6 @@ import { formatEAT } from '../../../utils/helpers';
 
 const MATERIAL_TABS = [
   { name: 'details', label: 'Details', icon: 'information-circle-outline' as const },
-  { name: 'properties', label: 'Properties', icon: 'settings-outline' as const },
-  { name: 'usage', label: 'Usage', icon: 'briefcase-outline' as const },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -306,7 +304,7 @@ export default function MaterialDetailScreen() {
           <View style={styles.actionsRow}>
             <Button
               title="Edit"
-              onPress={() => Alert.alert('Coming Soon', 'Edit functionality coming soon')}
+              onPress={() => router.push(`/management/materials/edit/${material.id}` as any)}
               variant="secondary"
               size="sm"
               icon="create-outline"
@@ -331,8 +329,6 @@ export default function MaterialDetailScreen() {
         {/* Tab Content */}
         <View style={{ marginTop: Spacing.md }}>
           {activeTab === 'details' && renderDetails()}
-          {activeTab === 'properties' && renderProperties()}
-          {activeTab === 'usage' && renderUsage()}
         </View>
       </ScrollView>
 

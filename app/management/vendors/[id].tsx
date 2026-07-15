@@ -11,7 +11,7 @@
  *   - Performance metrics
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
@@ -65,19 +65,38 @@ export default function VendorDetailScreen() {
     if (id) loadVendor();
   }, [id]);
 
+  // Auto-reload drivers and vehicles when screen regains focus
+  // (e.g. after creating a driver/vehicle and navigating back)
+  useFocusEffect(
+    useCallback(() => {
+      if (id && vendor) {
+        Promise.all([
+          vendorRepository.getDrivers(vendor.id),
+          vendorRepository.getVehicles(vendor.id),
+        ]).then(([d, veh]) => {
+          setDrivers(d);
+          setVehicles(veh);
+        }).catch(() => {});
+      }
+    }, [id, vendor])
+  );
+
   async function loadVendor() {
     setLoading(true);
     try {
-      const [v, d, veh, docs] = await Promise.all([
-        vendorRepository.getById(id!),
-        vendorRepository.getDrivers(id!),
-        vendorRepository.getVehicles(id!),
-        vendorRepository.getDocuments(id!),
-      ]);
+      const v = await vendorRepository.getById(id!);
       setVendor(v);
-      setDrivers(d);
-      setVehicles(veh);
-      setDocuments(docs);
+      if (v) {
+        const vendorId = v.id || v.vendorId || '';
+        const [d, veh, docs] = await Promise.all([
+          vendorId ? vendorRepository.getDrivers(vendorId) : Promise.resolve([]),
+          vendorId ? vendorRepository.getVehicles(vendorId) : Promise.resolve([]),
+          vendorId ? vendorRepository.getDocuments(vendorId) : Promise.resolve([]),
+        ]);
+        setDrivers(d);
+        setVehicles(veh);
+        setDocuments(docs);
+      }
     } catch {
       Alert.alert('Error', 'Failed to load vendor details');
     } finally {
@@ -144,13 +163,18 @@ export default function VendorDetailScreen() {
             </Text>
           </View>
           <View style={styles.headerInfo}>
-            <Text style={[styles.vendorName, { color: colors.text }]}>
-              {vendor.companyName || 'Unknown Vendor'}
-            </Text>
-            <Text style={[styles.vendorId, { color: colors.textMuted }]}>
-              {vendor.vendorId || vendor.id}
-            </Text>
-            {getStatusBadge(vendor.status)}
+              <Text style={[styles.vendorName, { color: colors.text }]}>
+                {vendor.companyName || 'Unknown Vendor'}
+              </Text>
+              <Text style={[styles.vendorId, { color: colors.textMuted }]}>
+                {vendor.vendorId || vendor.id} · {vendor.contactPerson || 'No contact'}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                {getStatusBadge(vendor.status)}
+                <Text style={[styles.vendorId, { color: colors.textMuted }]}>
+                  {vendor.phone || ''}
+                </Text>
+              </View>
           </View>
         </View>
 

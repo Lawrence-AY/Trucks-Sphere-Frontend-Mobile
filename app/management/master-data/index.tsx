@@ -69,7 +69,7 @@ export default function MasterDataScreen() {
           label: 'Vehicles',
           icon: 'car-outline',
           color: '#10B981',
-          route: '/management/vehicles',
+          route: '/management/trucks',
           count: vehicles.length,
         },
         {
@@ -97,27 +97,11 @@ export default function MasterDataScreen() {
           count: pos.length,
         },
         {
-          key: 'quarries',
-          label: 'Quarries',
-          icon: 'map-outline',
-          color: '#14B8A6',
-          route: '/management/quarries',
-          count: 0,
-        },
-        {
-          key: 'sites',
-          label: 'Sites',
-          icon: 'location-outline',
-          color: '#F97316',
-          route: '/management/sites',
-          count: 0,
-        },
-        {
-          key: 'fuel-stations',
-          label: 'Fuel Stations',
+          key: 'fuel-records',
+          label: 'Fuel Records',
           icon: 'flame-outline',
           color: '#EC4899',
-          route: '/management/fuel-stations',
+          route: '/management/fuel',
           count: 0,
         },
         {
@@ -126,14 +110,6 @@ export default function MasterDataScreen() {
           icon: 'person-circle-outline',
           color: '#6366F1',
           route: '/management/users',
-          count: 0,
-        },
-        {
-          key: 'roles',
-          label: 'Roles & Permissions',
-          icon: 'shield-checkmark-outline',
-          color: '#84CC16',
-          route: '/management/roles',
           count: 0,
         },
       ]);
@@ -179,9 +155,6 @@ export default function MasterDataScreen() {
               <Ionicons name={tile.icon} size={24} color={tile.color} />
             </View>
             <Text style={[styles.tileLabel, { color: colors.text }]}>{tile.label}</Text>
-            <View style={[styles.tileCount, { backgroundColor: tile.color + '20' }]}>
-              <Text style={[styles.tileCountText, { color: tile.color }]}>{tile.count}</Text>
-            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>

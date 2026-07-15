@@ -17,6 +17,7 @@ import { Radius, Spacing } from '../../constants/theme';
 import { updateDeliveryOrder } from '../../services/api';
 import { useDeliveryOrders } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useAuthStore } from '../../store/authStore';
 import { formatEAT } from '../../utils/helpers';
 import {
   DataCard,
@@ -29,6 +30,7 @@ import {
 
 export default function OperatorQuarryWeighInScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -45,11 +47,17 @@ export default function OperatorQuarryWeighInScreen() {
     setRefreshing(false);
   }, [refresh]);
 
+  // Scope to operator's assigned quarry
+  const operatorQuarryId = (user as any)?.quarryId || '';
+
   // Jobs that haven't been weighed in yet and aren't cancelled/completed
-  const deliveries = useMemo(() =>
-    allDeliveries.filter((d: any) => !d.weighInWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status)),
-    [allDeliveries]
-  );
+  const deliveries = useMemo(() => {
+    let filtered = allDeliveries.filter((d: any) => !d.weighInWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status));
+    if (operatorQuarryId) {
+      filtered = filtered.filter((d: any) => !d.quarryId || d.quarryId === operatorQuarryId);
+    }
+    return filtered;
+  }, [allDeliveries, operatorQuarryId]);
 
   // Build sets of trucks/drivers already on an active job
   const busyDriverIds = new Set<string>();
@@ -94,6 +102,8 @@ export default function OperatorQuarryWeighInScreen() {
         weighInWeight: numericWeight,
         weighInAt: now,
         weighInLocation: activeJob.quarryName ? `${activeJob.quarryName} Gate` : 'Quarry Gate',
+        weighInByUid: user?.uid || '',
+        weighInByName: user?.displayName || user?.name || 'Quarry Operator',
         status: 'at_quarry',
         updatedAt: now,
       });

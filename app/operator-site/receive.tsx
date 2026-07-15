@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
+import { fetchDeliveryOrders, fetchQuarries, updateDeliveryOrder } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import {
   DataCard,
@@ -35,16 +35,22 @@ export default function OperatorSiteReceiveScreen() {
   const [activeJob, setActiveJob] = useState<any>(null);
   const [weightIn, setWeightIn] = useState('');
   const [weightOut, setWeightOut] = useState('');
+  const [lotNumber, setLotNumber] = useState('');
   const [saving, setSaving] = useState(false);
+  const [quarries, setQuarries] = useState<any[]>([]);
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const data = (await fetchDeliveryOrders()) || [];
+      const [data, quarriesData] = await Promise.all([
+        fetchDeliveryOrders(),
+        fetchQuarries(),
+      ]);
       // Show jobs that have been dispatched from quarry (loaded/in_transit) and haven't been fully site-processed yet
-      setDeliveries(data.filter((d: any) =>
+      setDeliveries((data || []).filter((d: any) =>
         ['loaded', 'dispatched', 'in_transit', 'en_route'].includes(d.status)
       ));
+      setQuarries(quarriesData || []);
     } catch {
     } finally {
       setRefreshing(false);
@@ -53,6 +59,15 @@ export default function OperatorSiteReceiveScreen() {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  // Resolve quarry name from quarries collection
+  const resolveQuarryName = (job: any): string => {
+    if (job.quarryId && quarries.length) {
+      const match = quarries.find((q: any) => q.id === job.quarryId);
+      if (match) return match.name || job.quarryName || '—';
+    }
+    return job.quarryName || '—';
+  };
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -63,21 +78,18 @@ export default function OperatorSiteReceiveScreen() {
     setActiveJob(job);
     setWeightIn(job.siteWeighInWeight ? String(job.siteWeighInWeight) : '');
     setWeightOut(job.siteWeighOutWeight ? String(job.siteWeighOutWeight) : '');
+    setLotNumber(job.storageLot || job.lotNumber || job.destinationLot || '');
   };
 
   const closeReceiveForm = () => {
     setActiveJob(null);
     setWeightIn('');
     setWeightOut('');
+    setLotNumber('');
     setSaving(false);
   };
 
-  const handleSiteWeighIn = async () => {
-    const numericWeight = parseFloat(weightIn);
-    if (isNaN(numericWeight) || numericWeight <= 0) {
-      Alert.alert('Invalid Weight', 'Please enter a valid arrival weight.');
-      return;
-    }
+  const doSiteWeighIn = async (numericWeight: number) => {
     setSaving(true);
     try {
       const now = new Date().toISOString();
@@ -85,6 +97,7 @@ export default function OperatorSiteReceiveScreen() {
         siteWeighInWeight: numericWeight,
         siteWeighInAt: now,
         status: 'site_in',
+        storageLot: lotNumber || undefined,
         updatedAt: now,
       });
       setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
@@ -95,6 +108,34 @@ export default function OperatorSiteReceiveScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSiteWeighIn = async () => {
+    const numericWeight = parseFloat(weightIn);
+    if (isNaN(numericWeight) || numericWeight <= 0) {
+      Alert.alert('Invalid Weight', 'Please enter a valid arrival weight.');
+      return;
+    }
+
+    // ─── Variance Check: compare quarry weighOut weight vs site weighIn ───
+    // If the weight difference between quarry weighOut and site weighIn is more than 5 tonnes, flag it
+    const quarryWeighOut = activeJob?.weighOutWeight || 0;
+    if (quarryWeighOut > 0) {
+      const weightDiff = Math.abs(quarryWeighOut - numericWeight);
+      if (weightDiff > 5.0) {
+        Alert.alert(
+          '⚠️ Weight Variance Alert',
+          `The Site Arrival Weight (${numericWeight.toFixed(1)}T) differs by ${weightDiff.toFixed(1)}T from the Quarry Weigh Out (${quarryWeighOut.toFixed(1)}T).\n\nThis exceeds the 5.0 tonne tolerance. Please verify before proceeding.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Proceed Anyway', onPress: () => doSiteWeighIn(numericWeight) },
+          ],
+        );
+        return;
+      }
+    }
+
+    doSiteWeighIn(numericWeight);
   };
 
   const handleSiteWeighOut = async () => {
@@ -152,7 +193,28 @@ export default function OperatorSiteReceiveScreen() {
           <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
           <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
           <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
-          <DetailRow icon="location-outline" value={`Origin: ${activeJob.quarryName || '—'} → Dest: ${activeJob.siteName || '—'}`} />
+          <DetailRow icon="location-outline" value={`Origin: ${resolveQuarryName(activeJob)} → Dest: ${activeJob.siteName || '—'}`} />
+          {/* Lot Number Input */}
+          <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.inputHeader}>
+              <View style={[styles.inputIcon, { backgroundColor: '#F59E0B15' }]}>
+                <Ionicons name="pricetag-outline" size={22} color="#F59E0B" />
+              </View>
+              <Text style={[styles.inputTitle, { color: colors.text }]}>Storage Lot Number</Text>
+            </View>
+            <Text style={[styles.inputSub, { color: colors.textMuted }]}>
+              Assign a lot/storage location for this delivery.
+            </Text>
+            <View style={[styles.lotInputWrap, { borderColor: '#F59E0B', backgroundColor: colors.inputBg }]}>
+              <TextInput
+                style={[styles.weightInput, { color: colors.text }]}
+                placeholder="e.g. LOT-A12"
+                placeholderTextColor={colors.textTertiary}
+                value={lotNumber}
+                onChangeText={setLotNumber}
+              />
+            </View>
+          </View>
           {activeJob.netWeight != null && (
             <DetailRow icon="scale-outline" value={`Quarry Net: ${Number(activeJob.netWeight).toFixed(1)} tonnes`} />
           )}
@@ -298,6 +360,7 @@ const styles = StyleSheet.create({
   inputTitle: { fontSize: 18, fontWeight: '700', flex: 1 },
   inputSub: { fontSize: 13, marginBottom: Spacing.md },
   weightInputWrap: { borderRadius: Radius.md, borderWidth: 2, paddingHorizontal: Spacing.md, height: 64, flexDirection: 'row', alignItems: 'center' },
+  lotInputWrap: { borderRadius: Radius.md, borderWidth: 2, paddingHorizontal: Spacing.md, height: 52, flexDirection: 'row', alignItems: 'center' },
   weightInput: { flex: 1, fontSize: 28, fontWeight: '800' },
   weightSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
   saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm, minHeight: 50, marginTop: Spacing.sm },

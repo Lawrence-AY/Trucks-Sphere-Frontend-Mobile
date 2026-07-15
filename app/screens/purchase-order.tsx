@@ -41,7 +41,7 @@ function ModalPicker({ label, value, options, onSelect, icon }: { label: string;
         </TouchableOpacity>
       </View>
 
-      <Modal visible={visible} animationType="slide" transparent presentationStyle="pageSheet">
+      <Modal visible={visible} animationType="slide">
         <View style={[styles.modalOverlay, { backgroundColor: colors.background }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Select {label}</Text>
@@ -194,7 +194,7 @@ export default function PurchaseOrderScreen() {
       materialId: materialId,
       materialName: selectedMaterial ? selectedMaterial.name || '' : '',
       vendorId: vendorId,
-      vendorName: selectedVendor ? selectedVendor.name || '' : '',
+      vendorName: selectedVendor ? selectedVendor.companyName || selectedVendor.name || '' : '',
       quantity: qty,
       unit: selectedMaterial ? selectedMaterial.unit || 'tons' : 'tons',
       status: 'pending',
@@ -202,11 +202,11 @@ export default function PurchaseOrderScreen() {
     }).then(function (res: any) {
       const newPoNumber = res?.data?.poNumber || res?.poNumber || 'POMAT###';
       Alert.alert('Success', 'Purchase Order ' + newPoNumber + ' created!', [
-        { text: 'View Orders', onPress: function () { router.replace('/management/orders'); } },
+        { text: 'OK', onPress: function () { router.back(); } },
       ]);
     }).catch(function (err: any) {
-      var msg = err?.response?.data?.message || 'Failed to create purchase order';
-      Alert.alert('Error', msg);
+      var msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to create purchase order';
+      Alert.alert('Duplicate Order', msg);
     })
       .finally(function () { setSaving(false); });
   }
@@ -219,17 +219,10 @@ export default function PurchaseOrderScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
         <ScrollView contentContainerStyle={styles.content}>
-          {/* Back + Title */}
-          <View style={styles.createHeader}>
-            <TouchableOpacity onPress={() => router.back()} style={{ padding: 4 }}>
-              <Ionicons name="arrow-back" size={22} color={colors.text} />
-            </TouchableOpacity>
-            <Text style={[styles.createTitle, { color: colors.text }]}>New Purchase Order</Text>
-            <View style={{ width: 22 }} />
-          </View>
+         
           <View style={[styles.receipt, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <ModalPicker label="Material" value={materialId} options={materials.map(function (m) { return { id: m.id, name: (m.name || m.id) + ' (' + formatMaterialId(m.id) + ')' }; })} onSelect={setMaterialId} icon="cube-outline" />
-            <ModalPicker label="Vendor" value={vendorId} options={vendors.map(function (v) { return { id: v.id, name: (v.name || v.id) + ' (' + formatVendorId(v.id) + ')' }; })} onSelect={setVendorId} icon="business-outline" />
+            <ModalPicker label="Vendor" value={vendorId} options={vendors.map(function (v) { return { id: v.id, name: (v.companyName || v.name || v.id) + ' (' + formatVendorId(v.id) + ')' }; })} onSelect={setVendorId} icon="business-outline" />
 
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.textMuted }]}>Quantity</Text>
@@ -248,8 +241,7 @@ export default function PurchaseOrderScreen() {
                 ) : (
                   <ActivityIndicator size="small" color={colors.accent} />
                 )}
-                <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>Number assigned on save</Text>
-              </View>
+               </View>
             ) : null}
 
             <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.accent, opacity: saving ? 0.7 : 1 }]} onPress={handleCreate} disabled={saving}>
@@ -276,6 +268,7 @@ export default function PurchaseOrderScreen() {
               <PORow label="Material" value={order.materialName} />
               <PORow label="Vendor" value={order.vendorName} />
               <PORow label="Quantity" value={order.quantity + ' ' + order.unit} bold />
+              <PORow label="Created At" value={order.createdAt ? formatEAT(order.createdAt) : '-'} />
             </View>
           </View>
         )}

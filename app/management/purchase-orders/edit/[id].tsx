@@ -18,6 +18,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../../constants/theme';
@@ -119,7 +120,7 @@ export default function EditPurchaseOrderScreen() {
 
       await purchaseOrderRepository.update(id!, {
         vendorId: form.vendorId,
-        vendorName: selectedVendor?.companyName || '',
+        vendorName: selectedVendor?.companyName || (selectedVendor as any)?.name || '',
         materialId: form.materialId,
         materialName: selectedMaterial?.name || '',
         quantity: parseFloat(form.quantity),
@@ -170,7 +171,7 @@ export default function EditPurchaseOrderScreen() {
           <Select
             label="Vendor"
             value={form.vendorId}
-            options={vendors.map((v) => ({ id: v.id, name: v.companyName }))}
+            options={vendors.map((v) => ({ id: v.id, name: v.companyName || (v as any).name || 'Unknown Vendor', subtitle: v.vendorId }))}
             onSelect={(v) => updateField('vendorId', v)}
             icon="business-outline"
             required
@@ -178,19 +179,33 @@ export default function EditPurchaseOrderScreen() {
             placeholder="Select vendor..."
           />
 
-          <Select
-            label="Material"
-            value={form.materialId}
-            options={filteredMaterials.map((m) => ({
-              id: m.id,
-              name: `${m.name} (${m.category})`,
-            }))}
-            onSelect={(v) => updateField('materialId', v)}
-            icon="cube-outline"
-            required
-            error={errors.materialId}
-            placeholder={form.vendorId ? 'Select material...' : 'Select vendor first...'}
-          />
+          {po?.status === 'draft' ? (
+            <Select
+              label="Material"
+              value={form.materialId}
+              options={filteredMaterials.map((m) => ({
+                id: m.id,
+                name: `${m.name} (${m.category})`,
+              }))}
+              onSelect={(v) => updateField('materialId', v)}
+              icon="cube-outline"
+              required
+              error={errors.materialId}
+              placeholder={form.vendorId ? 'Select material...' : 'Select vendor first...'}
+            />
+          ) : (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>
+                Material *
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 16, gap: 8, borderColor: colors.border, backgroundColor: colors.surface }}>
+                <Ionicons name="cube-outline" size={18} color={colors.textMuted} />
+                <Text style={{ flex: 1, fontSize: 14, color: colors.text }}>
+                  {po?.materialName || 'N/A'}
+                </Text>
+              </View>
+            </View>
+          )}
 
           <Input
             label="Quantity"

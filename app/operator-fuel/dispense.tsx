@@ -470,6 +470,7 @@ export default function FuelDispenseScreen() {
         plateNumber: store.activeJob.plateNumber || "N/A",
         vendorId: store.activeJob.vendorId,
         vendorName: store.activeJob.vendorName || "N/A",
+        companyName: store.activeJob.companyName || store.activeJob.vendorName || "N/A",
         materialName: store.activeJob.materialName || "N/A",
         fuelAmount: amount,
         pricePerLiter: fuelPrice,
@@ -613,7 +614,7 @@ export default function FuelDispenseScreen() {
                     ? "Completed Jobs"
                     : store.flowStep === "authorization"
                       ? "Vendor Authorization"
-                      : "Dispense Fuel"}
+                      : "Submit"}
                 </Text>
                 <Text
                   style={[styles.sheetSub, { color: colors.textMuted }]}

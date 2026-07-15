@@ -63,8 +63,7 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     icon: 'location-outline',
     items: [
       { label: 'Quarries', icon: 'business-outline', route: '/management/quarries', roles: ['admin', 'management'], activeRoutes: ['/management/quarries'] },
-      { label: 'Sites', icon: 'trail-sign-outline', route: '/management/sites', roles: ['admin', 'management'], activeRoutes: ['/management/sites'] },
-      { label: 'Fuel Stations', icon: 'water-outline', route: '/management/fuel-stations', roles: ['admin', 'management'], activeRoutes: ['/management/fuel-stations'] },
+      { label: 'Fuel Records', icon: 'water-outline', route: '/management/fuel', roles: ['admin', 'management'], activeRoutes: ['/management/fuel'] },
     ],
   },
   {
@@ -72,7 +71,6 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     icon: 'analytics-outline',
     items: [
       { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports', roles: ['admin', 'management'], activeRoutes: ['/management/reports'] },
-      { label: 'Audit Logs', icon: 'receipt-outline', route: '/management/audit-logs', roles: ['admin', 'management'], activeRoutes: ['/management/audit-logs'] },
       { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management'], activeRoutes: ['/screens/issues'] },
     ],
   },
@@ -81,7 +79,6 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     icon: 'settings-outline',
     items: [
       { label: 'Users', icon: 'person-add-outline', route: '/management/users', roles: ['admin', 'management'], activeRoutes: ['/management/users'] },
-      { label: 'Roles', icon: 'shield-checkmark-outline', route: '/management/roles', roles: ['admin', 'management'], activeRoutes: ['/management/roles'] },
       { label: 'Settings', icon: 'settings-outline', route: '/management/settings', roles: ['admin', 'management'], activeRoutes: ['/management/settings'] },
       { label: 'Master Data', icon: 'server-outline', route: '/management/master-data', roles: ['admin', 'management'], activeRoutes: ['/management/master-data'] },
       { label: 'Profile', icon: 'person-outline', route: '/management/profile', roles: ['admin', 'management'], activeRoutes: ['/management/profile'] },
@@ -107,14 +104,12 @@ const ROLE_SECTIONS: NavSection[] = [
       { label: 'Weigh-In', icon: 'download-outline', route: '/operator-quarry/weigh-in', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-in'] },
       { label: 'Weigh-Out', icon: 'arrow-up-circle-outline', route: '/operator-quarry/weigh-out', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-out'] },
       { label: 'History', icon: 'time-outline', route: '/operator-quarry/history', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/history'] },
-      { label: 'Materials', icon: 'cube-outline', route: '/operator-quarry/materials', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/materials'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-quarry/profile', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/profile'] },
       { label: 'Settings', icon: 'settings-outline', route: '/operator-quarry/settings', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/settings'] },
       { label: 'Dashboard', icon: 'home-outline', route: '/operator-site/dashboard', roles: ['operator_site'], activeRoutes: ['/operator-site/dashboard'] },
       { label: 'Receive', icon: 'checkmark-circle-outline', route: '/operator-site/receive', roles: ['operator_site'], activeRoutes: ['/operator-site/receive'] },
       { label: 'Weights', icon: 'scale-outline', route: '/operator-site/weights', roles: ['operator_site'], activeRoutes: ['/operator-site/weights'] },
       { label: 'History', icon: 'time-outline', route: '/operator-site/history', roles: ['operator_site'], activeRoutes: ['/operator-site/history'] },
-      { label: 'Materials', icon: 'cube-outline', route: '/operator-site/materials', roles: ['operator_site'], activeRoutes: ['/operator-site/materials'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-site/profile', roles: ['operator_site'], activeRoutes: ['/operator-site/profile'] },
       { label: 'Settings', icon: 'settings-outline', route: '/operator-site/settings', roles: ['operator_site'], activeRoutes: ['/operator-site/settings'] },
       { label: 'Dispense Fuel', icon: 'water-outline', route: '/operator-fuel/dispense', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/dispense'] },

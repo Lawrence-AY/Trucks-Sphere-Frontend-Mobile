@@ -29,11 +29,7 @@ export default function AnalyticsScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader
-        eyebrow="Intelligence"
-        title="Analytics"
-        subtitle="Live operational signals from jobs, purchase orders, vendors, drivers, and vehicles."
-      />
+       
 
       <View style={styles.metrics}>
         <MetricTile icon="layers-outline" label="Total jobs" value={operations.totalJobs || 0} tone={colors.primary} />

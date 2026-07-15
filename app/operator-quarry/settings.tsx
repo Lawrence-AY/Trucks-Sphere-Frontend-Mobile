@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView, Modal } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 import { showAlert } from '../../utils/webAlert';
+import { changePassword } from '../../services/api';
 
 export default function OperatorQuarrySettingsScreen() {
   const colors = useTheme();
@@ -14,17 +15,42 @@ export default function OperatorQuarrySettingsScreen() {
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
+  const [updating, setUpdating] = useState(false);
 
-  const handlePasswordUpdate = () => {
-    if (!currentPw || !newPw || !confirmPw) { showAlert('Error', 'Please fill all password fields'); return; }
-    if (newPw !== confirmPw) { showAlert('Error', 'New passwords do not match'); return; }
-    if (newPw.length < 4) { showAlert('Error', 'Password must be at least 4 characters'); return; }
-    showAlert('Success', 'Password updated successfully');
-    setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw('');
+  const handlePasswordUpdate = async () => {
+    if (!currentPw || !newPw || !confirmPw) {
+      showAlert('Error', 'Please fill all password fields');
+      return;
+    }
+    if (newPw !== confirmPw) {
+      showAlert('Error', 'New passwords do not match');
+      return;
+    }
+    if (newPw.length < 6) {
+      showAlert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+    setUpdating(true);
+    try {
+      await changePassword({
+        currentPassword: currentPw,
+        newPassword: newPw,
+        confirmPassword: confirmPw,
+      });
+      showAlert('Success', 'Password updated successfully');
+      setPwModal(false);
+      setCurrentPw('');
+      setNewPw('');
+      setConfirmPw('');
+    } catch (err: any) {
+      showAlert('Error', err.message || 'Failed to update password');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing['4xl'] }}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing['4xl'] }} keyboardShouldPersistTaps="handled" pointerEvents={pwModal ? 'none' : 'auto'}>
       <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Settings</Text>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={{ alignItems: 'center', gap: Spacing.md }}>
@@ -49,14 +75,14 @@ export default function OperatorQuarrySettingsScreen() {
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: Spacing.lg }}>Update Password</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Current password" placeholderTextColor={colors.textMuted} value={currentPw} onChangeText={setCurrentPw} secureTextEntry />
-            <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="New password" placeholderTextColor={colors.textMuted} value={newPw} onChangeText={setNewPw} secureTextEntry />
+            <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="New password (min 6 chars)" placeholderTextColor={colors.textMuted} value={newPw} onChangeText={setNewPw} secureTextEntry />
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Confirm new password" placeholderTextColor={colors.textMuted} value={confirmPw} onChangeText={setConfirmPw} secureTextEntry />
             <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md }}>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E2E8F0' }]} onPress={() => setPwModal(false)}>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E2E8F0' }]} onPress={() => { setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw(''); }} disabled={updating}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#1E293B' }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1B2A4A' }]} onPress={handlePasswordUpdate}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFF' }}>Update</Text>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1B2A4A' }]} onPress={handlePasswordUpdate} disabled={updating}>
+                {updating ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFF' }}>Update</Text>}
               </TouchableOpacity>
             </View>
           </View>

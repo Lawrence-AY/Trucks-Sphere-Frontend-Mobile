@@ -38,8 +38,13 @@
       "expo-secure-store",
       "expo-asset",
       "expo-status-bar",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "expo-updates"
     ],
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/26780c71-fb1c-4a27-a60b-b4bbd2d84151"
+    },
     "experiments": {
       "typedRoutes": true
     },

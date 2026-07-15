@@ -32,6 +32,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { Vendor } from '../../../store/types';
+import { fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../../services/api';
 
 const STATUS_BADGE: Record<string, { variant: 'success' | 'warning' | 'danger'; label: string }> = {
   active: { variant: 'success', label: 'Active' },
@@ -47,7 +48,7 @@ export default function VendorListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [vendorStats, setVendorStats] = useState<Record<string, { drivers: number; vehicles: number; jobs: number }>>({});
 
   useEffect(() => {
     loadVendors();
@@ -55,12 +56,31 @@ export default function VendorListScreen() {
 
   useEffect(() => {
     filterVendors();
-  }, [search, statusFilter, vendors]);
+  }, [search, vendors]);
 
   async function loadVendors() {
     try {
-      const data = await vendorRepository.getAll();
-      setVendors(data);
+      // Fetch all parallel: vendors, drivers, vehicles, jobs
+      const [vendorData, drivers, vehicles, jobs] = await Promise.all([
+        vendorRepository.getAll(),
+        fetchDrivers(),
+        fetchVehicles(),
+        fetchDeliveryOrders(),
+      ]);
+
+      setVendors(vendorData);
+
+      // Compute per-vendor stats
+      const stats: Record<string, { drivers: number; vehicles: number; jobs: number }> = {};
+      vendorData.forEach((v) => {
+        const vid = v.id;
+        stats[vid] = {
+          drivers: drivers.filter((d: any) => d.vendorId === vid).length,
+          vehicles: vehicles.filter((t: any) => t.vendorId === vid).length,
+          jobs: jobs.filter((j: any) => j.vendorId === vid).length,
+        };
+      });
+      setVendorStats(stats);
     } catch {
       // Error handled silently
     } finally {
@@ -82,14 +102,14 @@ export default function VendorListScreen() {
       result = result.filter(
         (v) =>
           v.companyName?.toLowerCase().includes(q) ||
+          (v as any).name?.toLowerCase().includes(q) ||
           v.contactPerson?.toLowerCase().includes(q) ||
+          v.email?.toLowerCase().includes(q) ||
+          (v as any).address?.toLowerCase().includes(q) ||
           v.vendorId?.toLowerCase().includes(q) ||
           v.kraPin?.toLowerCase().includes(q) ||
           v.phone?.includes(q)
       );
-    }
-    if (statusFilter !== 'all') {
-      result = result.filter((v) => v.status === statusFilter);
     }
     setFiltered(result);
   }
@@ -100,11 +120,8 @@ export default function VendorListScreen() {
   }
 
   function renderVendor({ item }: { item: Vendor }) {
-    const vendorNumber = item.vendorId || item.id;
-    // Format as V001, V002, etc.
-    const formattedVendorId = vendorNumber && vendorNumber.startsWith('V')
-      ? vendorNumber
-      : `V${String(vendorNumber).padStart(3, '0')}`;
+    // Backend uses 'name' as the primary field; fall back to 'companyName' if available
+    const displayName = item.companyName || (item as any).name || 'Unknown Vendor';
 
     return (
       <TouchableOpacity
@@ -115,16 +132,18 @@ export default function VendorListScreen() {
         <View style={styles.vendorHeader}>
           <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
             <Text style={[styles.avatarText, { color: colors.primary }]}>
-              {item.companyName?.charAt(0)?.toUpperCase() || 'V'}
+              {displayName?.charAt(0)?.toUpperCase() || 'V'}
             </Text>
           </View>
           <View style={styles.vendorInfo}>
             <Text style={[styles.vendorName, { color: colors.text }]} numberOfLines={1}>
-              {item.companyName || 'Unknown Vendor'}
+              {displayName}
             </Text>
-            <Text style={[styles.vendorId, { color: colors.textMuted }]}>
-              {formattedVendorId}
-            </Text>
+            {item.email ? (
+              <Text style={[styles.vendorId, { color: colors.textMuted }]} numberOfLines={1}>
+                {item.email}
+              </Text>
+            ) : null}
           </View>
         </View>
 
@@ -143,16 +162,22 @@ export default function VendorListScreen() {
 
         <View style={styles.vendorStats}>
           <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: colors.text }]}>{item.driverCount || 0}</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {vendorStats[item.id]?.drivers ?? 0}
+            </Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>Drivers</Text>
           </View>
           <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: colors.text }]}>{item.vehicleCount || 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Vehicles</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {vendorStats[item.id]?.vehicles ?? 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Trucks</Text>
           </View>
           <View style={styles.stat}>
-            <Text style={[styles.statValue, { color: colors.text }]}>{item.activeJobCount || 0}</Text>
-            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Active Jobs</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {vendorStats[item.id]?.jobs ?? 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Trips</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -204,31 +229,6 @@ export default function VendorListScreen() {
           )}
         </View>
 
-        {/* Status Filter */}
-        <View style={styles.filterRow}>
-          {['all', 'active', 'inactive', 'suspended'].map((status) => (
-            <TouchableOpacity
-              key={status}
-              style={[
-                styles.filterChip,
-                {
-                  backgroundColor: statusFilter === status ? colors.primary : colors.surface,
-                  borderColor: statusFilter === status ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setStatusFilter(status)}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  { color: statusFilter === status ? '#FFFFFF' : colors.textMuted },
-                ]}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </View>
 
       <FlatList

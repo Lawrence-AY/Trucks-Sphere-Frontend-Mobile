@@ -48,6 +48,10 @@ export default function CreateVendorScreen() {
     address: '',
     kraPin: '',
     registrationNumber: '',
+    businessPermit: '',
+    companyActCR12: '',
+    fleetSize: '',
+    taxCompliance: '',
     status: 'active' as string,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -88,9 +92,27 @@ export default function CreateVendorScreen() {
         address: form.address.trim() || undefined,
         kraPin: form.kraPin.trim() || undefined,
         registrationNumber: form.registrationNumber.trim() || undefined,
+        businessPermit: form.businessPermit.trim() || undefined,
+        companyActCR12: form.companyActCR12.trim() || undefined,
+        fleetSize: form.fleetSize.trim() ? Number(form.fleetSize) : undefined,
+        taxCompliance: form.taxCompliance.trim() || undefined,
         status: form.status as any,
       });
 
+      setForm({
+        companyName: '',
+        contactPerson: '',
+        phone: '',
+        email: '',
+        address: '',
+        kraPin: '',
+        registrationNumber: '',
+        businessPermit: '',
+        companyActCR12: '',
+        fleetSize: '',
+        taxCompliance: '',
+        status: 'active',
+      });
       Alert.alert('Success', 'Vendor created successfully', [
         {
           text: 'View Vendors',
@@ -189,6 +211,39 @@ export default function CreateVendorScreen() {
             onChangeText={(v) => updateField('registrationNumber', v)}
             placeholder="e.g. BRS/2024/12345"
             icon="receipt-outline"
+          />
+
+          <Input
+            label="Business Permit"
+            value={form.businessPermit}
+            onChangeText={(v) => updateField('businessPermit', v)}
+            placeholder="e.g. BP-2024-001"
+            icon="document-attach-outline"
+          />
+
+          <Input
+            label="Company Act CR12"
+            value={form.companyActCR12}
+            onChangeText={(v) => updateField('companyActCR12', v)}
+            placeholder="e.g. CR12-2024-001"
+            icon="document-text-outline"
+          />
+
+          <Input
+            label="Fleet Size"
+            value={form.fleetSize}
+            onChangeText={(v) => updateField('fleetSize', v)}
+            placeholder="e.g. 15"
+            icon="car-outline"
+            keyboardType="numeric"
+          />
+
+          <Input
+            label="Tax Compliance"
+            value={form.taxCompliance}
+            onChangeText={(v) => updateField('taxCompliance', v)}
+            placeholder="e.g. Compliant / Non-Compliant"
+            icon="checkmark-done-outline"
           />
 
           <Select

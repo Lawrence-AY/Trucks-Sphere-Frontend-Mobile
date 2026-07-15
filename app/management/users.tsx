@@ -4,7 +4,8 @@
  * Features:
  *   - List all users with search
  *   - Add User modal with role assignment (including fuel_operator)
- *   - Toggle user active/inactive
+ *   - Edit User modal (tap a user to edit)
+ *   - Toggle user active/inactive (long press)
  *   - Back button
  */
 
@@ -16,8 +17,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
-  Alert,
   RefreshControl,
+  Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -33,6 +35,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { fetchUsers, fetchRoles } from '../../services/api';
 import api from '../../services/api';
+import { showAlert } from '../../utils/webAlert';
 
 const ROLE_OPTIONS = [
   { id: 'management', name: 'Management' },
@@ -55,12 +58,26 @@ export default function UsersScreen() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     displayName: '',
+    username: '',
     password: '',
-    role: 'viewer',
+    role: 'vendor',
     phone: '',
   });
   const [generatedUsername, setGeneratedUsername] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Edit User Modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    displayName: '',
+    username: '',
+    email: '',
+    role: 'vendor',
+    phone: '',
+  });
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
 
   const loadUsers = useCallback(async () => {
     try {
@@ -94,6 +111,17 @@ export default function UsersScreen() {
     }
   }
 
+  function updateEditForm(field: string, value: string) {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+    if (editFormErrors[field]) {
+      setEditFormErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[field];
+        return copy;
+      });
+    }
+  }
+
   function generateUsernameFromDisplay(displayName: string): string {
     if (!displayName) return '';
     const parts = displayName.trim().split(/\s+/);
@@ -110,6 +138,18 @@ export default function UsersScreen() {
     if (!form.phone.trim()) errors.phone = 'Phone number is required';
     if (!form.role) errors.role = 'Role is required';
     setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  function validateEditForm(): boolean {
+    const errors: Record<string, string> = {};
+    if (!editForm.email.trim()) errors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(editForm.email)) errors.email = 'Invalid email';
+    if (!editForm.displayName.trim()) errors.displayName = 'Name is required';
+    if (!editForm.username.trim()) errors.username = 'Username is required';
+    else if (!/^[a-zA-Z0-9_]+$/.test(editForm.username)) errors.username = 'Letters, numbers & underscores only';
+    if (!editForm.role) errors.role = 'Role is required';
+    setEditFormErrors(errors);
     return Object.keys(errors).length === 0;
   }
 
@@ -132,27 +172,103 @@ export default function UsersScreen() {
 
       const uname = result?.data?.user?.generatedUsername || generateUsernameFromDisplay(form.displayName);
       Alert.alert('Success', `User "${uname}" created under role: ${form.role}`);
-      setShowAddModal(false);
-      setForm({ displayName: '', password: '', role: 'viewer', phone: '' });
+      setForm({ displayName: '', username: '', password: '', role: 'vendor', phone: '' });
       setGeneratedUsername('');
+      setFormErrors({});
       loadUsers();
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to create user';
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleToggleStatus(user: any) {
-    const newStatus = user.isActive === false ? true : false;
+  function handleEditClick(user: any) {
+    setEditingUser(user);
+    setEditForm({
+      displayName: user.displayName || user.name || '',
+      username: user.username || '',
+      email: user.email || '',
+      role: user.role || 'vendor',
+      phone: user.phone || '',
+    });
+    setEditFormErrors({});
+    setShowEditModal(true);
+  }
+
+  async function handleUpdateUser() {
+    if (!validateEditForm()) return;
+    setEditSaving(true);
     try {
-      await api.put(`/api/users/${user.uid || user.id}`, { isActive: newStatus });
-      Alert.alert('Updated', `User ${newStatus ? 'activated' : 'deactivated'} successfully`);
+      const uid = editingUser.uid || editingUser.id;
+      await api.put(`/api/users/${uid}`, {
+        displayName: editForm.displayName.trim(),
+        name: editForm.displayName.trim(),
+        username: editForm.username.trim(),
+        email: editForm.email.trim(),
+        role: editForm.role,
+        phone: editForm.phone.trim(),
+      });
+      showAlert('Success', 'User updated successfully');
+      setShowEditModal(false);
+      setEditingUser(null);
       loadUsers();
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to update user');
+      const msg = err?.response?.data?.error || err?.message || 'Failed to update user';
+      showAlert('Error', msg);
+    } finally {
+      setEditSaving(false);
     }
+  }
+
+  async function handleToggleStatus(user: any) {
+    const newStatus = user.isActive === false ? true : false;
+    const action = newStatus ? 'activate' : 'deactivate';
+    Alert.alert(
+      `${newStatus ? 'Activate' : 'Deactivate'} User`,
+      `Are you sure you want to ${action} ${user.displayName || user.name || user.email}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: newStatus ? 'Activate' : 'Deactivate',
+          style: newStatus ? 'default' : 'destructive',
+          onPress: async () => {
+            try {
+              await api.put(`/api/users/${user.uid || user.id}`, { isActive: newStatus });
+              showAlert('Updated', `User ${action}d successfully`);
+              loadUsers();
+            } catch (err: any) {
+              showAlert('Error', err?.message || 'Failed to update user');
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleDeleteUser(user: any) {
+    Alert.alert(
+      'Delete User',
+      `Are you sure you want to permanently delete ${user.displayName || user.name || user.email}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/api/users/${user.uid || user.id}`);
+              showAlert('Deleted', 'User deleted successfully');
+              loadUsers();
+            } catch (err: any) {
+              const msg = err?.response?.data?.error || err?.message || 'Failed to delete user';
+              showAlert('Error', msg);
+            }
+          },
+        },
+      ]
+    );
   }
 
   const filteredUsers = users.filter((u) => {
@@ -160,6 +276,7 @@ export default function UsersScreen() {
     const q = search.toLowerCase();
     return (
       (u.displayName || u.name || '').toLowerCase().includes(q) ||
+      (u.username || '').toLowerCase().includes(q) ||
       (u.email || '').toLowerCase().includes(q) ||
       (u.role || '').toLowerCase().includes(q)
     );
@@ -169,12 +286,9 @@ export default function UsersScreen() {
     const config: Record<string, { variant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple'; label: string }> = {
       management: { variant: 'purple', label: 'Management' },
       vendor: { variant: 'info', label: 'Vendor' },
-      quarry_operator: { variant: 'info', label: 'Quarry Op' },
-      site_operator: { variant: 'warning', label: 'Site Op' },
-      fuel_operator: { variant: 'success', label: 'Fuel Op' },
-      weighbridge_operator: { variant: 'default', label: 'Weighbridge Op' },
-      driver: { variant: 'default', label: 'Driver' },
-      viewer: { variant: 'default', label: 'Viewer' },
+      operator_quarry: { variant: 'info', label: 'Quarry Op' },
+      operator_site: { variant: 'warning', label: 'Site Op' },
+      operator_fuel: { variant: 'success', label: 'Fuel Op' },
     };
     const c = config[role] || { variant: 'default' as any, label: role };
     return <Badge label={c.label} variant={c.variant} size="sm" />;
@@ -220,10 +334,9 @@ export default function UsersScreen() {
         ) : (
           <View style={styles.list}>
             {filteredUsers.map((user: any) => (
-              <TouchableOpacity
+              <View
                 key={user.uid || user.id}
                 style={[styles.userCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onLongPress={() => handleToggleStatus(user)}
               >
                 <View style={styles.userCardLeft}>
                   <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
@@ -236,13 +349,15 @@ export default function UsersScreen() {
                       <Text style={[styles.userName, { color: colors.text }]}>
                         {user.displayName || user.name || 'Unknown'}
                       </Text>
+                      {user.username ? (
+                        <Text style={[styles.userUsername, { color: colors.primary }]}>
+                          @{user.username}
+                        </Text>
+                      ) : null}
                       {user.isActive === false && (
                         <Badge label="Inactive" variant="danger" size="sm" />
                       )}
                     </View>
-                    <Text style={[styles.userId, { color: colors.textMuted, fontSize: 10 }]}>
-                      UID: {user.uid || user.id || '\u2014'}
-                    </Text>
                     <Text style={[styles.userEmail, { color: colors.textMuted }]}>
                       {user.email || 'No email'}
                     </Text>
@@ -256,8 +371,38 @@ export default function UsersScreen() {
                     </View>
                   </View>
                 </View>
-                <Ionicons name="ellipsis-vertical" size={18} color={colors.textMuted} />
-              </TouchableOpacity>
+
+                {/* Action Buttons */}
+                <View style={styles.userActions}>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: colors.primary + '15' }]}
+                    onPress={() => handleEditClick(user)}
+                  >
+                    <Ionicons name="create-outline" size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionBtn,
+                      {
+                        backgroundColor: user.isActive !== false ? '#FEF2F2' : '#ECFDF5',
+                      },
+                    ]}
+                    onPress={() => handleToggleStatus(user)}
+                  >
+                    <Ionicons
+                      name={user.isActive !== false ? 'close-circle-outline' : 'checkmark-circle-outline'}
+                      size={16}
+                      color={user.isActive !== false ? '#EF4444' : '#10B981'}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#FEF2F2' }]}
+                    onPress={() => handleDeleteUser(user)}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
             ))}
           </View>
         )}
@@ -344,6 +489,87 @@ export default function UsersScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Edit User Modal */}
+      <Modal visible={showEditModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Edit User</Text>
+              <TouchableOpacity onPress={() => { setShowEditModal(false); setEditingUser(null); }}>
+                <Ionicons name="close" size={24} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalBody}>
+              <Input
+                label="Full Name"
+                value={editForm.displayName}
+                onChangeText={(v) => updateEditForm('displayName', v)}
+                placeholder="John Doe"
+                icon="person-outline"
+                required
+                error={editFormErrors.displayName}
+              />
+              <Input
+                label="Username"
+                value={editForm.username}
+                onChangeText={(v) => updateEditForm('username', v)}
+                placeholder="johndoe"
+                icon="at-outline"
+                required
+                error={editFormErrors.username}
+              />
+              <Input
+                label="Email"
+                value={editForm.email}
+                onChangeText={(v) => updateEditForm('email', v)}
+                placeholder="john@example.com"
+                icon="mail-outline"
+                keyboardType="email-address"
+                required
+                error={editFormErrors.email}
+              />
+              <Input
+                label="Phone (optional)"
+                value={editForm.phone}
+                onChangeText={(v) => updateEditForm('phone', v)}
+                placeholder="+254 7XX XXX XXX"
+                icon="call-outline"
+                keyboardType="phone-pad"
+              />
+              <Select
+                label="Role"
+                value={editForm.role}
+                options={ROLE_OPTIONS}
+                onSelect={(v) => updateEditForm('role', v)}
+                icon="shield-outline"
+                required
+                error={editFormErrors.role}
+              />
+              <Text style={[styles.editHint, { color: colors.textMuted }]}>
+                Use the action buttons on the user card to activate, deactivate, or delete users.
+              </Text>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                onPress={() => { setShowEditModal(false); setEditingUser(null); }}
+                variant="secondary"
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Update User"
+                onPress={handleUpdateUser}
+                icon="save-outline"
+                style={{ flex: 1 }}
+                loading={editSaving}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -391,11 +617,10 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   userCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     borderRadius: Radius.md,
     borderWidth: 1,
     padding: Spacing.md,
+    gap: Spacing.sm,
   },
   userCardLeft: {
     flexDirection: 'row',
@@ -437,8 +662,36 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginTop: 4,
   },
+  userUsername: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
   userPhone: {
     fontSize: 11,
+  },
+  userActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+  },
+  actionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  editHint: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    fontStyle: 'italic',
   },
   // Modal
   modalOverlay: {

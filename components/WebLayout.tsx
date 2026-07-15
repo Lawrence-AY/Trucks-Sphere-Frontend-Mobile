@@ -117,20 +117,6 @@ export default function WebLayout({ children }: WebLayoutProps) {
           >
             <Ionicons name="menu-outline" size={26} color={colors.text} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.topBarLogo}
-            onPress={() => {
-              // @ts-ignore
-              router.push('/management/dashboard');
-            }}
-          >
-            <View style={styles.logoMarkSmall}>
-              <Text style={styles.logoTextSmall}>TS</Text>
-            </View>
-            <Text style={[styles.brandSmall, { color: colors.text }]}>
-              TRUCK<Text style={{ color: '#1B2A4A' }}>SPHERE</Text>
-            </Text>
-          </TouchableOpacity>
           <View style={styles.topBarSpacer} />
           <TouchableOpacity
             onPress={() => {

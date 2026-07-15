@@ -122,11 +122,6 @@ export async function getLocationFromIP(): Promise<{
       address: address || 'Unknown',
     };
   } catch {
-    // Fallback to Kisumu, Kenya coordinates
-    return {
-      latitude: -0.0917,
-      longitude: 34.768,
-      address: 'Kisumu, Kenya (Fallback)',
-    };
+    throw new Error('Could not determine location from IP');
   }
 }

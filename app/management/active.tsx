@@ -185,11 +185,7 @@ export default function ManagementActiveScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <CommandHeader
-        eyebrow="Delivery execution"
-        title="Active"
-        subtitle={`${activeCount} deliveries · ${flaggedCount} weight flags`}
-      />
+      
 
       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor, material..." />
 

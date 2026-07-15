@@ -20,7 +20,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
@@ -48,12 +48,13 @@ const STATUS_OPTIONS = [
 ];
 
 export default function CreateVehicleScreen() {
+  const params = useLocalSearchParams<{ vendorId?: string }>();
   const colors = useTheme();
   const insets = useSafeAreaInsets();
   const [saving, setSaving] = useState(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [form, setForm] = useState({
-    vendorId: '',
+    vendorId: params.vendorId || '',
     registrationNumber: '',
     make: '',
     model: '',
@@ -61,14 +62,20 @@ export default function CreateVehicleScreen() {
     type: '',
     capacity: '',
     capacityUnit: 'tonnes',
+    color: '',
     insuranceExpiry: '',
     inspectionExpiry: '',
+    lastInspection: '',
     status: 'active' as string,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadVendors();
+    // Pre-populate vendor ID from navigation params (e.g. from vendor detail page)
+    if (params.vendorId) {
+      updateField('vendorId', params.vendorId);
+    }
   }, []);
 
   async function loadVendors() {
@@ -106,6 +113,25 @@ export default function CreateVehicleScreen() {
     return Object.keys(newErrors).length === 0;
   }
 
+  function resetForm() {
+    setForm({
+      vendorId: '',
+      registrationNumber: '',
+      make: '',
+      model: '',
+      year: '',
+      type: '',
+      capacity: '',
+      capacityUnit: 'tonnes',
+      color: '',
+      insuranceExpiry: '',
+      inspectionExpiry: '',
+      lastInspection: '',
+      status: 'active',
+    });
+    setErrors({});
+  }
+
   async function handleCreate() {
     if (!validate()) return;
 
@@ -114,23 +140,21 @@ export default function CreateVehicleScreen() {
       await vehicleRepository.create({
         vendorId: form.vendorId,
         registrationNumber: form.registrationNumber.trim(),
+        plateNumber: form.registrationNumber.trim(),
         make: form.make.trim(),
         model: form.model.trim(),
-        year: form.year.trim(),
-        type: form.type as any,
+        year: Number(form.year.trim()),
         capacity: Number(form.capacity),
         capacityUnit: form.capacityUnit,
+        color: form.color.trim() || undefined,
         insuranceExpiry: form.insuranceExpiry.trim() || undefined,
         inspectionExpiry: form.inspectionExpiry.trim() || undefined,
+        lastInspection: form.lastInspection.trim() || undefined,
         status: form.status as any,
       });
 
-      Alert.alert('Success', 'Vehicle created successfully', [
-        {
-          text: 'View Vehicles',
-          onPress: () => router.back(),
-        },
-      ]);
+      Alert.alert('Success', 'Vehicle created successfully');
+      resetForm();
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to create vehicle';
       Alert.alert('Error', msg);
@@ -238,6 +262,14 @@ export default function CreateVehicleScreen() {
           />
 
           <Input
+            label="Color"
+            value={form.color}
+            onChangeText={(v) => updateField('color', v)}
+            placeholder="e.g. White, Blue, Red"
+            icon="color-palette-outline"
+          />
+
+          <Input
             label="Insurance Expiry"
             value={form.insuranceExpiry}
             onChangeText={(v) => updateField('insuranceExpiry', v)}
@@ -251,6 +283,14 @@ export default function CreateVehicleScreen() {
             onChangeText={(v) => updateField('inspectionExpiry', v)}
             placeholder="e.g. 2025-06-30"
             icon="checkmark-circle-outline"
+          />
+
+          <Input
+            label="Last Inspection"
+            value={form.lastInspection}
+            onChangeText={(v) => updateField('lastInspection', v)}
+            placeholder="e.g. 2024-06-30"
+            icon="time-outline"
           />
 
           <Select

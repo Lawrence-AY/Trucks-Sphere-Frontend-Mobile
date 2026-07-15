@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,12 +14,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { updateDeliveryOrder } from '../../services/api';
+import { updateDeliveryOrder, fetchQuarries } from '../../services/api';
 import { useDeliveryOrders } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useAuthStore } from '../../store/authStore';
 import { formatEAT } from '../../utils/helpers';
 import { uploadDriverPhotoWeighOut } from '../../services/uploadService';
 import { getCurrentLocation, reverseGeocode, getLocationFromIP } from '../../services/geolocation';
@@ -34,6 +38,7 @@ import {
 
 export default function OperatorQuarryWeighOutScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -41,6 +46,10 @@ export default function OperatorQuarryWeighOutScreen() {
   const [weightOut, setWeightOut] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
+
+  // ─── Delivery Note Modal ───
+  const [deliveryNoteVisible, setDeliveryNoteVisible] = useState(false);
+  const [deliveryNoteData, setDeliveryNoteData] = useState<any>(null);
 
   // ─── Driver Photo State ───
   const [driverPhotoUri, setDriverPhotoUri] = useState<string | null>(null);
@@ -55,8 +64,16 @@ export default function OperatorQuarryWeighOutScreen() {
   } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
 
+  // ─── Quarry data ───
+  const [quarries, setQuarries] = useState<any[]>([]);
+
   const allDeliveries = useDeliveryOrders();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
+
+  // Fetch quarries on mount
+  useEffect(() => {
+    fetchQuarries().then((data) => setQuarries(data || [])).catch(() => {});
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -64,11 +81,17 @@ export default function OperatorQuarryWeighOutScreen() {
     setRefreshing(false);
   }, [refresh]);
 
+  // Scope to operator's assigned quarry
+  const operatorQuarryId = (user as any)?.quarryId || '';
+
   // Jobs that have been weighed in but not weighed out
-  const deliveries = useMemo(() =>
-    allDeliveries.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status)),
-    [allDeliveries]
-  );
+  const deliveries = useMemo(() => {
+    let filtered = allDeliveries.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status));
+    if (operatorQuarryId) {
+      filtered = filtered.filter((d: any) => !d.quarryId || d.quarryId === operatorQuarryId);
+    }
+    return filtered;
+  }, [allDeliveries, operatorQuarryId]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -190,11 +213,30 @@ export default function OperatorQuarryWeighOutScreen() {
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
+
+      // Determine quarry info: use operator's assigned quarry, or first match from the quarries collection
+      const operatorQuarryId = (user as any)?.quarryId || activeJob?.quarryId || '';
+      const operatorQuarryName = (user as any)?.quarryName || activeJob?.quarryName || '';
+      let resolvedQuarryId = operatorQuarryId;
+      let resolvedQuarryName = operatorQuarryName;
+      if (!resolvedQuarryId && !resolvedQuarryName && quarries.length > 0) {
+        // Try to match by the geolocation address
+        const matched = quarries.find((q) =>
+          q.name && geoLocation?.address?.toLowerCase().includes(q.name.toLowerCase())
+        ) || quarries[0];
+        resolvedQuarryId = matched.id || '';
+        resolvedQuarryName = matched.name || '';
+      }
+
       const updatePayload: any = {
         weighOutWeight: numericWeightOut,
         netWeight,
         weighOutAt: now,
         weighOutLocation: geoLocation?.address || 'Weigh-Out Location',
+        quarryId: resolvedQuarryId || activeJob?.quarryId || '',
+        quarryName: resolvedQuarryName || activeJob?.quarryName || geoLocation?.address || 'Quarry',
+        weighOutByUid: user?.uid || '',
+        weighOutByName: user?.displayName || user?.name || 'Quarry Operator',
         status: 'loaded',
         updatedAt: now,
       };
@@ -210,14 +252,150 @@ export default function OperatorQuarryWeighOutScreen() {
       }
       await updateDeliveryOrder(activeJob.id, updatePayload);
       closeWeighOutForm();
-      Alert.alert('Completed', `Weigh-Out submitted.\n\nLoaded: ${numericWeightOut.toFixed(1)}T · Empty: ${weighIn.toFixed(1)}T · Net: ${netWeight.toFixed(1)}T`, [
-        { text: 'OK' },
-      ]);
+
+      // Show delivery note
+      setDeliveryNoteData({
+        jobId: activeJob.jobId,
+        poNumber: activeJob.poNumber || '',
+        driverName: activeJob.driverName || '',
+        plateNumber: activeJob.plateNumber || '',
+        vendorName: activeJob.vendorName || '',
+        materialName: activeJob.materialName || '',
+        quantityOrdered: activeJob.quantityOrdered || 0,
+        quarryName: resolvedQuarryName || activeJob?.quarryName || 'Quarry',
+        siteName: activeJob.siteName || '',
+        weightIn: weighIn,
+        weightOut: numericWeightOut,
+        netWeight,
+        operatorName: user?.displayName || user?.name || 'Quarry Operator',
+      });
+      setDeliveryNoteVisible(true);
     } catch (error: any) {
       Alert.alert('Submission Failed', error?.message || 'Could not submit weigh-out data.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /* ─── Delivery Note Export Handlers ─── */
+
+  function buildDeliveryNoteHtml(data: any): string {
+    const timestamp = new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' });
+    return `
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 32px; color: #1E293B; max-width: 600px; margin: auto; }
+          .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+          .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+          .header .subtitle { color: #64748B; font-size: 13px; }
+          .section { margin-bottom: 20px; }
+          .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; }
+          .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+          .row .label { color: #64748B; }
+          .row .value { font-weight: 700; color: #1E293B; }
+          .highlight-box { background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
+          .highlight-box .net { font-size: 32px; font-weight: 900; color: #7C3AED; }
+          .highlight-box .calc { font-size: 11px; color: #64748B; margin-top: 4px; }
+          table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
+          table th { background: #1B2A4A; color: #FFF; padding: 8px 12px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+          table td { padding: 8px 12px; border: 1px solid #DDD; }
+          table tr:nth-child(even) td { background: #F8FAFC; }
+          .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
+          .signature-line { display: flex; justify-content: space-between; margin-top: 48px; }
+          .sig-block { flex: 1; text-align: center; }
+          .sig-block .line { border-bottom: 1px solid #94A3B8; margin: 32px 20px 8px; }
+          .sig-block .name { font-size: 12px; font-weight: 600; color: #1E293B; }
+          .sig-block .role { font-size: 10px; color: #94A3B8; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Trucks Sphere</h1>
+          <div class="subtitle">Delivery Note (Quarry Weigh-Out)</div>
+        </div>
+        <div class="section">
+          <div class="section-title">Document Details</div>
+          <div class="row"><span class="label">Job ID</span><span class="value">${data.jobId}</span></div>
+          <div class="row"><span class="label">Purchase Order</span><span class="value">${data.poNumber || 'N/A'}</span></div>
+          <div class="row"><span class="label">Date</span><span class="value">${timestamp}</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Parties</div>
+          <div class="row"><span class="label">Vendor</span><span class="value">${data.vendorName || 'N/A'}</span></div>
+          <div class="row"><span class="label">Driver</span><span class="value">${data.driverName || 'N/A'}</span></div>
+          <div class="row"><span class="label">Truck Plate</span><span class="value">${data.plateNumber || 'N/A'}</span></div>
+          <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${data.quarryName || 'N/A'}</span></div>
+          <div class="row"><span class="label">Destination (Site)</span><span class="value">${data.siteName || 'N/A'}</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Material</div>
+          <div class="row"><span class="label">Material</span><span class="value">${data.materialName || 'N/A'}</span></div>
+          <div class="row"><span class="label">Quantity Ordered</span><span class="value">${data.quantityOrdered} tonnes</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Weight Record</div>
+          <table>
+            <tr><td>Empty Weight (Tare)</td><td style="font-weight:700;">${data.weighIn?.toFixed(1) || '0.0'} T</td></tr>
+            <tr><td>Loaded Weight (Gross)</td><td style="font-weight:700;">${data.weighOut?.toFixed(1) || '0.0'} T</td></tr>
+          </table>
+          <div class="highlight-box">
+            <div class="net">${data.netWeight?.toFixed(1) || '0.0'} Tonnes</div>
+            <div class="calc">NET WEIGHT = ${data.weighOut?.toFixed(1) || '0'}T (Loaded) − ${data.weighIn?.toFixed(1) || '0'}T (Tare)</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Certification</div>
+          <div class="row"><span class="label">Operator</span><span class="value">${data.operatorName}</span></div>
+          <div class="row"><span class="label">Location</span><span class="value">${data.quarryName || 'Quarry'}</span></div>
+        </div>
+        <div class="signature-line">
+          <div class="sig-block">
+            <div class="line"></div>
+            <div class="name">${data.operatorName}</div>
+            <div class="role">Quarry Operator</div>
+          </div>
+          <div class="sig-block">
+            <div class="line"></div>
+            <div class="name">${data.driverName || 'Driver'}</div>
+            <div class="role">Driver</div>
+          </div>
+        </div>
+        <div class="footer">
+          <p>Generated by Trucks Sphere on ${timestamp}</p>
+          <p>This is a computer-generated document.</p>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  const handleDeliveryNotePDF = async () => {
+    if (!deliveryNoteData) return;
+    try {
+      const html = buildDeliveryNoteHtml(deliveryNoteData);
+      await Print.printAsync({ html });
+    } catch (e: any) {
+      Alert.alert('Print Error', e?.message || 'Failed to print');
+    }
+  };
+
+  const handleDeliveryNotePrint = async () => {
+    if (!deliveryNoteData) return;
+    try {
+      const html = buildDeliveryNoteHtml(deliveryNoteData);
+      await Print.printAsync({ html });
+    } catch (e: any) {
+      Alert.alert('Print Error', e?.message || 'Failed to print');
+    }
+  };
+
+  const closeDeliveryNote = () => {
+    setDeliveryNoteVisible(false);
+    setDeliveryNoteData(null);
   };
 
   /* ─── Weigh-Out Form View ─── */
@@ -529,6 +707,96 @@ export default function OperatorQuarryWeighOutScreen() {
             </View>
           </View>
         </Modal>
+        {/* ─── Delivery Note Modal ─── */}
+        <Modal
+          visible={deliveryNoteVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={closeDeliveryNote}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={[styles.confirmIcon, { backgroundColor: '#7C3AED15' }]}>
+                <Ionicons name="document-text" size={36} color="#7C3AED" />
+              </View>
+              <Text style={[styles.confirmTitle, { color: colors.text }]}>Delivery Note</Text>
+              <Text style={[styles.confirmSub, { color: colors.textMuted }]}>
+                Weigh-Out recorded successfully. Export or print the delivery note below.
+              </Text>
+
+              {deliveryNoteData && (
+                <View style={[styles.confirmSummary, { backgroundColor: colors.inputBg }]}>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Job ID</Text>
+                    <Text style={[styles.confirmValue, { color: colors.text }]}>{deliveryNoteData.jobId}</Text>
+                  </View>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver / Truck</Text>
+                    <Text style={[styles.confirmValue, { color: colors.text }]}>
+                      {deliveryNoteData.driverName} · {deliveryNoteData.plateNumber}
+                    </Text>
+                  </View>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Material</Text>
+                    <Text style={[styles.confirmValue, { color: colors.text }]}>{deliveryNoteData.materialName}</Text>
+                  </View>
+                  <View style={styles.confirmDivider} />
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Tare (Empty)</Text>
+                    <Text style={[styles.confirmValue, { color: '#2563EB', fontWeight: '800' }]}>
+                      {deliveryNoteData.weighIn?.toFixed(1) || '0.0'} T
+                    </Text>
+                  </View>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Gross (Loaded)</Text>
+                    <Text style={[styles.confirmValue, { color: '#7C3AED', fontWeight: '800' }]}>
+                      {deliveryNoteData.weighOut?.toFixed(1) || '0.0'} T
+                    </Text>
+                  </View>
+                  <View style={[styles.confirmDivider, { marginTop: 6 }]} />
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
+                    <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
+                      {deliveryNoteData.netWeight?.toFixed(1) || '0.0'} T
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Export Actions */}
+              <View style={styles.grnExportSection}>
+                <Text style={[styles.grnExportTitle, { color: colors.textMuted }]}>
+                  EXPORT DELIVERY NOTE
+                </Text>
+                <View style={styles.grnDownloadRow}>
+                  <TouchableOpacity
+                    style={[styles.grnDownloadBtn, { backgroundColor: '#DC2626' }]}
+                    onPress={handleDeliveryNotePDF}
+                  >
+                    <Ionicons name="document-outline" size={18} color="#FFF" />
+                    <Text style={styles.grnDownloadBtnText}>PDF</Text>
+                    <Text style={styles.grnDownloadBtnSub}>Save</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.grnDownloadBtn, { backgroundColor: '#1B2A4A' }]}
+                    onPress={handleDeliveryNotePrint}
+                  >
+                    <Ionicons name="print-outline" size={18} color="#FFF" />
+                    <Text style={styles.grnDownloadBtnText}>Print</Text>
+                    <Text style={styles.grnDownloadBtnSub}>PDF</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.confirmCancelBtn, { borderColor: colors.border }]}
+                onPress={closeDeliveryNote}
+              >
+                <Text style={[styles.confirmCancelText, { color: colors.textSecondary }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </>
     );
   }
@@ -639,4 +907,37 @@ const styles = StyleSheet.create({
   confirmCancelText: { fontSize: 14, fontWeight: '700' },
   confirmProceedBtn: { flex: 1, minHeight: 48, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   confirmProceedText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  grnExportSection: {
+    marginBottom: Spacing.lg,
+  },
+  grnExportTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: Spacing.sm,
+  },
+  grnDownloadRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  grnDownloadBtn: {
+    flex: 1,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  grnDownloadBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  grnDownloadBtnSub: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
 });

@@ -29,7 +29,7 @@ const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: s
 const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
   { label: 'Issues', icon: 'warning-outline', route: '/screens/issues' },
   { label: 'Profile', icon: 'person-outline', route: '/operator-fuel/profile' },
-  { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
+  { label: 'Settings', icon: 'settings-outline', route: '/operator-fuel/settings' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
 
@@ -148,6 +148,7 @@ export default function OperatorFuelLayout() {
           }}
         />
         <Tabs.Screen name="profile" options={{ href: null }} />
+        <Tabs.Screen name="settings" options={{ href: null, title: 'Settings' }} />
       </Tabs>
 
       {/* Hamburger Drawer */}

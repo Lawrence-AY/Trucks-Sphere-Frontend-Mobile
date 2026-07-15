@@ -3,19 +3,96 @@ import { Platform } from 'react-native';
 
 const isWeb = Platform.OS === 'web';
 
-// Fallback storage for web/non-secure environments
+// ─── Web Crypto encryption constants ───
+// Use a fixed encryption key derived from a deterministic source.
+// This prevents plaintext data in localStorage while still allowing
+// same-device read-back (the app itself needs to decrypt).
+const ENCRYPTION_SECRET = 'trucksphere-secure-key-2024';
+const ALGORITHM = 'AES-GCM';
+const KEY_ALGORITHM = { name: 'PBKDF2' };
+const KEY_USAGE: KeyUsage[] = ['encrypt', 'decrypt'];
+const SALT = new Uint8Array([84, 83, 45, 83, 69, 67, 85, 82, 69, 45, 49, 50, 51]); // "TS-SECURE-123"
+
+let cachedCryptoKey: CryptoKey | null = null;
+
+/** Derive a stable AES-GCM CryptoKey from the fixed secret. */
+async function getWebCryptoKey(): Promise<CryptoKey> {
+  if (cachedCryptoKey) return cachedCryptoKey;
+
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(ENCRYPTION_SECRET),
+    KEY_ALGORITHM,
+    false,
+    ['deriveKey'],
+  );
+
+  cachedCryptoKey = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: SALT,
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: ALGORITHM, length: 256 },
+    false,
+    KEY_USAGE,
+  );
+
+  return cachedCryptoKey;
+}
+
+/** Encrypts a string for web localStorage storage. */
+async function encryptWeb(value: string): Promise<string> {
+  const key = await getWebCryptoKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoder = new TextEncoder();
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: ALGORITHM, iv },
+    key,
+    encoder.encode(value),
+  );
+
+  // Prepend the IV to the ciphertext, then base64-encode the whole buffer
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  return btoa(String.fromCharCode(...combined));
+}
+
+/** Decrypts a string from web localStorage. */
+async function decryptWeb(encrypted: string): Promise<string> {
+  const key = await getWebCryptoKey();
+
+  // Decode the combined buffer: first 12 bytes = IV, rest = ciphertext
+  const combined = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: ALGORITHM, iv },
+    key,
+    ciphertext,
+  );
+  return new TextDecoder().decode(decrypted);
+}
+
+// Fallback in-memory store
 const webStore: Record<string, string> = {};
 
 export async function setItem(key: string, value: string): Promise<void> {
   try {
     if (isWeb) {
+      const encrypted = await encryptWeb(value);
+      localStorage.setItem(key, encrypted);
       webStore[key] = value;
-      localStorage.setItem(key, value);
     } else {
       await SecureStore.setItemAsync(key, value);
     }
-  } catch (error) {
-    // Fallback
+  } catch {
+    // Fallback: unencrypted on web, in-memory
     try {
       localStorage.setItem(key, value);
     } catch {
@@ -27,7 +104,15 @@ export async function setItem(key: string, value: string): Promise<void> {
 export async function getItem(key: string): Promise<string | null> {
   try {
     if (isWeb) {
-      return localStorage.getItem(key) || webStore[key] || null;
+      const encrypted = localStorage.getItem(key);
+      if (!encrypted) return webStore[key] || null;
+      try {
+        return await decryptWeb(encrypted);
+      } catch {
+        // If decryption fails, try raw value (migration from unencrypted)
+        const raw = localStorage.getItem(key);
+        return raw || webStore[key] || null;
+      }
     }
     return await SecureStore.getItemAsync(key);
   } catch {

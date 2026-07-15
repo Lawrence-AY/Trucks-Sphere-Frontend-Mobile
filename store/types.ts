@@ -53,6 +53,7 @@ export interface User extends AuditTrail {
   email: string;
   displayName: string;
   name?: string;
+  username?: string;
   role: UserRole;
   phone?: string;
   photoURL?: string;
@@ -77,6 +78,10 @@ export interface Vendor extends AuditTrail {
   address?: string;
   kraPin?: string;
   registrationNumber?: string;
+  businessPermit?: string;
+  companyActCR12?: string;
+  fleetSize?: number;
+  taxCompliance?: string;
   status: VendorStatus;
   // Computed
   driverCount?: number;
@@ -100,6 +105,7 @@ export interface Driver extends AuditTrail {
   driverId: string; // Auto-generated: D001, D002...
   fullName: string;
   phone: string;
+  email?: string;
   nationalId?: string;
   licenseNumber: string;
   licenseClass?: string;
@@ -110,17 +116,31 @@ export interface Driver extends AuditTrail {
   emergencyPhone?: string;
   vendorId: string;
   vendorName?: string;
+  assignedTruckId?: string;
   currentVehicleId?: string;
   currentVehiclePlate?: string;
   availability: boolean;
   totalTrips?: number;
   rating?: number;
+  // Insurance
+  insuranceCompany?: string;
+  insuranceNumber?: string;
+  insuranceStartDate?: string;
+  insuranceExpiryDate?: string;
+  insuranceCommencingDate?: string;
+  insuranceSupplier?: string;
+  // NTSE & WIBA
+  ntsaInspectionExpiry?: string;
+  wibaProvider?: string;
+  wibaStartDate?: string;
+  wibaEndDate?: string;
 }
 
 // ─── Vehicle ───
 export interface Vehicle extends AuditTrail {
   id: string;
   registrationNumber: string; // Plate number
+  plateNumber?: string;
   vendorId: string;
   vendorName?: string;
   make: string;
@@ -128,10 +148,12 @@ export interface Vehicle extends AuditTrail {
   year: number;
   capacity: number; // tonnes
   capacityUnit: string;
+  assignedDriverId?: string;
   currentDriverId?: string;
   currentDriverName?: string;
   insuranceExpiry: string;
   inspectionExpiry: string;
+  lastInspection?: string;
   status: VehicleStatus;
   photos?: string[];
   documents?: VehicleDocument[];
@@ -253,6 +275,7 @@ export interface PurchaseOrder extends AuditTrail {
   customerName?: string;
   vendorId: string;
   vendorName: string;
+  companyName?: string;
   materialId: string;
   materialName: string;
   quantity: number;
@@ -279,16 +302,20 @@ export interface PurchaseOrder extends AuditTrail {
 export interface Job extends AuditTrail {
   id: string;
   jobId: string; // Auto-generated: POMAT###/V###/D###/T###/J####
+  documentId?: string;
   purchaseOrderId: string;
   poNumber: string;
   vendorId: string;
   vendorName: string;
+  companyName?: string;
   driverId: string;
   driverName: string;
+  driverPhotoURL?: string;
   vehicleId: string;
   plateNumber: string;
   materialId: string;
   materialName: string;
+  materialSource?: string;
   quantityOrdered: number;
   quantityDispatched?: number;
   quantityDelivered?: number;
@@ -298,6 +325,7 @@ export interface Job extends AuditTrail {
   siteId?: string;
   siteName?: string;
   status: JobStatus;
+  trackingId?: string;
   // Weights
   weighInId?: string;
   weighOutId?: string;
@@ -308,6 +336,13 @@ export interface Job extends AuditTrail {
   siteWeighOutWeight?: number;
   siteNetWeight?: number;
   weightVariance?: number;
+  weighInAt?: string;
+  weighOutAt?: string;
+  siteWeighInAt?: string;
+  siteWeighOutAt?: string;
+  weighInLocation?: string;
+  weighOutLocation?: string;
+  weighOutGeoLocation?: string;
   // Timeline
   dispatchTime?: string;
   quarryInTime?: string;
@@ -365,6 +400,7 @@ export interface FuelRecord extends AuditTrail {
   jobId: string;
   vendorId: string;
   vendorName: string;
+  companyName?: string;
   driverName: string;
   plateNumber: string;
   fuelAmount: number;

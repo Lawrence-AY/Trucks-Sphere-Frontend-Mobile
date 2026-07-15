@@ -76,10 +76,16 @@ export default function OperatorQuarryDashboardScreen() {
 
   useEffect(() => { loadData(); }, []);
 
-  const queue = deliveries.filter(
+  // Scope data to the operator's assigned quarry
+  const operatorQuarryId = (user as any)?.quarryId || '';
+  const quarryDeliveries = operatorQuarryId
+    ? deliveries.filter((d) => !d.quarryId || d.quarryId === operatorQuarryId)
+    : deliveries;
+
+  const queue = quarryDeliveries.filter(
     (d) => !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status) && !d.weighInWeight,
   );
-  const completed = deliveries.filter(
+  const completed = quarryDeliveries.filter(
     (d) => d.status === 'delivered' || d.status === 'completed' || d.status === 'loaded',
   );
 
@@ -167,6 +173,7 @@ export default function OperatorQuarryDashboardScreen() {
       poNumber: selectedPo.poNumber,
       vendorId: selectedPo.vendorId,
       vendorName: selectedPo.vendorName,
+      companyName: selectedPo.companyName || selectedPo.vendorName,
       driverId: selectedDriver.id,
       driverName: selectedDriver.name || selectedDriver.fullName,
       vehicleId: selectedVehicle.id,

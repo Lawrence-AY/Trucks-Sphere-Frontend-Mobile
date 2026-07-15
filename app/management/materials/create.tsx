@@ -41,11 +41,14 @@ const CATEGORIES: { id: MaterialCategory; name: string }[] = [
 ];
 
 const MEASUREMENT_UNITS: { id: MeasurementUnit; name: string }[] = [
-  { id: 'weight', name: 'Weight (Tonnes, Kgs)' },
-  { id: 'volume', name: 'Volume (Cubic Meters, Liters)' },
-  { id: 'count', name: 'Count (Pieces, Bags, Units)' },
-  { id: 'length', name: 'Length (Meters, Feet)' },
-  { id: 'area', name: 'Area (Square Meters)' },
+  { id: 'Tonnes', name: 'Tonnes' },
+  { id: 'Bags', name: 'Bags' },
+  { id: 'Pieces', name: 'Pieces' },
+  { id: 'Millimetres', name: 'Millimetres' },
+  { id: 'Metres', name: 'Metres' },
+  { id: 'Litres', name: 'Litres' },
+  { id: 'Cubic Metres', name: 'Cubic Metres' },
+  { id: 'Kilograms', name: 'Kilograms' },
 ];
 
 const PROPERTY_TYPES = [

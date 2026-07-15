@@ -88,6 +88,17 @@ export default function PublicTrackingScreen() {
     }
   }, [plate, trackByPlate]);
 
+  // Auto-refresh tracking data every 10 seconds when showing active delivery
+  useEffect(() => {
+    if (state.kind !== 'active') return;
+    const interval = setInterval(() => {
+      if (searchPlate && searchPlate.length >= 3) {
+        trackByPlate(searchPlate);
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [state.kind, searchPlate, trackByPlate]);
+
   const colors = Colors.light;
   const bg = colors.background;
   const surface = colors.surface;

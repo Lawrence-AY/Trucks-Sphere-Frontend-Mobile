@@ -25,6 +25,28 @@ export const showAlert = (title: string, message: string): Promise<void> => {
   });
 };
 
+/**
+ * Show an alert with a callback action after dismissal.
+ * Works on both web (blocks with window.alert) and native (Alert with onPress).
+ */
+export const showAlertWithCallback = (
+  title: string,
+  message: string,
+  onDismiss: () => void
+): Promise<void> => {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+    onDismiss();
+    return Promise.resolve();
+  }
+  const { Alert } = require('react-native');
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [
+      { text: 'OK', onPress: () => { onDismiss(); resolve(); } },
+    ]);
+  });
+};
+
 // ─── Shared Alert Sync Utility ───
 // When the mobile app creates an alert, it should also be displayable on web.
 // This utility normalizes alert creation across platforms and stores alerts

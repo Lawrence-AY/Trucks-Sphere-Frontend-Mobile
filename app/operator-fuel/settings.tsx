@@ -7,12 +7,10 @@ import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 import { showAlert } from '../../utils/webAlert';
 import { changePassword } from '../../services/api';
-import ShareModal from '../../components/ShareModal';
 
-export default function ManagementSettingsScreen() {
+export default function OperatorFuelSettingsScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  const [shareVisible, setShareVisible] = useState(false);
   const [pwModal, setPwModal] = useState(false);
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -53,36 +51,25 @@ export default function ManagementSettingsScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing['4xl'] }} keyboardShouldPersistTaps="handled" pointerEvents={pwModal ? 'none' : 'auto'}>
-      {/* Profile */}
-     
+      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Settings</Text>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={{ alignItems: 'center', gap: Spacing.md }}>
-          <View style={[styles.avatar, { backgroundColor: '#1B2A4A18' }]}>
-            <Text style={{ fontSize: 28, fontWeight: '700', color: '#1B2A4A' }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
+          <View style={[styles.avatar, { backgroundColor: '#F59E0B18' }]}>
+            <Text style={{ fontSize: 28, fontWeight: '700', color: '#F59E0B' }}>{(user?.displayName || 'F').charAt(0).toUpperCase()}</Text>
           </View>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'User'}</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'Fuel Operator'}</Text>
           <Text style={{ fontSize: 14, color: colors.textMuted }}>{user?.email || ''}</Text>
-          <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-            <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#1B2A4A18' }}>
-              <Text style={{ fontSize: 14, color: '#1B2A4A', fontWeight: '600' }}>{getRoleLabel(user?.role || '')}</Text>
-            </View>
+          <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#F59E0B18' }}>
+            <Text style={{ fontSize: 14, color: '#F59E0B', fontWeight: '600' }}>{getRoleLabel(user?.role || '')}</Text>
           </View>
         </View>
       </View>
 
-      {/* Export Data */}
-      <TouchableOpacity style={[styles.btn, { backgroundColor: '#1B2A4A' }]} onPress={() => setShareVisible(true)}>
-        <Ionicons name="cloud-download-outline" size={20} color="#FFF" />
-        <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>Export Data</Text>
-      </TouchableOpacity>
-
-      {/* Update Password */}
       <TouchableOpacity style={[styles.btn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]} onPress={() => setPwModal(true)}>
-        <Ionicons name="lock-closed-outline" size={20} color={colors.primary} />
-        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary }}>Update Password</Text>
+        <Ionicons name="lock-closed-outline" size={20} color="#F59E0B" />
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#F59E0B' }}>Update Password</Text>
       </TouchableOpacity>
 
-      {/* Password Modal */}
       <Modal visible={pwModal} transparent animationType="fade" onRequestClose={() => setPwModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
@@ -94,15 +81,13 @@ export default function ManagementSettingsScreen() {
               <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E2E8F0' }]} onPress={() => { setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw(''); }} disabled={updating}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#1E293B' }}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1B2A4A' }]} onPress={handlePasswordUpdate} disabled={updating}>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#F59E0B' }]} onPress={handlePasswordUpdate} disabled={updating}>
                 {updating ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFF' }}>Update</Text>}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
-      <ShareModal visible={shareVisible} onClose={() => setShareVisible(false)} />
     </ScrollView>
   );
 }

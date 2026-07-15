@@ -18,7 +18,7 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
+import { fetchDeliveryOrders, fetchQuarries, updateDeliveryOrder } from '../../services/api';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
 import { getNextId } from '../../services/counter';
 import {
@@ -68,6 +68,7 @@ function buildReceiptHtml(data: {
   netWeight: number;
   timestamp: string;
   operatorName: string;
+  lotNumber?: string;
 }): string {
   return `
     <html>
@@ -131,6 +132,7 @@ function buildReceiptHtml(data: {
         <div class="section-title">Material</div>
         <div class="row"><span class="label">Material</span><span class="value">${data.materialName || 'N/A'}</span></div>
         <div class="row"><span class="label">Quantity Ordered</span><span class="value">${data.quantityOrdered} tonnes</span></div>
+        ${data.lotNumber ? `<div class="row"><span class="label">Lot Number</span><span class="value">${data.lotNumber}</span></div>` : ''}
       </div>
 
       <div class="section">
@@ -186,6 +188,7 @@ export default function OperatorSiteWeightsScreen() {
   // ─── Active weigh job state ───
   const [activeJob, setActiveJob] = useState<any>(null);
   const [weightOutInput, setWeightOutInput] = useState('');
+  const [lotNumber, setLotNumber] = useState('');
   const [saving, setSaving] = useState(false);
 
   // ─── Review / Receipt Modal ───
@@ -258,11 +261,13 @@ export default function OperatorSiteWeightsScreen() {
   const openWeighForm = (job: any) => {
     setActiveJob(job);
     setWeightOutInput('');
+    setLotNumber(job.storageLot || job.lotNumber || job.destinationLot || '');
   };
 
   const closeWeighForm = () => {
     setActiveJob(null);
     setWeightOutInput('');
+    setLotNumber('');
     setSaving(false);
   };
 
@@ -311,7 +316,7 @@ export default function OperatorSiteWeightsScreen() {
         const rnNum = await getNextId();
         receiptNoteId = `${activeJob.jobId}/RN${rnNum.replace('RN', '').padStart(3, '0')}`;
       } catch {
-        receiptNoteId = generateReceiptNoteId(activeJob.jobId);
+        receiptNoteId = generateReceiptNoteId();
       }
 
       // Calculate weight differences: quarry net vs site net
@@ -338,6 +343,7 @@ export default function OperatorSiteWeightsScreen() {
         receivedLocation: activeJob.siteName || 'Site',
         receivedBy: 'Site Operator',
         receiptNoteId,
+        storageLot: lotNumber || undefined,
         status: 'completed',
         updatedAt: now,
       });
@@ -365,6 +371,7 @@ export default function OperatorSiteWeightsScreen() {
       setGrnData({
         ...updatedJob,
         receiptNoteId,
+        storageLot: lotNumber,
         siteWeighIn,
         weightOut: weightOutNum,
         netWeight,
@@ -395,6 +402,7 @@ export default function OperatorSiteWeightsScreen() {
       quantityOrdered: grnData.quantityOrdered || 0,
       quarryName: grnData.quarryName || '',
       siteName: grnData.siteName || '',
+      lotNumber: grnData.storageLot || grnData.lotNumber || grnData.destinationLot || '',
       weightIn: siteWeighIn,
       weightOut: weightOutNum,
       netWeight: grnData.siteNetWeight || netWeight || 0,
@@ -405,6 +413,28 @@ export default function OperatorSiteWeightsScreen() {
     };
   };
 
+
+  const handleDownloadPDF = async () => {
+    const data = buildGrnExportData();
+    if (!data) return;
+    try {
+      const html = buildReceiptHtml(data);
+      await Print.printAsync({ html });
+    } catch (e: any) {
+      Alert.alert('Print Error', e?.message || 'Failed to print');
+    }
+  };
+
+  const handlePrintPDF = async () => {
+    const data = buildGrnExportData();
+    if (!data) return;
+    try {
+      const html = buildReceiptHtml(data);
+      await Print.printAsync({ html });
+    } catch (e: any) {
+      Alert.alert('Print Error', e?.message || 'Failed to print');
+    }
+  };
 
   const handleDownloadCSV = async () => {
     const data = buildGrnExportData();
@@ -428,6 +458,7 @@ export default function OperatorSiteWeightsScreen() {
         ['Site Arrival Weight (Gross)', `${data.weightIn.toFixed(1)} T`],
         ['Weight Out (Tare)', `${data.weightOut.toFixed(1)} T`],
         ['Net Weight', `${data.netWeight.toFixed(1)} T`],
+        ['Lot Number', data.lotNumber || '—'],
         ['Status', 'COMPLETED'],
         ['Operator', data.operatorName],
         ['Date', data.timestamp],
@@ -888,7 +919,19 @@ export default function OperatorSiteWeightsScreen() {
                       {grnData.materialName}
                     </Text>
                   </View>
-                  <View style={styles.grnDivider} />
+                  {grnData.storageLot ? (
+                    <>
+                      <View style={styles.grnRow}>
+                        <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                          Lot Number
+                        </Text>
+                        <Text style={[styles.grnValue, { color: '#F59E0B' }]}>
+                          {grnData.storageLot}
+                        </Text>
+                      </View>
+                      <View style={styles.grnDivider} />
+                    </>
+                  ) : null}
                   <View style={styles.grnRow}>
                     <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
                       Gross (Site In)
@@ -928,13 +971,39 @@ export default function OperatorSiteWeightsScreen() {
               )}
 
 
+              {/* Export Actions */}
+              <View style={styles.grnExportSection}>
+                <Text style={[styles.grnExportTitle, { color: colors.textMuted }]}>
+                  EXPORT RECEIPT
+                </Text>
+                <View style={styles.grnDownloadRow}>
+                
+                  <TouchableOpacity
+                    style={[styles.grnDownloadBtn, { backgroundColor: '#1B2A4A' }]}
+                    onPress={handlePrintPDF}
+                  >
+                    <Ionicons name="print-outline" size={18} color="#FFF" />
+                    <Text style={styles.grnDownloadBtnText}>Print</Text>
+                    <Text style={styles.grnDownloadBtnSub}>PDF</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.grnDownloadBtn, { backgroundColor: '#2563EB' }]}
+                    onPress={handleDownloadCSV}
+                  >
+                    <Ionicons name="download-outline" size={18} color="#FFF" />
+                    <Text style={styles.grnDownloadBtnText}>CSV</Text>
+                    <Text style={styles.grnDownloadBtnSub}>Data</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               {/* Dismiss */}
               <TouchableOpacity
                 style={[styles.grnDoneBtn, { borderColor: colors.border }]}
                 onPress={() => {
                   setGrnVisible(false);
                   closeWeighForm();
-                  router.navigate('/operator-site/dashboard' as any);
+                  router.back();
                 }}
               >
                 <Text
@@ -943,7 +1012,7 @@ export default function OperatorSiteWeightsScreen() {
                     { color: colors.textSecondary },
                   ]}
                 >
-                  Done — Back to Schedule
+                  Done
                 </Text>
               </TouchableOpacity>
             </View>
@@ -989,6 +1058,7 @@ export default function OperatorSiteWeightsScreen() {
             item.status === 'completed' || item.status === 'delivered';
           const siteNet = item.siteNetWeight ?? item.quantityDelivered ?? null;
           const diff = item.siteWeightDifference ?? null;
+          const lotNum = item.storageLot || item.lotNumber || item.destinationLot || '';
 
           return (
             <DataCard
@@ -1018,7 +1088,7 @@ export default function OperatorSiteWeightsScreen() {
               />
               <DetailRow
                 icon="cube-outline"
-                value={`${item.materialName || 'Material'}`}
+                value={`${item.materialName || 'Material'}${lotNum ? ` · Lot: ${lotNum}` : ''}`}
               />
 
               {/* Site Arrival Weight Badge */}
