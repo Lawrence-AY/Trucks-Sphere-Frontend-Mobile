@@ -36,13 +36,10 @@ import api from '../../services/api';
 
 const ROLE_OPTIONS = [
   { id: 'management', name: 'Management' },
+  { id: 'operator_quarry', name: 'Operator at Quarry' },
+  { id: 'operator_site', name: 'Operator at Site' },
   { id: 'vendor', name: 'Vendor' },
-  { id: 'quarry_operator', name: 'Quarry Operator' },
-  { id: 'site_operator', name: 'Site Operator' },
-  { id: 'fuel_operator', name: 'Fuel Operator' },
-  { id: 'weighbridge_operator', name: 'Weighbridge Operator' },
-  { id: 'driver', name: 'Driver' },
-  { id: 'viewer', name: 'Viewer' },
+  { id: 'operator_fuel', name: 'Fuel Attendant' },
 ];
 
 export default function UsersScreen() {
@@ -57,12 +54,12 @@ export default function UsersScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    email: '',
     displayName: '',
     password: '',
     role: 'viewer',
     phone: '',
   });
+  const [generatedUsername, setGeneratedUsername] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const loadUsers = useCallback(async () => {
@@ -97,12 +94,20 @@ export default function UsersScreen() {
     }
   }
 
+  function generateUsernameFromDisplay(displayName: string): string {
+    if (!displayName) return '';
+    const parts = displayName.trim().split(/\s+/);
+    const first = parts[0].replace(/[^a-zA-Z]/g, '').toLowerCase();
+    const last = parts.length > 1 ? parts[1].replace(/[^a-zA-Z]/g, '').toLowerCase() : '';
+    const lastPart = last.slice(0, 3);
+    return `${first}${lastPart}`;
+  }
+
   function validateForm(): boolean {
     const errors: Record<string, string> = {};
-    if (!form.email.trim()) errors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errors.email = 'Invalid email';
-    if (!form.displayName.trim()) errors.displayName = 'Name is required';
+    if (!form.displayName.trim()) errors.displayName = 'Full name is required';
     if (!form.password || form.password.length < 6) errors.password = 'Password must be at least 6 characters';
+    if (!form.phone.trim()) errors.phone = 'Phone number is required';
     if (!form.role) errors.role = 'Role is required';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -112,16 +117,24 @@ export default function UsersScreen() {
     if (!validateForm()) return;
     setSaving(true);
     try {
-      await api.post('/api/auth/register', {
-        email: form.email.trim(),
+      const nameParts = form.displayName.trim().split(/\s+/);
+      const firstName = nameParts[0];
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+      const result = await api.post('/api/auth/register', {
         displayName: form.displayName.trim(),
+        firstName,
+        lastName,
         password: form.password,
         role: form.role,
         phone: form.phone.trim(),
       });
-      Alert.alert('Success', 'User created successfully');
+
+      const uname = result?.data?.user?.generatedUsername || generateUsernameFromDisplay(form.displayName);
+      Alert.alert('Success', `User "${uname}" created under role: ${form.role}`);
       setShowAddModal(false);
-      setForm({ email: '', displayName: '', password: '', role: 'viewer', phone: '' });
+      setForm({ displayName: '', password: '', role: 'viewer', phone: '' });
+      setGeneratedUsername('');
       loadUsers();
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to create user';
@@ -227,6 +240,9 @@ export default function UsersScreen() {
                         <Badge label="Inactive" variant="danger" size="sm" />
                       )}
                     </View>
+                    <Text style={[styles.userId, { color: colors.textMuted, fontSize: 10 }]}>
+                      UID: {user.uid || user.id || '\u2014'}
+                    </Text>
                     <Text style={[styles.userEmail, { color: colors.textMuted }]}>
                       {user.email || 'No email'}
                     </Text>
@@ -269,14 +285,15 @@ export default function UsersScreen() {
                 error={formErrors.displayName}
               />
               <Input
-                label="Email"
-                value={form.email}
-                onChangeText={(v) => updateForm('email', v)}
-                placeholder="john@example.com"
-                icon="mail-outline"
-                keyboardType="email-address"
-                required
-                error={formErrors.email}
+                label="Username"
+                value={
+                  generatedUsername ||
+                  generateUsernameFromDisplay(form.displayName)
+                }
+                onChangeText={(v) => setGeneratedUsername(v)}
+                placeholder="Auto-generated from name"
+                icon="person-outline"
+                editable={false}
               />
               <Input
                 label="Password"
@@ -289,12 +306,14 @@ export default function UsersScreen() {
                 error={formErrors.password}
               />
               <Input
-                label="Phone (optional)"
+                label="Phone"
                 value={form.phone}
                 onChangeText={(v) => updateForm('phone', v)}
                 placeholder="+254 7XX XXX XXX"
                 icon="call-outline"
                 keyboardType="phone-pad"
+                required
+                error={formErrors.phone}
               />
               <Select
                 label="Role"
@@ -403,6 +422,10 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  userId: {
+    fontSize: 10,
+    marginTop: 1,
   },
   userEmail: {
     fontSize: 12,
