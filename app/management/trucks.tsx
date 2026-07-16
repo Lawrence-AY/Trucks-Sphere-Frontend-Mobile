@@ -30,7 +30,6 @@ export default function ManagementTrucksScreen() {
       setVehicles(vehicleData || []);
       setVendors(vendorData || []);
     } catch (error) {
-      console.error('Vehicles load error:', error);
     } finally {
       setRefreshing(false);
       setLoading(false);

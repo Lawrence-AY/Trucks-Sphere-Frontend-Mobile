@@ -170,26 +170,14 @@ async function uploadFile(
     return response.data;
   } catch (error: unknown) {
     // Log full error details to console for debugging
-    console.error('[uploadService] Upload failed');
-    console.error('[uploadService] URL:', `${API_BASE_URL}${url}`);
-    console.error('[uploadService] fileUri:', fileUri);
 
     if (error instanceof AxiosError) {
       if (error.response) {
-        console.error('[uploadService] Status:', error.response.status);
-        console.error('[uploadService] Response data:', JSON.stringify(error.response.data));
-        console.error('[uploadService] Response headers:', JSON.stringify(error.response.headers));
       } else if (error.request) {
-        console.error('[uploadService] No response received — network or CORS issue');
-        console.error('[uploadService] Axios code:', error.code);
-        console.error('[uploadService] Axios message:', error.message);
       } else {
-        console.error('[uploadService] Request setup error:', error.message);
       }
     } else if (error instanceof Error) {
-      console.error('[uploadService] Non-Axios error:', error.message, error.stack);
     } else {
-      console.error('[uploadService] Unknown error type:', error);
     }
 
     // Throw a new Error with a meaningful message that the UI can display

@@ -408,7 +408,6 @@ export default function FuelDispenseScreen() {
         throw error;
       }
     } catch (error: any) {
-      console.error("[fuel] handleTakePumpPhoto error:", error?.message, error?.stack);
       Alert.alert("Photo Upload Failed", error?.message || "Could not capture the fuel pump photo.");
     } finally {
       setPumpPhotoUploading(false);

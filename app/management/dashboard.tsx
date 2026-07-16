@@ -74,7 +74,6 @@ export default function ManagementDashboardScreen() {
       setVendors(vendorData || []);
       setFuelRecords(fuelData || []);
     } catch (error) {
-      console.error("Management dashboard error:", error);
     } finally {
       setRefreshing(false);
       setLoading(false);

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Alert, ScrollView, Share, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList, Alert, ScrollView, Share, ActivityIndicator, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
@@ -26,11 +26,9 @@ export default function ReceiveScreen() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    console.log('[ReceiveScreen] Fetching delivery orders...');
     fetchDeliveryOrders().then(data => {
-      console.log('[ReceiveScreen] Delivery orders loaded:', data.length, 'items');
       setDeliveries(data);
-    }).catch(err => console.error('[ReceiveScreen] Failed to fetch deliveries:', err));
+    }).catch(() => {});
   }, []);
 
   const handleReceive = async () => {
@@ -44,16 +42,14 @@ export default function ReceiveScreen() {
         receivedAt: new Date().toISOString(),
         deliveryNote: deliveryNote || undefined,
       });
-      console.log('[ReceiveScreen] Delivery marked as delivered:', selected.jobId);
       setSaved(true);
     } catch (err) {
-      console.error('[ReceiveScreen] Failed to update delivery:', err);
     } finally {
       setSaving(false);
     }
   };
 
-  const pending = deliveries.filter((d: any) => d.status === 'in_transit' || d.status === 'in_transit_to_site')
+  const pending = deliveries.filter((d: any) => d.status === 'loaded' || d.status === 'in_transit' || d.status === 'in_transit_to_site' || d.status === 'dispatched' || d.status === 'en_route')
     .filter((d: any) =>
       (d.jobId || '').toLowerCase().includes((search || '').toLowerCase()) ||
       (d.truckPlate || d.plateNumber || '').toLowerCase().includes((search || '').toLowerCase()) ||
@@ -103,6 +99,36 @@ export default function ReceiveScreen() {
               <Text style={[styles.rLabel, { color: colors.textSecondary }]}>Quantity</Text>
               <Text style={[styles.rValue, { color: colors.text }]}>{selected.quantity}T</Text>
             </View>
+
+            {/* Driver Verification Photo from Quarry Weigh-Out */}
+            {selected.driverPhotoURL ? (
+              <View style={styles.dispatchPhotoSection}>
+                <View style={styles.dispatchPhotoHeader}>
+                  <Ionicons name="person-outline" size={14} color={colors.textMuted} />
+                  <Text style={[styles.dispatchPhotoLabel, { color: colors.textMuted }]}>Driver Photo (Weigh-Out)</Text>
+                </View>
+                <Image
+                  source={{ uri: selected.driverPhotoURL }}
+                  style={[styles.dispatchPhoto, { borderColor: colors.border }]}
+                  resizeMode="cover"
+                />
+              </View>
+            ) : null}
+
+            {/* Weigh-Out Verification Photo */}
+            {selected.weighOutPhotoURL ? (
+              <View style={styles.dispatchPhotoSection}>
+                <View style={styles.dispatchPhotoHeader}>
+                  <Ionicons name="camera-outline" size={14} color={colors.textMuted} />
+                  <Text style={[styles.dispatchPhotoLabel, { color: colors.textMuted }]}>Weigh-Out Photo</Text>
+                </View>
+                <Image
+                  source={{ uri: selected.weighOutPhotoURL }}
+                  style={[styles.dispatchPhoto, { borderColor: colors.border }]}
+                  resizeMode="cover"
+                />
+              </View>
+            ) : null}
 
             <View style={styles.receiptDivider} />
 
@@ -327,4 +353,9 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     backgroundColor: '#FAFAFA',
   },
+  // Dispatch photo section (driver verification photo from quarry weigh-out)
+  dispatchPhotoSection: { marginTop: Spacing.sm, gap: Spacing.xs },
+  dispatchPhotoHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dispatchPhotoLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  dispatchPhoto: { width: '100%', height: 200, borderRadius: Radius.md, borderWidth: 1, backgroundColor: '#F1F5F9' },
 });

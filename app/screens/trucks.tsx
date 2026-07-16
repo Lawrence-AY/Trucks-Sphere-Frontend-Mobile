@@ -16,21 +16,17 @@ export default function TrucksScreen() {
   const [trucks, setTrucks] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[Trucks] Fetching vehicles from backend...');
     fetchVehicles().then(data => {
-      console.log('[Trucks] Vehicles loaded:', data.length, 'items', data);
       setTrucks(data);
-    }).catch(err => console.error('[Trucks] Failed to load vehicles:', err));
+    }).catch(() => {});
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchVehicles().then(data => {
-      console.log('[Trucks] Vehicles refreshed:', data.length, 'items');
       setTrucks(data);
       setRefreshing(false);
     }).catch(err => {
-      console.error('[Trucks] Refresh failed:', err);
       setRefreshing(false);
     });
   };

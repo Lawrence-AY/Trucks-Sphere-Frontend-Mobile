@@ -11,11 +11,9 @@ export default function MyTrucksScreen() {
   const [trucks, setTrucks] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[MyTrucks] Fetching vehicles from backend...');
     fetchVehicles().then(data => {
-      console.log('[MyTrucks] Vehicles loaded:', data.length, 'items', data);
       setTrucks(data);
-    }).catch(err => console.error('[MyTrucks] Failed to load vehicles:', err));
+    }).catch(() => {});
   }, []);
 
   const vendorTrucks = trucks.filter(t =>

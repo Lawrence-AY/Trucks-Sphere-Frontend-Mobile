@@ -55,7 +55,6 @@ export default function MaterialDetailsScreen() {
         setOrders(visibleOrders.filter((order: any) => order.materialId === found.id || order.materialName === found.name));
         setDeliveries(visibleDeliveries.filter((job: any) => job.materialId === found.id || job.materialName === found.name));
       } catch (loadError) {
-        console.error('Material details load error:', loadError);
         setError('Failed to load material details.');
       } finally {
         setLoading(false);

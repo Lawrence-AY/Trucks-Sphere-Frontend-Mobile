@@ -22,7 +22,6 @@ export default function RootLayout() {
   // Wire up auto-logout on token expiry
   useEffect(() => {
     setOnAuthExpired(async () => {
-      console.log('[RootLayout] Auth expired — logging out');
       await logout();
       // Force redirect to login by replacing entire navigation stack
       router.replace('/(auth)/login' as any);
@@ -31,9 +30,7 @@ export default function RootLayout() {
   }, [logout]);
 
   const handleRootLayout = useCallback(() => {
-    void ExpoSplashScreen.hideAsync().catch((error) => {
-      console.warn('Failed to hide native splash screen:', error);
-    });
+    void ExpoSplashScreen.hideAsync().catch(() => {});
   }, []);
 
   return (

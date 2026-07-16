@@ -83,6 +83,18 @@ export interface Vendor extends AuditTrail {
   fleetSize?: number;
   taxCompliance?: string;
   status: VendorStatus;
+  // Insurance (single source of truth — drivers inherit from vendor)
+  insuranceCompany?: string;
+  insuranceNumber?: string;
+  insuranceStartDate?: string;
+  insuranceExpiryDate?: string;
+  insuranceCommencingDate?: string;
+  insuranceSupplier?: string;
+  // NTSE & WIBA Compliance (single source of truth — drivers inherit from vendor)
+  ntsaInspectionExpiry?: string;
+  wibaProvider?: string;
+  wibaStartDate?: string;
+  wibaEndDate?: string;
   // Computed
   driverCount?: number;
   vehicleCount?: number;

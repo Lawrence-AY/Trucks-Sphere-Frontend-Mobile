@@ -17,9 +17,7 @@ export default function DriverHistoryScreen() {
   const [vendors, setVendors] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[DriverHistory] Fetching data for driver:', id, name);
     Promise.all([fetchDrivers(), fetchVehicles(), fetchDeliveryOrders(), fetchVendors()]).then(([drivers, vehicles, deliveries, vendorData]) => {
-      console.log('[DriverHistory] Loaded drivers:', drivers.length, 'vehicles:', vehicles.length, 'deliveries:', deliveries.length);
       setVendors(vendorData || []);
       const foundDriver = drivers.find(d => d.id === id);
       setDriver(foundDriver || null);
@@ -31,8 +29,7 @@ export default function DriverHistoryScreen() {
         .filter((d: any) => d.driverId === id)
         .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setTrips(driverTrips);
-      console.log('[DriverHistory] Found', driverTrips.length, 'trips for driver');
-    }).catch(err => console.error('[DriverHistory] Failed to load data:', err));
+    }).catch(() => {});
   }, [id, name]);
 
   const driverName = driver?.fullName || driver?.name || name || 'Driver';

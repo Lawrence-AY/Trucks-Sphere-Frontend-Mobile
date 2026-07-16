@@ -38,6 +38,8 @@ interface SyncState {
   unsubscribe: (collectionName: string, params?: Record<string, string>) => void;
   // Force refresh a collection
   refresh: (collectionName: string, params?: Record<string, string>) => Promise<void>;
+  // Optimistic update: immediately push new/updated data into cache after a write
+  optimisticUpdate: (collectionName: string, updatedItem: any, idField?: string) => void;
   // Get current data for a collection
   getData: (collectionName: string) => any[];
   // Get loading state
@@ -47,7 +49,7 @@ interface SyncState {
 }
 
 const CACHE_PREFIX = 'sync_cache_';
-const POLL_INTERVAL_MS = 30000; // 30 seconds
+const POLL_INTERVAL_MS = 8000; // 8 seconds — fast sync for real-time operations
 
 // ─── Collection-to-fetcher mapping ───
 const fetchers: Record<string, (p?: any) => Promise<any[]>> = {
@@ -90,7 +92,6 @@ async function fetchWithETag(
 ): Promise<{ data: any[]; hash: string; notModified: boolean }> {
   const fetcher = fetchers[collectionName];
   if (!fetcher) {
-    console.warn(`[Sync] Unknown collection: ${collectionName}`);
     return { data: [], hash: '', notModified: false };
   }
 
@@ -133,7 +134,6 @@ async function fetchWithETag(
       headers['If-None-Match'] = prevETag;
     }
 
-    console.log(`[Sync] Fetching ${collectionName}${prevETag ? ' (with ETag)' : ''}...`);
 
     const response = await axios.get(url, {
       baseURL: API_BASE_URL,
@@ -145,7 +145,6 @@ async function fetchWithETag(
 
     // 304 Not Modified — data hasn't changed
     if (response.status === 304) {
-      console.log(`[Sync] ${collectionName} not modified (304)`);
       return { data: [], hash: prevETag, notModified: true };
     }
 
@@ -168,10 +167,8 @@ async function fetchWithETag(
       items = rawData.results;
     }
 
-    console.log(`[Sync] ${collectionName} fetched: ${items.length} items`);
     return { data: items, hash: newETag, notModified: false };
   } catch (error: any) {
-    console.warn(`[Sync] ${collectionName} fetch error:`, error?.message || error);
     return { data: [], hash: '', notModified: false };
   }
 }
@@ -437,6 +434,36 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
       }
     }
     return false;
+  },
+
+  optimisticUpdate: (collectionName: string, updatedItem: any, idField?: string) => {
+    const state = get();
+    const idKey = idField || 'id';
+    const updatedId = updatedItem[idKey] ?? updatedItem.jobId ?? '';
+    if (!updatedId) return;
+
+    // Update all cache entries for this collection
+    const newCollections = { ...state.collections };
+    for (const key of Object.keys(newCollections)) {
+      if (key.startsWith(CACHE_PREFIX + collectionName)) {
+        const entry = newCollections[key];
+        const existingIndex = entry.data.findIndex(
+          (item: any) => (item[idKey] ?? item.jobId ?? '') === updatedId
+        );
+        let newData: any[];
+        if (existingIndex >= 0) {
+          newData = [...entry.data];
+          newData[existingIndex] = { ...newData[existingIndex], ...updatedItem };
+        } else {
+          newData = [updatedItem, ...entry.data];
+        }
+        newCollections[key] = { ...entry, data: newData };
+        // Persist to SecureStore
+        const cacheKey = key;
+        saveCachedData(cacheKey, newData);
+      }
+    }
+    set({ collections: newCollections });
   },
 
   getError: (collectionName: string) => {

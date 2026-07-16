@@ -12,11 +12,9 @@ export default function QuarryScreen() {
   const [weighments, setWeighments] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[QuarryScreen] Fetching weighments from backend...');
     fetchWeighments().then(data => {
-      console.log('[QuarryScreen] Weighments loaded:', data.length, 'items', data);
       setWeighments(data);
-    }).catch(err => console.error('[QuarryScreen] Failed to load weighments:', err));
+    }).catch(() => {});
   }, []);
 
   const allRecords = [...weighments];

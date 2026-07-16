@@ -54,7 +54,6 @@ export default function VendorDetailScreen() {
       );
       setDeliveries(vendorDeliveries);
     } catch (e) {
-      console.error(e);
     }
     setLoading(false);
     setRefreshing(false);

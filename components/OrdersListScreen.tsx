@@ -49,7 +49,6 @@ export default function OrdersListScreen() {
       setDeliveries(deliveryData || []);
       setMaterials(matData || []);
     } catch (e) {
-      console.error('Failed to load orders:', e);
     }
     setRefreshing(false);
   };

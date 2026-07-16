@@ -12,11 +12,9 @@ export default function ActiveOrdersScreen() {
   const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[ActiveOrders] Fetching purchase orders from backend...');
     fetchPurchaseOrders().then(data => {
-      console.log('[ActiveOrders] Orders loaded:', data.length, 'items', data);
       setOrders(data);
-    }).catch(err => console.error('[ActiveOrders] Failed to load orders:', err));
+    }).catch(() => {});
   }, []);
 
   const filtered = orders.filter((o) => o.status !== 'completed').filter((o) =>

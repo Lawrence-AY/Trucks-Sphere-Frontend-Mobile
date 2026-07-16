@@ -46,7 +46,6 @@ export default function VendorTripsScreen() {
       setDeliveries((deliveryData || []).filter((d: any) => d.vendorId === vendorId));
       setFuelRecords(fuelData || []);
     } catch (error) {
-      console.error('Vendor trips error:', error);
     } finally {
       setRefreshing(false);
       setLoading(false);

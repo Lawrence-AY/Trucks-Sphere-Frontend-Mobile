@@ -177,7 +177,6 @@ export class BaseRepository<T extends { id: string }> {
       await collectionCache.setCollection(this.config.cacheKey, items, params);
       return items;
     } catch (error) {
-      console.warn(`[${this.config.name}] Fetch failed:`, error);
       return [];
     }
   }

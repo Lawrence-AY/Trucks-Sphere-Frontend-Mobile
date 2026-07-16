@@ -41,9 +41,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true, error: null });
     await clearAuthData();
     try {
-      console.log('[AuthStore] Logging in via backend /api/auth/login...');
       const response = await api.post('/api/auth/login', { username: email, password });
-      console.log('[AuthStore] Login response:', response.data);
 
       const { user: backendUser, token, refreshToken } = response.data as any;
 
@@ -67,7 +65,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
         createdAt: new Date().toISOString(),
       };
 
-      console.log('[AuthStore] Saving user data:', user);
 
       await saveAuthData({
         token,
@@ -76,10 +73,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       });
 
       set({ user, isLoading: false, isAuthenticated: true, error: null });
-      console.log('[AuthStore] Login successful, user authenticated');
     } catch (err: any) {
       const errorMsg = err?.response?.data?.error || err.message || 'Login failed';
-      console.error('[AuthStore] Login failed:', errorMsg);
       set({
         error: errorMsg,
         isLoading: false,
@@ -107,32 +102,26 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
         if (!isMockToken) {
           try {
-            console.log('[AuthStore] Restoring session via /api/auth/profile...');
             const res = await withTimeout(api.get('/api/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile');
             const user: User = res.data.user;
-            console.log('[AuthStore] Session restored from backend:', user);
             set({ user, isLoading: false, isAuthenticated: true });
             return;
           } catch (profileErr: any) {
             const status = profileErr?.response?.status;
-            console.warn(`[AuthStore] Backend profile fetch failed (${status || 'network error'}), using stored data`);
           }
         } else {
-          console.log('[AuthStore] Mock token detected, using stored session data');
         }
 
         // Fallback to stored userData (works for both mock tokens and expired real tokens)
         if (stored.userData) {
           try {
             const user: User = JSON.parse(stored.userData);
-            console.log('[AuthStore] Session restored from stored data:', user);
             set({ user, isLoading: false, isAuthenticated: true });
             return;
           } catch {}
         }
       }
     } catch (error) {
-      console.warn('[AuthStore] Session restore failed:', error);
     }
     set({ user: null, isLoading: false, isAuthenticated: false });
   },

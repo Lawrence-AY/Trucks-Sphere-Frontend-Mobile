@@ -41,7 +41,6 @@ export default function ShareModal({ visible, onClose }: ShareModalProps) {
       const csv = buildCsvContent(data.headers, data.rows);
       await shareCsvAsFile(data.title, csv);
     } catch (e) {
-      console.error('Download error:', e);
     } finally {
       setExporting(null);
     }

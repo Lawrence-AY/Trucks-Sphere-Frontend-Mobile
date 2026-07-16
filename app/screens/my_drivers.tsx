@@ -11,11 +11,9 @@ export default function MyDriversScreen() {
   const [drivers, setDrivers] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[MyDrivers] Fetching drivers from backend...');
     fetchDrivers().then(data => {
-      console.log('[MyDrivers] Drivers loaded:', data.length, 'items', data);
       setDrivers(data);
-    }).catch(err => console.error('[MyDrivers] Failed to load drivers:', err));
+    }).catch(() => {});
   }, []);
 
   const vendorDrivers = drivers.filter(d =>

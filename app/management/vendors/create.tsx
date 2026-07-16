@@ -6,6 +6,7 @@
  *   - Auto-generate vendor ID
  *   - Create with optimistic UI
  *   - Navigate to vendor detail on success
+ *   - Insurance & Compliance sections (single source of truth for drivers)
  */
 
 import React, { useState } from 'react';
@@ -41,6 +42,7 @@ export default function CreateVendorScreen() {
   const insets = useSafeAreaInsets();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
+    // Company
     companyName: '',
     contactPerson: '',
     phone: '',
@@ -52,6 +54,19 @@ export default function CreateVendorScreen() {
     companyActCR12: '',
     fleetSize: '',
     taxCompliance: '',
+    // Insurance
+    insuranceCompany: '',
+    insuranceNumber: '',
+    insuranceStartDate: '',
+    insuranceExpiryDate: '',
+    insuranceCommencingDate: '',
+    insuranceSupplier: '',
+    // NTSE
+    ntsaInspectionExpiry: '',
+    // WIBA
+    wibaProvider: '',
+    wibaStartDate: '',
+    wibaEndDate: '',
     status: 'active' as string,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -96,6 +111,19 @@ export default function CreateVendorScreen() {
         companyActCR12: form.companyActCR12.trim() || undefined,
         fleetSize: form.fleetSize.trim() ? Number(form.fleetSize) : undefined,
         taxCompliance: form.taxCompliance.trim() || undefined,
+        // Insurance
+        insuranceCompany: form.insuranceCompany.trim() || undefined,
+        insuranceNumber: form.insuranceNumber.trim() || undefined,
+        insuranceStartDate: form.insuranceStartDate.trim() || undefined,
+        insuranceExpiryDate: form.insuranceExpiryDate.trim() || undefined,
+        insuranceCommencingDate: form.insuranceCommencingDate.trim() || undefined,
+        insuranceSupplier: form.insuranceSupplier.trim() || undefined,
+        // NTSE
+        ntsaInspectionExpiry: form.ntsaInspectionExpiry.trim() || undefined,
+        // WIBA
+        wibaProvider: form.wibaProvider.trim() || undefined,
+        wibaStartDate: form.wibaStartDate.trim() || undefined,
+        wibaEndDate: form.wibaEndDate.trim() || undefined,
         status: form.status as any,
       });
 
@@ -111,13 +139,20 @@ export default function CreateVendorScreen() {
         companyActCR12: '',
         fleetSize: '',
         taxCompliance: '',
+        insuranceCompany: '',
+        insuranceNumber: '',
+        insuranceStartDate: '',
+        insuranceExpiryDate: '',
+        insuranceCommencingDate: '',
+        insuranceSupplier: '',
+        ntsaInspectionExpiry: '',
+        wibaProvider: '',
+        wibaStartDate: '',
+        wibaEndDate: '',
         status: 'active',
       });
       Alert.alert('Success', 'Vendor created successfully', [
-        {
-          text: 'View Vendors',
-          onPress: () => router.back(),
-        },
+        { text: 'View Vendors', onPress: () => router.back() },
       ]);
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to create vendor';
@@ -132,7 +167,6 @@ export default function CreateVendorScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Back Button */}
       <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
@@ -143,7 +177,7 @@ export default function CreateVendorScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>Create Vendor</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Add a new transport vendor to the system
+            Add a new transport vendor to the system. Insurance & compliance set here become the source of truth for all drivers under this vendor.
           </Text>
         </View>
 
@@ -157,7 +191,6 @@ export default function CreateVendorScreen() {
             required
             error={errors.companyName}
           />
-
           <Input
             label="Contact Person"
             value={form.contactPerson}
@@ -167,7 +200,6 @@ export default function CreateVendorScreen() {
             required
             error={errors.contactPerson}
           />
-
           <Input
             label="Phone Number"
             value={form.phone}
@@ -178,7 +210,6 @@ export default function CreateVendorScreen() {
             required
             error={errors.phone}
           />
-
           <Input
             label="Email Address"
             value={form.email}
@@ -188,7 +219,6 @@ export default function CreateVendorScreen() {
             keyboardType="email-address"
             error={errors.email}
           />
-
           <Input
             label="Physical Address"
             value={form.address}
@@ -196,7 +226,6 @@ export default function CreateVendorScreen() {
             placeholder="e.g. Industrial Area, Nairobi"
             icon="location-outline"
           />
-
           <Input
             label="KRA PIN"
             value={form.kraPin}
@@ -204,7 +233,6 @@ export default function CreateVendorScreen() {
             placeholder="e.g. P051234567Z"
             icon="document-text-outline"
           />
-
           <Input
             label="Registration Number"
             value={form.registrationNumber}
@@ -212,7 +240,6 @@ export default function CreateVendorScreen() {
             placeholder="e.g. BRS/2024/12345"
             icon="receipt-outline"
           />
-
           <Input
             label="Business Permit"
             value={form.businessPermit}
@@ -220,7 +247,6 @@ export default function CreateVendorScreen() {
             placeholder="e.g. BP-2024-001"
             icon="document-attach-outline"
           />
-
           <Input
             label="Company Act CR12"
             value={form.companyActCR12}
@@ -228,7 +254,6 @@ export default function CreateVendorScreen() {
             placeholder="e.g. CR12-2024-001"
             icon="document-text-outline"
           />
-
           <Input
             label="Fleet Size"
             value={form.fleetSize}
@@ -237,7 +262,6 @@ export default function CreateVendorScreen() {
             icon="car-outline"
             keyboardType="numeric"
           />
-
           <Input
             label="Tax Compliance"
             value={form.taxCompliance}
@@ -245,7 +269,89 @@ export default function CreateVendorScreen() {
             placeholder="e.g. Compliant / Non-Compliant"
             icon="checkmark-done-outline"
           />
+        </Card>
 
+        {/* Insurance Details */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Insurance Details</Text>
+        <Card>
+          <Input
+            label="Insurance Company"
+            value={form.insuranceCompany}
+            onChangeText={(v) => updateField('insuranceCompany', v)}
+            placeholder="e.g. Jubilee Insurance"
+            icon="shield-outline"
+          />
+          <Input
+            label="Insurance Number"
+            value={form.insuranceNumber}
+            onChangeText={(v) => updateField('insuranceNumber', v)}
+            placeholder="e.g. INS-2024-001"
+            icon="receipt-outline"
+          />
+          <Input
+            label="Insurance Start Date"
+            value={form.insuranceStartDate}
+            onChangeText={(v) => updateField('insuranceStartDate', v)}
+            placeholder="e.g. 2024-01-01"
+            icon="calendar-outline"
+          />
+          <Input
+            label="Insurance Expiry Date"
+            value={form.insuranceExpiryDate}
+            onChangeText={(v) => updateField('insuranceExpiryDate', v)}
+            placeholder="e.g. 2025-01-01"
+            icon="calendar-outline"
+          />
+          <Input
+            label="Insurance Commencing Date"
+            value={form.insuranceCommencingDate}
+            onChangeText={(v) => updateField('insuranceCommencingDate', v)}
+            placeholder="e.g. 2024-01-01"
+            icon="calendar-outline"
+          />
+          <Input
+            label="Insurance Supplier"
+            value={form.insuranceSupplier}
+            onChangeText={(v) => updateField('insuranceSupplier', v)}
+            placeholder="e.g. ABC Brokers Ltd"
+            icon="people-outline"
+          />
+        </Card>
+
+        {/* Compliance Details */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Compliance</Text>
+        <Card>
+          <Input
+            label="NTSE Inspection Expiry"
+            value={form.ntsaInspectionExpiry}
+            onChangeText={(v) => updateField('ntsaInspectionExpiry', v)}
+            placeholder="e.g. 2025-06-30"
+            icon="checkmark-circle-outline"
+          />
+          <Input
+            label="WIBA Provider"
+            value={form.wibaProvider}
+            onChangeText={(v) => updateField('wibaProvider', v)}
+            placeholder="e.g. WIBA Insurance Ltd"
+            icon="shield-checkmark-outline"
+          />
+          <Input
+            label="WIBA Start Date"
+            value={form.wibaStartDate}
+            onChangeText={(v) => updateField('wibaStartDate', v)}
+            placeholder="e.g. 2024-01-01"
+            icon="calendar-outline"
+          />
+          <Input
+            label="WIBA End Date"
+            value={form.wibaEndDate}
+            onChangeText={(v) => updateField('wibaEndDate', v)}
+            placeholder="e.g. 2025-01-01"
+            icon="calendar-outline"
+          />
+        </Card>
+
+        <Card>
           <Select
             label="Status"
             value={form.status}
@@ -276,9 +382,7 @@ export default function CreateVendorScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   backBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -301,27 +405,16 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     marginLeft: 4,
   },
-  content: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing['4xl'],
+  content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
+  header: { marginBottom: Spacing.lg },
+  title: { fontSize: 24, fontWeight: '800' },
+  subtitle: { fontSize: 14, marginTop: 4 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
   },
-  header: {
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  subtitle: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  actionBtn: {
-    flex: 1,
-  },
+  actions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
+  actionBtn: { flex: 1 },
 });

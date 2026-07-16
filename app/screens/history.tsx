@@ -13,11 +13,9 @@ export default function HistoryScreen() {
   const [weighments, setWeighments] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[History] Fetching weighments from backend...');
     fetchWeighments().then(data => {
-      console.log('[History] Weighments loaded:', data.length, 'items', data);
       setWeighments(data);
-    }).catch(err => console.error('[History] Failed to load weighments:', err));
+    }).catch(() => {});
   }, []);
 
   const filtered = weighments.filter(w => {

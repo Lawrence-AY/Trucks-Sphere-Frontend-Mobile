@@ -534,7 +534,7 @@ export default function OperatorSiteDashboardScreen() {
                   />
                   <DetailRow
                     icon="location-outline"
-                    value={`From: ${item.quarryName || 'Quarry'}`}
+                      value={`From: ${(item.weighOutGeoLocation?.address || item.weighOutGeoLocation?.name || item.weighOutGeoLocation?.displayName || item.weighOutLocation) ? (item.weighOutGeoLocation?.address || item.weighOutGeoLocation?.name || item.weighOutGeoLocation?.displayName || item.weighOutLocation) : (item.quarryName || 'Quarry')}`}
                   />
 
                   {/* Quarry Weights (Weigh Out + Net Weight) */}
@@ -570,6 +570,21 @@ export default function OperatorSiteDashboardScreen() {
                       )}
                     </View>
                   )}
+
+                  {/* Driver Verification Photo from Quarry Weigh-Out */}
+                  {item.driverPhotoURL ? (
+                    <View style={styles.dispatchPhotoSection}>
+                      <View style={styles.dispatchPhotoHeader}>
+                        <Ionicons name="camera-outline" size={14} color={colors.textMuted} />
+                        <Text style={[styles.dispatchPhotoLabel, { color: colors.textMuted }]}>Dispatch Photo</Text>
+                      </View>
+                      <Image
+                        source={{ uri: item.driverPhotoURL }}
+                        style={[styles.dispatchPhotoThumb, { borderColor: colors.border }]}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  ) : null}
 
                   <Text
                     style={[styles.timestamp, { color: colors.textTertiary }]}
@@ -1424,4 +1439,9 @@ const styles = StyleSheet.create({
   fabSubmitError: { fontSize: 13, fontWeight: '800', lineHeight: 18 },
   fabCreateBtn: { minHeight: 50, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   fabCreateBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  // Dispatch photo section (driver verification photo from quarry weigh-out)
+  dispatchPhotoSection: { marginTop: Spacing.sm, gap: Spacing.xs },
+  dispatchPhotoHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dispatchPhotoLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  dispatchPhotoThumb: { width: '100%', height: 160, borderRadius: Radius.md, borderWidth: 1, backgroundColor: '#F1F5F9' },
 });

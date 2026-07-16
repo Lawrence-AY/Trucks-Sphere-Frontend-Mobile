@@ -300,11 +300,26 @@ export default function PublicTrackingScreen() {
           {d.driverPhotoURL ? (
             <View style={styles.photoSection}>
               <View style={styles.photoHeader}>
-                <Ionicons name="camera-outline" size={16} color={textSec} />
-                <Text style={[styles.photoLabel, { color: textSec }]}>Driver Verification Photo</Text>
+                <Ionicons name="person-outline" size={16} color={textSec} />
+                <Text style={[styles.photoLabel, { color: textSec }]}>Driver Photo (Weigh-Out)</Text>
               </View>
               <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoFullscreen(true)} style={styles.photoContainer}>
                 <Image source={{ uri: d.driverPhotoURL }} style={[styles.driverPhoto, { borderColor: border }]} resizeMode="contain" />
+                <View style={styles.photoOverlay}>
+                  <Ionicons name="expand-outline" size={22} color="#fff" />
+                  <Text style={styles.photoOverlayText}>Tap to expand</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+          {d.weighOutPhotoURL ? (
+            <View style={styles.photoSection}>
+              <View style={styles.photoHeader}>
+                <Ionicons name="camera-outline" size={16} color={textSec} />
+                <Text style={[styles.photoLabel, { color: textSec }]}>Weigh-Out Photo</Text>
+              </View>
+              <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoFullscreen(true)} style={styles.photoContainer}>
+                <Image source={{ uri: d.weighOutPhotoURL }} style={[styles.driverPhoto, { borderColor: border }]} resizeMode="contain" />
                 <View style={styles.photoOverlay}>
                   <Ionicons name="expand-outline" size={22} color="#fff" />
                   <Text style={styles.photoOverlayText}>Tap to expand</Text>

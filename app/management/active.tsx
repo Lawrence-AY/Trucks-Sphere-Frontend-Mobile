@@ -77,7 +77,6 @@ export default function ManagementActiveScreen() {
       setDeliveries(data || []);
       setMaterials(matData || []);
     } catch (error) {
-      console.error('Active deliveries load error:', error);
     } finally {
       setRefreshing(false);
       setLoading(false);

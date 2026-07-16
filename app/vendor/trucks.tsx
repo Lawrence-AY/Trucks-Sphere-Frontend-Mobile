@@ -39,7 +39,6 @@ export default function VendorTrucksScreen() {
       setDrivers((driverData || []).filter((d: any) => d.vendorId === vendorId));
       setDeliveries((deliveryData || []).filter((d: any) => d.vendorId === vendorId));
     } catch (error) {
-      console.error('Vendor trucks error:', error);
     } finally {
       setRefreshing(false);
       setLoading(false);

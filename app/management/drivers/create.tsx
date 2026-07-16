@@ -5,10 +5,11 @@
  *   - Select vendor (required)
  *   - Full driver details form
  *   - License information
- *   - Insurance information
- *   - NTSE & WIBA compliance
- *   - Photo upload
+ *   - Photo upload (after driver creation)
  *   - Emergency contact
+ *
+ * NOTE: Insurance & Compliance fields have been moved to the Vendor form.
+ * Drivers inherit these from their linked vendor.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -37,6 +38,7 @@ import { Button } from '../../../components/ui/Button';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { uploadDriverPhoto } from '../../../services/uploadService';
+import { collectionCache } from '../../../services/cache/CollectionCache';
 import { Vendor } from '../../../store/types';
 
 const STATUS_OPTIONS = [
@@ -62,20 +64,6 @@ export default function CreateDriverScreen() {
     licenseNumber: '',
     licenseClass: '',
     licenseExpiry: '',
-    // Insurance
-    insuranceCompany: '',
-    insuranceNumber: '',
-    insuranceStartDate: '',
-    insuranceExpiryDate: '',
-    insuranceCommencingDate: '',
-    insuranceSupplier: '',
-    // NTSE
-    ntsaInspectionExpiry: '',
-    // WIBA
-    wibaProvider: '',
-    wibaStartDate: '',
-    wibaEndDate: '',
-    // Emergency
     emergencyContact: '',
     status: 'active' as string,
   });
@@ -83,7 +71,6 @@ export default function CreateDriverScreen() {
 
   useEffect(() => {
     loadVendors();
-    // Pre-populate vendor ID from navigation params (e.g. from vendor detail page)
     if (params.vendorId) {
       updateField('vendorId', params.vendorId);
     }
@@ -163,16 +150,6 @@ export default function CreateDriverScreen() {
       licenseNumber: '',
       licenseClass: '',
       licenseExpiry: '',
-      insuranceCompany: '',
-      insuranceNumber: '',
-      insuranceStartDate: '',
-      insuranceExpiryDate: '',
-      insuranceCommencingDate: '',
-      insuranceSupplier: '',
-      ntsaInspectionExpiry: '',
-      wibaProvider: '',
-      wibaStartDate: '',
-      wibaEndDate: '',
       emergencyContact: '',
       status: 'active',
     });
@@ -185,19 +162,8 @@ export default function CreateDriverScreen() {
 
     setSaving(true);
     try {
-      let photoURL: string | undefined;
-      if (photoUri) {
-        setUploadingPhoto(true);
-        try {
-          const uploaded = await uploadDriverPhoto('new-driver', photoUri);
-          photoURL = uploaded?.photoURL;
-        } catch (err) {
-          console.warn('Photo upload failed, continuing without photo');
-        }
-        setUploadingPhoto(false);
-      }
-
-      await driverRepository.create({
+      // Step 1: Create driver first (without photoURL)
+      const createdDriver = await driverRepository.create({
         vendorId: form.vendorId,
         fullName: form.fullName.trim(),
         phone: form.phone.trim(),
@@ -206,24 +172,31 @@ export default function CreateDriverScreen() {
         licenseNumber: form.licenseNumber.trim(),
         licenseClass: form.licenseClass.trim() || undefined,
         licenseExpiry: form.licenseExpiry.trim() || undefined,
-        photoURL: photoURL || undefined,
-        // Insurance
-        insuranceCompany: form.insuranceCompany.trim() || undefined,
-        insuranceNumber: form.insuranceNumber.trim() || undefined,
-        insuranceStartDate: form.insuranceStartDate.trim() || undefined,
-        insuranceExpiryDate: form.insuranceExpiryDate.trim() || undefined,
-        insuranceCommencingDate: form.insuranceCommencingDate.trim() || undefined,
-        insuranceSupplier: form.insuranceSupplier.trim() || undefined,
-        // NTSE
-        ntsaInspectionExpiry: form.ntsaInspectionExpiry.trim() || undefined,
-        // WIBA
-        wibaProvider: form.wibaProvider.trim() || undefined,
-        wibaStartDate: form.wibaStartDate.trim() || undefined,
-        wibaEndDate: form.wibaEndDate.trim() || undefined,
-        // Emergency
         emergencyContact: form.emergencyContact.trim() || undefined,
         status: form.status as any,
       });
+
+      // Step 2: Upload photo using the newly created driver's ID
+      if (photoUri && createdDriver?.id) {
+        setUploadingPhoto(true);
+        try {
+          const uploadResult = await uploadDriverPhoto(createdDriver.id, photoUri);
+          // The backend uploadController updates Firestore with photoURL automatically.
+          // Sync the local cache immediately so the driver list shows the photo.
+          if (uploadResult?.photoURL) {
+            await collectionCache.updateInCollection('drivers', createdDriver.id, {
+              photoURL: uploadResult.photoURL,
+            } as any);
+          }
+        } catch (err: any) {
+          // Photo upload failed but driver was created successfully
+          Alert.alert(
+            'Driver Created',
+            'The driver was created but the photo could not be uploaded. You can add a photo later.'
+          );
+        }
+        setUploadingPhoto(false);
+      }
 
       Alert.alert('Success', 'Driver created successfully');
       resetForm();
@@ -236,14 +209,16 @@ export default function CreateDriverScreen() {
     }
   }
 
-  const vendorOptions = vendors.map((v) => ({ id: v.id, name: v.companyName || (v as any).name || 'Unknown Vendor' }));
+  const vendorOptions = vendors.map((v) => ({
+    id: v.id,
+    name: v.companyName || (v as any).name || 'Unknown Vendor',
+  }));
 
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Back Button */}
       <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
@@ -254,7 +229,7 @@ export default function CreateDriverScreen() {
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>Onboard Driver</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Add a new driver to the system
+            Add a new driver to the system. Insurance & compliance are inherited from the assigned vendor.
           </Text>
         </View>
 
@@ -293,11 +268,7 @@ export default function CreateDriverScreen() {
             </Text>
             {photoUri ? (
               <View style={styles.photoPreviewWrap}>
-                <Image
-                  source={{ uri: photoUri }}
-                  style={styles.photoPreviewLarge}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: photoUri }} style={styles.photoPreviewLarge} resizeMode="cover" />
                 {uploadingPhoto && (
                   <View style={styles.photoPreviewOverlay}>
                     <ActivityIndicator size="large" color="#FFFFFF" />
@@ -317,11 +288,7 @@ export default function CreateDriverScreen() {
                 onPress={handleTakePhoto}
                 disabled={uploadingPhoto}
               >
-                <Ionicons
-                  name="camera-outline"
-                  size={20}
-                  color={photoUri ? '#10B981' : colors.primary}
-                />
+                <Ionicons name="camera-outline" size={20} color={photoUri ? '#10B981' : colors.primary} />
                 <Text style={[styles.photoBtnText, { color: photoUri ? '#10B981' : colors.primary }]}>
                   {photoUri ? 'Retake Photo' : 'Take Photo'}
                 </Text>
@@ -356,7 +323,6 @@ export default function CreateDriverScreen() {
             required
             error={errors.fullName}
           />
-
           <Input
             label="Phone Number"
             value={form.phone}
@@ -367,7 +333,6 @@ export default function CreateDriverScreen() {
             required
             error={errors.phone}
           />
-
           <Input
             label="Email Address"
             value={form.email}
@@ -376,7 +341,6 @@ export default function CreateDriverScreen() {
             icon="mail-outline"
             keyboardType="email-address"
           />
-
           <Input
             label="National ID"
             value={form.nationalId}
@@ -387,7 +351,6 @@ export default function CreateDriverScreen() {
             required
             error={errors.nationalId}
           />
-
           <Input
             label="License Number"
             value={form.licenseNumber}
@@ -397,7 +360,6 @@ export default function CreateDriverScreen() {
             required
             error={errors.licenseNumber}
           />
-
           <Input
             label="License Class"
             value={form.licenseClass}
@@ -405,100 +367,11 @@ export default function CreateDriverScreen() {
             placeholder="e.g. B, C, E"
             icon="options-outline"
           />
-
           <Input
             label="License Expiry"
             value={form.licenseExpiry}
             onChangeText={(v) => updateField('licenseExpiry', v)}
             placeholder="e.g. 2025-12-31"
-            icon="calendar-outline"
-          />
-        </Card>
-
-        {/* Insurance Details */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Insurance Details</Text>
-        <Card>
-          <Input
-            label="Insurance Company"
-            value={form.insuranceCompany}
-            onChangeText={(v) => updateField('insuranceCompany', v)}
-            placeholder="e.g. Jubilee Insurance"
-            icon="shield-outline"
-          />
-
-          <Input
-            label="Insurance Number"
-            value={form.insuranceNumber}
-            onChangeText={(v) => updateField('insuranceNumber', v)}
-            placeholder="e.g. INS-2024-001"
-            icon="receipt-outline"
-          />
-
-          <Input
-            label="Insurance Start Date"
-            value={form.insuranceStartDate}
-            onChangeText={(v) => updateField('insuranceStartDate', v)}
-            placeholder="e.g. 2024-01-01"
-            icon="calendar-outline"
-          />
-
-          <Input
-            label="Insurance Expiry Date"
-            value={form.insuranceExpiryDate}
-            onChangeText={(v) => updateField('insuranceExpiryDate', v)}
-            placeholder="e.g. 2025-01-01"
-            icon="calendar-outline"
-          />
-
-          <Input
-            label="Insurance Commencing Date"
-            value={form.insuranceCommencingDate}
-            onChangeText={(v) => updateField('insuranceCommencingDate', v)}
-            placeholder="e.g. 2024-01-01"
-            icon="calendar-outline"
-          />
-
-          <Input
-            label="Insurance Supplier"
-            value={form.insuranceSupplier}
-            onChangeText={(v) => updateField('insuranceSupplier', v)}
-            placeholder="e.g. ABC Brokers Ltd"
-            icon="people-outline"
-          />
-        </Card>
-
-        {/* Compliance Details */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Compliance</Text>
-        <Card>
-          <Input
-            label="NTSE Inspection Expiry"
-            value={form.ntsaInspectionExpiry}
-            onChangeText={(v) => updateField('ntsaInspectionExpiry', v)}
-            placeholder="e.g. 2025-06-30"
-            icon="checkmark-circle-outline"
-          />
-
-          <Input
-            label="WIBA Provider"
-            value={form.wibaProvider}
-            onChangeText={(v) => updateField('wibaProvider', v)}
-            placeholder="e.g. WIBA Insurance Ltd"
-            icon="shield-checkmark-outline"
-          />
-
-          <Input
-            label="WIBA Start Date"
-            value={form.wibaStartDate}
-            onChangeText={(v) => updateField('wibaStartDate', v)}
-            placeholder="e.g. 2024-01-01"
-            icon="calendar-outline"
-          />
-
-          <Input
-            label="WIBA End Date"
-            value={form.wibaEndDate}
-            onChangeText={(v) => updateField('wibaEndDate', v)}
-            placeholder="e.g. 2025-01-01"
             icon="calendar-outline"
           />
         </Card>
@@ -513,7 +386,6 @@ export default function CreateDriverScreen() {
             placeholder="e.g. 0712345679"
             icon="alert-circle-outline"
           />
-
           <Select
             label="Status"
             value={form.status}
@@ -544,9 +416,7 @@ export default function CreateDriverScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   backBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -569,95 +439,17 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     marginLeft: 4,
   },
-  content: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing['4xl'],
-  },
-  header: {
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  subtitle: {
-    fontSize: 14,
-    marginTop: 4,
-  },
+  content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
+  header: { marginBottom: Spacing.lg },
+  title: { fontSize: 24, fontWeight: '800' },
+  subtitle: { fontSize: 14, marginTop: 4 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     marginTop: Spacing.lg,
     marginBottom: Spacing.md,
   },
-  photoSection: {
-    marginBottom: Spacing.md,
-  },
-  photoLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
-  },
-  photoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  photoBox: {
-    width: 80,
-    height: 80,
-    borderRadius: Radius.lg,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  photoPreview: {
-    width: '100%',
-    height: '100%',
-    borderRadius: Radius.lg,
-  },
-  photoPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  photoHint: {
-    fontSize: 9,
-    fontWeight: '600',
-  },
-  cameraBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  cameraText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  removeBtn: {
-    padding: Spacing.sm,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
-  },
-  actionBtn: {
-    flex: 1,
-  },
-  // New photo section styles (matching quarry weigh-out style)
-  photoSectionCard: {
-    marginBottom: Spacing.md,
-    paddingTop: Spacing.sm,
-  },
+  photoSectionCard: { marginBottom: Spacing.md, paddingTop: Spacing.sm },
   photoSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -671,11 +463,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoSectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    flex: 1,
-  },
+  photoSectionTitle: { fontSize: 15, fontWeight: '700', flex: 1 },
   photoStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -684,14 +472,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: Radius.full,
   },
-  photoStatusText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  photoSectionSub: {
-    fontSize: 13,
-    marginBottom: Spacing.md,
-  },
+  photoStatusText: { fontSize: 11, fontWeight: '700' },
+  photoSectionSub: { fontSize: 13, marginBottom: Spacing.md },
   photoPreviewWrap: {
     width: '100%',
     height: 200,
@@ -700,19 +482,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     backgroundColor: '#F1F5F9',
   },
-  photoPreviewLarge: {
-    width: '100%',
-    height: '100%',
-  },
-  photoPreviewPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoPlaceholderText: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 8,
-  },
+  photoPreviewLarge: { width: '100%', height: '100%' },
+  photoPreviewPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  photoPlaceholderText: { fontSize: 13, fontWeight: '600', marginTop: 8 },
   photoPreviewOverlay: {
     position: 'absolute',
     top: 0,
@@ -723,17 +495,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoPreviewOverlayText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 8,
-  },
-  photoActionsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
+  photoPreviewOverlayText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: 8 },
+  photoActionsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
   photoBtnFull: {
     flex: 1,
     flexDirection: 'row',
@@ -744,10 +507,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
   },
-  photoBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  photoBtnText: { fontSize: 13, fontWeight: '700' },
   photoRemoveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -757,8 +517,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
   },
-  photoRemoveText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  photoRemoveText: { fontSize: 13, fontWeight: '700' },
+  actions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  actionBtn: { flex: 1 },
 });

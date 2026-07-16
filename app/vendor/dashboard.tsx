@@ -57,7 +57,6 @@ export default function VendorDashboardScreen() {
       );
       setFuelRecords(fuelData || []);
     } catch (error) {
-      console.error("Vendor dashboard error:", error);
     } finally {
       setRefreshing(false);
       setLoading(false);

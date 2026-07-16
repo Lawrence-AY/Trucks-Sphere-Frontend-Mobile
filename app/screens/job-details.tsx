@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -89,7 +89,6 @@ export default function JobDetailsScreen() {
           )
         );
       } catch (loadError) {
-        console.error('Job details load error:', loadError);
         setError('Failed to load job details.');
       } finally {
         setLoading(false);
@@ -131,9 +130,33 @@ export default function JobDetailsScreen() {
   }
 
   return (
-    <PageShell>
-      <DataCard>
-        {/* Receipt Note (RN) for completed jobs — tappable */}
+      <PageShell>
+        {/* Dispatch Proof Photos from Quarry Weigh-Out */}
+        {(job?.driverPhotoURL || job?.weighOutPhotoURL) ? (
+          <DataCard>
+            {job.driverPhotoURL ? (
+              <View style={styles.photoSection}>
+                <View style={styles.photoHeader}>
+                  <Ionicons name="person-outline" size={14} color={colors.textMuted} />
+                  <Text style={[styles.photoLabel, { color: colors.textMuted }]}>Driver Photo (Weigh-Out)</Text>
+                </View>
+                <Image source={{ uri: job.driverPhotoURL }} style={styles.photoImage} resizeMode="contain" />
+              </View>
+            ) : null}
+            {job.weighOutPhotoURL ? (
+              <View style={styles.photoSection}>
+                <View style={styles.photoHeader}>
+                  <Ionicons name="camera-outline" size={14} color={colors.textMuted} />
+                  <Text style={[styles.photoLabel, { color: colors.textMuted }]}>Weigh-Out Photo</Text>
+                </View>
+                <Image source={{ uri: job.weighOutPhotoURL }} style={styles.photoImage} resizeMode="contain" />
+              </View>
+            ) : null}
+          </DataCard>
+        ) : null}
+
+        <DataCard>
+          {/* Receipt Note (RN) for completed jobs — tappable */}
         {receiptNoteId && (
           <TouchableOpacity
             style={[styles.rnBadge, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
@@ -271,4 +294,9 @@ const styles = StyleSheet.create({
   timelineCopy: { flex: 1 },
   timelineTitle: { fontSize: 14, fontWeight: '900' },
   timelineMeta: { fontSize: 12, fontWeight: '700', marginTop: 3, lineHeight: 17 },
+  // Dispatch photo section
+  photoSection: { marginBottom: Spacing.md },
+  photoHeader: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.xs },
+  photoLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  photoImage: { width: '100%', height: 200, borderRadius: 8, backgroundColor: '#F1F5F9' },
 });

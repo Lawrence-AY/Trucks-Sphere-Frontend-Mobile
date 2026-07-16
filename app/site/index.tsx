@@ -28,7 +28,6 @@ export default function SiteScreen() {
       const data = await fetchDeliveryOrders();
       setDeliveries(data || []);
     } catch (err) {
-      console.error('[Site] Failed to fetch deliveries:', err);
     } finally {
       setRefreshing(false);
       setLoading(false);
@@ -51,7 +50,6 @@ export default function SiteScreen() {
       setSaved(true);
       loadData();
     } catch (err) {
-      console.error('[Site] Failed to update delivery:', err);
     } finally {
       setSaving(false);
     }

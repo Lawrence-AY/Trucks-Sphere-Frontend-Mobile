@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -218,6 +219,36 @@ export default function OperatorSiteReceiveScreen() {
           {activeJob.netWeight != null && (
             <DetailRow icon="scale-outline" value={`Quarry Net: ${Number(activeJob.netWeight).toFixed(1)} tonnes`} />
           )}
+          {(activeJob.driverPhotoURL || activeJob.weighOutPhotoURL) ? (
+            <View style={[styles.photoSection, { marginTop: Spacing.md }]}>
+              {activeJob.driverPhotoURL ? (
+                <View style={{ marginBottom: Spacing.sm }}>
+                  <View style={styles.dispatchPhotoHeader}>
+                    <Ionicons name="person-outline" size={14} color={colors.textMuted} />
+                    <Text style={[styles.dispatchPhotoLabel, { color: colors.textMuted }]}>Driver Photo (Weigh-Out)</Text>
+                  </View>
+                  <Image
+                    source={{ uri: activeJob.driverPhotoURL }}
+                    style={[styles.dispatchPhoto, { borderColor: colors.border }]}
+                    resizeMode="cover"
+                  />
+                </View>
+              ) : null}
+              {activeJob.weighOutPhotoURL ? (
+                <View>
+                  <View style={styles.dispatchPhotoHeader}>
+                    <Ionicons name="camera-outline" size={14} color={colors.textMuted} />
+                    <Text style={[styles.dispatchPhotoLabel, { color: colors.textMuted }]}>Weigh-Out Photo</Text>
+                  </View>
+                  <Image
+                    source={{ uri: activeJob.weighOutPhotoURL }}
+                    style={[styles.dispatchPhoto, { borderColor: colors.border }]}
+                    resizeMode="cover"
+                  />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </View>
 
         {/* Step 1: Site Weigh-In (Arrival) */}
@@ -377,4 +408,9 @@ const styles = StyleSheet.create({
   netCalc: { fontSize: 12, marginTop: 4 },
   tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: Spacing.sm },
   tapHintText: { fontSize: 11, fontWeight: '700' },
+  // Dispatch photo section (driver/weigh-out photos from quarry)
+  photoSection: { gap: Spacing.xs },
+  dispatchPhotoHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  dispatchPhotoLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  dispatchPhoto: { width: '100%', height: 200, borderRadius: Radius.md, borderWidth: 1, backgroundColor: '#F1F5F9' },
 });

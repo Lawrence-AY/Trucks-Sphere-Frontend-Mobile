@@ -18,11 +18,9 @@ export default function WeighOutScreen() {
   const [weighments, setWeighments] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[WeighOut] Fetching weighments from backend...');
     fetchWeighments().then(data => {
-      console.log('[WeighOut] Weighments loaded:', data.length, 'items', data);
       setWeighments(data);
-    }).catch(err => console.error('[WeighOut] Failed to load weighments:', err));
+    }).catch(() => {});
   }, []);
 
   const pending = weighments.filter(w => w.status === 'weighed_in' || w.status === 'pending')

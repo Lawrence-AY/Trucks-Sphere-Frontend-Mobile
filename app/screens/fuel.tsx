@@ -86,7 +86,7 @@ export default function FuelScreen() {
           });
         } else {
           // Vendor role without vendorId — cannot determine which records belong to them
-          console.warn(
+          console.log(
             "[FuelScreen] Vendor role detected but no vendorId. Showing empty to prevent data leakage.",
           );
           data = [];

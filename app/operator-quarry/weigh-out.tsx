@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
@@ -69,6 +69,7 @@ export default function OperatorQuarryWeighOutScreen() {
 
   const allDeliveries = useDeliveryOrders();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
 
   // Fetch quarries on mount
   useEffect(() => {
@@ -242,6 +243,7 @@ export default function OperatorQuarryWeighOutScreen() {
       };
       if (driverPhotoURL) {
         updatePayload.driverPhotoURL = driverPhotoURL;
+        updatePayload.weighOutPhotoURL = driverPhotoURL;
       }
       if (geoLocation) {
         updatePayload.weighOutGeoLocation = {
@@ -251,6 +253,10 @@ export default function OperatorQuarryWeighOutScreen() {
         };
       }
       await updateDeliveryOrder(activeJob.id, updatePayload);
+
+      // Optimistically update the cache so the job disappears from the pending list instantly
+      optimisticUpdate('deliveryOrders', { ...activeJob, ...updatePayload });
+
       closeWeighOutForm();
 
       // Show delivery note
@@ -373,13 +379,40 @@ export default function OperatorQuarryWeighOutScreen() {
     `;
   }
 
-  const handleDeliveryNotePDF = async () => {
+  const handleDeliveryNoteCSV = async () => {
     if (!deliveryNoteData) return;
     try {
-      const html = buildDeliveryNoteHtml(deliveryNoteData);
-      await Print.printAsync({ html });
+      const timestamp = new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' });
+      const headers = ['Field', 'Value'];
+      const rows = [
+        ['Delivery Note #', deliveryNoteData.jobId],
+        ['Date/Time', timestamp],
+        ['Purchase Order', deliveryNoteData.poNumber || 'N/A'],
+        ['Vendor', deliveryNoteData.vendorName || 'N/A'],
+        ['Driver', deliveryNoteData.driverName || 'N/A'],
+        ['Truck', deliveryNoteData.plateNumber || 'N/A'],
+        ['Material', deliveryNoteData.materialName || 'N/A'],
+        ['Ordered Qty', `${deliveryNoteData.quantityOrdered} tonnes`],
+        ['Origin (Quarry)', deliveryNoteData.quarryName || 'N/A'],
+        ['Destination (Site)', deliveryNoteData.siteName || 'N/A'],
+        ['Weigh-In (Tare)', `${deliveryNoteData.weighIn?.toFixed(1) || '0.0'} T`],
+        ['Weigh-Out (Gross)', `${deliveryNoteData.weighOut?.toFixed(1) || '0.0'} T`],
+        ['Net Weight', `${deliveryNoteData.netWeight?.toFixed(1) || '0.0'} tonnes`],
+        ['Operator', deliveryNoteData.operatorName || 'N/A'],
+      ];
+      const csvContent = '\uFEFF' + headers.map(h => `"${h}"`).join(',') + '\n' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const safeName = String(deliveryNoteData.jobId).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = `Delivery_Note_${safeName}.csv`;
+      const filePath = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(filePath, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(filePath, { mimeType: 'text/csv', dialogTitle: 'Export Delivery Note CSV' });
+      } else {
+        Alert.alert('Saved', `CSV saved to:\n${filePath}`);
+      }
     } catch (e: any) {
-      Alert.alert('Print Error', e?.message || 'Failed to print');
+      Alert.alert('Export Error', e?.message || 'Failed to export CSV');
     }
   };
 
@@ -770,12 +803,12 @@ export default function OperatorQuarryWeighOutScreen() {
                 </Text>
                 <View style={styles.grnDownloadRow}>
                   <TouchableOpacity
-                    style={[styles.grnDownloadBtn, { backgroundColor: '#DC2626' }]}
-                    onPress={handleDeliveryNotePDF}
+                    style={[styles.grnDownloadBtn, { backgroundColor: '#2563EB' }]}
+                    onPress={handleDeliveryNoteCSV}
                   >
-                    <Ionicons name="document-outline" size={18} color="#FFF" />
-                    <Text style={styles.grnDownloadBtnText}>PDF</Text>
-                    <Text style={styles.grnDownloadBtnSub}>Save</Text>
+                    <Ionicons name="document-text-outline" size={18} color="#FFF" />
+                    <Text style={styles.grnDownloadBtnText}>CSV</Text>
+                    <Text style={styles.grnDownloadBtnSub}>Download</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.grnDownloadBtn, { backgroundColor: '#1B2A4A' }]}

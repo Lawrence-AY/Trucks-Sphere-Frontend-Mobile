@@ -21,7 +21,6 @@ export default function TruckHistoryScreen() {
   const [drivers, setDrivers] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[TruckHistory] Fetching data for truck:', id, plate);
     Promise.all([
       fetchVehicles(),
       fetchDeliveryOrders(),
@@ -29,7 +28,6 @@ export default function TruckHistoryScreen() {
       fetchDrivers(),
     ]).then(([vehicles, deliveries, vendors, driversData]) => {
       setDrivers(driversData || []);
-      console.log('[TruckHistory] Loaded vehicles:', vehicles.length, 'deliveries:', deliveries.length);
       const foundTruck = vehicles.find((t: any) =>
         t.id === id || t.registrationNumber === plate || t.plateNumber === plate || t.plate === plate
       );
@@ -68,13 +66,11 @@ export default function TruckHistoryScreen() {
             }
           });
           setTrips(merged);
-          console.log('[TruckHistory] Found', merged.length, 'trips for truck');
         }).catch(() => {
           setTrips(truckTrips);
-          console.log('[TruckHistory] Found', truckTrips.length, 'trips for truck');
         });
       }
-    }).catch(err => console.error('[TruckHistory] Failed to load data:', err));
+    }).catch(() => {});
   }, [id, plate]);
 
   return (

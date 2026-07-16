@@ -23,12 +23,10 @@ export default function WeighInScreen() {
   const [trucks, setTrucks] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[WeighIn] Fetching drivers and vehicles...');
     Promise.all([fetchDrivers(), fetchVehicles()]).then(([d, t]) => {
-      console.log('[WeighIn] Loaded drivers:', d.length, 'trucks:', t.length);
       setDrivers(d);
       setTrucks(t);
-    }).catch(err => console.error('[WeighIn] Failed to load data:', err));
+    }).catch(() => {});
   }, []);
 
   const available = drivers.filter(d => d.status === 'active' || d.status === 'on_trip')

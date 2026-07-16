@@ -19,13 +19,7 @@ function getBaseUrl(): string {
 }
 
 const API_BASE_URL = getBaseUrl();
-
-console.log("[API] Base URL:", API_BASE_URL);
-console.log("[API] Platform:", Platform.OS, "| ENV vars:", {
-  EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL || "(not set)",
-  EXPO_PUBLIC_API_IP: process.env.EXPO_PUBLIC_API_IP || "(not set)",
-});
-
+ 
 // ============== HTTP Helpers ==============
 
 // ============== Auth Expiry Handler ==============
@@ -73,7 +67,6 @@ async function backendRequest<T>(
         errorCode.includes("token-expired") ||
         errorCode.includes("TOKEN_EXPIRED"))
     ) {
-      console.warn("[API] Token expired detected, triggering auto-logout");
       await clearAuthData();
       if (onAuthExpired) onAuthExpired();
     }
@@ -102,13 +95,10 @@ async function safeFetch<T>(
   fetcher: () => Promise<T[]>,
 ): Promise<T[]> {
   try {
-    console.log(`[API] Fetching ${label} from backend...`);
     const result = await fetcher();
-    console.log(`[API] ${label} fetched:`, result.length, "items", result);
     return result;
   } catch (error: any) {
     const msg = error?.message || error?.code || String(error);
-    console.warn(`[API] ❌ ${label} fetch failed → ${API_BASE_URL}`, msg);
     return [];
   }
 }
@@ -183,12 +173,10 @@ export async function fetchDeliveryOrders(params?: {
 }
 
 export async function createDeliveryOrder(payload: any): Promise<any> {
-  console.log("[API] Creating delivery order...", payload);
   const result = unwrapOne(
     await backendRequest("post", "/api/delivery-orders", payload),
     payload,
   );
-  console.log("[API] Delivery order created:", result);
   return result;
 }
 
@@ -197,15 +185,12 @@ export async function receiveLot(payload: {
   storageLot: string;
 }): Promise<any> {
   try {
-    console.log("[API] Assigning storage lot...", payload);
     const result = unwrapOne(
       await backendRequest("post", "/api/delivery-orders/receive-lot", payload),
       payload,
     );
-    console.log("[API] Storage lot assigned:", result);
     return result;
   } catch (error: any) {
-    console.warn("[API] receiveLot failed:", error?.message || error);
     throw error;
   }
 }
@@ -215,15 +200,12 @@ export async function updateDeliveryOrder(
   payload: any,
 ): Promise<any> {
   try {
-    console.log("[API] Updating delivery order:", id, payload);
     const result = unwrapOne(
       await backendRequest("put", `/api/delivery-orders/${id}`, payload),
       payload,
     );
-    console.log("[API] Delivery order updated:", result);
     return result;
   } catch (error: any) {
-    console.warn("[API] updateDeliveryOrder failed:", error?.message || error);
     return payload;
   }
 }
@@ -322,7 +304,6 @@ export async function fetchAnalyticsSummary(): Promise<any> {
   try {
     return await backendRequest<any>("get", "/api/analytics/summary");
   } catch (error: any) {
-    console.warn("[API] analytics summary failed:", error?.message || error);
     return {};
   }
 }
@@ -335,10 +316,7 @@ export async function fetchNextCounter(entityType: string): Promise<string> {
     );
     return result.id;
   } catch (error: any) {
-    console.warn(
-      `[API] fetchNextCounter(${entityType}) failed:`,
-      error?.message || error,
-    );
+      console.log(`[API] fetchNextCounter(${entityType}) failed:`, error?.message || error);
     // Fallback: generate a local timestamp-based ID
     const fallback = Math.floor(Date.now() / 1000)
       .toString(36)
@@ -363,18 +341,13 @@ export async function fetchFuelRecords(params?: {
 
 export async function requestFuelAuthorization(payload: any): Promise<any> {
   try {
-    console.log("[API] Requesting fuel authorization...", payload);
     const result = unwrapOne(
       await backendRequest("post", "/api/fuel-authorization/request", payload),
       payload,
     );
-    console.log("[API] Fuel authorization requested:", result);
     return result;
   } catch (error: any) {
-    console.warn(
-      "[API] requestFuelAuthorization failed:",
-      error?.message || error,
-    );
+      console.log("[API] requestFuelAuthorization failed:", error?.message || error);
     return payload;
   }
 }
@@ -385,7 +358,6 @@ export async function verifyFuelAuthorization(
   authorize: boolean,
 ): Promise<any> {
   try {
-    console.log("[API] Verifying fuel authorization:", authId, authorize);
     const result = unwrapOne(
       await backendRequest("post", "/api/fuel-authorization/verify", {
         authId,
@@ -394,31 +366,22 @@ export async function verifyFuelAuthorization(
       }),
       { status: "error" },
     );
-    console.log("[API] Fuel authorization verified:", result);
     return result;
   } catch (error: any) {
-    console.warn(
-      "[API] verifyFuelAuthorization failed:",
-      error?.message || error,
-    );
+      console.log("[API] verifyFuelAuthorization failed:", error?.message || error);
     throw error;
   }
 }
 
 export async function getFuelAuthorizationStatus(authId: string): Promise<any> {
   try {
-    console.log("[API] Checking fuel authorization status:", authId);
     const result = await backendRequest<any>(
       "get",
       `/api/fuel-authorization/status/${authId}`,
     );
-    console.log("[API] Fuel authorization status:", result);
     return result;
   } catch (error: any) {
-    console.warn(
-      "[API] getFuelAuthorizationStatus failed:",
-      error?.message || error,
-    );
+      console.log("[API] getFuelAuthorizationStatus failed:", error?.message || error);
     return { status: "error" };
   }
 }
@@ -427,32 +390,25 @@ export async function getPendingAuthorizations(
   vendorId: string,
 ): Promise<any[]> {
   try {
-    console.log("[API] Fetching pending authorizations for vendor:", vendorId);
     const result = await backendRequest<any[]>(
       "get",
       `/api/fuel-authorization/pending/${vendorId}`,
     );
     return result as any[];
   } catch (error: any) {
-    console.warn(
-      "[API] getPendingAuthorizations failed:",
-      error?.message || error,
-    );
+      console.log("[API] getPendingAuthorizations failed:", error?.message || error);
     return [];
   }
 }
 
 export async function createFuelRecord(payload: any): Promise<any> {
   try {
-    console.log("[API] Creating fuel record...", payload);
     const result = unwrapOne(
       await backendRequest("post", "/api/fuel", payload),
       payload,
     );
-    console.log("[API] Fuel record created:", result);
     return result;
   } catch (error: any) {
-    console.warn("[API] createFuelRecord failed:", error?.message || error);
     return payload;
   }
 }
@@ -466,7 +422,6 @@ export async function markJobAsFueled(
   fuelRecordId: string,
 ): Promise<any> {
   try {
-    console.log("[API] Marking job as fueled:", jobId, fuelRecordId);
     const result = unwrapOne(
       await backendRequest("put", `/api/delivery-orders/${jobId}/fueled`, {
         fuelRecordId,
@@ -474,10 +429,8 @@ export async function markJobAsFueled(
       }),
       { success: true },
     );
-    console.log("[API] Job marked as fueled:", result);
     return result;
   } catch (error: any) {
-    console.warn("[API] markJobAsFueled failed:", error?.message || error);
     // Return success anyway — the fuel record was created
     return { success: true };
   }
@@ -491,12 +444,10 @@ export async function checkJobFuelStatus(
   jobId: string,
 ): Promise<{ fueled: boolean; fuelRecord?: any }> {
   try {
-    console.log("[API] Checking fuel status for job:", jobId);
     const records = await fetchFuelRecords({ jobId });
     const hasFuel = Array.isArray(records) && records.length > 0;
     return { fueled: hasFuel, fuelRecord: hasFuel ? records[0] : undefined };
   } catch (error: any) {
-    console.warn("[API] checkJobFuelStatus failed:", error?.message || error);
     return { fueled: false };
   }
 }
@@ -519,7 +470,6 @@ export async function createUpload(payload: any): Promise<any> {
       payload,
     );
   } catch (error: any) {
-    console.warn("[API] createUpload failed:", error?.message || error);
     return payload;
   }
 }
@@ -545,7 +495,6 @@ interface ApiClient {
 
 const api: ApiClient = {
   async get<T>(url: string, params?: any): Promise<{ data: T }> {
-    console.log("[API] GET", url, params);
     try {
       const result = await backendRequest<T>("get", url, undefined, params);
       return { data: result };
@@ -556,18 +505,14 @@ const api: ApiClient = {
         ? `${error.response.status} ${error.response.statusText || ""}`
         : error?.message || "Network Error";
       if (isAuthProfile) {
-        console.warn(
-          `[API] GET ${url} @ ${API_BASE_URL} failed (${msg}) — handled by authStore`,
-        );
+          console.log(`[API] GET ${url} @ ${API_BASE_URL} failed (${msg}) — handled by authStore`);
       } else {
-        console.error(`[API] GET ${url} @ ${API_BASE_URL} failed:`, msg);
       }
       throw error;
     }
   },
 
   async post<T>(url: string, data?: any): Promise<{ data: T }> {
-    console.log("[API] POST", url, data);
     try {
       const result = await backendRequest<T>("post", url, data);
       return { data: result };
@@ -578,34 +523,27 @@ const api: ApiClient = {
         ? `${error.response.status} ${error.response.statusText || ""}`
         : error?.message || "Network Error";
       if (isAuthEndpoint) {
-        console.warn(
-          `[API] POST ${url} @ ${API_BASE_URL} failed (${msg}) — handled by caller`,
-        );
+          console.log(`[API] POST ${url} @ ${API_BASE_URL} failed (${msg}) — handled by caller`);
       } else {
-        console.error(`[API] POST ${url} @ ${API_BASE_URL} failed:`, msg);
       }
       throw error;
     }
   },
 
   async put<T>(url: string, data?: any): Promise<{ data: T }> {
-    console.log("[API] PUT", url, data);
     try {
       const result = await backendRequest<T>("put", url, data);
       return { data: result };
     } catch (error: any) {
-      console.error(`[API] PUT ${url} failed:`, error?.message || error);
       throw error;
     }
   },
 
   async delete<T>(url: string): Promise<{ data: T }> {
-    console.log("[API] DELETE", url);
     try {
       const result = await backendRequest<T>("delete", url);
       return { data: result };
     } catch (error: any) {
-      console.error(`[API] DELETE ${url} failed:`, error?.message || error);
       throw error;
     }
   },
@@ -622,7 +560,6 @@ const api: ApiClient = {
  */
 export async function fetchPublicTracking(trackingId: string): Promise<any> {
   try {
-    console.log("[API] Fetching public tracking data for:", trackingId);
     const response = await axios.get(
       `${API_BASE_URL}/api/track/${encodeURIComponent(trackingId)}`,
       { timeout: 8000, headers: { "Content-Type": "application/json" } },
@@ -633,11 +570,7 @@ export async function fetchPublicTracking(trackingId: string): Promise<any> {
     const message =
       error?.response?.data?.error ||
       "This tracking link has expired or is no longer active.";
-    console.warn(
-      `[API] Public tracking ${trackingId} failed:`,
-      status,
-      message,
-    );
+      console.log(`[API] Public tracking ${trackingId} failed:`, status, message);
     throw new Error(message);
   }
 }
@@ -651,7 +584,6 @@ export async function fetchPublicTracking(trackingId: string): Promise<any> {
  */
 export async function fetchPublicTrackingByPlate(plateNumber: string): Promise<any> {
   try {
-    console.log("[API] Fetching public tracking by plate:", plateNumber);
     const response = await axios.get(
       `${API_BASE_URL}/api/track/by-plate/${encodeURIComponent(plateNumber)}`,
       { timeout: 8000, headers: { "Content-Type": "application/json" } },
@@ -662,11 +594,7 @@ export async function fetchPublicTrackingByPlate(plateNumber: string): Promise<a
     const message =
       error?.response?.data?.error ||
       "This tracking link has expired or is no longer active.";
-    console.warn(
-      `[API] Public tracking by plate ${plateNumber} failed:`,
-      status,
-      message,
-    );
+      console.log(`[API] Public tracking by plate ${plateNumber} failed:`, status, message);
     throw new Error(message);
   }
 }
@@ -683,7 +611,6 @@ export async function fetchReportSummary(params?: {
   end_date?: string;
 }): Promise<any> {
   try {
-    console.log('[API] Fetching report summary...', params);
     const result = await backendRequest<any>(
       'get',
       '/api/admin/reports/summary',
@@ -692,7 +619,6 @@ export async function fetchReportSummary(params?: {
     );
     return result;
   } catch (error: any) {
-    console.warn('[API] fetchReportSummary failed:', error?.message || error);
     return null;
   }
 }
@@ -717,7 +643,6 @@ export async function downloadReportExcel(params?: {
     if (params?.end_date) query.set('end_date', params.end_date);
 
     const url = `${API_BASE_URL}/api/admin/reports/export?${query.toString()}`;
-    console.log('[API] Downloading report Excel from:', url);
 
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
@@ -727,22 +652,33 @@ export async function downloadReportExcel(params?: {
       timeout: 30000,
     });
 
-    // On web, trigger a browser download
-    const blob = new Blob([response.data], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `TruckSphere_Audit_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(downloadUrl);
+    if (Platform.OS === 'web') {
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `TruckSphere_Audit_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } else {
+      const { default: FileSystem } = require('expo-file-system/legacy');
+      const { default: Sharing } = require('expo-sharing');
+      const fileName = `TruckSphere_Audit_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const filePath = FileSystem.cacheDirectory + fileName;
+      // Convert ArrayBuffer to base64 string for FileSystem
+      const base64 = arrayBufferToBase64(response.data);
+      await FileSystem.writeAsStringAsync(filePath, base64, { encoding: FileSystem.EncodingType.Base64 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filePath, { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      }
+    }
 
     return { success: true };
   } catch (error: any) {
-    console.error('[API] downloadReportExcel failed:', error?.message || error);
     throw error;
   }
 }
@@ -759,7 +695,6 @@ export async function fetchCategorySummary(
   params?: { filter?: string; start_date?: string; end_date?: string },
 ): Promise<any> {
   try {
-    console.log('[API] Fetching category summary:', category, params);
     const result = await backendRequest<any>(
       'get',
       `/api/admin/reports/summary/${category}`,
@@ -768,9 +703,21 @@ export async function fetchCategorySummary(
     );
     return result;
   } catch (error: any) {
-    console.warn(`[API] fetchCategorySummary(${category}) failed:`, error?.message || error);
     return null;
   }
+}
+
+/**
+ * Convert an ArrayBuffer to a base64-encoded string.
+ * Used for writing binary files (e.g., Excel) via expo-file-system on native.
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 /**
@@ -790,9 +737,7 @@ export async function downloadCategoryCSV(
     if (params?.end_date) query.set('end_date', params.end_date);
 
     const url = `${API_BASE_URL}/api/admin/reports/export/csv/${category}?${query.toString()}`;
-    console.log('[API] Downloading category CSV:', url);
 
-    // Use axios with auth header + blob response
     const response = await axios.get(url, {
       responseType: 'blob',
       headers: {
@@ -801,18 +746,29 @@ export async function downloadCategoryCSV(
       timeout: 15000,
     });
 
-    // Trigger browser download from blob (web) or share (mobile)
-    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8' });
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `${category}_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(downloadUrl);
+    if (Platform.OS === 'web') {
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${category}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } else {
+      const { default: FileSystem } = require('expo-file-system/legacy');
+      const { default: Sharing } = require('expo-sharing');
+      const fileName = `${category}_${new Date().toISOString().slice(0, 10)}.csv`;
+      const filePath = FileSystem.cacheDirectory + fileName;
+      // For blob responses, read as text first
+      const text = await (response.data as Blob).text();
+      await FileSystem.writeAsStringAsync(filePath, text, { encoding: FileSystem.EncodingType.UTF8 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filePath, { mimeType: 'text/csv' });
+      }
+    }
   } catch (error: any) {
-    console.error('[API] downloadCategoryCSV failed:', error?.message || error);
     throw error;
   }
 }
@@ -829,7 +785,6 @@ export async function changePassword(payload: {
   confirmPassword: string;
 }): Promise<any> {
   try {
-    console.log('[API] Changing password...');
     const result = await backendRequest<any>(
       'post',
       '/api/auth/change-password',

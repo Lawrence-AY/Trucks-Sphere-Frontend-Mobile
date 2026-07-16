@@ -79,7 +79,6 @@ export default function VendorDetailsScreen() {
         setVendorDriversCount(driversCount);
       }
     } catch (e) {
-      console.error('Failed to load vendor details:', e);
     }
     setLoading(false);
   }, [id, name]);
