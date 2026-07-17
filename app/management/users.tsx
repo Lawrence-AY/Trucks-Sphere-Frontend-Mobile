@@ -171,11 +171,13 @@ export default function UsersScreen() {
       });
 
       const uname = result?.data?.user?.generatedUsername || generateUsernameFromDisplay(form.displayName);
-      Alert.alert('Success', `User "${uname}" created under role: ${form.role}`);
+      // Reset form state first, then close modal
       setForm({ displayName: '', username: '', password: '', role: 'vendor', phone: '' });
       setGeneratedUsername('');
       setFormErrors({});
+      setShowAddModal(false);
       loadUsers();
+      Alert.alert('Success', `User "${uname}" created under role: ${form.role}`);
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to create user';
       showAlert('Error', msg);
@@ -247,7 +249,7 @@ export default function UsersScreen() {
     );
   }
 
-  async function handleDeleteUser(user: any) {
+  async function handleDeleteUser(user: any, onDeleted?: () => void) {
     Alert.alert(
       'Delete User',
       `Are you sure you want to permanently delete ${user.displayName || user.name || user.email}? This action cannot be undone.`,
@@ -261,6 +263,7 @@ export default function UsersScreen() {
               await api.delete(`/api/users/${user.uid || user.id}`);
               showAlert('Deleted', 'User deleted successfully');
               loadUsers();
+              if (onDeleted) onDeleted();
             } catch (err: any) {
               const msg = err?.response?.data?.error || err?.message || 'Failed to delete user';
               showAlert('Error', msg);
@@ -553,6 +556,17 @@ export default function UsersScreen() {
             </ScrollView>
 
             <View style={styles.modalActions}>
+              <Button
+                title="Delete"
+                onPress={() => {
+                  handleDeleteUser(editingUser, () => {
+                    setShowEditModal(false);
+                    setEditingUser(null);
+                  });
+                }}
+                variant="danger"
+                style={{ flex: 1 }}
+              />
               <Button
                 title="Cancel"
                 onPress={() => { setShowEditModal(false); setEditingUser(null); }}

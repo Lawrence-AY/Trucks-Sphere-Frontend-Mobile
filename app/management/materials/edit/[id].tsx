@@ -61,7 +61,6 @@ export default function EditMaterialScreen() {
     measurementType: 'Tonnes' as MeasurementUnit,
     defaultUnit: 'Tonnes',
     description: '',
-    status: 'active',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -84,7 +83,6 @@ export default function EditMaterialScreen() {
         measurementType: m.measurementType || 'Tonnes',
         defaultUnit: m.defaultUnit || 'Tonnes',
         description: m.description || '',
-        status: m.status || 'active',
       });
     } catch {
       Alert.alert('Error', 'Failed to load material');
@@ -124,12 +122,9 @@ export default function EditMaterialScreen() {
         measurementType: form.measurementType,
         defaultUnit: form.defaultUnit,
         description: form.description,
-        status: form.status as any,
         updatedAt: new Date().toISOString(),
       });
-      Alert.alert('Saved', 'Material updated successfully', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      router.back();
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to update material');
     } finally {
@@ -207,16 +202,6 @@ export default function EditMaterialScreen() {
             numberOfLines={3}
           />
 
-          <Select
-            label="Status"
-            value={form.status}
-            options={[
-              { id: 'active', name: 'Active' },
-              { id: 'inactive', name: 'Inactive' },
-            ]}
-            onSelect={(v) => updateField('status', v)}
-            icon="checkmark-circle-outline"
-          />
         </Card>
 
         <View style={styles.actions}>

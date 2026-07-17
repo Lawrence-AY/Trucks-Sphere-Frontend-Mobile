@@ -10,16 +10,17 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, fetchQuarries, updateDeliveryOrder } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
+import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { getNextId } from '../../services/counter';
 import {
   DataCard,
@@ -29,11 +30,65 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
- 
 } from '../../components/EnterpriseUI';
 
-/* ─────────── Configuration ─────────── */
+/* ─────────── Helper: escape HTML ─────────── */
+const escapeHtml = (str: string | null | undefined): string => {
+  if (!str) return '';
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return str.replace(/[&<>"']/g, (m) => map[m]);
+};
 
+/* ─────────── Web-specific print using hidden iframe ─────────── */
+const printHtmlOnWeb = (html: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        reject(new Error('Unable to access iframe document'));
+        return;
+      }
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+          resolve();
+        }, 1000);
+      };
+
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            if (document.body.contains(iframe)) document.body.removeChild(iframe);
+            resolve();
+          }, 1000);
+        }
+      }, 500);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
 
 /* ─────────── GRN (Good Receipt Note) Helpers ─────────── */
 
@@ -62,6 +117,7 @@ function buildReceiptHtml(data: {
   materialName: string;
   quantityOrdered: number;
   quarryName: string;
+  materialSource?: string;
   siteName: string;
   weightIn: number;
   weightOut: number;
@@ -70,6 +126,28 @@ function buildReceiptHtml(data: {
   operatorName: string;
   lotNumber?: string;
 }): string {
+  const {
+    jobId,
+    receiptNoteId,
+    poNumber,
+    driverName,
+    plateNumber,
+    vendorName,
+    materialName,
+    quantityOrdered,
+    quarryName,
+    materialSource,
+    siteName,
+    weightIn,
+    weightOut,
+    netWeight,
+    timestamp,
+    operatorName,
+    lotNumber,
+  } = data;
+
+  const e = escapeHtml;
+
   return `
     <html>
     <head>
@@ -102,6 +180,7 @@ function buildReceiptHtml(data: {
         .sig-block .line { border-bottom: 1px solid #94A3B8; margin: 32px 20px 8px; }
         .sig-block .name { font-size: 12px; font-weight: 600; color: #1E293B; }
         .sig-block .role { font-size: 10px; color: #94A3B8; }
+        @page { size: auto; margin: 20mm 15mm; }
       </style>
     </head>
     <body>
@@ -112,57 +191,56 @@ function buildReceiptHtml(data: {
 
       <div class="section">
         <div class="section-title">Document Details</div>
-        <div class="row"><span class="label">Receipt Note</span><span class="value">${data.receiptNoteId || data.jobId}</span></div>
-        <div class="row"><span class="label">Job ID</span><span class="value">${data.jobId}</span></div>
-        <div class="row"><span class="label">Purchase Order</span><span class="value">${data.poNumber || 'N/A'}</span></div>
-        <div class="row"><span class="label">Date</span><span class="value">${data.timestamp}</span></div>
-        
+        <div class="row"><span class="label">Receipt Note</span><span class="value">${e(receiptNoteId || jobId)}</span></div>
+        <div class="row"><span class="label">Job ID</span><span class="value">${e(jobId)}</span></div>
+        <div class="row"><span class="label">Purchase Order</span><span class="value">${e(poNumber) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Date</span><span class="value">${e(timestamp)}</span></div>
       </div>
 
       <div class="section">
         <div class="section-title">Parties</div>
-        <div class="row"><span class="label">Vendor</span><span class="value">${data.vendorName || 'N/A'}</span></div>
-        <div class="row"><span class="label">Driver</span><span class="value">${data.driverName || 'N/A'}</span></div>
-        <div class="row"><span class="label">Truck Plate</span><span class="value">${data.plateNumber || 'N/A'}</span></div>
-        <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${data.quarryName || 'N/A'}</span></div>
-        <div class="row"><span class="label">Destination (Site)</span><span class="value">${data.siteName || 'N/A'}</span></div>
+        <div class="row"><span class="label">Vendor</span><span class="value">${e(vendorName) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Driver</span><span class="value">${e(driverName) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Truck Plate</span><span class="value">${e(plateNumber) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${e(materialSource || quarryName) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(siteName) || 'N/A'}</span></div>
       </div>
 
       <div class="section">
         <div class="section-title">Material</div>
-        <div class="row"><span class="label">Material</span><span class="value">${data.materialName || 'N/A'}</span></div>
-        <div class="row"><span class="label">Quantity Ordered</span><span class="value">${data.quantityOrdered} tonnes</span></div>
-        ${data.lotNumber ? `<div class="row"><span class="label">Lot Number</span><span class="value">${data.lotNumber}</span></div>` : ''}
+        <div class="row"><span class="label">Material</span><span class="value">${e(materialName) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Quantity Ordered</span><span class="value">${quantityOrdered} tonnes</span></div>
+        ${lotNumber ? `<div class="row"><span class="label">Lot Number</span><span class="value">${e(lotNumber)}</span></div>` : ''}
       </div>
 
       <div class="section">
         <div class="section-title">Weight Record</div>
         <table>
-          <tr><td>Site Arrival Weight (Gross)</td><td style="font-weight:700;">${data.weightIn.toFixed(1)} T</td></tr>
-          <tr><td>Post-Offload Weight (Tare)</td><td style="font-weight:700;">${data.weightOut.toFixed(1)} T</td></tr>
+          <tr><td>Site Arrival Weight (Gross)</td><td style="font-weight:700;">${weightIn.toFixed(1)} T</td></tr>
+          <tr><td>Post-Offload Weight (Tare)</td><td style="font-weight:700;">${weightOut.toFixed(1)} T</td></tr>
         </table>
 
         <div class="highlight-box">
-          <div class="net">${data.netWeight.toFixed(1)} Tonnes</div>
-          <div class="calc">NET WEIGHT = ${data.weightIn.toFixed(1)}T (Gross) − ${data.weightOut.toFixed(1)}T (Tare)</div>
+          <div class="net">${netWeight.toFixed(1)} Tonnes</div>
+          <div class="calc">NET WEIGHT = ${weightIn.toFixed(1)}T (Gross) − ${weightOut.toFixed(1)}T (Tare)</div>
         </div>
       </div>
 
       <div class="section">
         <div class="section-title">Certification</div>
-        <div class="row"><span class="label">Operator</span><span class="value">${data.operatorName}</span></div>
-        <div class="row"><span class="label">Location</span><span class="value">${data.siteName || 'Site'}</span></div>
+        <div class="row"><span class="label">Operator</span><span class="value">${e(operatorName)}</span></div>
+        <div class="row"><span class="label">Location</span><span class="value">${e(siteName) || 'Site'}</span></div>
       </div>
 
       <div class="signature-line">
         <div class="sig-block">
           <div class="line"></div>
-          <div class="name">${data.operatorName}</div>
+          <div class="name">${e(operatorName)}</div>
           <div class="role">Site Operator</div>
         </div>
         <div class="sig-block">
           <div class="line"></div>
-          <div class="name">${data.driverName || 'Driver'}</div>
+          <div class="name">${e(driverName) || 'Driver'}</div>
           <div class="role">Driver</div>
         </div>
       </div>
@@ -180,6 +258,7 @@ function buildReceiptHtml(data: {
 
 export default function OperatorSiteWeightsScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -214,8 +293,6 @@ export default function OperatorSiteWeightsScreen() {
 
   /* ─── Filtering & Categorizing ─── */
 
-  // Only show jobs that have completed site weigh-in but NOT yet weighed out.
-  // Once weighed out (completed/delivered), they move to history.
   const eligibleJobs = useMemo(() => {
     return deliveries.filter(
       (d) =>
@@ -286,7 +363,6 @@ export default function OperatorSiteWeightsScreen() {
       );
       return;
     }
-    // Check if site weigh-in is lower than quarry weigh-out (possible material loss)
     const quarryOutWeight = activeJob?.weighOutWeight ?? 0;
     if (quarryOutWeight > 0 && siteWeighIn < quarryOutWeight) {
       Alert.alert(
@@ -299,7 +375,6 @@ export default function OperatorSiteWeightsScreen() {
       );
       return;
     }
-    // Show receipt review note modal
     setReviewVisible(true);
   };
 
@@ -310,7 +385,6 @@ export default function OperatorSiteWeightsScreen() {
     try {
       const now = new Date().toISOString();
 
-      // Use backend sequential counter for RN, fallback to in-memory
       let receiptNoteId: string;
       try {
         const rnNum = await getNextId();
@@ -319,7 +393,6 @@ export default function OperatorSiteWeightsScreen() {
         receiptNoteId = generateReceiptNoteId();
       }
 
-      // Calculate weight differences: quarry net vs site net
       const quarryNetWeight =
         activeJob.netWeight ??
         (activeJob.weighInWeight != null && activeJob.weighOutWeight != null
@@ -341,14 +414,13 @@ export default function OperatorSiteWeightsScreen() {
             : null,
         receivedAt: now,
         receivedLocation: activeJob.siteName || 'Site',
-        receivedBy: 'Site Operator',
+        receivedBy: user?.displayName || 'Site Operator',
         receiptNoteId,
         storageLot: lotNumber || undefined,
         status: 'completed',
         updatedAt: now,
       });
 
-      // Update local
       const updatedJob = {
         ...activeJob,
         siteWeighOutWeight: weightOutNum,
@@ -356,7 +428,7 @@ export default function OperatorSiteWeightsScreen() {
         siteNetWeight: netWeight,
         quantityDelivered: netWeight,
         receivedAt: now,
-        receivedBy: 'Site Operator',
+        receivedBy: user?.displayName || 'Site Operator',
         receiptNoteId,
         status: 'completed',
         updatedAt: now,
@@ -367,7 +439,6 @@ export default function OperatorSiteWeightsScreen() {
         ),
       );
 
-      // Show GRN
       setGrnData({
         ...updatedJob,
         receiptNoteId,
@@ -401,6 +472,7 @@ export default function OperatorSiteWeightsScreen() {
       materialName: grnData.materialName || '',
       quantityOrdered: grnData.quantityOrdered || 0,
       quarryName: grnData.quarryName || '',
+      materialSource: grnData.materialSource || '',
       siteName: grnData.siteName || '',
       lotNumber: grnData.storageLot || grnData.lotNumber || grnData.destinationLot || '',
       weightIn: siteWeighIn,
@@ -409,41 +481,36 @@ export default function OperatorSiteWeightsScreen() {
       timestamp: new Date().toLocaleString('en-KE', {
         timeZone: 'Africa/Nairobi',
       }),
-      operatorName: 'Site Operator',
+      operatorName: user?.displayName || 'Site Operator',
     };
   };
 
-
-  const handleDownloadPDF = async () => {
-    const data = buildGrnExportData();
-    if (!data) return;
-    try {
-      const html = buildReceiptHtml(data);
-      await Print.printAsync({ html });
-    } catch (e: any) {
-      Alert.alert('Print Error', e?.message || 'Failed to print');
-    }
-  };
+  // ─── PDF printing (cross‑platform) ──────────────────────────
 
   const handlePrintPDF = async () => {
     const data = buildGrnExportData();
     if (!data) return;
     try {
       const html = buildReceiptHtml(data);
-      await Print.printAsync({ html });
+
+      if (Platform.OS === 'web') {
+        await printHtmlOnWeb(html);
+      } else {
+        const { uri } = await Print.printToFileAsync({ html });
+        await Print.printAsync({ uri });
+      }
     } catch (e: any) {
       Alert.alert('Print Error', e?.message || 'Failed to print');
     }
   };
 
+  // ─── CSV Export ──────────────────────────────────────────────
+
   const handleDownloadCSV = async () => {
     const data = buildGrnExportData();
     if (!data) return;
     try {
-      const headers = [
-        'Field',
-        'Value',
-      ];
+      const headers = ['Field', 'Value'];
       const rows = [
         ['Receipt Note', data.receiptNoteId || data.jobId],
         ['Job ID', data.jobId],
@@ -453,7 +520,7 @@ export default function OperatorSiteWeightsScreen() {
         ['Truck Plate', data.plateNumber],
         ['Material', data.materialName],
         ['Quantity Ordered', `${data.quantityOrdered} tonnes`],
-        ['Origin (Quarry)', data.quarryName],
+        ['Origin (Quarry)', data.materialSource || data.quarryName],
         ['Destination (Site)', data.siteName],
         ['Site Arrival Weight (Gross)', `${data.weightIn.toFixed(1)} T`],
         ['Weight Out (Tare)', `${data.weightOut.toFixed(1)} T`],
@@ -463,21 +530,8 @@ export default function OperatorSiteWeightsScreen() {
         ['Operator', data.operatorName],
         ['Date', data.timestamp],
       ];
-      const csv = formatCsv(headers, rows);
-      const fileName = `GRN_${data.receiptNoteId || data.jobId}.csv`;
-      const fs: any = FileSystem;
-      const dir = (fs.documentDirectory || fs.cacheDirectory || '');
-      const dest = `${dir}${fileName}`;
-      await fs.writeAsStringAsync(dest, csv, { encoding: fs.EncodingType?.UTF8 ?? 0 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(dest, {
-          mimeType: 'text/csv',
-          dialogTitle: 'Download Goods Receipt Note (CSV)',
-          UTI: 'public.comma-separated-values-text',
-        });
-      } else {
-        Alert.alert('Success', `CSV saved: ${fileName}`);
-      }
+      const csvContent = buildCsvContent(headers, rows);
+      await shareCsvAsFile(`GRN_${data.receiptNoteId || data.jobId}`, csvContent);
     } catch (e: any) {
       Alert.alert('Export Error', e?.message || 'Failed to generate CSV');
     }
@@ -518,26 +572,24 @@ export default function OperatorSiteWeightsScreen() {
                   {activeJob.poNumber || 'No PO'}
                 </Text>
               </View>
-          
             </View>
             <DetailRow
               icon="person-outline"
               value={`${activeJob.driverName || 'N/A'} · ${activeJob.plateNumber || 'N/A'}`}
             />
-              <DetailRow
-                icon="cube-outline"
-                value={`${activeJob.materialName || 'Material'}`}
-              />
+            <DetailRow
+              icon="cube-outline"
+              value={`${activeJob.materialName || 'Material'}`}
+            />
             <DetailRow
               icon="business-outline"
               value={`Vendor: ${activeJob.vendorName || 'N/A'}`}
             />
             <DetailRow
               icon="location-outline"
-              value={`From: ${activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`}
+              value={`From: ${activeJob.materialSource || activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`}
             />
 
-            {/* Section: Site Arrival Weight (already recorded) */}
             <View style={styles.divider} />
             <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
               SITE ARRIVAL WEIGHT (RECORDED)
@@ -559,7 +611,6 @@ export default function OperatorSiteWeightsScreen() {
               </View>
             </View>
 
-            {/* Quarry Weight Summary (reference only) */}
             {quarryNet != null && (
               <>
                 <View style={styles.divider} />
@@ -640,7 +691,10 @@ export default function OperatorSiteWeightsScreen() {
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="decimal-pad"
                 value={weightOutInput}
-                onChangeText={setWeightOutInput}
+                onChangeText={(value) => {
+                  const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                  setWeightOutInput(filtered);
+                }}
                 autoFocus
               />
               <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>
@@ -648,7 +702,6 @@ export default function OperatorSiteWeightsScreen() {
               </Text>
             </View>
 
-            {/* Live Calculation Preview */}
             {netWeight !== null && netWeight > 0 && (
               <View
                 style={[
@@ -665,13 +718,10 @@ export default function OperatorSiteWeightsScreen() {
                 <Text style={[styles.netCalc, { color: colors.textTertiary }]}>
                   {siteWeighIn.toFixed(1)}T (Gross) − {weightOutNum.toFixed(1)}T (Tare)
                 </Text>
-
-
               </View>
             )}
           </View>
 
-          {/* Action Buttons */}
           <TouchableOpacity
             style={[
               styles.submitBtn,
@@ -746,7 +796,6 @@ export default function OperatorSiteWeightsScreen() {
                 Review the weight calculations below before finalizing.
               </Text>
 
-              {/* Receipt Summary */}
               <View
                 style={[
                   styles.grnSummary,
@@ -823,7 +872,6 @@ export default function OperatorSiteWeightsScreen() {
                 </View>
               </View>
 
-              {/* Review Actions */}
               <View style={styles.grnActions}>
                 <TouchableOpacity
                   style={[styles.grnActionBtn, { flex: 1, backgroundColor: colors.border }]}
@@ -879,7 +927,6 @@ export default function OperatorSiteWeightsScreen() {
                 Delivery finalized successfully. GRN generated.
               </Text>
 
-              {/* GRN Summary */}
               {grnData && (
                 <View
                   style={[
@@ -970,14 +1017,11 @@ export default function OperatorSiteWeightsScreen() {
                 </View>
               )}
 
-
-              {/* Export Actions */}
               <View style={styles.grnExportSection}>
                 <Text style={[styles.grnExportTitle, { color: colors.textMuted }]}>
                   EXPORT RECEIPT
                 </Text>
                 <View style={styles.grnDownloadRow}>
-                
                   <TouchableOpacity
                     style={[styles.grnDownloadBtn, { backgroundColor: '#1B2A4A' }]}
                     onPress={handlePrintPDF}
@@ -997,7 +1041,6 @@ export default function OperatorSiteWeightsScreen() {
                 </View>
               </View>
 
-              {/* Dismiss */}
               <TouchableOpacity
                 style={[styles.grnDoneBtn, { borderColor: colors.border }]}
                 onPress={() => {
@@ -1034,8 +1077,6 @@ export default function OperatorSiteWeightsScreen() {
         />
       }
     >
-     
-
       <SearchField
         value={search}
         onChangeText={setSearch}
@@ -1056,8 +1097,6 @@ export default function OperatorSiteWeightsScreen() {
           const siteIn = item.siteWeighInWeight ?? 0;
           const isCompleted =
             item.status === 'completed' || item.status === 'delivered';
-          const siteNet = item.siteNetWeight ?? item.quantityDelivered ?? null;
-          const diff = item.siteWeightDifference ?? null;
           const lotNum = item.storageLot || item.lotNumber || item.destinationLot || '';
 
           return (
@@ -1080,7 +1119,6 @@ export default function OperatorSiteWeightsScreen() {
                 >
                   {item.jobId}
                 </Text>
-             
               </View>
               <DetailRow
                 icon="person-outline"
@@ -1091,7 +1129,6 @@ export default function OperatorSiteWeightsScreen() {
                 value={`${item.materialName || 'Material'}${lotNum ? ` · Lot: ${lotNum}` : ''}`}
               />
 
-              {/* Site Arrival Weight Badge */}
               <View
                 style={[
                   styles.listWeightBadge,
@@ -1165,7 +1202,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   metricRow: { flexDirection: 'row', gap: Spacing.sm },
-  // Job Card
   jobCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -1214,7 +1250,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   qwValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
-  // Stage Labels
   stageLabel: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1231,7 +1266,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  // Input
   inputCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -1264,7 +1298,6 @@ const styles = StyleSheet.create({
   },
   weightInput: { flex: 1, fontSize: 28, fontWeight: '800' },
   weightSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
-  // Net Preview
   netPreview: {
     borderRadius: Radius.md,
     borderWidth: 1,
@@ -1305,7 +1338,6 @@ const styles = StyleSheet.create({
     color: '#991B1B',
     lineHeight: 14,
   },
-  // Buttons
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1325,7 +1357,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   cancelText: { fontSize: 14, fontWeight: '600' },
-  // List
   listWeightBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1357,7 +1388,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   tapHintText: { fontSize: 11, fontWeight: '700' },
-  // GRN Modal
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -1442,7 +1472,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   grnDoneText: { fontSize: 14, fontWeight: '700' },
-  // GRN Download Controls
   grnExportSection: {
     marginBottom: Spacing.lg,
   },

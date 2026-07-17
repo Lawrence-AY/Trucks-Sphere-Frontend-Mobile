@@ -11,6 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,7 +27,8 @@ import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatEAT } from '../../utils/helpers';
 import { uploadDriverPhotoWeighOut } from '../../services/uploadService';
-import { getCurrentLocation, reverseGeocode, getLocationFromIP } from '../../services/geolocation';
+import { getCurrentLocation, reverseGeocodeRich, getLocationFromIP } from '../../services/geolocation';
+import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import {
   DataCard,
   DetailRow,
@@ -35,6 +37,64 @@ import {
   SearchField,
   SectionTitle,
 } from '../../components/EnterpriseUI';
+
+/* ─────────── Helper: escape HTML ─────────── */
+const escapeHtml = (str: string | null | undefined): string => {
+  if (!str) return '';
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return str.replace(/[&<>"']/g, (m) => map[m]);
+};
+
+/* ─────────── Web-specific print using hidden iframe ─────────── */
+const printHtmlOnWeb = (html: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        reject(new Error('Unable to access iframe document'));
+        return;
+      }
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+          resolve();
+        }, 1000);
+      };
+
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            if (document.body.contains(iframe)) document.body.removeChild(iframe);
+            resolve();
+          }, 1000);
+        }
+      }, 500);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
 
 export default function OperatorQuarryWeighOutScreen() {
   const colors = useTheme();
@@ -61,6 +121,10 @@ export default function OperatorQuarryWeighOutScreen() {
     latitude: number;
     longitude: number;
     address: string;
+    city?: string;
+    town?: string;
+    district?: string;
+    name?: string;
   } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
 
@@ -71,7 +135,6 @@ export default function OperatorQuarryWeighOutScreen() {
   const refresh = useRealTimeSyncStore((s) => s.refresh);
   const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
 
-  // Fetch quarries on mount
   useEffect(() => {
     fetchQuarries().then((data) => setQuarries(data || [])).catch(() => {});
   }, []);
@@ -82,10 +145,8 @@ export default function OperatorQuarryWeighOutScreen() {
     setRefreshing(false);
   }, [refresh]);
 
-  // Scope to operator's assigned quarry
   const operatorQuarryId = (user as any)?.quarryId || '';
 
-  // Jobs that have been weighed in but not weighed out
   const deliveries = useMemo(() => {
     let filtered = allDeliveries.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status));
     if (operatorQuarryId) {
@@ -121,8 +182,8 @@ export default function OperatorQuarryWeighOutScreen() {
     setLocationLoading(true);
     try {
       const loc = await getCurrentLocation();
-      const address = await reverseGeocode(loc.latitude, loc.longitude);
-      setGeoLocation({ ...loc, address });
+      const rich = await reverseGeocodeRich(loc.latitude, loc.longitude);
+      setGeoLocation({ ...loc, address: rich.address, city: rich.city, town: rich.town, district: rich.district, name: rich.name });
     } catch {
       try {
         const fallback = await getLocationFromIP();
@@ -215,13 +276,11 @@ export default function OperatorQuarryWeighOutScreen() {
     try {
       const now = new Date().toISOString();
 
-      // Determine quarry info: use operator's assigned quarry, or first match from the quarries collection
       const operatorQuarryId = (user as any)?.quarryId || activeJob?.quarryId || '';
       const operatorQuarryName = (user as any)?.quarryName || activeJob?.quarryName || '';
       let resolvedQuarryId = operatorQuarryId;
       let resolvedQuarryName = operatorQuarryName;
       if (!resolvedQuarryId && !resolvedQuarryName && quarries.length > 0) {
-        // Try to match by the geolocation address
         const matched = quarries.find((q) =>
           q.name && geoLocation?.address?.toLowerCase().includes(q.name.toLowerCase())
         ) || quarries[0];
@@ -250,17 +309,28 @@ export default function OperatorQuarryWeighOutScreen() {
           latitude: geoLocation.latitude,
           longitude: geoLocation.longitude,
           address: geoLocation.address,
+          city: geoLocation.city || undefined,
+          town: geoLocation.town || undefined,
+          district: geoLocation.district || undefined,
+          name: geoLocation.name || undefined,
+        };
+        updatePayload.weighOutCoordinates = {
+          latitude: geoLocation.latitude,
+          longitude: geoLocation.longitude,
         };
       }
-      await updateDeliveryOrder(activeJob.id, updatePayload);
-
-      // Optimistically update the cache so the job disappears from the pending list instantly
       optimisticUpdate('deliveryOrders', { ...activeJob, ...updatePayload });
 
-      closeWeighOutForm();
+      const geoCity = geoLocation?.city || '';
+      const geoTown = geoLocation?.town || '';
+      const geoDistrict = geoLocation?.district || '';
+      const geoAddress = geoLocation?.address || '';
+      const loadingLocationParts = [geoTown || geoCity, geoDistrict, geoAddress.split(', ').slice(-2).join(', ')].filter(Boolean);
+      const loadingLocation = loadingLocationParts.length > 0
+        ? loadingLocationParts.join(', ')
+        : (resolvedQuarryName || activeJob?.quarryName || 'Quarry');
 
-      // Show delivery note
-      setDeliveryNoteData({
+      const noteData = {
         jobId: activeJob.jobId,
         poNumber: activeJob.poNumber || '',
         driverName: activeJob.driverName || '',
@@ -270,11 +340,20 @@ export default function OperatorQuarryWeighOutScreen() {
         quantityOrdered: activeJob.quantityOrdered || 0,
         quarryName: resolvedQuarryName || activeJob?.quarryName || 'Quarry',
         siteName: activeJob.siteName || '',
-        weightIn: weighIn,
-        weightOut: numericWeightOut,
+        loadingLocation,
+        loadingCity: geoCity || geoTown || '',
+        loadingDistrict: geoDistrict || '',
+        weighIn: weighIn,
+        weighOut: numericWeightOut,
         netWeight,
         operatorName: user?.displayName || user?.name || 'Quarry Operator',
-      });
+      };
+
+      closeWeighOutForm();
+
+      await updateDeliveryOrder(activeJob.id, updatePayload);
+
+      setDeliveryNoteData(noteData);
       setDeliveryNoteVisible(true);
     } catch (error: any) {
       Alert.alert('Submission Failed', error?.message || 'Could not submit weigh-out data.');
@@ -287,6 +366,8 @@ export default function OperatorQuarryWeighOutScreen() {
 
   function buildDeliveryNoteHtml(data: any): string {
     const timestamp = new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' });
+    const e = escapeHtml;
+
     return `
       <html>
       <head>
@@ -316,6 +397,7 @@ export default function OperatorQuarryWeighOutScreen() {
           .sig-block .line { border-bottom: 1px solid #94A3B8; margin: 32px 20px 8px; }
           .sig-block .name { font-size: 12px; font-weight: 600; color: #1E293B; }
           .sig-block .role { font-size: 10px; color: #94A3B8; }
+          @page { size: auto; margin: 20mm 15mm; }
         </style>
       </head>
       <body>
@@ -325,21 +407,22 @@ export default function OperatorQuarryWeighOutScreen() {
         </div>
         <div class="section">
           <div class="section-title">Document Details</div>
-          <div class="row"><span class="label">Job ID</span><span class="value">${data.jobId}</span></div>
-          <div class="row"><span class="label">Purchase Order</span><span class="value">${data.poNumber || 'N/A'}</span></div>
-          <div class="row"><span class="label">Date</span><span class="value">${timestamp}</span></div>
+          <div class="row"><span class="label">Job ID</span><span class="value">${e(data.jobId)}</span></div>
+          <div class="row"><span class="label">Purchase Order</span><span class="value">${e(data.poNumber) || 'N/A'}</span></div>
+          <div class="row"><span class="label">Date</span><span class="value">${e(timestamp)}</span></div>
         </div>
         <div class="section">
           <div class="section-title">Parties</div>
-          <div class="row"><span class="label">Vendor</span><span class="value">${data.vendorName || 'N/A'}</span></div>
-          <div class="row"><span class="label">Driver</span><span class="value">${data.driverName || 'N/A'}</span></div>
-          <div class="row"><span class="label">Truck Plate</span><span class="value">${data.plateNumber || 'N/A'}</span></div>
-          <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${data.quarryName || 'N/A'}</span></div>
-          <div class="row"><span class="label">Destination (Site)</span><span class="value">${data.siteName || 'N/A'}</span></div>
+          <div class="row"><span class="label">Vendor</span><span class="value">${e(data.vendorName) || 'N/A'}</span></div>
+          <div class="row"><span class="label">Driver</span><span class="value">${e(data.driverName) || 'N/A'}</span></div>
+          <div class="row"><span class="label">Truck Plate</span><span class="value">${e(data.plateNumber) || 'N/A'}</span></div>
+          <div class="row"><span class="label">Loading Location</span><span class="value">${e(data.loadingLocation || data.quarryName) || 'N/A'}</span></div>
+          ${data.loadingCity ? `<div class="row"><span class="label">City / Town</span><span class="value">${e(data.loadingCity)}${data.loadingDistrict ? ', ' + e(data.loadingDistrict) : ''}</span></div>` : `<div class="row"><span class="label">Quarry</span><span class="value">${e(data.quarryName) || 'N/A'}</span></div>`}
+          <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(data.siteName) || 'N/A'}</span></div>
         </div>
         <div class="section">
           <div class="section-title">Material</div>
-          <div class="row"><span class="label">Material</span><span class="value">${data.materialName || 'N/A'}</span></div>
+          <div class="row"><span class="label">Material</span><span class="value">${e(data.materialName) || 'N/A'}</span></div>
           <div class="row"><span class="label">Quantity Ordered</span><span class="value">${data.quantityOrdered} tonnes</span></div>
         </div>
         <div class="section">
@@ -355,23 +438,23 @@ export default function OperatorQuarryWeighOutScreen() {
         </div>
         <div class="section">
           <div class="section-title">Certification</div>
-          <div class="row"><span class="label">Operator</span><span class="value">${data.operatorName}</span></div>
-          <div class="row"><span class="label">Location</span><span class="value">${data.quarryName || 'Quarry'}</span></div>
+          <div class="row"><span class="label">Operator</span><span class="value">${e(data.operatorName)}</span></div>
+          <div class="row"><span class="label">Location</span><span class="value">${e(data.quarryName) || 'Quarry'}</span></div>
         </div>
         <div class="signature-line">
           <div class="sig-block">
             <div class="line"></div>
-            <div class="name">${data.operatorName}</div>
+            <div class="name">${e(data.operatorName)}</div>
             <div class="role">Quarry Operator</div>
           </div>
           <div class="sig-block">
             <div class="line"></div>
-            <div class="name">${data.driverName || 'Driver'}</div>
+            <div class="name">${e(data.driverName) || 'Driver'}</div>
             <div class="role">Driver</div>
           </div>
         </div>
         <div class="footer">
-          <p>Generated by Trucks Sphere on ${timestamp}</p>
+          <p>Generated by Trucks Sphere on ${e(timestamp)}</p>
           <p>This is a computer-generated document.</p>
         </div>
       </body>
@@ -393,34 +476,35 @@ export default function OperatorQuarryWeighOutScreen() {
         ['Truck', deliveryNoteData.plateNumber || 'N/A'],
         ['Material', deliveryNoteData.materialName || 'N/A'],
         ['Ordered Qty', `${deliveryNoteData.quantityOrdered} tonnes`],
-        ['Origin (Quarry)', deliveryNoteData.quarryName || 'N/A'],
+        ['Loading Location', deliveryNoteData.loadingLocation || deliveryNoteData.quarryName || 'N/A'],
+        ['City / Town', deliveryNoteData.loadingCity || 'N/A'],
+        ['Quarry', deliveryNoteData.quarryName || 'N/A'],
         ['Destination (Site)', deliveryNoteData.siteName || 'N/A'],
         ['Weigh-In (Tare)', `${deliveryNoteData.weighIn?.toFixed(1) || '0.0'} T`],
         ['Weigh-Out (Gross)', `${deliveryNoteData.weighOut?.toFixed(1) || '0.0'} T`],
         ['Net Weight', `${deliveryNoteData.netWeight?.toFixed(1) || '0.0'} tonnes`],
         ['Operator', deliveryNoteData.operatorName || 'N/A'],
       ];
-      const csvContent = '\uFEFF' + headers.map(h => `"${h}"`).join(',') + '\n' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-      const safeName = String(deliveryNoteData.jobId).replace(/[^a-zA-Z0-9_-]/g, '_');
-      const fileName = `Delivery_Note_${safeName}.csv`;
-      const filePath = `${FileSystem.cacheDirectory}${fileName}`;
-      await FileSystem.writeAsStringAsync(filePath, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(filePath, { mimeType: 'text/csv', dialogTitle: 'Export Delivery Note CSV' });
-      } else {
-        Alert.alert('Saved', `CSV saved to:\n${filePath}`);
-      }
+      const csvContent = buildCsvContent(headers, rows);
+      await shareCsvAsFile(`Delivery_Note_${deliveryNoteData.jobId}`, csvContent);
     } catch (e: any) {
       Alert.alert('Export Error', e?.message || 'Failed to export CSV');
     }
   };
 
+  // ─── Cross-platform PDF printing ──────────────────────────────
+
   const handleDeliveryNotePrint = async () => {
     if (!deliveryNoteData) return;
     try {
       const html = buildDeliveryNoteHtml(deliveryNoteData);
-      await Print.printAsync({ html });
+
+      if (Platform.OS === 'web') {
+        await printHtmlOnWeb(html);
+      } else {
+        const { uri } = await Print.printToFileAsync({ html });
+        await Print.printAsync({ uri });
+      }
     } catch (e: any) {
       Alert.alert('Print Error', e?.message || 'Failed to print');
     }
@@ -453,12 +537,7 @@ export default function OperatorQuarryWeighOutScreen() {
             <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
             <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
             <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
-            <DetailRow icon="location-outline" value={`Origin: ${geoLocation?.address || activeJob.quarryName || 'Quarry'}`} />
-            {geoLocation && (
-              <>
-                <DetailRow icon="pin-outline" value={`${geoLocation.latitude.toFixed(6)}, ${geoLocation.longitude.toFixed(6)}`} />
-              </>
-            )}
+            <DetailRow icon="location-outline" value={`Origin: ${(geoLocation as any)?.city || (geoLocation as any)?.town || (geoLocation as any)?.district || geoLocation?.address || activeJob.quarryName || 'Quarry'}`} />
             <DetailRow icon="flag-outline" value={`Dest: ${activeJob.siteName || '—'}`} />
             <View style={styles.divider} />
             <View style={styles.draftWeightRow}>
@@ -740,6 +819,7 @@ export default function OperatorQuarryWeighOutScreen() {
             </View>
           </View>
         </Modal>
+
         {/* ─── Delivery Note Modal ─── */}
         <Modal
           visible={deliveryNoteVisible}
@@ -870,6 +950,7 @@ export default function OperatorQuarryWeighOutScreen() {
   );
 }
 
+/* ─── Styles (unchanged) ─────────────────────────────────────────── */
 const styles = StyleSheet.create({
   container: { flex: 1 },
   formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
@@ -940,37 +1021,10 @@ const styles = StyleSheet.create({
   confirmCancelText: { fontSize: 14, fontWeight: '700' },
   confirmProceedBtn: { flex: 1, minHeight: 48, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   confirmProceedText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  grnExportSection: {
-    marginBottom: Spacing.lg,
-  },
-  grnExportTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
-  },
-  grnDownloadRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  grnDownloadBtn: {
-    flex: 1,
-    borderRadius: Radius.lg,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  grnDownloadBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  grnDownloadBtnSub: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 10,
-    fontWeight: '600',
-  },
+  grnExportSection: { marginBottom: Spacing.lg },
+  grnExportTitle: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.sm },
+  grnDownloadRow: { flexDirection: 'row', gap: Spacing.sm },
+  grnDownloadBtn: { flex: 1, borderRadius: Radius.lg, paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  grnDownloadBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  grnDownloadBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '600' },
 });

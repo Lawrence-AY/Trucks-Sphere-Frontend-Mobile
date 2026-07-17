@@ -257,7 +257,6 @@ export default function PurchaseOrderScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={styles.content}>
-        
         {loading && <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>}
         {error && !loading && <View style={styles.center}><Ionicons name="alert-circle-outline" size={48} color={colors.danger} /><Text style={{ fontSize: 14, color: colors.danger, textAlign: 'center', marginTop: Spacing.md }}>{error}</Text></View>}
         {!loading && order && (

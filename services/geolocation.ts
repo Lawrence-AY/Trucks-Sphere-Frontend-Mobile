@@ -6,6 +6,16 @@ export interface GeoLocation {
   longitude: number;
 }
 
+export interface GeoLocationFull {
+  latitude: number;
+  longitude: number;
+  address: string;
+  city?: string;
+  town?: string;
+  district?: string;
+  name?: string;
+}
+
 export async function requestLocationPermissions(): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   return status === 'granted';
@@ -91,6 +101,53 @@ export async function reverseGeocode(
   } catch {
     // Fallback: return lat/lng as string
     return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+  }
+}
+
+/**
+ * Reverse geocode with rich location data including city, town, district.
+ */
+export async function reverseGeocodeRich(
+  latitude: number,
+  longitude: number
+): Promise<GeoLocationFull> {
+  try {
+    const addresses = await Location.reverseGeocodeAsync({
+      latitude,
+      longitude,
+    });
+
+    if (addresses && addresses.length > 0) {
+      const addr = addresses[0];
+      const parts = [
+        addr.name,
+        addr.street,
+        addr.district,
+        addr.city,
+        addr.region,
+        addr.country,
+      ].filter(Boolean);
+      return {
+        latitude,
+        longitude,
+        address: parts.join(', '),
+        city: addr.city || undefined,
+        town: addr.name || undefined,
+        district: addr.district || undefined,
+        name: addr.name || undefined,
+      };
+    }
+    return {
+      latitude,
+      longitude,
+      address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+    };
+  } catch {
+    return {
+      latitude,
+      longitude,
+      address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+    };
   }
 }
 

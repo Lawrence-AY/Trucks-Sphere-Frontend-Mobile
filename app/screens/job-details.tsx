@@ -143,15 +143,7 @@ export default function JobDetailsScreen() {
                 <Image source={{ uri: job.driverPhotoURL }} style={styles.photoImage} resizeMode="contain" />
               </View>
             ) : null}
-            {job.weighOutPhotoURL ? (
-              <View style={styles.photoSection}>
-                <View style={styles.photoHeader}>
-                  <Ionicons name="camera-outline" size={14} color={colors.textMuted} />
-                  <Text style={[styles.photoLabel, { color: colors.textMuted }]}>Weigh-Out Photo</Text>
-                </View>
-                <Image source={{ uri: job.weighOutPhotoURL }} style={styles.photoImage} resizeMode="contain" />
-              </View>
-            ) : null}
+            
           </DataCard>
         ) : null}
 

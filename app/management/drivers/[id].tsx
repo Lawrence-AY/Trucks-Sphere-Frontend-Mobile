@@ -4,12 +4,11 @@
  * Features:
  *   - Driver overview with photo
  *   - License information
- *   - Current vehicle assignment
- *   - Trip history
+ *   - Trip history (powered by realtime sync hooks)
  *   - Edit driver details
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -34,7 +33,8 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { DetailRow } from '../../../components/EnterpriseUI';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
-import { jobRepository } from '../../../services/repositories/JobRepository';
+import { useDeliveryOrders } from '../../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../../store/realTimeSyncStore';
 import { Driver, Vendor, Job } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
 
@@ -48,12 +48,16 @@ export default function DriverDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
   const insets = useSafeAreaInsets();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+
   const [driver, setDriver] = useState<Driver | null>(null);
   const [vendor, setVendor] = useState<Vendor | null>(null);
-  const [trips, setTrips] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
+
+  // Use realtime sync hook for all delivery orders — reliable, auto-polling
+  const allDeliveries = useDeliveryOrders();
 
   useEffect(() => {
     if (id) loadDriver();
@@ -72,19 +76,8 @@ export default function DriverDetailScreen() {
           // Vendor fetch failure is non-critical
         }
       }
-      // Load trips for this driver (client-side filter by driverId & driverName)
-      try {
-        const allJobs = await jobRepository.getAll();
-        const driverTrips = allJobs.filter(
-          (job: Job) =>
-            job.driverId === id ||
-            job.driverName === ((d as any)?.name || d?.fullName) ||
-            (d as any)?.driverId === job.driverId
-        );
-        setTrips(driverTrips);
-      } catch {
-        // Trips fetch failure is non-critical
-      }
+      // Refresh delivery orders to ensure trips data is current
+      refresh('deliveryOrders');
     } catch {
       Alert.alert('Error', 'Failed to load driver');
       router.back();
@@ -96,9 +89,22 @@ export default function DriverDetailScreen() {
   async function onRefresh() {
     setRefreshing(true);
     driverRepository.invalidateCache();
-    await loadDriver();
+    await Promise.all([
+      loadDriver(),
+      refresh('deliveryOrders'),
+    ]);
     setRefreshing(false);
   }
+
+  // Filter trips for this driver from the realtime sync data
+  const trips = useMemo(() => {
+    const driverName = (driver as any)?.name || driver?.fullName || '';
+    return allDeliveries.filter((job: any) =>
+      job.driverId === id ||
+      job.driverName === driverName ||
+      (driver as any)?.driverId === job.driverId
+    );
+  }, [allDeliveries, id, driver]);
 
   const driverName = (driver as any)?.name || driver?.fullName;
 
@@ -213,7 +219,7 @@ export default function DriverDetailScreen() {
     }
     return (
       <View>
-        {trips.map((trip) => (
+        {trips.map((trip: any) => (
           <Card key={trip.id} style={{ marginBottom: Spacing.sm }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1}>
@@ -233,10 +239,7 @@ export default function DriverDetailScreen() {
               icon="car-outline"
               value={`${trip.plateNumber || 'N/A'}`}
             />
-            <DetailRow
-              icon="location-outline"
-              value={`${trip.quarryName || '—'} → ${trip.siteName || '—'}`}
-            />
+          
             {trip.netWeight != null && (
               <DetailRow
                 icon="scale-outline"

@@ -134,12 +134,7 @@ export default function NotificationsScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              Fuel authorization requests & alerts
-            </Text>
-          </View>
+           
           {pendingAuths.length > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{pendingAuths.length}</Text>
@@ -159,7 +154,7 @@ export default function NotificationsScreen() {
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No notifications</Text>
             <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              You're all caught up. New fuel authorization requests and alerts will appear here.
+              You're all caught up.
             </Text>
           </View>
         ) : (

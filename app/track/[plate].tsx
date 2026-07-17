@@ -7,7 +7,7 @@
  * URL format: /track/KAA123B (vehicle registration number)
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -65,20 +65,30 @@ export default function PublicTrackingScreen() {
   );
   const [photoFullscreen, setPhotoFullscreen] = useState(false);
 
-  const trackByPlate = useCallback(async (plateNum: string) => {
+  const trackByPlate = useCallback(async (plateNum: string, isBackgroundRefresh = false) => {
     const clean = (plateNum || '').trim().toUpperCase();
     if (!clean || clean.length < 3) {
       setState({ kind: 'expired', message: 'Enter a valid vehicle registration number (min 3 chars).' });
       return;
     }
-    setState({ kind: 'loading' });
+    // Only show loading indicator on explicit search, not background refresh
+    if (!isBackgroundRefresh) {
+      setState({ kind: 'loading' });
+    }
     try {
       const data = await fetchPublicTrackingByPlate(clean);
       setState({ kind: 'active', data });
     } catch (err: any) {
-      setState({ kind: 'expired', message: err?.message || 'This tracking link has expired or is no longer active.' });
+      // On background refresh, keep current data if fetch fails temporarily
+      if (!isBackgroundRefresh) {
+        setState({ kind: 'expired', message: err?.message || 'This tracking link has expired or is no longer active.' });
+      }
     }
   }, []);
+
+  // Keep a ref to the latest state to avoid stale closure in interval
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     if (plate) {
@@ -93,7 +103,8 @@ export default function PublicTrackingScreen() {
     if (state.kind !== 'active') return;
     const interval = setInterval(() => {
       if (searchPlate && searchPlate.length >= 3) {
-        trackByPlate(searchPlate);
+        // Use background refresh — keep current data visible while fetching updates
+        trackByPlate(searchPlate, true);
       }
     }, 10000);
     return () => clearInterval(interval);
@@ -305,21 +316,6 @@ export default function PublicTrackingScreen() {
               </View>
               <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoFullscreen(true)} style={styles.photoContainer}>
                 <Image source={{ uri: d.driverPhotoURL }} style={[styles.driverPhoto, { borderColor: border }]} resizeMode="contain" />
-                <View style={styles.photoOverlay}>
-                  <Ionicons name="expand-outline" size={22} color="#fff" />
-                  <Text style={styles.photoOverlayText}>Tap to expand</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          ) : null}
-          {d.weighOutPhotoURL ? (
-            <View style={styles.photoSection}>
-              <View style={styles.photoHeader}>
-                <Ionicons name="camera-outline" size={16} color={textSec} />
-                <Text style={[styles.photoLabel, { color: textSec }]}>Weigh-Out Photo</Text>
-              </View>
-              <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoFullscreen(true)} style={styles.photoContainer}>
-                <Image source={{ uri: d.weighOutPhotoURL }} style={[styles.driverPhoto, { borderColor: border }]} resizeMode="contain" />
                 <View style={styles.photoOverlay}>
                   <Ionicons name="expand-outline" size={22} color="#fff" />
                   <Text style={styles.photoOverlayText}>Tap to expand</Text>

@@ -85,7 +85,7 @@ const DRAWER_SECTIONS: DrawerSection[] = [
     items: [
       { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard' },
       { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active' },
-      { label: 'Dispatch Queue', icon: 'git-branch-outline', route: '/management/dispatch' },
+     // { label: 'Dispatch Queue', icon: 'git-branch-outline', route: '/management/dispatch' },
     ],
   },
   {
@@ -117,7 +117,6 @@ const DRAWER_SECTIONS: DrawerSection[] = [
     icon: 'analytics-outline',
     items: [
       { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports' },
-      { label: 'Analytics', icon: 'stats-chart-outline', route: '/management/analytics' },
       { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
     ],
   },
@@ -126,11 +125,8 @@ const DRAWER_SECTIONS: DrawerSection[] = [
     icon: 'settings-outline',
     items: [
       { label: 'Users', icon: 'person-add-outline', route: '/management/users' },
-      { label: 'Roles', icon: 'shield-checkmark-outline', route: '/management/roles' },
-      { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
       { label: 'Master Data', icon: 'server-outline', route: '/management/master-data' },
       { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
-      { label: 'Export Data', icon: 'cloud-download-outline', route: '/management/settings' },
       { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
     ],
   },
@@ -215,9 +211,6 @@ export default function ManagementLayout() {
           headerShadowVisible: false,
           headerRight: Platform.OS === 'web' ? undefined : () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => router.push('/screens/notifications' as any)} style={{ paddingHorizontal: 6, paddingVertical: 8 }}>
-                <Ionicons name="notifications-outline" size={22} color="#1B2A4A" />
-              </TouchableOpacity>
               <TouchableOpacity onPress={toggleMenu} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
                 <Ionicons name="menu-outline" size={24} color="#1B2A4A" />
               </TouchableOpacity>

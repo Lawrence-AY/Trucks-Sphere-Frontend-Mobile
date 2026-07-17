@@ -6,8 +6,9 @@
  */
 import axios from "axios";
 import { getStoredToken, clearAuthData } from "./database";
-
 import { Platform } from "react-native";
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 // Detect environment for API URL
 function getBaseUrl(): string {
@@ -19,8 +20,6 @@ function getBaseUrl(): string {
 }
 
 const API_BASE_URL = getBaseUrl();
- 
-// ============== HTTP Helpers ==============
 
 // ============== Auth Expiry Handler ==============
 
@@ -316,7 +315,7 @@ export async function fetchNextCounter(entityType: string): Promise<string> {
     );
     return result.id;
   } catch (error: any) {
-      console.log(`[API] fetchNextCounter(${entityType}) failed:`, error?.message || error);
+    console.log(`[API] fetchNextCounter(${entityType}) failed:`, error?.message || error);
     // Fallback: generate a local timestamp-based ID
     const fallback = Math.floor(Date.now() / 1000)
       .toString(36)
@@ -347,7 +346,7 @@ export async function requestFuelAuthorization(payload: any): Promise<any> {
     );
     return result;
   } catch (error: any) {
-      console.log("[API] requestFuelAuthorization failed:", error?.message || error);
+    console.log("[API] requestFuelAuthorization failed:", error?.message || error);
     return payload;
   }
 }
@@ -368,7 +367,7 @@ export async function verifyFuelAuthorization(
     );
     return result;
   } catch (error: any) {
-      console.log("[API] verifyFuelAuthorization failed:", error?.message || error);
+    console.log("[API] verifyFuelAuthorization failed:", error?.message || error);
     throw error;
   }
 }
@@ -381,7 +380,7 @@ export async function getFuelAuthorizationStatus(authId: string): Promise<any> {
     );
     return result;
   } catch (error: any) {
-      console.log("[API] getFuelAuthorizationStatus failed:", error?.message || error);
+    console.log("[API] getFuelAuthorizationStatus failed:", error?.message || error);
     return { status: "error" };
   }
 }
@@ -396,7 +395,7 @@ export async function getPendingAuthorizations(
     );
     return result as any[];
   } catch (error: any) {
-      console.log("[API] getPendingAuthorizations failed:", error?.message || error);
+    console.log("[API] getPendingAuthorizations failed:", error?.message || error);
     return [];
   }
 }
@@ -505,7 +504,7 @@ const api: ApiClient = {
         ? `${error.response.status} ${error.response.statusText || ""}`
         : error?.message || "Network Error";
       if (isAuthProfile) {
-          console.log(`[API] GET ${url} @ ${API_BASE_URL} failed (${msg}) — handled by authStore`);
+        console.log(`[API] GET ${url} @ ${API_BASE_URL} failed (${msg}) — handled by authStore`);
       } else {
       }
       throw error;
@@ -523,7 +522,7 @@ const api: ApiClient = {
         ? `${error.response.status} ${error.response.statusText || ""}`
         : error?.message || "Network Error";
       if (isAuthEndpoint) {
-          console.log(`[API] POST ${url} @ ${API_BASE_URL} failed (${msg}) — handled by caller`);
+        console.log(`[API] POST ${url} @ ${API_BASE_URL} failed (${msg}) — handled by caller`);
       } else {
       }
       throw error;
@@ -570,7 +569,7 @@ export async function fetchPublicTracking(trackingId: string): Promise<any> {
     const message =
       error?.response?.data?.error ||
       "This tracking link has expired or is no longer active.";
-      console.log(`[API] Public tracking ${trackingId} failed:`, status, message);
+    console.log(`[API] Public tracking ${trackingId} failed:`, status, message);
     throw new Error(message);
   }
 }
@@ -594,7 +593,7 @@ export async function fetchPublicTrackingByPlate(plateNumber: string): Promise<a
     const message =
       error?.response?.data?.error ||
       "This tracking link has expired or is no longer active.";
-      console.log(`[API] Public tracking by plate ${plateNumber} failed:`, status, message);
+    console.log(`[API] Public tracking by plate ${plateNumber} failed:`, status, message);
     throw new Error(message);
   }
 }
@@ -624,11 +623,38 @@ export async function fetchReportSummary(params?: {
 }
 
 /**
+ * Convert an ArrayBuffer to a base64-encoded string.
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Convert a Blob to a string (works on both web and native).
+ */
+function blobToText(blob: Blob): Promise<string> {
+  if (Platform.OS === 'web') {
+    // On web, Blob has .text()
+    return blob.text();
+  }
+  // On native, use FileReader
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsText(blob);
+  });
+}
+
+/**
  * Download the Master Audit Excel (.xlsx) report.
- * Uses axios with arraybuffer response type for binary download.
- *
- * @param params - filter, start_date, end_date
- * @returns Blob (web) or triggers download
+ * - Web: triggers browser download.
+ * - Native: saves to cache and shares.
  */
 export async function downloadReportExcel(params?: {
   filter?: string;
@@ -646,9 +672,7 @@ export async function downloadReportExcel(params?: {
 
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       timeout: 30000,
     });
 
@@ -664,66 +688,32 @@ export async function downloadReportExcel(params?: {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
-    } else {
-      const { default: FileSystem } = require('expo-file-system/legacy');
-      const { default: Sharing } = require('expo-sharing');
-      const fileName = `TruckSphere_Audit_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      const filePath = FileSystem.cacheDirectory + fileName;
-      // Convert ArrayBuffer to base64 string for FileSystem
-      const base64 = arrayBufferToBase64(response.data);
-      await FileSystem.writeAsStringAsync(filePath, base64, { encoding: FileSystem.EncodingType.Base64 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(filePath, { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      }
+      return { success: true };
     }
 
+    // Native: save and share
+    const fileName = `TruckSphere_Audit_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const filePath = FileSystem.cacheDirectory + fileName;
+    const base64 = arrayBufferToBase64(response.data);
+    await FileSystem.writeAsStringAsync(filePath, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(filePath, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+    }
     return { success: true };
   } catch (error: any) {
     throw error;
   }
 }
 
-// ============== Per-Category Reports API ==============
-
-/**
- * Fetch per-category live summary for the tabbed reports dashboard.
- * @param category - deliveries|fuel|vendors|trucks|drivers|materials|purchase-orders
- * @param params - filter, start_date, end_date
- */
-export async function fetchCategorySummary(
-  category: string,
-  params?: { filter?: string; start_date?: string; end_date?: string },
-): Promise<any> {
-  try {
-    const result = await backendRequest<any>(
-      'get',
-      `/api/admin/reports/summary/${category}`,
-      undefined,
-      params,
-    );
-    return result;
-  } catch (error: any) {
-    return null;
-  }
-}
-
-/**
- * Convert an ArrayBuffer to a base64-encoded string.
- * Used for writing binary files (e.g., Excel) via expo-file-system on native.
- */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
 /**
  * Download a per-category CSV file.
- * @param category - deliveries|fuel|vendors|trucks|drivers|materials|purchase-orders
- * @param params - filter, start_date, end_date
+ * - Web: triggers browser download.
+ * - Native: saves to cache and shares.
  */
 export async function downloadCategoryCSV(
   category: string,
@@ -740,9 +730,7 @@ export async function downloadCategoryCSV(
 
     const response = await axios.get(url, {
       responseType: 'blob',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       timeout: 15000,
     });
 
@@ -756,20 +744,93 @@ export async function downloadCategoryCSV(
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
-    } else {
-      const { default: FileSystem } = require('expo-file-system/legacy');
-      const { default: Sharing } = require('expo-sharing');
-      const fileName = `${category}_${new Date().toISOString().slice(0, 10)}.csv`;
-      const filePath = FileSystem.cacheDirectory + fileName;
-      // For blob responses, read as text first
-      const text = await (response.data as Blob).text();
-      await FileSystem.writeAsStringAsync(filePath, text, { encoding: FileSystem.EncodingType.UTF8 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(filePath, { mimeType: 'text/csv' });
-      }
+      return;
+    }
+
+    // Native: read blob as text using FileReader, then save and share
+    const text = await blobToText(response.data);
+    const fileName = `${category}_${new Date().toISOString().slice(0, 10)}.csv`;
+    const filePath = FileSystem.cacheDirectory + fileName;
+    await FileSystem.writeAsStringAsync(filePath, text, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(filePath, { mimeType: 'text/csv' });
     }
   } catch (error: any) {
     throw error;
+  }
+}
+
+// ============== Issues API ==============
+
+export async function fetchIssues(params?: { status?: string }): Promise<any[]> {
+  return safeFetch('issues', () =>
+    backendRequest<any>('get', '/api/issues', undefined, params).then(unwrapItems),
+  );
+}
+
+export async function fetchIssueById(id: string): Promise<any> {
+  try {
+    const result = await backendRequest<any>('get', `/api/issues/${id}`);
+    return result;
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function createIssue(payload: { title: string; description: string; category?: string; priority?: string }): Promise<any> {
+  try {
+    const result = await backendRequest<any>('post', '/api/issues', payload);
+    return result;
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || error?.message || 'Failed to create issue.';
+    throw new Error(msg);
+  }
+}
+
+export async function updateIssue(id: string, payload: { status?: string; resolutionNotes?: string; priority?: string }): Promise<any> {
+  try {
+    const result = await backendRequest<any>('put', `/api/issues/${id}`, payload);
+    return result;
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || error?.message || 'Failed to update issue.';
+    throw new Error(msg);
+  }
+}
+
+export async function deleteIssue(id: string): Promise<any> {
+  try {
+    const result = await backendRequest<any>('delete', `/api/issues/${id}`);
+    return result;
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export async function fetchNotifications(): Promise<any[]> {
+  return safeFetch('notifications', () =>
+    backendRequest<any>('get', '/api/notifications').then(unwrapItems),
+  );
+}
+
+// ============== Profile Update ==============
+
+/**
+ * Update the authenticated user's profile (displayName, phone, email).
+ */
+export async function updateProfile(payload: {
+  displayName?: string;
+  phone?: string;
+  email?: string;
+}): Promise<any> {
+  try {
+    const result = await backendRequest<any>('put', '/api/auth/profile', payload);
+    return result;
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || error?.message || 'Failed to update profile.';
+    throw new Error(msg);
   }
 }
 

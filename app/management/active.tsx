@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   RefreshControl,
   ScrollView,
   Share,
@@ -14,11 +13,10 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { useAuthStore } from '../../store/authStore';
-import { fetchDeliveryOrders, fetchMaterials } from '../../services/api';
+import { useDeliveryOrders, useMaterials } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT } from '../../utils/helpers';
 import {
-  CommandHeader,
   DataCard,
   DetailRow,
   EmptyState,
@@ -57,33 +55,27 @@ function formatCsv(headers: string[], rows: string[][]): string {
 
 export default function ManagementActiveScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [materials, setMaterials] = useState<any[]>([]);
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [materialFilter, setMaterialFilter] = useState('');
   const [matDropdownOpen, setMatDropdownOpen] = useState(false);
   const [matSearch, setMatSearch] = useState('');
 
-  const loadData = async () => {
-    setRefreshing(true);
-    try {
-      const [data, matData] = await Promise.all([
-        fetchDeliveryOrders(),
-        fetchMaterials(),
-      ]);
-      setDeliveries(data || []);
-      setMaterials(matData || []);
-    } catch (error) {
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  };
+  // Use realtime sync hooks — reliable, auto-polling, ETag-supported
+  const deliveries = useDeliveryOrders();
+  const materials = useMaterials();
 
-  useEffect(() => { loadData(); }, []);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      refresh('deliveryOrders'),
+      refresh('materials'),
+    ]);
+    setRefreshing(false);
+  }, [refresh]);
 
   /* ─── Time Range Filtering ─── */
   const now = new Date();
@@ -134,7 +126,7 @@ export default function ManagementActiveScreen() {
 
   const selectedMaterial = materials.find(m => m.id === materialFilter);
 
-  /* ─── Counts for CommandHeader alerts ─── */
+  /* ─── Counts for UI ─── */
   const activeCount = deliveries.filter(
     (item) => !['delivered', 'completed', 'cancelled'].includes(item.status)
   ).length;
@@ -182,10 +174,12 @@ export default function ManagementActiveScreen() {
     await Share.share({ message: html, title: 'Delivery_Orders' });
   };
 
-  return (
-    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      
+  const isLoading = deliveries.length === 0 && materials.length === 0;
 
+  return (
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}>
+      
+ 
       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor, material..." />
 
       {/* Period Filter */}
@@ -230,7 +224,7 @@ export default function ManagementActiveScreen() {
     
 
       <SectionTitle title={`${filtered.length} deliveries`} />
-      {loading ? (
+      {isLoading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading movement board...</Text></DataCard>
       ) : filtered.length ? (
         filtered.map((item) => {
@@ -245,29 +239,8 @@ export default function ManagementActiveScreen() {
               <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} `} />
 
-              {/* Flagged Weight Alert */}
-              {isFlagged(item) && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#DC26261A', borderWidth: 1, borderColor: '#DC262633', marginTop: Spacing.xs }}>
-                  <Ionicons name="warning-outline" size={12} color="#DC2626" />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#DC2626' }}>Weight flag: {item.netWeight.toFixed(1)}T</Text>
-                </View>
-              )}
-
-              {/* Net Weight Badge */}
-              {item.netWeight != null && !isFlagged(item) && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.success}15`, marginTop: Spacing.xs }}>
-                  <Ionicons name="scale-outline" size={12} color={colors.success} />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>Net: {item.netWeight.toFixed(1)}T</Text>
-                </View>
-              )}
-
-              {/* Tracking ID Badge — only shown when tracking is active */}
-              {item.trackingId && ['loaded', 'dispatched', 'in_transit', 'en_route'].includes(item.status) ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#2563EB12', borderWidth: 1, borderColor: '#2563EB33', marginTop: Spacing.xs }}>
-                  <Ionicons name="radio-outline" size={12} color="#2563EB" />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#2563EB' }} selectable>Track: {item.trackingId}</Text>
-                </View>
-              ) : null}
+            
+              
 
               <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
             </DataCard>

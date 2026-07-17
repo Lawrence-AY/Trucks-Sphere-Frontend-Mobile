@@ -112,7 +112,7 @@ export default function OperatorSiteHistoryScreen() {
       })
       .map((d) => ({
         ...d,
-        receiptNoteId: d.receiptNoteId || generateReceiptNoteId(d.jobId),
+        receiptNoteId: d.receiptNoteId || generateReceiptNoteId(),
       }))
       .sort(
         (a, b) =>
@@ -949,6 +949,22 @@ export default function OperatorSiteHistoryScreen() {
               >
                 <View style={styles.weightCell}>
                   <Text style={[styles.wLabel, { color: colors.textMuted }]}>
+                    Q-In
+                  </Text>
+                  <Text style={[styles.wValue, { color: "#7C3AED" }]}>
+                    {item.weighInWeight != null ? `${item.weighInWeight.toFixed(1)}T` : "—"}
+                  </Text>
+                </View>
+                <View style={styles.weightCell}>
+                  <Text style={[styles.wLabel, { color: colors.textMuted }]}>
+                    Q-Out
+                  </Text>
+                  <Text style={[styles.wValue, { color: "#A78BFA" }]}>
+                    {item.weighOutWeight != null ? `${item.weighOutWeight.toFixed(1)}T` : "—"}
+                  </Text>
+                </View>
+                <View style={styles.weightCell}>
+                  <Text style={[styles.wLabel, { color: colors.textMuted }]}>
                     S-In
                   </Text>
                   <Text style={[styles.wValue, { color: "#F59E0B" }]}>
@@ -970,7 +986,7 @@ export default function OperatorSiteHistoryScreen() {
                   <Text
                     style={[
                       styles.wValue,
-                      { color: colors.success, fontSize: 16 },
+                      { color: colors.success, fontSize: 14 },
                     ]}
                   >
                     {siteNet != null ? `${siteNet.toFixed(1)}T` : "—"}
@@ -986,6 +1002,15 @@ export default function OperatorSiteHistoryScreen() {
                 </View>
               </View>
 
+              {/* Received By */}
+              {item.receivedBy ? (
+                <View style={{ marginTop: Spacing.sm, flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                  <Ionicons name="person-outline" size={12} color={colors.textTertiary} />
+                  <Text style={{ fontSize: 12, color: colors.textTertiary, fontWeight: '600' }}>
+                    Received by: {item.receivedBy}
+                  </Text>
+                </View>
+              ) : null}
               <Text
                 style={[styles.tableTimestamp, { color: colors.textTertiary }]}
               >

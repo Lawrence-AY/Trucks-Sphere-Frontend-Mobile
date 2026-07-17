@@ -115,6 +115,9 @@ export function formatStatus(status: string): string {
 export function getRoleLabel(role: string): string {
   const labels: Record<string, string> = {
     management: 'Management',
+    operator_quarry: 'Quarry Operator',
+    operator_site: 'Site Operator',
+    operator_fuel: 'Fuel Operator',
     quarry_operator: 'Quarry Operator',
     site_operator: 'Site Operator',
     fuel_operator: 'Fuel Operator',
@@ -162,15 +165,6 @@ export function generateId(): string {
   return generateTempId();
 }
 
-// In-memory counter for job IDs per PO
-const jobCounters: Record<string, number> = {};
-
-function getJobNumber(key: string): number {
-  if (!jobCounters[key]) jobCounters[key] = 0;
-  jobCounters[key] += 1;
-  return jobCounters[key];
-}
-
 function padToThree(id: string): string {
   const num = id.replace(/^[VvDdTtJj]/, '').replace(/[^0-9]/g, '');
   const parsed = parseInt(num, 10);
@@ -186,16 +180,44 @@ function classifyId(id: string): string {
 }
 
 /**
- * Generate a job ID in format: POMAT###/V###/D###/T###/J####
- * e.g. POMAT006/V002/D001/T001/J0001
+ * Normalize a poNumber to its base form by stripping any vendor segment
+ * that may already be appended (e.g., "POMAT003/V001" → "POMAT003").
+ * This prevents duplication when the vendorId is also passed separately.
  */
-export function generateJobId(poNumber: string, materialId: string, vendorId: string, driverId: string, vehicleId: string): string {
+function normalizePoNumber(poNumber: string): string {
+  // Strip any trailing /V### segment from the poNumber
+  return poNumber.replace(/\/[Vv]\d+$/, '');
+}
+
+/**
+ * Generate the job key (base identifier without the J number).
+ * Format: POMAT###/V###/D###/T###
+ * e.g. "POMAT003/V001/D004/T010"
+ *
+ * The poNumber may already contain a vendor suffix (e.g. "POMAT003/V001").
+ * This is automatically stripped to prevent duplicate vendor segments.
+ *
+ * The final J number (e.g., /J0004) is ALWAYS assigned by the backend
+ * via the jobIdService to guarantee one shared sequential counter per
+ * Purchase Order across all quarries and sites.
+ */
+export function generateJobKey(poNumber: string, materialId: string, vendorId: string, driverId: string, vehicleId: string): string {
+  const basePo = normalizePoNumber(poNumber);
+  const vendorPrefix = classifyId(vendorId);
+  const vendorNum = padToThree(vendorId);
   const driverPrefix = classifyId(driverId);
   const driverNum = padToThree(driverId);
   const vehiclePrefix = classifyId(vehicleId);
   const vehicleNum = padToThree(vehicleId);
-  const jobNum = getJobNumber(poNumber);
-  return `${poNumber}/${driverPrefix}${driverNum}/${vehiclePrefix}${vehicleNum}/J${String(jobNum).padStart(4, '0')}`;
+  return `${basePo}/${vendorPrefix}${vendorNum}/${driverPrefix}${driverNum}/${vehiclePrefix}${vehicleNum}`;
+}
+
+/**
+ * @deprecated Use generateJobKey() instead. The backend now owns job numbering.
+ * Kept for backward compatibility with any legacy callers.
+ */
+export function generateJobId(poNumber: string, materialId: string, vendorId: string, driverId: string, vehicleId: string): string {
+  return generateJobKey(poNumber, materialId, vendorId, driverId, vehicleId);
 }
 
 export function generatePONumber(): string {

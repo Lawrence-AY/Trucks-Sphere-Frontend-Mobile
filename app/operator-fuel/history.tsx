@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshControl, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  Platform,
+  Alert,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Print from "expo-print";
 import { useTheme } from "../../hooks/useTheme";
 import { Spacing } from "../../constants/theme";
 import { fetchFuelRecords } from "../../services/api";
 import { formatEAT } from "../../utils/helpers";
+import { buildCsvContent, shareCsvAsFile } from "../../utils/exportData";
 import {
   DataCard,
   DetailRow,
@@ -14,6 +25,66 @@ import {
   SectionTitle,
   FilterRail,
 } from "../../components/EnterpriseUI";
+
+// ─── Helpers for cross‑platform printing ──────────────────────────
+
+const escapeHtml = (str: string | null | undefined): string => {
+  if (!str) return "";
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return str.replace(/[&<>"']/g, (m) => map[m]);
+};
+
+const printHtmlOnWeb = (html: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        reject(new Error("Unable to access iframe document"));
+        return;
+      }
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+
+      iframe.onload = () => {
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          if (document.body.contains(iframe)) document.body.removeChild(iframe);
+          resolve();
+        }, 1000);
+      };
+
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          iframe.contentWindow?.print();
+          setTimeout(() => {
+            if (document.body.contains(iframe)) document.body.removeChild(iframe);
+            resolve();
+          }, 1000);
+        }
+      }, 500);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+// ─── Time filters ──────────────────────────────────────────────────
 
 const TIME_FILTERS = [
   { key: "all", label: "All" },
@@ -67,7 +138,6 @@ export default function FuelHistoryScreen() {
     }
   }, []);
 
-  // Auto-refresh every 24 hours
   useEffect(() => {
     loadData();
     autoRefreshRef.current = setInterval(loadData, 24 * 60 * 60 * 1000);
@@ -84,38 +154,140 @@ export default function FuelHistoryScreen() {
     const range = getTimeFilterRange(timeFilter);
 
     let result = records.filter((r) => {
-      // Search filter
       if (
         q &&
         ![r.jobId, r.driverName, r.plateNumber, r.vendorName].some((v) =>
-          String(v || "")
-            .toLowerCase()
-            .includes(q),
+          String(v || "").toLowerCase().includes(q)
         )
       ) {
         return false;
       }
 
-      // Time filter
       if (range) {
         const dispensedAt = new Date(r.dispensedAt || r.createdAt);
         if (dispensedAt < range.start || dispensedAt >= range.end) {
           return false;
         }
       }
-
       return true;
     });
-
     return result;
   }, [records, search, timeFilter]);
 
-  // Summary stats for the filtered view
   const stats = useMemo(() => {
     const totalLiters = filtered.reduce((s, r) => s + (r.fuelAmount || 0), 0);
     const totalCost = filtered.reduce((s, r) => s + (r.totalCost || 0), 0);
     return { totalLiters, totalCost, count: filtered.length };
   }, [filtered]);
+
+  // ─── Export columns (removed Price/L and Total) ──────────────
+
+  const exportHeaders = [
+    "Fuel ID",
+    "Driver",
+    "Plate",
+    "Vendor",
+    "Fuel (L)",
+    "Auth Code",
+    "Dispensed At",
+    "Completed",
+  ];
+
+  const exportRows = useMemo(() => {
+    return filtered.map((item) => [
+      item.fuelId || item.id || item.jobId || "",
+      item.driverName || "N/A",
+      item.plateNumber || "N/A",
+      item.vendorName || "N/A",
+      item.fuelAmount != null ? item.fuelAmount.toFixed(1) : "0.0",
+      item.authorizationCode || item.authorizationId || "",
+      item.dispensedAt || item.createdAt || "",
+      item.completed ? "Yes" : "No",
+    ]);
+  }, [filtered]);
+
+  // ─── Export states ──────────────────────────────────────────────
+
+  const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
+
+  const handleDownloadCSV = async () => {
+    setExporting("csv");
+    try {
+      const csvContent = buildCsvContent(exportHeaders, exportRows);
+      await shareCsvAsFile("Fuel_Records", csvContent);
+    } catch {} finally {
+      setExporting(null);
+    }
+  };
+
+  const handlePrintPDF = async () => {
+    setExporting("pdf");
+    try {
+      const title = "Fuel Records";
+      const e = escapeHtml;
+
+      // Build table header
+      const headerCells = exportHeaders
+        .map((h) => `<th style="padding:10px 14px; background:#1B2A4A; color:#fff; font-weight:700; text-align:left; border:1px solid #ddd;">${e(h)}</th>`)
+        .join("");
+
+      // Build table rows
+      const bodyRows = exportRows
+        .map((row, i) => {
+          const bg = i % 2 === 0 ? "#FFFFFF" : "#F8FAFC";
+          const cells = row
+            .map((cell) => `<td style="padding:8px 14px; border:1px solid #ddd;">${e(cell) || "—"}</td>`)
+            .join("");
+          return `<tr style="background:${bg};">${cells}</tr>`;
+        })
+        .join("");
+
+      const html = `
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+              * { box-sizing: border-box; }
+              body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 24px; color: #1E293B; }
+              h1 { color: #1B2A4A; margin-bottom: 4px; }
+              h2 { color: #475569; font-size: 18px; margin-top: 0; margin-bottom: 4px; }
+              .subtitle { color: #94A3B8; font-size: 12px; }
+              table { width:100%; border-collapse:collapse; font-size:13px; margin-top:12px; }
+              th, td { padding: 8px 14px; border: 1px solid #ddd; text-align: left; }
+              th { background: #1B2A4A; color: #fff; font-weight: 700; }
+              .footer { color: #94A3B8; font-size: 10px; margin-top: 32px; text-align: center; }
+              @page { size: auto; margin: 15mm 10mm; }
+            </style>
+          </head>
+          <body>
+            <h1>Trucks Sphere</h1>
+            <h2>${e(title)}</h2>
+            <p class="subtitle">Total Records: ${filtered.length} | Total Fuel: ${stats.totalLiters.toFixed(1)} L</p>
+            <p class="subtitle">Exported on ${new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</p>
+            <table>
+              <thead><tr>${headerCells}</tr></thead>
+              <tbody>${bodyRows}</tbody>
+            </table>
+            <p class="footer">Generated by Trucks Sphere</p>
+          </body>
+        </html>
+      `;
+
+      if (Platform.OS === "web") {
+        await printHtmlOnWeb(html);
+      } else {
+        const { uri } = await Print.printToFileAsync({ html });
+        await Print.printAsync({ uri });
+      }
+    } catch (error: any) {
+      Alert.alert("Print Error", error?.message || "Failed to print");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  // ─── Render ──────────────────────────────────────────────────────
 
   return (
     <PageShell
@@ -127,14 +299,12 @@ export default function FuelHistoryScreen() {
         />
       }
     >
-      {/* Time filter rail */}
       <FilterRail
         options={TIME_FILTERS}
         value={timeFilter}
         onChange={setTimeFilter}
       />
 
-      {/* Summary stats */}
       {filtered.length > 0 && (
         <View style={styles.statsRow}>
           <View
@@ -186,6 +356,35 @@ export default function FuelHistoryScreen() {
         </View>
       )}
 
+      {filtered.length > 0 && (
+        <View style={styles.exportRow}>
+          <TouchableOpacity
+            style={[styles.exportBtn, { backgroundColor: "#2563EB" }]}
+            onPress={handleDownloadCSV}
+            disabled={exporting !== null}
+          >
+            {exporting === "csv" ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
+            )}
+            <Text style={styles.exportBtnText}>CSV</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.exportBtn, { backgroundColor: "#1B2A4A" }]}
+            onPress={handlePrintPDF}
+            disabled={exporting !== null}
+          >
+            {exporting === "pdf" ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="print-outline" size={16} color="#FFFFFF" />
+            )}
+            <Text style={styles.exportBtnText}>Print</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <SearchField
         value={search}
         onChangeText={setSearch}
@@ -195,9 +394,7 @@ export default function FuelHistoryScreen() {
 
       {loading ? (
         <DataCard>
-          <Text style={{ fontSize: 14, color: colors.textMuted }}>
-            Loading...
-          </Text>
+          <Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text>
         </DataCard>
       ) : filtered.length ? (
         filtered.map((item) => {
@@ -281,20 +478,6 @@ export default function FuelHistoryScreen() {
                 icon="business-outline"
                 value={`Vendor: ${item.vendorName || "N/A"}`}
               />
-              {item.pricePerLiter ? (
-                <>
-                  <DetailRow
-                    icon="cash-outline"
-                    value={`${item.pricePerLiter?.toFixed(2)} KES/L`}
-                  />
-                  {item.totalCost ? (
-                    <DetailRow
-                      icon="wallet-outline"
-                      value={`Total: KES ${item.totalCost?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                    />
-                  ) : null}
-                </>
-              ) : null}
               <Text
                 style={{
                   fontSize: 12,
@@ -339,17 +522,15 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 16, fontWeight: "800" },
   statLabel: { fontSize: 11, fontWeight: "600" },
   fuelBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
-  statusBadge: {
+  exportRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.md },
+  exportBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
+  exportBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
 });

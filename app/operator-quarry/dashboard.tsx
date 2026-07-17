@@ -17,13 +17,16 @@ import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import {
   createDeliveryOrder,
-  fetchDeliveryOrders,
-  fetchDrivers,
   fetchPurchaseOrders,
-  fetchVehicles,
 } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { formatEAT, generateId, generateJobId } from '../../utils/helpers';
+import {
+  useDeliveryOrders,
+  useDrivers,
+  useVehicles,
+} from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { formatEAT, generateId, generateJobKey } from '../../utils/helpers';
 import {
   DataCard,
   DetailRow,
@@ -37,10 +40,12 @@ import DriverProfileModal from '../../components/DriverProfileModal';
 export default function OperatorQuarryDashboardScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const deliveries = useDeliveryOrders();
+  const drivers = useDrivers();
+  const vehicles = useVehicles();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [addVisible, setAddVisible] = useState(false);
@@ -57,16 +62,10 @@ export default function OperatorQuarryDashboardScreen() {
   const loadData = async (silent?: boolean) => {
     if (!silent) setRefreshing(true);
     try {
-      const [data, orders, driverData, vehicleData] = await Promise.all([
-        fetchDeliveryOrders(),
-        fetchPurchaseOrders(),
-        fetchDrivers(),
-        fetchVehicles(),
-      ]);
-      setDeliveries(data || []);
+      // Purchase orders fetched once (static ref data), deliveries/drivers/vehicles via realtime store
+      const orders = await fetchPurchaseOrders();
       setPurchaseOrders(orders || []);
-      setDrivers(driverData || []);
-      setVehicles(vehicleData || []);
+      await refresh('deliveryOrders');
     } catch {
     } finally {
       setRefreshing(false);
@@ -74,7 +73,16 @@ export default function OperatorQuarryDashboardScreen() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Auto-report loading complete once realtime data arrives
+  useEffect(() => {
+    if (deliveries.length > 0 || drivers.length > 0 || vehicles.length > 0) {
+      setLoading(false);
+    }
+  }, [deliveries.length, drivers.length, vehicles.length]);
 
   // Scope data to the operator's assigned quarry
   const operatorQuarryId = (user as any)?.quarryId || '';
@@ -164,11 +172,12 @@ export default function OperatorQuarryDashboardScreen() {
     const now = new Date().toISOString();
     setSubmitting(true);
     setSubmitError('');
-    // Generate job ID: POMAT###/V###/D###/T###/J####
-    const jobId = generateJobId(selectedPo.poNumber, selectedPo.materialId, selectedPo.vendorId, selectedDriver.id, selectedVehicle.id);
+    // Build the job key (base identifier without J number).
+    // The backend jobIdService assigns the final /J#### sequentially.
+    const jobKey = generateJobKey(selectedPo.poNumber, selectedPo.materialId, selectedPo.vendorId, selectedDriver.id, selectedVehicle.id);
     const payload = {
       id: generateId(),
-      jobId: jobId,
+      jobKey: jobKey,
       purchaseOrderId: selectedPo.id,
       poNumber: selectedPo.poNumber,
       vendorId: selectedPo.vendorId,
@@ -194,7 +203,7 @@ export default function OperatorQuarryDashboardScreen() {
     };
     try {
       const createdJob = await createDeliveryOrder(payload);
-      setDeliveries((current) => [createdJob, ...current]);
+      optimisticUpdate('deliveryOrders', createdJob);
       closeAddForm();
     } catch (error: any) {
       setSubmitError(error?.response?.data?.error || error?.message || 'Failed to create job card.');

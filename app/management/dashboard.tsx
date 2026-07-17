@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   RefreshControl,
   StyleSheet,
@@ -12,13 +12,14 @@ import { useTheme } from "../../hooks/useTheme";
 import { Spacing } from "../../constants/theme";
 import { useAuthStore } from "../../store/authStore";
 import {
-  fetchDeliveryOrders,
-  fetchDrivers,
-  fetchFuelRecords,
-  fetchPurchaseOrders,
-  fetchVehicles,
-  fetchVendors,
-} from "../../services/api";
+  useDeliveryOrders,
+  useDrivers,
+  useFuelRecords,
+  usePurchaseOrders,
+  useVehicles,
+  useVendors,
+} from "../../store/realtimeData";
+import { useRealTimeSyncStore } from "../../store/realTimeSyncStore";
 import { formatEAT } from "../../utils/helpers";
 import {
   DataCard,
@@ -41,48 +42,30 @@ function isDelayed(item: any) {
 export default function ManagementDashboardScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
 
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [fuelRecords, setFuelRecords] = useState<any[]>([]);
 
-  const loadData = async () => {
+  // Use realtime sync hooks — same pattern proven everywhere else
+  const deliveries = useDeliveryOrders();
+  const drivers = useDrivers();
+  const vehicles = useVehicles();
+  const vendors = useVendors();
+  const purchaseOrders = usePurchaseOrders();
+  const fuelRecords = useFuelRecords();
+
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      const [
-        driverData,
-        vehicleData,
-        orderData,
-        deliveryData,
-        vendorData,
-        fuelData,
-      ] = await Promise.all([
-        fetchDrivers(),
-        fetchVehicles(),
-        fetchPurchaseOrders(),
-        fetchDeliveryOrders(),
-        fetchVendors(),
-        fetchFuelRecords(),
-      ]);
-      setDrivers(driverData || []);
-      setVehicles(vehicleData || []);
-      setDeliveries(deliveryData || []);
-      setVendors(vendorData || []);
-      setFuelRecords(fuelData || []);
-    } catch (error) {
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
+    await Promise.all([
+      refresh('deliveryOrders'),
+      refresh('drivers'),
+      refresh('vehicles'),
+      refresh('vendors'),
+      refresh('purchaseOrders'),
+      refresh('fuelRecords'),
+    ]);
+    setRefreshing(false);
+  }, [refresh]);
 
   const stats = useMemo(() => {
     const activeTrips = deliveries.filter(
@@ -117,12 +100,18 @@ export default function ManagementDashboardScreen() {
       .slice(0, 4);
   }, [deliveries]);
 
+  const isLoading =
+    deliveries.length === 0 &&
+    drivers.length === 0 &&
+    vehicles.length === 0 &&
+    vendors.length === 0;
+
   return (
     <PageShell
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={loadData}
+          onRefresh={handleRefresh}
           tintColor={colors.primary}
         />
       }
@@ -201,7 +190,7 @@ export default function ManagementDashboardScreen() {
           </TouchableOpacity>
         }
       />
-      {loading ? (
+      {isLoading ? (
         <DataCard>
           <Text style={[styles.loadingText, { color: colors.textMuted }]}>
             Loading operational feed...
@@ -233,10 +222,7 @@ export default function ManagementDashboardScreen() {
               icon="cube-outline"
               value={`${item.materialName || "Material"} `}
             />
-            <DetailRow
-              icon="navigate-outline"
-              value={`${item.quarryName || "Origin"} to ${item.siteName || "Destination"}`}
-            />
+            
             <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
               {formatEAT(item.updatedAt || item.createdAt)}
             </Text>

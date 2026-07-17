@@ -14,11 +14,18 @@ import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { DataCard, DetailRow, PageShell, SectionTitle } from '../../components/EnterpriseUI';
 import { getRoleLabel } from '../../utils/helpers';
-import { changePassword } from '../../services/api';
+import { changePassword, updateProfile } from '../../services/api';
 
 export default function ManagementProfileScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
+
+  // Edit profile state
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState(user?.displayName || '');
+  const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileError, setProfileError] = useState('');
 
   // Password change form state
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -26,24 +33,47 @@ export default function ManagementProfileScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [pwError, setPwError] = useState('');
+
+  const handleSaveProfile = async () => {
+    if (!editDisplayName.trim()) {
+      setProfileError('Display name is required.');
+      return;
+    }
+    setSavingProfile(true);
+    setProfileError('');
+    try {
+      const result = await updateProfile({
+        displayName: editDisplayName.trim(),
+        phone: editPhone.trim() || undefined,
+      });
+      // Update the local auth store
+      useAuthStore.setState((state) => ({
+        user: state.user ? { ...state.user, displayName: editDisplayName.trim(), phone: editPhone.trim() } : null,
+      }));
+      Alert.alert('Success', 'Profile updated successfully.');
+      setEditingProfile(false);
+    } catch (err: any) {
+      setProfileError(err?.message || 'Failed to update profile.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleChangePassword = async () => {
-    setError('');
-
+    setPwError('');
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setError('All fields are required.');
+      setPwError('All fields are required.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError('New password and confirm password do not match.');
+      setPwError('New password and confirm password do not match.');
       return;
     }
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters.');
+    if (newPassword.length < 6) {
+      setPwError('New password must be at least 6 characters.');
       return;
     }
-
     setSubmitting(true);
     try {
       await changePassword({ currentPassword, newPassword, confirmPassword });
@@ -53,7 +83,7 @@ export default function ManagementProfileScreen() {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      setError(err?.message || 'Failed to change password. Please try again.');
+      setPwError(err?.message || 'Failed to change password. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -85,6 +115,56 @@ export default function ManagementProfileScreen() {
             {user?.email || ''}
           </Text>
         </View>
+
+        {/* Edit Profile Button */}
+        {!editingProfile ? (
+          <TouchableOpacity
+            style={[styles.editBtn, { backgroundColor: colors.primary, marginTop: Spacing.md }]}
+            onPress={() => { setEditingProfile(true); setEditDisplayName(user?.displayName || ''); setEditPhone(user?.phone || ''); setProfileError(''); }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="create-outline" size={16} color="#FFFFFF" />
+            <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Edit Profile</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
+            {profileError ? <Text style={[styles.errorText, { color: colors.danger }]}>{profileError}</Text> : null}
+            <Text style={[styles.inputLabel, { color: colors.textMuted }]}>Display Name</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
+              value={editDisplayName}
+              onChangeText={setEditDisplayName}
+              placeholder="Your display name"
+              placeholderTextColor={colors.textTertiary}
+            />
+            <Text style={[styles.inputLabel, { color: colors.textMuted }]}>Phone</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
+              value={editPhone}
+              onChangeText={setEditPhone}
+              placeholder="Phone number"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="phone-pad"
+            />
+            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+              <TouchableOpacity
+                style={[styles.cancelBtn, { borderColor: colors.border }]}
+                onPress={() => { setEditingProfile(false); setProfileError(''); }}
+                disabled={savingProfile}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: savingProfile ? 0.6 : 1 }]}
+                onPress={handleSaveProfile}
+                disabled={savingProfile}
+              >
+                {savingProfile ? <ActivityIndicator color="#FFF" size="small" /> : <Ionicons name="checkmark-outline" size={16} color="#FFF" />}
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>{savingProfile ? 'Saving...' : 'Save'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </DataCard>
 
       {/* Account Details */}
@@ -120,7 +200,6 @@ export default function ManagementProfileScreen() {
           <View style={styles.passwordForm}>
             <Text style={[styles.formTitle, { color: colors.text }]}>Update Password</Text>
 
-            {/* Current Password */}
             <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
               Current Password
             </Text>
@@ -130,30 +209,22 @@ export default function ManagementProfileScreen() {
               placeholderTextColor={colors.textTertiary}
               secureTextEntry
               value={currentPassword}
-              onChangeText={(v) => {
-                setCurrentPassword(v);
-                setError('');
-              }}
+              onChangeText={(v) => { setCurrentPassword(v); setPwError(''); }}
               autoFocus
             />
 
-            {/* New Password */}
             <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
               New Password
             </Text>
             <TextInput
               style={[styles.input, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
-              placeholder="Min 8 characters"
+              placeholder="Min 6 characters"
               placeholderTextColor={colors.textTertiary}
               secureTextEntry
               value={newPassword}
-              onChangeText={(v) => {
-                setNewPassword(v);
-                setError('');
-              }}
+              onChangeText={(v) => { setNewPassword(v); setPwError(''); }}
             />
 
-            {/* Confirm Password */}
             <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
               Confirm New Password
             </Text>
@@ -163,24 +234,19 @@ export default function ManagementProfileScreen() {
               placeholderTextColor={colors.textTertiary}
               secureTextEntry
               value={confirmPassword}
-              onChangeText={(v) => {
-                setConfirmPassword(v);
-                setError('');
-              }}
+              onChangeText={(v) => { setConfirmPassword(v); setPwError(''); }}
             />
 
-            {/* Error message */}
-            {error ? (
-              <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
+            {pwError ? (
+              <Text style={[styles.errorText, { color: colors.danger }]}>{pwError}</Text>
             ) : null}
 
-            {/* Action buttons */}
             <View style={styles.formActions}>
               <TouchableOpacity
                 style={[styles.cancelBtn, { borderColor: colors.border }]}
                 onPress={() => {
                   setShowPasswordForm(false);
-                  setError('');
+                  setPwError('');
                   setCurrentPassword('');
                   setNewPassword('');
                   setConfirmPassword('');
@@ -218,6 +284,28 @@ export default function ManagementProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  input: {
+    height: 46,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   changePwdBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -236,20 +324,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     marginBottom: Spacing.xs,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  input: {
-    height: 46,
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    fontSize: 14,
-    fontWeight: '600',
   },
   errorText: {
     fontSize: 12,

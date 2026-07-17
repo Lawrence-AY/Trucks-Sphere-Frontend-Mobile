@@ -1,7 +1,8 @@
 /**
  * Downloads Screen - Export reports, delivery orders, and receipts as PDF
  *
- * Uses expo-print for PDF generation (same pattern as Simrion_flo).
+ * Uses expo-print for PDF generation (same format as Simrion_flo).
+ * Includes quarry geolocation, operator username, and receipt note data.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -13,14 +14,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
-import { fetchDeliveryOrders, fetchWeighments } from '../../services/api';
+import { fetchDeliveryOrders } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import * as Print from 'expo-print';
 import { formatEAT } from '../../utils/helpers';
 
@@ -36,14 +37,14 @@ const DOWNLOAD_OPTIONS: DownloadOption[] = [
   {
     id: 'delivery_orders',
     title: 'Delivery Orders',
-    description: 'Export delivery orders as PDF report',
+    description: 'Export delivery orders as PDF report with quarry geolocation & operator details',
     icon: 'document-text-outline',
     color: '#3B82F6',
   },
   {
     id: 'weigh_records',
     title: 'Weigh Records',
-    description: 'Export weighbridge records as PDF',
+    description: 'Export weighbridge records as PDF with receipt notes',
     icon: 'scale-outline',
     color: '#10B981',
   },
@@ -60,6 +61,9 @@ export default function DownloadsScreen() {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState<string | null>(null);
+  const { user } = useAuthStore();
+
+  const operatorUsername = user?.username || user?.displayName || 'Operator';
 
   const generateDeliveryOrdersPDF = async () => {
     try {
@@ -75,12 +79,17 @@ export default function DownloadsScreen() {
         <tr>
           <td>${i + 1}</td>
           <td>${order.jobId || order.id || '-'}</td>
+          <td>${order.poNumber || '-'}</td>
           <td>${order.vendorName || '-'}</td>
           <td>${order.driverName || '-'}</td>
           <td>${order.plateNumber || '-'}</td>
           <td>${order.materialName || '-'}</td>
+          <td>${order.quarryName || '-'}</td>
+          <td>${order.weighOutGeoLocation?.city || order.weighOutGeoLocation?.town || order.weighOutGeoLocation?.address || order.weighOutLocation || '-'}</td>
+          <td>${order.operatorUsername || '-'}</td>
           <td>${order.quantityOrdered || 0} ${order.unit || ''}</td>
           <td>${order.quantityDelivered || 0} ${order.unit || ''}</td>
+          <td>${order.receiptNoteId || order.receiptNote || '-'}</td>
           <td>${order.status || '-'}</td>
           <td>${order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
         </tr>`
@@ -90,29 +99,44 @@ export default function DownloadsScreen() {
       const html = `
         <html>
         <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: #1E293B; }
-            h1 { text-align: center; color: #1B2A4A; font-size: 22px; margin-bottom: 5px; }
-            .subtitle { text-align: center; color: #64748B; font-size: 12px; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; font-size: 10px; }
-            th { background: #1B2A4A; color: white; padding: 8px 6px; text-align: left; }
-            td { padding: 6px; border-bottom: 1px solid #E2E8F0; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 30px; color: #1E293B; max-width: 100%; margin: auto; }
+            .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+            .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+            .header .subtitle { color: #64748B; font-size: 13px; }
+            .header .meta { color: #94A3B8; font-size: 11px; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; font-size: 10px; margin: 16px 0; }
+            th { background: #1B2A4A; color: #FFF; padding: 8px 6px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+            td { padding: 6px; border-bottom: 1px solid #E2E8F0; border: 1px solid #DDD; }
             tr:nth-child(even) { background: #F8FAFC; }
+            .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
           </style>
         </head>
         <body>
-          <h1>TruckSphere - Delivery Orders</h1>
-          <p class="subtitle">Generated: ${new Date().toLocaleString()}</p>
+          <div class="header">
+            <h1>Trucks Sphere</h1>
+            <div class="subtitle">Delivery Orders Report</div>
+            <div class="meta">Generated by: ${operatorUsername} on ${new Date().toLocaleString()}</div>
+          </div>
           <table>
             <thead>
               <tr>
-                <th>#</th><th>Job ID</th><th>Vendor</th><th>Driver</th>
-                <th>Plate</th><th>Material</th><th>Qty Ordered</th>
-                <th>Delivered</th><th>Status</th><th>Date</th>
+                <th>#</th><th>Job ID</th><th>PO</th><th>Vendor</th>
+                <th>Driver</th><th>Plate</th><th>Material</th>
+                <th>Quarry</th><th>Quarry Geo</th>
+                <th>Quarry Op</th><th>Qty Ordered</th>
+                <th>Delivered</th><th>Receipt Note</th><th>Status</th><th>Date</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
+          <div class="footer">
+            <p>Generated by: ${operatorUsername}</p>
+            <p>Trucks Sphere — Computer-generated document</p>
+          </div>
         </body>
         </html>
       `;
@@ -125,23 +149,30 @@ export default function DownloadsScreen() {
 
   const generateWeighRecordsPDF = async () => {
     try {
-      const weighments = await fetchWeighments();
-      if (!weighments || weighments.length === 0) {
+      const orders = await fetchDeliveryOrders();
+      if (!orders || orders.length === 0) {
         Alert.alert('No Data', 'No weigh records found to export.');
         return;
       }
 
-      const rows = weighments
+      const rows = orders
+        .filter((o: any) => o.weighInWeight != null || o.weighOutWeight != null || o.siteWeighInWeight != null || o.siteWeighOutWeight != null)
         .map(
           (w: any, i: number) => `
         <tr>
           <td>${i + 1}</td>
-          <td>${w.jobId || w.deliveryOrderId || '-'}</td>
-          <td>${w.type || '-'}</td>
-          <td>${w.weight || 0} ${w.unit || 'kg'}</td>
-          <td>${w.location || '-'}</td>
-          <td>${w.operatorName || '-'}</td>
-          <td>${w.timestamp ? new Date(w.timestamp).toLocaleDateString() : '-'}</td>
+          <td>${w.jobId || '-'}</td>
+          <td>${w.receiptNoteId || w.receiptNote || '-'}</td>
+          <td>${w.weighInWeight != null ? w.weighInWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.weighOutWeight != null ? w.weighOutWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.netWeight != null ? w.netWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.siteWeighInWeight != null ? w.siteWeighInWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.siteWeighOutWeight != null ? w.siteWeighOutWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.siteNetWeight != null ? w.siteNetWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.operatorUsername || w.weighOutByName || '-'}</td>
+          <td>${w.quarryName || '-'}</td>
+          <td>${w.weighOutGeoLocation?.address || w.weighOutGeoLocation?.city || w.weighOutLocation || '-'}</td>
+          <td>${w.timestamp ? new Date(w.timestamp).toLocaleDateString() : (w.updatedAt ? new Date(w.updatedAt).toLocaleDateString() : '-')}</td>
         </tr>`
         )
         .join('');
@@ -149,28 +180,43 @@ export default function DownloadsScreen() {
       const html = `
         <html>
         <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: #1E293B; }
-            h1 { text-align: center; color: #1B2A4A; font-size: 22px; margin-bottom: 5px; }
-            .subtitle { text-align: center; color: #64748B; font-size: 12px; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; font-size: 10px; }
-            th { background: #1B2A4A; color: white; padding: 8px 6px; text-align: left; }
-            td { padding: 6px; border-bottom: 1px solid #E2E8F0; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 30px; color: #1E293B; max-width: 100%; margin: auto; }
+            .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+            .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+            .header .subtitle { color: #64748B; font-size: 13px; }
+            .header .meta { color: #94A3B8; font-size: 11px; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; font-size: 9px; margin: 16px 0; }
+            th { background: #1B2A4A; color: #FFF; padding: 8px 6px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+            td { padding: 6px; border-bottom: 1px solid #E2E8F0; border: 1px solid #DDD; }
             tr:nth-child(even) { background: #F8FAFC; }
+            .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
           </style>
         </head>
         <body>
-          <h1>TruckSphere - Weigh Records</h1>
-          <p class="subtitle">Generated: ${new Date().toLocaleString()}</p>
+          <div class="header">
+            <h1>Trucks Sphere</h1>
+            <div class="subtitle">Weighbridge Records Report</div>
+            <div class="meta">Generated by: ${operatorUsername} on ${new Date().toLocaleString()}</div>
+          </div>
           <table>
             <thead>
               <tr>
-                <th>#</th><th>Job ID</th><th>Type</th><th>Weight</th>
-                <th>Location</th><th>Operator</th><th>Date</th>
+                <th>#</th><th>Job ID</th><th>Receipt Note</th>
+                <th>Q-In (T)</th><th>Q-Out (T)</th><th>Q-Net (T)</th>
+                <th>S-In (T)</th><th>S-Out (T)</th><th>S-Net (T)</th>
+                <th>Quarry Op</th><th>Quarry</th><th>Geo Location</th><th>Date</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
           </table>
+          <div class="footer">
+            <p>Generated by: ${operatorUsername}</p>
+            <p>Trucks Sphere — Computer-generated document</p>
+          </div>
         </body>
         </html>
       `;
@@ -190,13 +236,16 @@ export default function DownloadsScreen() {
       }
 
       // Group by material
-      const grouped: Record<string, { total: number; unit: string }> = {};
+      const grouped: Record<string, { total: number; count: number; unit: string; quarryNet: number; siteNet: number }> = {};
       orders.forEach((order: any) => {
         const key = order.materialName || 'Unknown';
         if (!grouped[key]) {
-          grouped[key] = { total: 0, unit: order.unit || 'units' };
+          grouped[key] = { total: 0, count: 0, unit: order.unit || 'tonnes', quarryNet: 0, siteNet: 0 };
         }
         grouped[key].total += Number(order.quantityDelivered || 0);
+        grouped[key].count += 1;
+        grouped[key].quarryNet += order.netWeight ?? ((order.weighInWeight != null && order.weighOutWeight != null) ? (order.weighInWeight - order.weighOutWeight) : 0);
+        grouped[key].siteNet += order.siteNetWeight ?? order.quantityDelivered ?? 0;
       });
 
       const rows = Object.entries(grouped)
@@ -205,33 +254,64 @@ export default function DownloadsScreen() {
         <tr>
           <td>${i + 1}</td>
           <td>${material}</td>
-          <td>${data.total} ${data.unit}</td>
+          <td>${data.count}</td>
+          <td>${data.total.toFixed(1)} ${data.unit}</td>
+          <td>${data.quarryNet.toFixed(1)} T</td>
+          <td>${data.siteNet.toFixed(1)} T</td>
         </tr>`
         )
         .join('');
 
+      const totalDeliveries = orders.filter((o: any) => o.status === 'completed' || o.status === 'delivered').length;
+
       const html = `
         <html>
         <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
           <style>
-            body { font-family: Arial, sans-serif; padding: 30px; color: #1E293B; }
-            h1 { text-align: center; color: #1B2A4A; font-size: 22px; margin-bottom: 5px; }
-            .subtitle { text-align: center; color: #64748B; font-size: 12px; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th { background: #1B2A4A; color: white; padding: 10px 8px; text-align: left; }
-            td { padding: 8px; border-bottom: 1px solid #E2E8F0; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 30px; color: #1E293B; max-width: 600px; margin: auto; }
+            .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+            .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+            .header .subtitle { color: #64748B; font-size: 13px; }
+            .header .meta { color: #94A3B8; font-size: 11px; margin-top: 4px; }
+            .section { margin-bottom: 20px; }
+            .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; }
+            .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+            .row .label { color: #64748B; }
+            .row .value { font-weight: 700; color: #1E293B; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 16px 0; }
+            th { background: #1B2A4A; color: #FFF; padding: 10px 8px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+            td { padding: 8px; border-bottom: 1px solid #E2E8F0; border: 1px solid #DDD; }
             .total-row { font-weight: 700; background: #F0FDF4; }
+            .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
           </style>
         </head>
         <body>
-          <h1>TruckSphere - Site Delivery Summary</h1>
-          <p class="subtitle">Generated: ${new Date().toLocaleString()}</p>
-          <table>
-            <thead>
-              <tr><th>#</th><th>Material</th><th>Total Delivered</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
+          <div class="header">
+            <h1>Trucks Sphere</h1>
+            <div class="subtitle">Site Delivery Summary</div>
+            <div class="meta">Generated by: ${operatorUsername} on ${new Date().toLocaleString()}</div>
+          </div>
+          <div class="section">
+            <div class="section-title">Summary Statistics</div>
+            <div class="row"><span class="label">Total Completed Deliveries</span><span class="value">${totalDeliveries}</span></div>
+            <div class="row"><span class="label">Operator</span><span class="value">${operatorUsername}</span></div>
+          </div>
+          <div class="section">
+            <div class="section-title">Material Breakdown</div>
+            <table>
+              <thead>
+                <tr><th>#</th><th>Material</th><th>Count</th><th>Total Delivered</th><th>Quarry Net</th><th>Site Net</th></tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <div class="footer">
+            <p>Generated by: ${operatorUsername}</p>
+            <p>Trucks Sphere — Computer-generated document</p>
+          </div>
         </body>
         </html>
       `;
@@ -270,6 +350,11 @@ export default function DownloadsScreen() {
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             Generate and download PDF reports
           </Text>
+          {user?.displayName ? (
+            <Text style={[styles.operatorInfo, { color: colors.textMuted }]}>
+              Signed in as: {operatorUsername}
+            </Text>
+          ) : null}
         </View>
 
         {DOWNLOAD_OPTIONS.map((option) => (
@@ -358,6 +443,11 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     marginTop: 4,
+  },
+  operatorInfo: {
+    fontSize: 12,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   optionCard: {
     flexDirection: 'row',

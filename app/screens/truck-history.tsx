@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { fetchVehicles, fetchWeighments, fetchDeliveryOrders, fetchVendors, fetchDrivers } from '../../services/api';
+import { useDeliveryOrders, useVehicles, useVendors, useDrivers } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 
 function getPlate(matchValue: any, truckPlate: string, truckPlateNumber: string): boolean {
   const t = (matchValue || '').toLowerCase().trim();
@@ -16,62 +17,45 @@ function getPlate(matchValue: any, truckPlate: string, truckPlateNumber: string)
 export default function TruckHistoryScreen() {
   const { id, plate } = useLocalSearchParams<{ id: string; plate: string }>();
   const colors = useTheme();
-  const [truck, setTruck] = useState<any>(null);
-  const [trips, setTrips] = useState<any[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
 
-  useEffect(() => {
-    Promise.all([
-      fetchVehicles(),
-      fetchDeliveryOrders(),
-      fetchVendors(),
-      fetchDrivers(),
-    ]).then(([vehicles, deliveries, vendors, driversData]) => {
-      setDrivers(driversData || []);
-      const foundTruck = vehicles.find((t: any) =>
-        t.id === id || t.registrationNumber === plate || t.plateNumber === plate || t.plate === plate
-      );
-      if (foundTruck) {
-        // Resolve vendor name from vendors list
-        const vendorId = foundTruck.vendorId;
-        const matchedVendor = vendorId
-          ? vendors.find((v: any) => v.id === vendorId || v.vendorId === vendorId)
-          : null;
-        foundTruck.vendorName = foundTruck.vendorName || matchedVendor?.companyName || matchedVendor?.name || '';
-      }
-      setTruck(foundTruck || null);
-      const truckPlate = foundTruck?.plate || foundTruck?.plateNumber || plate || '';
-      const truckPlateNumber = foundTruck?.plateNumber || foundTruck?.plate || plate || '';
+  // Use realtime sync hooks — reliable, auto-polling, ETag-supported
+  const allVehicles = useVehicles();
+  const allDeliveries = useDeliveryOrders();
+  const allVendors = useVendors();
+  const allDrivers = useDrivers();
 
-      if (foundTruck) {
-        const truckTrips = deliveries.filter((d: any) => {
-          const tripPlate = d.plateNumber || d.truckPlate || '';
-          const tripId = d.vehicleId || '';
-          return getPlate(tripPlate, truckPlate, truckPlateNumber)
-            || tripId === id
-            || (d.vehicleId && d.vehicleId === id);
-        });
-        fetchWeighments().then(weighments => {
-          const weighTrips = weighments.filter((w: any) =>
-            getPlate(w.truckPlate || w.plateNumber || '', truckPlate, truckPlateNumber)
-            || w.vehicleId === id
-          );
-          const allIds = new Set(truckTrips.map(t => t.id || t.jobId));
-          const merged = [...truckTrips];
-          weighTrips.forEach((w: any) => {
-            const wid = w.id || w.jobId;
-            if (!allIds.has(wid)) {
-              merged.push(w);
-              allIds.add(wid);
-            }
-          });
-          setTrips(merged);
-        }).catch(() => {
-          setTrips(truckTrips);
-        });
-      }
-    }).catch(() => {});
-  }, [id, plate]);
+  // Find the truck from realtime sync data
+  const truck = useMemo(() => {
+    if (!id && !plate) return null;
+    const foundTruck = allVehicles.find((t: any) =>
+      t.id === id || t.registrationNumber === plate || t.plateNumber === plate || t.plate === plate
+    );
+    if (foundTruck) {
+      const vendorId = foundTruck.vendorId;
+      const matchedVendor = vendorId
+        ? allVendors.find((v: any) => v.id === vendorId || v.vendorId === vendorId)
+        : null;
+      foundTruck.vendorName = foundTruck.vendorName || matchedVendor?.companyName || matchedVendor?.name || '';
+    }
+    return foundTruck || null;
+  }, [allVehicles, allVendors, id, plate]);
+
+  // Filter trips matching this truck
+  const trips = useMemo(() => {
+    if (!truck) return [];
+    const truckPlate = truck?.plate || truck?.plateNumber || plate || '';
+    const truckPlateNumber = truck?.plateNumber || truck?.plate || plate || '';
+
+    return allDeliveries.filter((d: any) => {
+      const tripPlate = d.plateNumber || d.truckPlate || '';
+      const tripId = d.vehicleId || '';
+      return getPlate(tripPlate, truckPlate, truckPlateNumber)
+        || tripId === id
+        || (d.vehicleId && d.vehicleId === id);
+    });
+  }, [allDeliveries, truck, id, plate]);
+
+  const drivers = allDrivers;
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
@@ -122,14 +106,11 @@ export default function TruckHistoryScreen() {
       ) : (
         trips.map((trip, i) => (
           <TouchableOpacity
-            key={i}
+            key={trip.id || i}
             style={[styles.tripCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={() => {
-              const navId = trip.jobId || trip.id;
               if (trip.jobId) {
                 router.push(`/screens/job-details?id=${trip.jobId}` as any);
-              } else if (trip.id) {
-                router.push(`/screens/weigh-receipt?id=${trip.id}` as any);
               }
             }}
           >
@@ -138,7 +119,7 @@ export default function TruckHistoryScreen() {
                 {trip.jobId || trip.id}
               </Text>
               <Text style={[styles.tripStatus, { color: trip.status === 'completed' || trip.status === 'delivered' ? '#16A34A' : '#2563EB' }]}>
-                {(trip.status || trip.type || '').replace(/_/g, ' ')}
+                {(trip.status || '').replace(/_/g, ' ')}
               </Text>
             </View>
             {trip.driverName ? (
@@ -156,43 +137,27 @@ export default function TruckHistoryScreen() {
                 <Text style={[styles.tripText, { color: colors.textSecondary }]}>{trip.driverName}</Text>
               </View>
             ) : null}
-            {trip.receiptNoteId ? (
-              <View style={styles.tripRow}>
-                <Ionicons name="receipt-outline" size={14} color="#10B981" />
-                <Text style={[styles.tripText, { color: '#10B981', fontWeight: '700' }]} numberOfLines={1}>
-                  {trip.receiptNoteId}
-                </Text>
-              </View>
-            ) : null}
             <View style={styles.tripRow}>
               <Ionicons name="cube-outline" size={14} color={colors.textSecondary} />
               <Text style={[styles.tripText, { color: colors.textSecondary }]}>{trip.material || trip.materialName || 'N/A'}</Text>
             </View>
-            {(trip.quarryWeighIn || trip.weighInWeight || trip.weightIn) != null && (
+            {(trip.weighInWeight) != null && (
               <View style={styles.tripRow}>
                 <Ionicons name="download-outline" size={14} color="#F59E0B" />
                 <Text style={[styles.tripText, { color: colors.textSecondary }]}>
-                  Quarry In: {Number(trip.quarryWeighIn || trip.weighInWeight || trip.weightIn).toFixed(1)}T
+                  Quarry In: {Number(trip.weighInWeight).toFixed(1)}T
                 </Text>
               </View>
             )}
-            {(trip.quarryWeighOut || trip.weighOutWeight || trip.weightOut) != null && (
+            {(trip.weighOutWeight) != null && (
               <View style={styles.tripRow}>
                 <Ionicons name="arrow-up-circle-outline" size={14} color="#8B5CF6" />
                 <Text style={[styles.tripText, { color: colors.textSecondary }]}>
-                  Quarry Out: {Number(trip.quarryWeighOut || trip.weighOutWeight || trip.weightOut).toFixed(1)}T
+                  Quarry Out: {Number(trip.weighOutWeight).toFixed(1)}T
                 </Text>
               </View>
             )}
-            {trip.quarryNetWeight != null && (
-              <View style={styles.tripRow}>
-                <Ionicons name="analytics-outline" size={14} color="#2563EB" />
-                <Text style={[styles.tripText, { color: '#2563EB', fontWeight: '700' }]}>
-                  Quarry Net: {Number(trip.quarryNetWeight).toFixed(1)}T
-                </Text>
-              </View>
-            )}
-            {trip.netWeight != null && !trip.quarryNetWeight && (
+            {trip.netWeight != null && (
               <View style={styles.tripRow}>
                 <Ionicons name="analytics-outline" size={14} color="#2563EB" />
                 <Text style={[styles.tripText, { color: '#2563EB', fontWeight: '700' }]}>
@@ -200,19 +165,19 @@ export default function TruckHistoryScreen() {
                 </Text>
               </View>
             )}
-            {(trip.siteWeighInWeight || trip.siteWeighIn) != null && (
+            {(trip.siteWeighInWeight) != null && (
               <View style={styles.tripRow}>
                 <Ionicons name="scale-outline" size={14} color="#F59E0B" />
                 <Text style={[styles.tripText, { color: colors.textSecondary }]}>
-                  Site In: {Number(trip.siteWeighInWeight || trip.siteWeighIn).toFixed(1)}T
+                  Site In: {Number(trip.siteWeighInWeight).toFixed(1)}T
                 </Text>
               </View>
             )}
-            {(trip.siteWeighOutWeight || trip.siteWeighOut) != null && (
+            {(trip.siteWeighOutWeight) != null && (
               <View style={styles.tripRow}>
                 <Ionicons name="arrow-up-circle-outline" size={14} color="#8B5CF6" />
                 <Text style={[styles.tripText, { color: colors.textSecondary }]}>
-                  Site Out: {Number(trip.siteWeighOutWeight || trip.siteWeighOut).toFixed(1)}T
+                  Site Out: {Number(trip.siteWeighOutWeight).toFixed(1)}T
                 </Text>
               </View>
             )}

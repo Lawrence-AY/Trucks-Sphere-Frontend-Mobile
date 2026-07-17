@@ -34,36 +34,25 @@ type NavSection = {
 
 const MANAGEMENT_SECTIONS: NavSection[] = [
   {
+    title: 'Main',
+    icon: 'apps-outline',
+    items: [
+      { label: 'Dashboard', icon: 'apps-outline', route: '/management/dashboard', roles: ['admin', 'management'], activeRoutes: ['/management/dashboard'] },
+      { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active', roles: ['admin', 'management'], activeRoutes: ['/management/active'] },
+      { label: 'Orders', icon: 'document-text-outline', route: '/management/orders', roles: ['admin', 'management'], activeRoutes: ['/management/orders'] },
+      { label: 'Materials', icon: 'cube-outline', route: '/management/materials', roles: ['admin', 'management'], activeRoutes: ['/management/materials'] },
+      { label: 'Vendors', icon: 'business-outline', route: '/management/vendors', roles: ['admin', 'management'], activeRoutes: ['/management/vendors'] },
+      { label: 'Drivers', icon: 'people-outline', route: '/management/drivers', roles: ['admin', 'management'], activeRoutes: ['/management/drivers'] },
+      { label: 'Trucks', icon: 'car-outline', route: '/management/trucks', roles: ['admin', 'management'], activeRoutes: ['/management/trucks'] },
+    ],
+  },
+  {
     title: 'Operations',
     icon: 'radio-outline',
     items: [
-      { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard', roles: ['admin', 'management'], activeRoutes: ['/management/dashboard'] },
-      { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active', roles: ['admin', 'management'], activeRoutes: ['/management/active'] },
-      { label: 'Dispatch Queue', icon: 'git-branch-outline', route: '/management/dispatch', roles: ['admin', 'management'], activeRoutes: ['/management/dispatch'] },
-    ],
-  },
-  {
-    title: 'Procurement',
-    icon: 'cube-outline',
-    items: [
-      { label: 'Purchase Orders', icon: 'document-text-outline', route: '/management/orders', roles: ['admin', 'management'], activeRoutes: ['/management/orders'] },
-      { label: 'Materials', icon: 'cube-outline', route: '/management/materials', roles: ['admin', 'management'], activeRoutes: ['/management/materials'] },
-    ],
-  },
-  {
-    title: 'Fleet',
-    icon: 'car-outline',
-    items: [
-      { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details', roles: ['admin', 'management'], activeRoutes: ['/screens/vendor-details'] },
-      { label: 'Vehicles', icon: 'car-outline', route: '/management/trucks', roles: ['admin', 'management'], activeRoutes: ['/management/trucks'] },
-    ],
-  },
-  {
-    title: 'Locations',
-    icon: 'location-outline',
-    items: [
-      { label: 'Quarries', icon: 'business-outline', route: '/management/quarries', roles: ['admin', 'management'], activeRoutes: ['/management/quarries'] },
+     // { label: 'Dispatch', icon: 'git-branch-outline', route: '/management/dispatch', roles: ['admin', 'management'], activeRoutes: ['/management/dispatch'] },
       { label: 'Fuel Records', icon: 'water-outline', route: '/management/fuel', roles: ['admin', 'management'], activeRoutes: ['/management/fuel'] },
+    //  { label: 'Quarries', icon: 'business-outline', route: '/management/quarries', roles: ['admin', 'management'], activeRoutes: ['/management/quarries'] },
     ],
   },
   {
@@ -72,6 +61,7 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     items: [
       { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports', roles: ['admin', 'management'], activeRoutes: ['/management/reports'] },
       { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management'], activeRoutes: ['/screens/issues'] },
+    //  { label: 'History', icon: 'time-outline', route: '/management/active', roles: ['admin', 'management'], activeRoutes: ['/management/active'] },
     ],
   },
   {
@@ -79,10 +69,8 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     icon: 'settings-outline',
     items: [
       { label: 'Users', icon: 'person-add-outline', route: '/management/users', roles: ['admin', 'management'], activeRoutes: ['/management/users'] },
-      { label: 'Settings', icon: 'settings-outline', route: '/management/settings', roles: ['admin', 'management'], activeRoutes: ['/management/settings'] },
       { label: 'Master Data', icon: 'server-outline', route: '/management/master-data', roles: ['admin', 'management'], activeRoutes: ['/management/master-data'] },
       { label: 'Profile', icon: 'person-outline', route: '/management/profile', roles: ['admin', 'management'], activeRoutes: ['/management/profile'] },
-      { label: 'Notifications', icon: 'notifications-outline', route: '/screens/notifications', roles: ['admin', 'management'], activeRoutes: ['/screens/notifications'] },
     ],
   },
 ];
@@ -106,8 +94,7 @@ const ROLE_SECTIONS: NavSection[] = [
       { label: 'History', icon: 'time-outline', route: '/operator-quarry/history', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-quarry/profile', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/profile'] },
       { label: 'Settings', icon: 'settings-outline', route: '/operator-quarry/settings', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/settings'] },
-      { label: 'Dashboard', icon: 'home-outline', route: '/operator-site/dashboard', roles: ['operator_site'], activeRoutes: ['/operator-site/dashboard'] },
-      { label: 'Receive', icon: 'checkmark-circle-outline', route: '/operator-site/receive', roles: ['operator_site'], activeRoutes: ['/operator-site/receive'] },
+      { label: 'Schedule', icon: 'calendar-outline', route: '/operator-site/schedule', roles: ['operator_site'], activeRoutes: ['/operator-site/schedule'] },
       { label: 'Weights', icon: 'scale-outline', route: '/operator-site/weights', roles: ['operator_site'], activeRoutes: ['/operator-site/weights'] },
       { label: 'History', icon: 'time-outline', route: '/operator-site/history', roles: ['operator_site'], activeRoutes: ['/operator-site/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-site/profile', roles: ['operator_site'], activeRoutes: ['/operator-site/profile'] },
@@ -209,7 +196,7 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
               handleNav('/operator-quarry/dashboard');
               break;
             case 'operator_site':
-              handleNav('/operator-site/dashboard');
+              handleNav('/operator-site/schedule');
               break;
             case 'operator_fuel':
               handleNav('/operator-fuel/dispense');

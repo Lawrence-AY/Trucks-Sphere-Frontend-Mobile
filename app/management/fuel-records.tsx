@@ -251,6 +251,10 @@ export default function FuelRecordsScreen() {
                 icon="person-outline"
                 value={`${item.driverName || "N/A"} · ${item.plateNumber || "N/A"}`}
               />
+              <DetailRow
+                icon="person-circle-outline"
+                value={`Attendant: ${item.dispensedByName || item.attendantName || item.dispensedBy || "—"}`}
+              />
               {item.vendorName ? (
                 <DetailRow
                   icon="business-outline"

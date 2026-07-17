@@ -123,14 +123,6 @@ export default function MaterialDetailScreen() {
             <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Default Unit</Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>{material.defaultUnit || 'N/A'}</Text>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Status</Text>
-            <Badge
-              label={material.status || 'active'}
-              variant={material.status === 'active' ? 'success' : 'default'}
-              dot
-            />
-          </View>
           {material.description && (
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Description</Text>
@@ -293,11 +285,6 @@ export default function MaterialDetailScreen() {
                 {material.category} • {material.defaultUnit || material.measurementType || 'units'}
               </Text>
             </View>
-            <Badge
-              label={material.status || 'active'}
-              variant={material.status === 'active' ? 'success' : 'default'}
-              dot
-            />
           </View>
 
           {/* Actions */}
@@ -327,7 +314,7 @@ export default function MaterialDetailScreen() {
         />
 
         {/* Tab Content */}
-        <View style={{ marginTop: Spacing.md }}>
+        <View style={{ marginTop: Spacing.md   }}>
           {activeTab === 'details' && renderDetails()}
         </View>
       </ScrollView>
@@ -411,21 +398,24 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E7EB',
+    gap: Spacing.sm,
   },
   detailLabel: {
     fontSize: 14,
+    flexShrink: 0,
+    marginTop: 1,
   },
   detailValue: {
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'right',
     flex: 1,
-    marginLeft: Spacing.md,
+    flexWrap: 'wrap',
   },
   categoryBadge: {
     flexDirection: 'row',

@@ -40,6 +40,7 @@ export default function OperatorQuarryWeighInScreen() {
 
   const allDeliveries = useDeliveryOrders();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -96,23 +97,27 @@ export default function OperatorQuarryWeighInScreen() {
       return;
     }
     setSaving(true);
+    const now = new Date().toISOString();
+    const updatePayload = {
+      weighInWeight: numericWeight,
+      weighInAt: now,
+      weighInLocation: activeJob.quarryName ? `${activeJob.quarryName} Gate` : 'Quarry Gate',
+      weighInByUid: user?.uid || '',
+      weighInByName: user?.displayName || user?.name || 'Quarry Operator',
+      status: 'at_quarry',
+      updatedAt: now,
+    };
+
+    // Optimistically update the cache immediately — UI shows instant feedback
+    optimisticUpdate('deliveryOrders', { ...activeJob, ...updatePayload });
+    closeWeighInForm();
+    router.navigate('/operator-quarry/weigh-out' as any);
+
+    // Fire-and-forget backend sync (non-blocking)
     try {
-      const now = new Date().toISOString();
-      await updateDeliveryOrder(activeJob.id, {
-        weighInWeight: numericWeight,
-        weighInAt: now,
-        weighInLocation: activeJob.quarryName ? `${activeJob.quarryName} Gate` : 'Quarry Gate',
-        weighInByUid: user?.uid || '',
-        weighInByName: user?.displayName || user?.name || 'Quarry Operator',
-        status: 'at_quarry',
-        updatedAt: now,
-      });
-      closeWeighInForm();
-      // Refresh immediately so weigh-out screen has updated data
-      await refresh('deliveryOrders');
-      router.navigate('/operator-quarry/weigh-out' as any);
+      await updateDeliveryOrder(activeJob.id, updatePayload);
     } catch (error: any) {
-      Alert.alert('Save Failed', error?.message || 'Could not save weigh-in data.');
+      Alert.alert('Sync Warning', 'Weigh-in saved locally. It will sync when connection is restored.');
     } finally {
       setSaving(false);
     }

@@ -9,9 +9,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
+import { useDeliveryOrders } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import {
   DataCard,
   EmptyState,
@@ -33,27 +34,30 @@ const FILTER_LABELS: Record<FilterPeriod, string> = {
 
 export default function OperatorQuarryHistoryScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const deliveries = useDeliveryOrders();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterPeriod>('today');
 
-  const loadData = async () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    try {
-      const data = (await fetchDeliveryOrders()) || [];
-      // Backend already scopes by quarryId for operator_quarry role
-      setDeliveries(data);
-    } catch {
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
+    await refresh('deliveryOrders');
+    setRefreshing(false);
   };
 
   useEffect(() => {
-    loadData();
+    // Initial fetch
+    refresh('deliveryOrders');
+    setLoading(false);
   }, []);
+
+  // Auto-hide loading when realtime data arrives
+  useEffect(() => {
+    if (deliveries.length > 0) {
+      setLoading(false);
+    }
+  }, [deliveries.length]);
 
   /* ─── Filtering Logic ─── */
 
@@ -77,9 +81,11 @@ export default function OperatorQuarryHistoryScreen() {
 
   const startDate = getStartOfPeriod(filter);
 
-  const activeQueue = deliveries.filter(
-    (d) => !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status),
-  );
+  const activeQueue = useMemo(() => {
+    return deliveries.filter(
+      (d) => !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status),
+    );
+  }, [deliveries]);
 
   const completedRecords = useMemo(() => {
     return deliveries
@@ -188,7 +194,7 @@ export default function OperatorQuarryHistoryScreen() {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={loadData}
+          onRefresh={handleRefresh}
           tintColor={colors.primary}
         />
       }

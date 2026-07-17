@@ -99,6 +99,7 @@ export default function OperatorSiteReceiveScreen() {
         siteWeighInAt: now,
         status: 'site_in',
         storageLot: lotNumber || undefined,
+        materialSource: activeJob.materialSource || undefined,
         updatedAt: now,
       });
       setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
@@ -194,7 +195,7 @@ export default function OperatorSiteReceiveScreen() {
           <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
           <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
           <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
-          <DetailRow icon="location-outline" value={`Origin: ${resolveQuarryName(activeJob)} → Dest: ${activeJob.siteName || '—'}`} />
+                          <DetailRow icon="location-outline" value={`Origin: ${activeJob.materialSource || activeJob.weighOutGeoLocation?.city || activeJob.weighOutGeoLocation?.town || activeJob.weighOutGeoLocation?.district || activeJob.weighOutGeoLocation?.name || activeJob.weighOutLocation || resolveQuarryName(activeJob)} → Dest: ${activeJob.siteName || '—'}`} />
           {/* Lot Number Input */}
           <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.inputHeader}>
@@ -275,7 +276,10 @@ export default function OperatorSiteReceiveScreen() {
               placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               value={weightIn}
-              onChangeText={setWeightIn}
+                  onChangeText={(value) => {
+                    const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                    setWeightIn(filtered);
+                  }}
               editable={!hasSiteWeighIn}
             />
             <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>
@@ -316,7 +320,10 @@ export default function OperatorSiteReceiveScreen() {
               placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               value={weightOut}
-              onChangeText={setWeightOut}
+                  onChangeText={(value) => {
+                    const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                    setWeightOut(filtered);
+                  }}
               editable={hasSiteWeighIn}
             />
             <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>

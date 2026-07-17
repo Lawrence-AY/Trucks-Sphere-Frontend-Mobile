@@ -7,12 +7,10 @@ import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 import { showAlert } from '../../utils/webAlert';
 import { changePassword } from '../../services/api';
-import ShareModal from '../../components/ShareModal';
 
 export default function ManagementSettingsScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  const [shareVisible, setShareVisible] = useState(false);
   const [pwModal, setPwModal] = useState(false);
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -70,12 +68,6 @@ export default function ManagementSettingsScreen() {
         </View>
       </View>
 
-      {/* Export Data */}
-      <TouchableOpacity style={[styles.btn, { backgroundColor: '#1B2A4A' }]} onPress={() => setShareVisible(true)}>
-        <Ionicons name="cloud-download-outline" size={20} color="#FFF" />
-        <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600' }}>Export Data</Text>
-      </TouchableOpacity>
-
       {/* Update Password */}
       <TouchableOpacity style={[styles.btn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]} onPress={() => setPwModal(true)}>
         <Ionicons name="lock-closed-outline" size={20} color={colors.primary} />
@@ -102,7 +94,6 @@ export default function ManagementSettingsScreen() {
         </View>
       </Modal>
 
-      <ShareModal visible={shareVisible} onClose={() => setShareVisible(false)} />
     </ScrollView>
   );
 }
