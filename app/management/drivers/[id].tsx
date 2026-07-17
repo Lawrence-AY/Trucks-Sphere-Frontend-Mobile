@@ -96,6 +96,29 @@ export default function DriverDetailScreen() {
     setRefreshing(false);
   }
 
+  function handleDelete() {
+    Alert.alert(
+      'Delete Driver',
+      'Are you sure you want to delete this driver? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await driverRepository.delete(id!);
+              Alert.alert('Success', 'Driver deleted successfully');
+              router.replace('/management/drivers' as any);
+            } catch (error: any) {
+              Alert.alert('Error', error?.response?.data?.error || error?.message || 'Failed to delete driver');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   // Filter trips for this driver from the realtime sync data
   const trips = useMemo(() => {
     const driverName = (driver as any)?.name || driver?.fullName || '';
@@ -304,7 +327,22 @@ export default function DriverDetailScreen() {
               </Text>
             </View>
           </View>
-
+          <View style={styles.actions}>
+            <Button
+              title="Edit"
+              icon="create-outline"
+              onPress={() => router.push(`/management/drivers/create?id=${id}` as any)}
+              variant="secondary"
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="Delete"
+              icon="trash-outline"
+              onPress={handleDelete}
+              variant="danger"
+              style={{ flex: 1 }}
+            />
+          </View>
         </View>
 
         <Tabs
@@ -382,6 +420,10 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     marginTop: 2,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
   },
   sectionTitle: {
     fontSize: 16,

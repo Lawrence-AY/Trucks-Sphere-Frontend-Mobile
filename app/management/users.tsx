@@ -41,7 +41,6 @@ const ROLE_OPTIONS = [
   { id: 'management', name: 'Management' },
   { id: 'operator_quarry', name: 'Operator at Quarry' },
   { id: 'operator_site', name: 'Operator at Site' },
-  { id: 'vendor', name: 'Vendor' },
   { id: 'operator_fuel', name: 'Fuel Attendant' },
 ];
 
@@ -60,7 +59,7 @@ export default function UsersScreen() {
     displayName: '',
     username: '',
     password: '',
-    role: 'vendor',
+    role: 'management',
     phone: '',
   });
   const [generatedUsername, setGeneratedUsername] = useState('');
@@ -76,6 +75,7 @@ export default function UsersScreen() {
     email: '',
     role: 'vendor',
     phone: '',
+    newPassword: '',
   });
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
 
@@ -172,7 +172,7 @@ export default function UsersScreen() {
 
       const uname = result?.data?.user?.generatedUsername || generateUsernameFromDisplay(form.displayName);
       // Reset form state first, then close modal
-      setForm({ displayName: '', username: '', password: '', role: 'vendor', phone: '' });
+      setForm({ displayName: '', username: '', password: '', role: 'management', phone: '' });
       setGeneratedUsername('');
       setFormErrors({});
       setShowAddModal(false);
@@ -194,6 +194,7 @@ export default function UsersScreen() {
       email: user.email || '',
       role: user.role || 'vendor',
       phone: user.phone || '',
+      newPassword: '',
     });
     setEditFormErrors({});
     setShowEditModal(true);
@@ -219,6 +220,24 @@ export default function UsersScreen() {
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to update user';
       showAlert('Error', msg);
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!editingUser) return;
+    if (!editForm.newPassword || editForm.newPassword.length < 6) {
+      setEditFormErrors((prev) => ({ ...prev, newPassword: 'Password must be at least 6 characters' }));
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await api.put(`/api/users/${editingUser.uid || editingUser.id}/password`, { password: editForm.newPassword });
+      setEditForm((prev) => ({ ...prev, newPassword: '' }));
+      showAlert('Success', 'Password reset successfully');
+    } catch (err: any) {
+      showAlert('Error', err?.response?.data?.error || err?.message || 'Failed to reset password');
     } finally {
       setEditSaving(false);
     }
@@ -541,6 +560,15 @@ export default function UsersScreen() {
                 icon="call-outline"
                 keyboardType="phone-pad"
               />
+              <Input
+                label="New Password"
+                value={editForm.newPassword}
+                onChangeText={(v) => updateEditForm('newPassword', v)}
+                placeholder="Enter a new password to reset"
+                icon="lock-closed-outline"
+                secureTextEntry
+                error={editFormErrors.newPassword}
+              />
               <Select
                 label="Role"
                 value={editForm.role}
@@ -556,6 +584,13 @@ export default function UsersScreen() {
             </ScrollView>
 
             <View style={styles.modalActions}>
+              <Button
+                title="Reset Password"
+                onPress={handleResetPassword}
+                variant="secondary"
+                style={{ flex: 1 }}
+                loading={editSaving}
+              />
               <Button
                 title="Delete"
                 onPress={() => {
@@ -737,6 +772,7 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,

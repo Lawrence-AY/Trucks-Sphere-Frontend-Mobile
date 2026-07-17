@@ -22,7 +22,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
 import { Button } from '../../../components/ui/Button';
@@ -41,8 +41,17 @@ export default function DriverListScreen() {
   const [search, setSearch] = useState('');
   const [vendorNameMap, setVendorNameMap] = useState<Record<string, string>>({});
 
+  useFocusEffect(
+    useCallback(() => {
+      driverRepository.invalidateCache();
+      loadDrivers();
+    }, []),
+  );
+
   useEffect(() => {
-    loadDrivers();
+    return driverRepository.onChange(() => {
+      driverRepository.getAll().then(setDrivers).catch(() => {});
+    });
   }, []);
 
   useEffect(() => {

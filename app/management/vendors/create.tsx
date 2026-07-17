@@ -9,7 +9,7 @@
  *   - Insurance & Compliance sections (single source of truth for drivers)
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -29,12 +29,17 @@ import { Card } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
-import { vendorRepository } from '../../../services/repositories/VendorRepository';
+import api from '../../../services/api';
 
 const STATUS_OPTIONS = [
   { id: 'active', name: 'Active' },
   { id: 'inactive', name: 'Inactive' },
   { id: 'suspended', name: 'Suspended' },
+];
+
+const ACCOUNT_STATUS_OPTIONS = [
+  { id: 'active', name: 'Active' },
+  { id: 'inactive', name: 'Inactive' },
 ];
 
 export default function CreateVendorScreen() {
@@ -68,8 +73,37 @@ export default function CreateVendorScreen() {
     wibaStartDate: '',
     wibaEndDate: '',
     status: 'active' as string,
+    password: '',
+    confirmPassword: '',
+    accountStatus: 'active',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [generatedUsername, setGeneratedUsername] = useState('');
+
+  useEffect(() => {
+    const contactPerson = form.contactPerson.trim();
+    if (!contactPerson) {
+      setGeneratedUsername('');
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await api.get<{ username: string }>(
+          `/api/vendors/username?contactPerson=${encodeURIComponent(contactPerson)}`,
+        );
+        if (!cancelled) setGeneratedUsername(response.data.username || '');
+      } catch {
+        if (!cancelled) setGeneratedUsername('Will be generated when saved');
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [form.contactPerson]);
 
   function updateField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -87,9 +121,10 @@ export default function CreateVendorScreen() {
     if (!form.companyName.trim()) newErrors.companyName = 'Company name is required';
     if (!form.contactPerson.trim()) newErrors.contactPerson = 'Contact person is required';
     if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      newErrors.email = 'Invalid email address';
-    }
+    if (!form.email.trim()) newErrors.email = 'Email address is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Invalid email address';
+    if (!form.password || form.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (form.password !== form.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -99,32 +134,36 @@ export default function CreateVendorScreen() {
 
     setSaving(true);
     try {
-      await vendorRepository.create({
-        companyName: form.companyName.trim(),
-        contactPerson: form.contactPerson.trim(),
-        phone: form.phone.trim(),
-        email: form.email.trim() || undefined,
-        address: form.address.trim() || undefined,
-        kraPin: form.kraPin.trim() || undefined,
-        registrationNumber: form.registrationNumber.trim() || undefined,
-        businessPermit: form.businessPermit.trim() || undefined,
-        companyActCR12: form.companyActCR12.trim() || undefined,
-        fleetSize: form.fleetSize.trim() ? Number(form.fleetSize) : undefined,
-        taxCompliance: form.taxCompliance.trim() || undefined,
-        // Insurance
-        insuranceCompany: form.insuranceCompany.trim() || undefined,
-        insuranceNumber: form.insuranceNumber.trim() || undefined,
-        insuranceStartDate: form.insuranceStartDate.trim() || undefined,
-        insuranceExpiryDate: form.insuranceExpiryDate.trim() || undefined,
-        insuranceCommencingDate: form.insuranceCommencingDate.trim() || undefined,
-        insuranceSupplier: form.insuranceSupplier.trim() || undefined,
-        // NTSE
-        ntsaInspectionExpiry: form.ntsaInspectionExpiry.trim() || undefined,
-        // WIBA
-        wibaProvider: form.wibaProvider.trim() || undefined,
-        wibaStartDate: form.wibaStartDate.trim() || undefined,
-        wibaEndDate: form.wibaEndDate.trim() || undefined,
-        status: form.status as any,
+      const result = await api.post<{ username: string }>('/api/vendors/with-account', {
+        vendor: {
+          companyName: form.companyName.trim(),
+          contactPerson: form.contactPerson.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          address: form.address.trim() || undefined,
+          kraPin: form.kraPin.trim() || undefined,
+          registrationNumber: form.registrationNumber.trim() || undefined,
+          businessPermit: form.businessPermit.trim() || undefined,
+          companyActCR12: form.companyActCR12.trim() || undefined,
+          fleetSize: form.fleetSize.trim() ? Number(form.fleetSize) : undefined,
+          taxCompliance: form.taxCompliance.trim() || undefined,
+          insuranceCompany: form.insuranceCompany.trim() || undefined,
+          insuranceNumber: form.insuranceNumber.trim() || undefined,
+          insuranceStartDate: form.insuranceStartDate.trim() || undefined,
+          insuranceExpiryDate: form.insuranceExpiryDate.trim() || undefined,
+          insuranceCommencingDate: form.insuranceCommencingDate.trim() || undefined,
+          insuranceSupplier: form.insuranceSupplier.trim() || undefined,
+          ntsaInspectionExpiry: form.ntsaInspectionExpiry.trim() || undefined,
+          wibaProvider: form.wibaProvider.trim() || undefined,
+          wibaStartDate: form.wibaStartDate.trim() || undefined,
+          wibaEndDate: form.wibaEndDate.trim() || undefined,
+          status: form.status,
+        },
+        account: {
+          email: form.email.trim(),
+          password: form.password,
+          isActive: form.accountStatus === 'active',
+        },
       });
 
       setForm({
@@ -150,8 +189,12 @@ export default function CreateVendorScreen() {
         wibaStartDate: '',
         wibaEndDate: '',
         status: 'active',
+        password: '',
+        confirmPassword: '',
+        accountStatus: 'active',
       });
-      Alert.alert('Success', 'Vendor created successfully', [
+      setGeneratedUsername('');
+      Alert.alert('Success', `Vendor created. Login username: ${result.data.username}`, [
         { text: 'View Vendors', onPress: () => router.back() },
       ]);
     } catch (err: any) {
@@ -209,15 +252,6 @@ export default function CreateVendorScreen() {
             keyboardType="phone-pad"
             required
             error={errors.phone}
-          />
-          <Input
-            label="Email Address"
-            value={form.email}
-            onChangeText={(v) => updateField('email', v)}
-            placeholder="e.g. info@swiftlogistics.com"
-            icon="mail-outline"
-            keyboardType="email-address"
-            error={errors.email}
           />
           <Input
             label="Physical Address"
@@ -316,6 +350,56 @@ export default function CreateVendorScreen() {
             placeholder="e.g. ABC Brokers Ltd"
             icon="people-outline"
           />
+        </Card>
+
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Information</Text>
+        <Card>
+          <Input
+            label="Email Address"
+            value={form.email}
+            onChangeText={(v) => updateField('email', v)}
+            placeholder="e.g. info@swiftlogistics.com"
+            icon="mail-outline"
+            keyboardType="email-address"
+            required
+            error={errors.email}
+          />
+          <Input
+            label="Generated Username"
+            value={generatedUsername}
+            placeholder="Enter a contact person to generate"
+            icon="person-outline"
+            onChangeText={() => undefined}
+            editable={false}
+          />
+          <Input
+            label="Password"
+            value={form.password}
+            onChangeText={(v) => updateField('password', v)}
+            placeholder="At least 6 characters"
+            icon="lock-closed-outline"
+            secureTextEntry
+            required
+            error={errors.password}
+          />
+          <Input
+            label="Confirm Password"
+            value={form.confirmPassword}
+            onChangeText={(v) => updateField('confirmPassword', v)}
+            placeholder="Re-enter password"
+            icon="lock-closed-outline"
+            secureTextEntry
+            required
+            error={errors.confirmPassword}
+          />
+          <Select
+            label="Account Status"
+            value={form.accountStatus}
+            options={ACCOUNT_STATUS_OPTIONS}
+            onSelect={(v) => updateField('accountStatus', v)}
+            icon="checkmark-circle-outline"
+          />
+          <Input label="Role" value="Vendor" icon="shield-outline" onChangeText={() => undefined} editable={false} />
         </Card>
 
         {/* Compliance Details */}

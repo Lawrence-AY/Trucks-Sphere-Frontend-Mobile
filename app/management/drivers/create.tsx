@@ -37,6 +37,7 @@ import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
+import api from '../../../services/api';
 import { uploadDriverPhoto } from '../../../services/uploadService';
 import { collectionCache } from '../../../services/cache/CollectionCache';
 import { Vendor } from '../../../store/types';
@@ -48,10 +49,13 @@ const STATUS_OPTIONS = [
 ];
 
 export default function CreateDriverScreen() {
-  const params = useLocalSearchParams<{ vendorId?: string }>();
+  const params = useLocalSearchParams<{ vendorId?: string; id?: string }>();
+  const driverId = typeof params.id === 'string' ? params.id : undefined;
+  const isEditMode = Boolean(driverId);
   const colors = useTheme();
   const insets = useSafeAreaInsets();
   const [saving, setSaving] = useState(false);
+  const [loadingDriver, setLoadingDriver] = useState(isEditMode);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -74,7 +78,33 @@ export default function CreateDriverScreen() {
     if (params.vendorId) {
       updateField('vendorId', params.vendorId);
     }
-  }, []);
+    if (driverId) loadDriver(driverId);
+  }, [driverId, params.vendorId]);
+
+  async function loadDriver(id: string) {
+    try {
+      const driver = await driverRepository.getById(id);
+      if (!driver) {
+        Alert.alert('Driver not found');
+        router.back();
+        return;
+      }
+      setForm({
+        vendorId: driver.vendorId || '',
+        fullName: driver.fullName || (driver as any).name || '',
+        phone: driver.phone || '',
+        email: driver.email || '',
+        nationalId: driver.nationalId || '',
+        licenseNumber: driver.licenseNumber || '',
+        licenseClass: driver.licenseClass || '',
+        licenseExpiry: driver.licenseExpiry || '',
+        emergencyContact: driver.emergencyContact || '',
+        status: driver.status || 'active',
+      });
+    } finally {
+      setLoadingDriver(false);
+    }
+  }
 
   async function loadVendors() {
     try {
@@ -129,15 +159,39 @@ export default function CreateDriverScreen() {
     }
   };
 
-  function validate(): boolean {
+  async function checkNationalId(): Promise<boolean> {
+    const nationalId = form.nationalId.trim();
+    if (!nationalId) return false;
+    try {
+      const response = await api.get<{ available: boolean }>(
+        `/api/drivers/national-id/${encodeURIComponent(nationalId)}${driverId ? `?excludeId=${encodeURIComponent(driverId)}` : ''}`,
+      );
+      if (!response.data.available) {
+        setErrors((prev) => ({ ...prev, nationalId: 'A driver with this National ID already exists.' }));
+        return false;
+      }
+      return true;
+    } catch {
+      // The server repeats this validation when saving; do not block valid offline form entry.
+      return true;
+    }
+  }
+
+  async function validate(): Promise<boolean> {
     const newErrors: Record<string, string> = {};
     if (!form.vendorId) newErrors.vendorId = 'Vendor is required';
     if (!form.fullName.trim()) newErrors.fullName = 'Full name is required';
     if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
     if (!form.nationalId.trim()) newErrors.nationalId = 'National ID is required';
     if (!form.licenseNumber.trim()) newErrors.licenseNumber = 'License number is required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return false;
+    }
+    const nationalIdAvailable = await checkNationalId();
+    if (!nationalIdAvailable) return false;
+    setErrors({});
+    return true;
   }
 
   function resetForm() {
@@ -157,13 +211,12 @@ export default function CreateDriverScreen() {
     setErrors({});
   }
 
-  async function handleCreate() {
-    if (!validate()) return;
+  async function handleSave() {
+    if (!(await validate())) return;
 
     setSaving(true);
     try {
-      // Step 1: Create driver first (without photoURL)
-      const createdDriver = await driverRepository.create({
+      const driverPayload = {
         vendorId: form.vendorId,
         fullName: form.fullName.trim(),
         phone: form.phone.trim(),
@@ -174,17 +227,20 @@ export default function CreateDriverScreen() {
         licenseExpiry: form.licenseExpiry.trim() || undefined,
         emergencyContact: form.emergencyContact.trim() || undefined,
         status: form.status as any,
-      });
+      };
+      const savedDriver = isEditMode
+        ? await driverRepository.update(driverId!, driverPayload)
+        : await driverRepository.create(driverPayload);
 
       // Step 2: Upload photo using the newly created driver's ID
-      if (photoUri && createdDriver?.id) {
+      if (photoUri && savedDriver?.id) {
         setUploadingPhoto(true);
         try {
-          const uploadResult = await uploadDriverPhoto(createdDriver.id, photoUri);
+          const uploadResult = await uploadDriverPhoto(savedDriver.id, photoUri);
           // The backend uploadController updates Firestore with photoURL automatically.
           // Sync the local cache immediately so the driver list shows the photo.
           if (uploadResult?.photoURL) {
-            await collectionCache.updateInCollection('drivers', createdDriver.id, {
+            await collectionCache.updateInCollection('drivers', savedDriver.id, {
               photoURL: uploadResult.photoURL,
             } as any);
           }
@@ -198,8 +254,12 @@ export default function CreateDriverScreen() {
         setUploadingPhoto(false);
       }
 
-      Alert.alert('Success', 'Driver created successfully');
-      resetForm();
+      Alert.alert('Success', `Driver ${isEditMode ? 'updated' : 'created'} successfully`);
+      if (isEditMode) {
+        router.replace(`/management/drivers/${driverId}` as any);
+      } else {
+        resetForm();
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message || err?.message || 'Failed to create driver';
       Alert.alert('Error', msg);
@@ -223,13 +283,13 @@ export default function CreateDriverScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Onboard Driver</Text>
+        <Text style={styles.backTitle}>{isEditMode ? 'Edit Driver' : 'Onboard Driver'}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Onboard Driver</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{isEditMode ? 'Edit Driver' : 'Onboard Driver'}</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Add a new driver to the system. Insurance & compliance are inherited from the assigned vendor.
+            {isEditMode ? 'Update driver information. Insurance and compliance are inherited from the assigned vendor.' : 'Add a new driver to the system. Insurance & compliance are inherited from the assigned vendor.'}
           </Text>
         </View>
 
@@ -350,6 +410,7 @@ export default function CreateDriverScreen() {
             keyboardType="numeric"
             required
             error={errors.nationalId}
+            onBlur={checkNationalId}
           />
           <Input
             label="License Number"
@@ -403,11 +464,11 @@ export default function CreateDriverScreen() {
             style={styles.actionBtn}
           />
           <Button
-            title="Create Driver"
-            onPress={handleCreate}
+            title={isEditMode ? 'Save Changes' : 'Create Driver'}
+            onPress={handleSave}
             icon="checkmark-circle"
             style={styles.actionBtn}
-            loading={saving || uploadingPhoto}
+            loading={saving || uploadingPhoto || loadingDriver}
           />
         </View>
       </ScrollView>

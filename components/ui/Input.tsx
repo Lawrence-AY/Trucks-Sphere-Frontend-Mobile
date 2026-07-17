@@ -19,6 +19,7 @@ interface InputProps {
   editable?: boolean;
   suffix?: string;
   autoFocus?: boolean;
+  onBlur?: () => void;
 }
 
 export function Input({
@@ -36,6 +37,7 @@ export function Input({
   editable = true,
   suffix,
   autoFocus = false,
+  onBlur,
 }: InputProps) {
   const colors = useTheme();
   const [focused, setFocused] = useState(false);
@@ -84,7 +86,10 @@ export function Input({
           editable={editable}
           autoFocus={autoFocus}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false);
+            onBlur?.();
+          }}
         />
         {suffix && <Text style={[styles.suffix, { color: colors.textMuted }]}>{suffix}</Text>}
         {isPassword && (
