@@ -42,11 +42,10 @@ const VENDOR_TABS = [
   { name: 'overview', label: 'Overview', icon: 'information-circle-outline' as const },
   { name: 'drivers', label: 'Drivers', icon: 'people-outline' as const },
   { name: 'vehicles', label: 'Vehicles', icon: 'car-outline' as const },
-  { name: 'documents', label: 'Documents', icon: 'document-outline' as const },
+   
   { name: 'jobs', label: 'Jobs', icon: 'briefcase-outline' as const },
   { name: 'pos', label: 'Purchase Orders', icon: 'document-text-outline' as const },
-  { name: 'performance', label: 'Performance', icon: 'trending-up-outline' as const },
-];
+ ];
 
 export default function VendorDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -225,18 +224,14 @@ export default function VendorDetailScreen() {
         {activeTab === 'vehicles' && (
           <VehiclesTab vehicles={vehicles} vendorId={vendor.id} colors={colors} />
         )}
-        {activeTab === 'documents' && (
-          <DocumentsTab documents={documents} colors={colors} />
-        )}
+        
         {activeTab === 'jobs' && (
           <JobsTab vendorId={vendor.id} colors={colors} />
         )}
         {activeTab === 'pos' && (
           <PurchaseOrdersTab vendorId={vendor.id} colors={colors} />
         )}
-        {activeTab === 'performance' && (
-          <PerformanceTab vendorId={vendor.id} colors={colors} />
-        )}
+       
       </ScrollView>
 
       <ConfirmDialog
@@ -498,73 +493,7 @@ function PurchaseOrdersTab({ vendorId, colors }: { vendorId: string; colors: any
   );
 }
 
-// ─── Performance Tab ───
-function PerformanceTab({ vendorId, colors }: { vendorId: string; colors: any }) {
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
-    try {
-      const { jobRepository } = require('../../../services/repositories/JobRepository');
-      const all = await jobRepository.getAll();
-      setJobs(all.filter((j: any) => j.vendorId === vendorId));
-    } catch {
-      // Silent
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) return <LoadingSkeleton lines={4} variant="card" />;
-
-  const totalJobs = jobs.length;
-  const completedJobs = jobs.filter((j: any) => j.status === 'completed').length;
-  const delayedJobs = jobs.filter((j: any) => j.isDelayed).length;
-  const onTimeRate = totalJobs > 0 ? Math.round((completedJobs / totalJobs) * 100) : 0;
-  const weightDiscrepancies = jobs.filter((j: any) => j.hasWeightDiscrepancy).length;
-
-  return (
-    <Card>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Performance Metrics</Text>
-
-      <View style={styles.metricRow}>
-        <View style={[styles.metricCard, { backgroundColor: colors.primary + '10' }]}>
-          <Text style={[styles.metricValue, { color: colors.primary }]}>{totalJobs}</Text>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Total Jobs</Text>
-        </View>
-        <View style={[styles.metricCard, { backgroundColor: colors.success + '10' }]}>
-          <Text style={[styles.metricValue, { color: colors.success }]}>{completedJobs}</Text>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Completed</Text>
-        </View>
-      </View>
-
-      <View style={styles.metricRow}>
-        <View style={[styles.metricCard, { backgroundColor: colors.info + '10' }]}>
-          <Text style={[styles.metricValue, { color: colors.info }]}>{onTimeRate}%</Text>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>On-Time Rate</Text>
-        </View>
-        <View style={[styles.metricCard, { backgroundColor: colors.warning + '10' }]}>
-          <Text style={[styles.metricValue, { color: colors.warning }]}>{delayedJobs}</Text>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Delayed</Text>
-        </View>
-      </View>
-
-      {weightDiscrepancies > 0 && (
-        <View style={[styles.alert, { backgroundColor: colors.danger + '10' }]}>
-          <Ionicons name="alert-circle" size={16} color={colors.danger} />
-          <Text style={[styles.alertText, { color: colors.danger }]}>
-            {weightDiscrepancies} weight discrepanc{weightDiscrepancies !== 1 ? 'ies' : 'y'} detected
-          </Text>
-        </View>
-      )}
-    </Card>
-  );
-}
-
+ 
 const styles = StyleSheet.create({
   container: {
     flex: 1,

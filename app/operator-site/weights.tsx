@@ -1046,7 +1046,7 @@ export default function OperatorSiteWeightsScreen() {
                 onPress={() => {
                   setGrnVisible(false);
                   closeWeighForm();
-                  router.back();
+                  router.push('/operator-site/history' as any);
                 }}
               >
                 <Text

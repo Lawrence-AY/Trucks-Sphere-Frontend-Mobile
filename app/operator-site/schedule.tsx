@@ -137,8 +137,8 @@ export default function OperatorSiteDashboardScreen() {
   // and have NOT been weighed in at site yet — once weighed in, they move to Weights tab
   const allScheduled = useMemo(
     () => deliveries.filter((d) => {
-      if (['cancelled', 'delivered', 'weighed_in', 'completed'].includes(d.status)) return false;
-      if (d.siteWeighInWeight != null) return false; // already weighed in — move off schedule
+      if (['cancelled', 'delivered', 'completed'].includes(d.status)) return false;
+      if (d.siteWeighOutWeight != null) return false;
       // Must have been weighed at quarry (has both weigh in and weigh out weights)
       return d.weighInWeight != null && d.weighOutWeight != null;
     }),
@@ -163,11 +163,11 @@ export default function OperatorSiteDashboardScreen() {
         !d.siteWeighInWeight &&
         d.status !== 'completed' &&
         d.status !== 'delivered' &&
-        d.status !== 'weighed_in',
+        d.status !== 'site_in',
     );
     const weighedIn = allScheduled.filter(
       (d) =>
-        (d.siteWeighInWeight || d.status === 'weighed_in') &&
+        (d.siteWeighInWeight != null || d.status === 'site_in') &&
         d.status !== 'completed' &&
         d.status !== 'delivered',
     );
@@ -287,7 +287,7 @@ export default function OperatorSiteDashboardScreen() {
       await updateDeliveryOrder(job.id, {
         siteWeighInWeight: weightInNum,
         siteWeighInAt: now,
-        status: 'weighed_in',
+        status: 'site_in',
         updatedAt: now,
         materialSource: materialSourceValue || undefined,
       });
@@ -309,7 +309,7 @@ export default function OperatorSiteDashboardScreen() {
                 ...item,
                 siteWeighInWeight: weightInNum,
                 siteWeighInAt: now,
-                status: 'weighed_in',
+                status: 'site_in',
                 updatedAt: now,
               }
             : item,
@@ -330,8 +330,9 @@ export default function OperatorSiteDashboardScreen() {
 
       setExpandedJobId(null);
 
-      // Auto-navigate to Weights tab
-      router.navigate('/operator-site/weights' as any);
+      // Keep this job visible in its next-step state; navigation is optional.
+      setSuccessJob({ ...job, siteWeighInWeight: weightInNum, siteWeighInAt: now, status: 'site_in' });
+      setSuccessModalVisible(true);
     } catch (error: any) {
       setSubmitErrors((prev) => ({
         ...prev,
@@ -345,7 +346,7 @@ export default function OperatorSiteDashboardScreen() {
   const navigateToWeights = () => {
     setSuccessModalVisible(false);
     setSuccessJob(null);
-    router.navigate('/operator-site/weights' as any);
+    router.push('/operator-site/weights' as any);
   };
 
   /* ─── FAB: Unscheduled Arrival Handlers ─── */
@@ -445,7 +446,7 @@ export default function OperatorSiteDashboardScreen() {
       isUnscheduled: true,
       isScheduled: false,
       
-      status: 'weighed_in',
+      status: 'site_in',
       siteWeighInWeight: weightInNum,
       siteWeighInAt: now,
       createdBy: 'operator_site',
@@ -457,8 +458,8 @@ export default function OperatorSiteDashboardScreen() {
       const createdJob = await createDeliveryOrder(payload);
       setDeliveries((current) => [createdJob, ...current]);
       closeFab();
-      // Navigate to Weights tab
-      router.navigate('/operator-site/weights' as any);
+      setSuccessJob(createdJob);
+      setSuccessModalVisible(true);
     } catch (error: any) {
       setFabSubmitError(error?.response?.data?.error || error?.message || 'Failed to register unscheduled arrival.');
     } finally {
@@ -505,12 +506,19 @@ export default function OperatorSiteDashboardScreen() {
             const isSubmitting = submitting[item.id];
             const error = submitErrors[item.id];
             const weightInVal = getWeightInput(item.id);
+            const hasSiteWeighIn = item.siteWeighInWeight != null || ['site_in', 'weighed_in'].includes(item.status);
 
             return (
               <DataCard key={item.id}>
                 {/* Card Header — entire card tappable for weigh-in */}
                 <TouchableOpacity
-                  onPress={() => toggleExpand(item.id)}
+                  onPress={() => {
+                    if (hasSiteWeighIn) {
+                      router.push('/operator-site/weights' as any);
+                    } else {
+                      toggleExpand(item.id);
+                    }
+                  }}
                   activeOpacity={0.7}
                   style={styles.cardHeaderTouchable}
                 >
@@ -602,8 +610,15 @@ export default function OperatorSiteDashboardScreen() {
                     {`Dispatched: ${formatEAT(item.weighOutAt || item.updatedAt || item.createdAt)}`}
                   </Text>
 
+                  {hasSiteWeighIn && (
+                    <View style={[styles.tapHint, { backgroundColor: '#10B98112' }]}>
+                      <Ionicons name="checkmark-circle-outline" size={12} color="#10B981" />
+                      <Text style={[styles.tapHintText, { color: '#059669' }]}>Site arrival recorded — tap to continue to Weight Out</Text>
+                    </View>
+                  )}
+
                   {/* Tap hint */}
-                  {!isExpanded && (
+                  {!isExpanded && !hasSiteWeighIn && (
                     <View
                       style={[
                         styles.tapHint,
@@ -659,7 +674,7 @@ export default function OperatorSiteDashboardScreen() {
                 </TouchableOpacity>
 
                 {/* ─── Expanded Weight In Form ─── */}
-                {isExpanded && (
+                {isExpanded && !hasSiteWeighIn && (
                   <View style={styles.weightInSection}>
                     <View
                       style={[

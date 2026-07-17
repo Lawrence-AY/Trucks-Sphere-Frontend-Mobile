@@ -198,15 +198,10 @@ export async function updateDeliveryOrder(
   id: string,
   payload: any,
 ): Promise<any> {
-  try {
-    const result = unwrapOne(
-      await backendRequest("put", `/api/delivery-orders/${id}`, payload),
-      payload,
-    );
-    return result;
-  } catch (error: any) {
-    return payload;
-  }
+  return unwrapOne(
+    await backendRequest("put", `/api/delivery-orders/${id}`, payload),
+    payload,
+  );
 }
 
 export async function fetchWeighments(params?: {
@@ -566,11 +561,25 @@ export async function fetchPublicTracking(trackingId: string): Promise<any> {
     return response.data;
   } catch (error: any) {
     const status = error?.response?.status;
-    const message =
-      error?.response?.data?.error ||
-      "This tracking link has expired or is no longer active.";
-    console.log(`[API] Public tracking ${trackingId} failed:`, status, message);
-    throw new Error(message);
+    const serverCode = error?.response?.data?.code;
+    const serverMessage = error?.response?.data?.error;
+
+    // Network / CORS error — no response at all
+    if (!status) {
+      const netMsg = error?.code === "ERR_NETWORK" || error?.code === "ERR_CANCELED"
+        ? "Unable to reach the tracking server. Please check your internet connection."
+        : error?.message || "A network error occurred. Please try again.";
+      console.log(`[API] Public tracking ${trackingId} failed: network error`, error?.code);
+      throw Object.assign(new Error(netMsg), { isNetworkError: true });
+    }
+
+    // Server returned a structured error
+    console.log(`[API] Public tracking ${trackingId} failed:`, status, serverCode, serverMessage);
+    throw Object.assign(new Error(serverMessage || "This tracking link has expired or is no longer active."), {
+      statusCode: status,
+      errorCode: serverCode || null,
+      isTrackingError: true,
+    });
   }
 }
 
@@ -590,11 +599,25 @@ export async function fetchPublicTrackingByPlate(plateNumber: string): Promise<a
     return response.data;
   } catch (error: any) {
     const status = error?.response?.status;
-    const message =
-      error?.response?.data?.error ||
-      "This tracking link has expired or is no longer active.";
-    console.log(`[API] Public tracking by plate ${plateNumber} failed:`, status, message);
-    throw new Error(message);
+    const serverCode = error?.response?.data?.code;
+    const serverMessage = error?.response?.data?.error;
+
+    // Network / CORS error — no response at all
+    if (!status) {
+      const netMsg = error?.code === "ERR_NETWORK" || error?.code === "ERR_CANCELED"
+        ? "Unable to reach the tracking server. Please check your internet connection."
+        : error?.message || "A network error occurred. Please try again.";
+      console.log(`[API] Public tracking by plate ${plateNumber} failed: network error`, error?.code);
+      throw Object.assign(new Error(netMsg), { isNetworkError: true });
+    }
+
+    // Server returned a structured error
+    console.log(`[API] Public tracking by plate ${plateNumber} failed:`, status, serverCode, serverMessage);
+    throw Object.assign(new Error(serverMessage || "This tracking link has expired or is no longer active."), {
+      statusCode: status,
+      errorCode: serverCode || null,
+      isTrackingError: true,
+    });
   }
 }
 

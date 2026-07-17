@@ -172,7 +172,7 @@ function buildReceiptNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Route </div>
-    <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${e(quarryName) || 'N/A'}</span></div>
+    
     <div class="row"><span class="label">City / Town</span><span class="value">${e(quarryCityTown) || 'N/A'}</span></div>
     ${weighOutGeoAddress ? `<div class="row"><span class="label">Weigh-Out Location</span><span class="value">${e(weighOutGeoAddress)}</span></div>` : ''}
     <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(siteName) || 'N/A'}</span></div>
@@ -456,7 +456,7 @@ const exportRows = [
 
         {/* Route & Geolocation */}
         <SectionBlock title="ROUTE " colors={colors}>
-          <RNRow label="Origin" value={quarryName} colors={colors} />
+         
           {quarryCityTown ? (
             <RNRow label="City / Town" value={quarryCityTown} colors={colors} />
           ) : null}

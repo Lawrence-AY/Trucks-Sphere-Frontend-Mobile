@@ -80,9 +80,28 @@ export default function PublicTrackingScreen() {
       setState({ kind: 'active', data });
     } catch (err: any) {
       // On background refresh, keep current data if fetch fails temporarily
-      if (!isBackgroundRefresh) {
-        setState({ kind: 'expired', message: err?.message || 'This tracking link has expired or is no longer active.' });
+      if (isBackgroundRefresh) return;
+
+      // Network / CORS failure — show as connection error, not "expired"
+      if (err?.isNetworkError) {
+        setState({ kind: 'error', message: err.message });
+        return;
       }
+
+      // Server returned a tracking-specific error (404, expired, etc.)
+      if (err?.isTrackingError) {
+        const isExpired = err.errorCode === 'TRACKING_EXPIRED';
+        if (isExpired) {
+          setState({ kind: 'expired', message: err.message });
+        } else {
+          // TRACKING_NOT_FOUND or other server errors
+          setState({ kind: 'expired', message: err.message });
+        }
+        return;
+      }
+
+      // Generic fallback (should not normally be reached)
+      setState({ kind: 'error', message: err?.message || 'An unexpected error occurred.' });
     }
   }, []);
 
@@ -169,8 +188,38 @@ export default function PublicTrackingScreen() {
     </View>
   );
 
-  /* ─── Expired / Error State ─── */
-  if (state.kind === 'expired' || state.kind === 'error') {
+  /* ─── Error State (network / server failure) ─── */
+  if (state.kind === 'error') {
+    return (
+      <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <StatusBar style="dark" />
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {renderHeader('Enter plate number')}
+          <View style={styles.centerContent}>
+            <View style={styles.expiredCard}>
+              <View style={[styles.expiredIconCircle, { backgroundColor: '#FFF7ED' }]}>
+                <Ionicons name="cloud-offline-outline" size={48} color="#F59E0B" />
+              </View>
+              <Text style={[styles.expiredTitle, { color: text }]}>Connection Error</Text>
+              <Text style={[styles.expiredMessage, { color: textSec }]}>{state.message}</Text>
+              <View style={[styles.expiredDivider, { backgroundColor: border }]} />
+              <TouchableOpacity
+                onPress={() => trackByPlate(searchPlate)}
+                style={[styles.retryButton, { backgroundColor: primary }]}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  /* ─── Expired State ─── */
+  if (state.kind === 'expired') {
     return (
       <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StatusBar style="dark" />
@@ -447,6 +496,9 @@ const styles = StyleSheet.create({
   expiredHint: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
 
   loadingText: { marginTop: Spacing.md, fontSize: 14, fontWeight: '500' },
+
+  retryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: Radius.md },
+  retryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.lg, paddingHorizontal: Spacing.lg },
   footerText: { fontSize: 11, fontWeight: '500' },

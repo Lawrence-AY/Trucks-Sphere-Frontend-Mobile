@@ -24,14 +24,12 @@ class VendorRepository extends BaseRepository<Vendor> {
 
   /**
    * Get drivers for a specific vendor.
+   * Passes vendorId as a top-level query parameter so the backend
+   * can filter via req.query.vendorId.
    */
   async getDrivers(vendorId: string): Promise<Driver[]> {
     try {
-      const token = await getStoredToken();
-      const response = await api.get('/api/drivers', {
-        params: { vendorId },
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get('/api/drivers', { vendorId });
       const data = response.data;
       return Array.isArray(data) ? data : data?.items || data?.data || [];
     } catch {
@@ -41,14 +39,12 @@ class VendorRepository extends BaseRepository<Vendor> {
 
   /**
    * Get vehicles for a specific vendor.
+   * Passes vendorId as a top-level query parameter so the backend
+   * can filter via req.query.vendorId.
    */
   async getVehicles(vendorId: string): Promise<Vehicle[]> {
     try {
-      const token = await getStoredToken();
-      const response = await api.get('/api/vehicles', {
-        params: { vendorId },
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get('/api/vehicles', { vendorId });
       const data = response.data;
       return Array.isArray(data) ? data : data?.items || data?.data || [];
     } catch {

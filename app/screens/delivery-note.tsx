@@ -115,7 +115,7 @@ function buildDeliveryNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Route & Geolocation</div>
-    <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${e(quarryName) || 'N/A'}</span></div>
+ 
     <div class="row"><span class="label">City / Town</span><span class="value">${e(quarryCityTown) || e(weighOutCity) || 'N/A'}</span></div>
     <div class="row"><span class="label">Weigh-Out Location</span><span class="value">${e(geoText)}</span></div>
     <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(siteName) || 'N/A'}</span></div>
@@ -405,7 +405,7 @@ export default function DeliveryNoteScreen() {
               <DNRow label="Material" value={delivery.materialName} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>ROUTE </Text>
-              {quarryCityTown ? <DNRow label="Origin" value={quarryCityTown} /> : null}
+              
               {geoAddress ? <DNRow label="Weigh-Out Location" value={geoAddress} /> : null}
               <DNRow label="Destination" value={delivery.siteName} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
