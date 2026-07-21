@@ -19,6 +19,7 @@ import { useDeliveryOrders } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatEAT } from '../../utils/helpers';
+import { normalizeJobStatus } from '../../utils/jobStatus';
 import {
   DataCard,
   DetailRow,
@@ -48,23 +49,27 @@ export default function OperatorQuarryWeighInScreen() {
     setRefreshing(false);
   }, [refresh]);
 
-  // Scope to operator's assigned quarry
+  // A weighbridge is operated by a quarry team, so the queue is shared by
+  // every operator assigned to the logged-in operator's quarry.
+  const operatorUid = user?.uid || '';
   const operatorQuarryId = (user as any)?.quarryId || '';
+  const operatorQuarryLocation = (user as any)?.quarryLocation || '';
 
-  // Jobs that haven't been weighed in yet and aren't cancelled/completed
   const deliveries = useMemo(() => {
-    let filtered = allDeliveries.filter((d: any) => !d.weighInWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status));
-    if (operatorQuarryId) {
-      filtered = filtered.filter((d: any) => !d.quarryId || d.quarryId === operatorQuarryId);
-    }
-    return filtered;
-  }, [allDeliveries, operatorQuarryId]);
+    return allDeliveries.filter((delivery: any) =>
+      ((operatorQuarryId && delivery.quarryId === operatorQuarryId) ||
+        (operatorQuarryLocation && String(delivery.quarryName || '').trim().toLowerCase() === operatorQuarryLocation.trim().toLowerCase()) ||
+        (operatorUid && [delivery.createdByUid, delivery.quarryOperatorUid, delivery.weighInByUid, delivery.weighOutByUid].includes(operatorUid))) &&
+      !delivery.weighInWeight &&
+      ['CREATED', 'ASSIGNED', 'QUARRY_QUEUED'].includes(normalizeJobStatus(delivery.status)),
+    );
+  }, [allDeliveries, operatorQuarryId, operatorQuarryLocation, operatorUid]);
 
   // Build sets of trucks/drivers already on an active job
   const busyDriverIds = new Set<string>();
   const busyPlateNumbers = new Set<string>();
   allDeliveries.forEach((d: any) => {
-    if (['loaded', 'at_quarry', 'in_transit', 'quarry_in', 'quarry_out', 'dispatched'].includes(d.status)) {
+    if (['QUARRY_WEIGHED_IN', 'QUARRY_WEIGHED_OUT', 'DISPATCHED', 'IN_TRANSIT', 'ARRIVED_AT_SITE', 'SITE_WEIGHED_IN'].includes(normalizeJobStatus(d.status))) {
       if (d.driverId) busyDriverIds.add(d.driverId);
       if (d.plateNumber) busyPlateNumbers.add(d.plateNumber.toLowerCase());
     }

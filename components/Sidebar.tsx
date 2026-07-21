@@ -50,9 +50,7 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     title: 'Operations',
     icon: 'radio-outline',
     items: [
-     // { label: 'Dispatch', icon: 'git-branch-outline', route: '/management/dispatch', roles: ['admin', 'management'], activeRoutes: ['/management/dispatch'] },
       { label: 'Fuel Records', icon: 'water-outline', route: '/management/fuel', roles: ['admin', 'management'], activeRoutes: ['/management/fuel'] },
-    //  { label: 'Quarries', icon: 'business-outline', route: '/management/quarries', roles: ['admin', 'management'], activeRoutes: ['/management/quarries'] },
     ],
   },
   {
@@ -61,7 +59,6 @@ const MANAGEMENT_SECTIONS: NavSection[] = [
     items: [
       { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports', roles: ['admin', 'management'], activeRoutes: ['/management/reports'] },
       { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management'], activeRoutes: ['/screens/issues'] },
-    //  { label: 'History', icon: 'time-outline', route: '/management/active', roles: ['admin', 'management'], activeRoutes: ['/management/active'] },
     ],
   },
   {
@@ -87,18 +84,16 @@ const ROLE_SECTIONS: NavSection[] = [
       { label: 'Purchase Orders', icon: 'document-text-outline', route: '/vendor/orders', roles: ['vendor'], activeRoutes: ['/vendor/orders'] },
       { label: 'Materials', icon: 'cube-outline', route: '/vendor/materials', roles: ['vendor'], activeRoutes: ['/vendor/materials'] },
       { label: 'Profile', icon: 'person-outline', route: '/vendor/profile', roles: ['vendor'], activeRoutes: ['/vendor/profile'] },
-      { label: 'Settings', icon: 'settings-outline', route: '/vendor/settings', roles: ['vendor'], activeRoutes: ['/vendor/settings'] },
+      { label: 'Reports', icon: 'bar-chart-outline', route: '/vendor/reports', roles: ['vendor'], activeRoutes: ['/vendor/reports'] },
       { label: 'Dashboard', icon: 'home-outline', route: '/operator-quarry/dashboard', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/dashboard'] },
       { label: 'Weigh-In', icon: 'download-outline', route: '/operator-quarry/weigh-in', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-in'] },
       { label: 'Weigh-Out', icon: 'arrow-up-circle-outline', route: '/operator-quarry/weigh-out', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-out'] },
       { label: 'History', icon: 'time-outline', route: '/operator-quarry/history', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-quarry/profile', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/profile'] },
-      { label: 'Settings', icon: 'settings-outline', route: '/operator-quarry/settings', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/settings'] },
       { label: 'Schedule', icon: 'calendar-outline', route: '/operator-site/schedule', roles: ['operator_site'], activeRoutes: ['/operator-site/schedule'] },
       { label: 'Weights', icon: 'scale-outline', route: '/operator-site/weights', roles: ['operator_site'], activeRoutes: ['/operator-site/weights'] },
       { label: 'History', icon: 'time-outline', route: '/operator-site/history', roles: ['operator_site'], activeRoutes: ['/operator-site/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-site/profile', roles: ['operator_site'], activeRoutes: ['/operator-site/profile'] },
-      { label: 'Settings', icon: 'settings-outline', route: '/operator-site/settings', roles: ['operator_site'], activeRoutes: ['/operator-site/settings'] },
       { label: 'Dispense Fuel', icon: 'water-outline', route: '/operator-fuel/dispense', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/dispense'] },
       { label: 'History', icon: 'time-outline', route: '/operator-fuel/history', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-fuel/profile', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/profile'] },
@@ -131,8 +126,8 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
   // In drawer mode on mobile web, the close button is handled by WebLayout;
   // we still need to save vertical space by omitting the main container border style
   const containerStyle = drawerMode
-    ? [styles.containerDrawer, { width: '100%', backgroundColor: '#FFFFFF' }]
-    : [styles.container, { width: Math.min(260, width * 0.25), backgroundColor: '#FFFFFF' }];
+    ? [styles.containerDrawer, { width: '100%', backgroundColor: colors.surface }]
+    : [styles.container, { width: Math.min(260, width * 0.25), backgroundColor: colors.surface, borderRightColor: colors.border }];
 
   const role = (user?.role || '') as UserRole;
 
@@ -182,7 +177,7 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
     <View style={containerStyle}>
       {/* Logo */}
       <TouchableOpacity
-        style={styles.logoSection}
+        style={[styles.logoSection, { borderBottomColor: colors.border }]}
         onPress={() => {
           switch (role) {
             case 'management':
@@ -206,28 +201,28 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
           }
         }}
       >
-        <View style={styles.logoMark}>
-          <Text style={styles.logoText}>TS</Text>
+        <View style={[styles.logoMark, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]}>
+          <Text style={[styles.logoText, { color: colors.primary }]}>TS</Text>
         </View>
-        <Text style={styles.brandName}>
-          TRUCK<Text style={styles.brandAccent}>SPHERE</Text>
+        <Text style={[styles.brandName, { color: colors.text }]}>
+          TRUCK<Text style={[styles.brandAccent, { color: colors.primary }]}>SPHERE</Text>
         </Text>
       </TouchableOpacity>
 
       {/* User Info */}
-      <View style={styles.userSection}>
-        <View style={styles.avatar}>
+      <View style={[styles.userSection, { borderBottomColor: colors.border }]}>
+        <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
           <Text style={styles.avatarText}>
             {(user?.displayName || 'U').charAt(0).toUpperCase()}
           </Text>
         </View>
         <View style={styles.userInfo}>
-          <Text style={styles.userName} numberOfLines={1}>
+          <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>
             {user?.displayName || 'User'}
           </Text>
           <View style={styles.roleBadge}>
-            <Ionicons name="shield-checkmark" size={10} color="#1B2A4A" />
-            <Text style={styles.roleText}>{getRoleLabel(role)}</Text>
+            <Ionicons name="shield-checkmark" size={10} color={colors.primary} />
+            <Text style={[styles.roleText, { color: colors.primary }]}>{getRoleLabel(role)}</Text>
           </View>
         </View>
       </View>
@@ -236,10 +231,10 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
       <ScrollView style={styles.navScroll} contentContainerStyle={styles.navContent}>
         {navSections.map((section, sectionIndex) => (
           <View key={section.title}>
-            {sectionIndex > 0 && <View style={styles.divider} />}
+            {sectionIndex > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
             <View style={styles.navSectionHeader}>
-              <Ionicons name={section.icon} size={13} color="#94A3B8" />
-              <Text style={styles.navSectionTitle}>{section.title}</Text>
+              <Ionicons name={section.icon} size={13} color={colors.textTertiary} />
+              <Text style={[styles.navSectionTitle, { color: colors.textTertiary }]}>{section.title}</Text>
             </View>
             {section.items.map((item) => {
               const active = isActive(item);
@@ -249,7 +244,7 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
                 key={(item.route || section.title) + item.label}
                 style={[
                   styles.navItem,
-                  active && styles.navItemActive,
+                  active && [styles.navItemActive, { backgroundColor: colors.primaryLight }],
                   disabled && styles.navItemDisabled,
                 ]}
                 onPress={() => handleNav(item.route)}
@@ -258,19 +253,20 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
                 <Ionicons
                   name={item.icon}
                   size={20}
-                  color={active ? '#1B2A4A' : '#94A3B8'}
+                  color={active ? colors.primary : colors.textMuted}
                 />
                 <Text
                   style={[
                     styles.navItemText,
                     active && styles.navItemTextActive,
-                    disabled && styles.navItemTextDisabled,
+                    { color: active ? colors.primary : colors.textMuted },
+                    disabled && [styles.navItemTextDisabled, { color: colors.textTertiary }],
                   ]}
                   numberOfLines={1}
                 >
                   {item.label}
                 </Text>
-                {disabled && <View style={styles.plannedDot} />}
+                {disabled && <View style={[styles.plannedDot, { backgroundColor: colors.textTertiary }]} />}
               </TouchableOpacity>
               );
             })}
@@ -280,7 +276,7 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
 
       {/* Logout */}
       <TouchableOpacity
-        style={[styles.logoutBtn, loggingOut && { opacity: 0.6 }]}
+        style={[styles.logoutBtn, { backgroundColor: `${colors.danger}16`, borderColor: `${colors.danger}45` }, loggingOut && { opacity: 0.6 }]}
         onPress={handleLogout}
         disabled={loggingOut}
       >
@@ -288,8 +284,8 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
           <ActivityIndicator color="#EF4444" size="small" />
         ) : (
           <>
-            <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-            <Text style={styles.logoutText}>Logout</Text>
+            <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+            <Text style={[styles.logoutText, { color: colors.danger }]}>Logout</Text>
           </>
         )}
       </TouchableOpacity>

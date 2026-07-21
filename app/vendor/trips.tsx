@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
-import { fetchDeliveryOrders, fetchFuelRecords } from '../../services/api';
-import { formatEAT } from '../../utils/helpers';
+import { formatEAT, normalizeVendorId } from '../../utils/helpers';
+import { isActiveJob, normalizeJobStatus } from '../../utils/jobStatus';
+import { useRealtimeCollection } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import {
   DataCard,
   DetailRow,
@@ -29,30 +31,32 @@ export default function VendorTripsScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
   const vendorId = user?.vendorId || 'v1';
-  const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [fuelRecords, setFuelRecords] = useState<any[]>([]);
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const refresh = useRealTimeSyncStore((state) => state.refresh);
+  const { data: deliveryData, loading: deliveriesLoading } = useRealtimeCollection('deliveryOrders');
+  const { data: fuelData, loading: fuelLoading } = useRealtimeCollection('fuelRecords');
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [deliveryData, fuelData] = await Promise.all([
-        fetchDeliveryOrders(),
-        fetchFuelRecords(),
-      ]);
-      setDeliveries((deliveryData || []).filter((d: any) => d.vendorId === vendorId));
-      setFuelRecords(fuelData || []);
-    } catch (error) {
+      await Promise.all([refresh('deliveryOrders'), refresh('fuelRecords')]);
     } finally {
       setRefreshing(false);
-      setLoading(false);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  const deliveries = useMemo(() => (deliveryData || []).filter((item: any) => (
+    normalizeVendorId(item.vendorId || item.vendor || '') === normalizedUserVendorId
+  )), [deliveryData, normalizedUserVendorId]);
+
+  const fuelRecords = useMemo(() => (fuelData || []).filter((item: any) => (
+    normalizeVendorId(item.vendorId || item.vendor || '') === normalizedUserVendorId
+  )), [fuelData, normalizedUserVendorId]);
+
+  const loading = deliveriesLoading || fuelLoading;
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
@@ -65,10 +69,10 @@ export default function VendorTripsScreen() {
 
         if (filter === 'all') return matchesSearch;
         if (filter === 'active')
-          return matchesSearch && !['completed', 'delivered', 'received', 'cancelled'].includes(d.status);
+          return matchesSearch && isActiveJob(d.status);
         if (filter === 'completed')
-          return matchesSearch && ['completed', 'delivered', 'received'].includes(d.status);
-        if (filter === 'cancelled') return matchesSearch && d.status === 'cancelled';
+          return matchesSearch && !isActiveJob(d.status) && normalizeJobStatus(d.status) !== 'CANCELLED';
+        if (filter === 'cancelled') return matchesSearch && normalizeJobStatus(d.status) === 'CANCELLED';
 
         return matchesSearch;
       })
@@ -80,10 +84,10 @@ export default function VendorTripsScreen() {
   }, [deliveries, search, filter]);
 
   const activeTrips = deliveries.filter(
-    (d) => !['completed', 'delivered', 'received', 'cancelled'].includes(d.status)
+    (d) => isActiveJob(d.status)
   ).length;
   const completedTrips = deliveries.filter((d) =>
-    ['completed', 'delivered', 'received'].includes(d.status)
+    !isActiveJob(d.status) && normalizeJobStatus(d.status) !== 'CANCELLED'
   ).length;
 
   const getJobFuel = (jobId: string) => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
   RefreshControl,
@@ -12,8 +12,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTheme } from "../../hooks/useTheme";
 import { Radius, Spacing } from "../../constants/theme";
-import { fetchDeliveryOrders } from "../../services/api";
+import { useAuthStore } from "../../store/authStore";
+import { useDeliveryOrders } from "../../store/realtimeData";
+import { useRealTimeSyncStore } from "../../store/realTimeSyncStore";
 import { formatEAT, generateReceiptNoteId } from "../../utils/helpers";
+import { isActiveJob, normalizeJobStatus } from '../../utils/jobStatus';
 import { buildCsvContent, shareCsvAsFile } from "../../utils/exportData";
 import {
   DataCard,
@@ -39,9 +42,13 @@ const FILTER_LABELS: Record<FilterPeriod, string> = {
 
 export default function OperatorSiteHistoryScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const { user } = useAuthStore();
+  const allDeliveries = useDeliveryOrders();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const storeLoading = useRealTimeSyncStore((s) => s.isLoading);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [filter, setFilter] = useState<FilterPeriod>("today");
   const [detailView, setDetailView] = useState<DetailView>("overview");
 
@@ -49,21 +56,49 @@ export default function OperatorSiteHistoryScreen() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
 
-  const loadData = async () => {
+  const operatorUid = user?.uid || '';
+  const operatorSiteId = (user as any)?.siteId || '';
+
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data);
-    } catch {
-    } finally {
-      setRefreshing(false);
+    await refresh('deliveryOrders');
+    setRefreshing(false);
+  }, [refresh]);
+
+  // Mark loading as complete once data arrives or store reports finished
+  useEffect(() => {
+    if (allDeliveries.length > 0) {
+      setLoading(false);
+    } else if (!storeLoading('deliveryOrders')) {
       setLoading(false);
     }
-  };
+  }, [allDeliveries, storeLoading]);
 
+  // Safety timeout: stop showing spinner after 10s regardless
   useEffect(() => {
-    loadData();
-  }, []);
+    if (loading) {
+      const t = setTimeout(() => setLoading(false), 10000);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
+
+  // Data isolation: only show deliveries for this operator's site and this operator's actions
+  const deliveries = useMemo(() => {
+    let filtered = allDeliveries || [];
+    if (operatorSiteId) {
+      filtered = filtered.filter((d: any) => !d.siteId || d.siteId === operatorSiteId);
+    }
+    if (operatorUid) {
+      filtered = filtered.filter((d: any) =>
+        d.createdByUid === operatorUid ||
+        d.siteOperatorUid === operatorUid ||
+        d.siteWeighInByUid === operatorUid ||
+        d.siteWeighOutByUid === operatorUid ||
+        d.receivedByUid === operatorUid
+      );
+    }
+    return filtered;
+  }, [allDeliveries, operatorSiteId, operatorUid]);
 
   /* ─── Date Range Logic ─── */
 
@@ -92,7 +127,7 @@ export default function OperatorSiteHistoryScreen() {
   const pendingJobs = useMemo(() => {
     return deliveries
       .filter(
-        (d) => !["completed", "delivered", "loaded", "cancelled"].includes(d.status),
+        (d) => isActiveJob(d.status) && normalizeJobStatus(d.status) !== 'DISPATCHED',
       )
       .sort(
         (a, b) =>
@@ -103,7 +138,7 @@ export default function OperatorSiteHistoryScreen() {
 
   const completedRecords = useMemo(() => {
     return deliveries
-      .filter((d) => d.status === "completed" || d.status === "delivered")
+      .filter((d) => ['SITE_WEIGHED_OUT', 'COMPLETED'].includes(normalizeJobStatus(d.status)))
       .filter((d) => {
         const date = new Date(
           d.receivedAt || d.siteWeighInAt || d.updatedAt || d.createdAt,
@@ -661,7 +696,7 @@ export default function OperatorSiteHistoryScreen() {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={loadData}
+          onRefresh={handleRefresh}
           tintColor={colors.primary}
         />
       }

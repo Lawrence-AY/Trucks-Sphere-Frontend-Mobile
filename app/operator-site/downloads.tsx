@@ -64,10 +64,31 @@ export default function DownloadsScreen() {
   const { user } = useAuthStore();
 
   const operatorUsername = user?.username || user?.displayName || 'Operator';
+  const operatorUid = user?.uid || '';
+  const operatorSiteId = (user as any)?.siteId || '';
+
+  // Apply data isolation to the orders before export
+  const filterOrders = (orders: any[]): any[] => {
+    let filtered = orders || [];
+    if (operatorSiteId) {
+      filtered = filtered.filter((d: any) => !d.siteId || d.siteId === operatorSiteId);
+    }
+    if (operatorUid) {
+      filtered = filtered.filter((d: any) =>
+        d.createdByUid === operatorUid ||
+        d.siteOperatorUid === operatorUid ||
+        d.siteWeighInByUid === operatorUid ||
+        d.siteWeighOutByUid === operatorUid ||
+        d.receivedByUid === operatorUid
+      );
+    }
+    return filtered;
+  };
 
   const generateDeliveryOrdersPDF = async () => {
     try {
-      const orders = await fetchDeliveryOrders();
+      const rawOrders = await fetchDeliveryOrders();
+      const orders = filterOrders(rawOrders);
       if (!orders || orders.length === 0) {
         Alert.alert('No Data', 'No delivery orders found to export.');
         return;
@@ -149,7 +170,8 @@ export default function DownloadsScreen() {
 
   const generateWeighRecordsPDF = async () => {
     try {
-      const orders = await fetchDeliveryOrders();
+      const rawOrders = await fetchDeliveryOrders();
+      const orders = filterOrders(rawOrders);
       if (!orders || orders.length === 0) {
         Alert.alert('No Data', 'No weigh records found to export.');
         return;
@@ -229,7 +251,8 @@ export default function DownloadsScreen() {
 
   const generateSiteSummaryPDF = async () => {
     try {
-      const orders = await fetchDeliveryOrders();
+      const rawOrders = await fetchDeliveryOrders();
+      const orders = filterOrders(rawOrders);
       if (!orders || orders.length === 0) {
         Alert.alert('No Data', 'No delivery data found for site summary.');
         return;

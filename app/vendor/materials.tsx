@@ -1,36 +1,38 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
-import { fetchMaterials, fetchPurchaseOrders } from '../../services/api';
+import { useRealtimeCollection } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { normalizeVendorId } from '../../utils/helpers';
 import { CommandHeader, DataCard, DetailRow, EmptyState, FilterRail, PageShell, SearchField, SectionTitle } from '../../components/EnterpriseUI';
 
 export default function VendorMaterialsScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
   const vendorId = user?.vendorId || 'v1';
-  const [materials, setMaterials] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [materialFilter, setMaterialFilter] = useState('all');
+  const refresh = useRealTimeSyncStore((state) => state.refresh);
+  const { data: materials, loading: materialsLoading } = useRealtimeCollection('materials');
+  const { data: allOrders, loading: ordersLoading } = useRealtimeCollection('purchaseOrders');
+  const loading = materialsLoading || ordersLoading;
+  const orders = useMemo(() => allOrders.filter((x: any) =>
+    normalizeVendorId(x.vendorId || x.vendor || '') === normalizedUserVendorId
+  ), [allOrders, normalizedUserVendorId]);
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [m, o] = await Promise.all([fetchMaterials(), fetchPurchaseOrders()]);
-      setMaterials(m || []);
-      setOrders((o || []).filter((x: any) => x.vendorId === vendorId));
+      await Promise.all([refresh('materials'), refresh('purchaseOrders')]);
     } catch {
     } finally {
       setRefreshing(false);
-      setLoading(false);
     }
   };
-
-  useEffect(() => { loadData(); }, []);
 
   const materialOptions = useMemo(() => {
     return [{ key: 'all', label: 'All Materials' }, ...materials.map((m: any) => ({ key: m.id, label: m.name || m.id }))];

@@ -24,7 +24,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
 import { Card } from '../../../components/ui/Card';
@@ -37,6 +36,8 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { purchaseOrderRepository } from '../../../services/repositories/PurchaseOrderRepository';
 import { PurchaseOrder } from '../../../store/types';
 import { formatEAT, formatNumber } from '../../../utils/helpers';
+import { StackScreen } from '../../../components/ui/StackScreen';
+import { UserActionInfo } from '../../../components/UserActionInfo';
 
 const PO_TABS = [
   { name: 'details', label: 'Details', icon: 'information-circle-outline' as const },
@@ -56,7 +57,6 @@ const STATUS_BADGE: Record<string, { variant: 'default' | 'success' | 'warning' 
 export default function PurchaseOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
-  const insets = useSafeAreaInsets();
   const [po, setPo] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
@@ -231,35 +231,24 @@ export default function PurchaseOrderDetailScreen() {
   }
 
   if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <LoadingSkeleton lines={8} variant="card" />
-      </View>
-    );
+    return <StackScreen title="Purchase order" fallbackHref="/management/purchase-orders" loading />;
   }
 
   if (!po) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <EmptyState icon="alert-circle-outline" title="Purchase order not found" />
-      </View>
-    );
+    return <StackScreen title="Purchase order" fallbackHref="/management/purchase-orders" error="This purchase order is unavailable." onRetry={loadPO} />;
   }
 
   const progress = getProgress();
   const delivered = po.quantityDelivered || po.deliveredQuantity || 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.backTitle}>Purchase Order</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
+    <>
+      <StackScreen
+        title="Purchase order"
+        subtitle={po.poNumber || po.id}
+        fallbackHref="/management/purchase-orders"
+        contentStyle={styles.content}
+      >
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTop}>
@@ -285,7 +274,7 @@ export default function PurchaseOrderDetailScreen() {
         {activeTab === 'details' && <DetailsTab po={po} colors={colors} />}
         {activeTab === 'jobs' && <JobsTab poId={po.id} colors={colors} />}
         {activeTab === 'timeline' && <TimelineTab po={po} colors={colors} />}
-      </ScrollView>
+      </StackScreen>
 
       {/* Confirm Dialogs */}
       <ConfirmDialog
@@ -328,7 +317,7 @@ export default function PurchaseOrderDetailScreen() {
         onCancel={() => setShowDelete(false)}
         loading={actionLoading}
       />
-    </View>
+    </>
   );
 }
 
@@ -342,23 +331,25 @@ function DetailsTab({ po, colors }: { po: PurchaseOrder; colors: any }) {
     { label: 'Delivered', value: formatNumber(po.quantityDelivered || po.deliveredQuantity || 0), icon: 'checkmark-circle-outline' },
     { label: 'Remaining', value: formatNumber(po.remainingQuantity || Math.max(0, (po.quantity || 0) - (po.quantityDelivered || po.deliveredQuantity || 0))), icon: 'hourglass-outline' },
     { label: 'Expected Completion', value: po.expectedCompletion ? formatEAT(po.expectedCompletion) : '-', icon: 'calendar-outline' },
-    { label: 'Created By', value: po.createdBy || '-', icon: 'person-outline' },
     { label: 'Created At', value: po.createdAt ? formatEAT(po.createdAt) : '-', icon: 'time-outline' },
     { label: 'Notes', value: po.notes || '-', icon: 'document-text-outline' },
   ];
 
   return (
-    <Card>
-      {fields.map((field, i) => (
-        <View key={i} style={styles.fieldRow}>
-          <View style={styles.fieldLabel}>
-            <Ionicons name={field.icon as any} size={16} color={colors.textMuted} />
-            <Text style={[styles.fieldLabelText, { color: colors.textMuted }]}>{field.label}</Text>
+    <>
+      <Card>
+        {fields.map((field, i) => (
+          <View key={i} style={styles.fieldRow}>
+            <View style={styles.fieldLabel}>
+              <Ionicons name={field.icon as any} size={16} color={colors.textMuted} />
+              <Text style={[styles.fieldLabelText, { color: colors.textMuted }]}>{field.label}</Text>
+            </View>
+            <Text style={[styles.fieldValue, { color: colors.text }]}>{field.value || '-'}</Text>
           </View>
-          <Text style={[styles.fieldValue, { color: colors.text }]}>{field.value || '-'}</Text>
-        </View>
-      ))}
-    </Card>
+        ))}
+      </Card>
+      <UserActionInfo record={po as any} />
+    </>
   );
 }
 

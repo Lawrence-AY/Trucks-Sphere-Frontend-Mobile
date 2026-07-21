@@ -34,6 +34,7 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { materialRepository } from '../../../services/repositories/MaterialRepository';
 import { Material } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
+import { UserActionInfo } from '../../../components/UserActionInfo';
 
 const MATERIAL_TABS = [
   { name: 'details', label: 'Details', icon: 'information-circle-outline' as const },
@@ -112,7 +113,7 @@ export default function MaterialDetailScreen() {
             <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Category</Text>
             <View style={styles.categoryBadge}>
               <View style={[styles.categoryDot, { backgroundColor: catColor }]} />
-              <Text style={[styles.detailValue, { color: catColor }]}>{material.category}</Text>
+              <Text style={[styles.categoryText, { color: catColor }]}>{material.category}</Text>
             </View>
           </View>
           <View style={styles.detailRow}>
@@ -137,27 +138,7 @@ export default function MaterialDetailScreen() {
           )}
         </Card>
 
-        <Card style={{ marginTop: Spacing.md }}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Audit Trail</Text>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Created By</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>{material.createdBy || '-'}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Created At</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>
-              {material.createdAt ? formatEAT(material.createdAt) : '-'}
-            </Text>
-          </View>
-          {material.updatedAt && (
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Updated At</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>
-                {formatEAT(material.updatedAt)}
-              </Text>
-            </View>
-          )}
-        </Card>
+        <UserActionInfo record={material as any} />
       </View>
     );
   }
@@ -382,10 +363,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '800',
+    flexShrink: 1,
   },
   headerSubtitle: {
     fontSize: 14,
     marginTop: 2,
+    flexShrink: 1,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -407,7 +390,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
-    flexShrink: 0,
+    flexShrink: 1,
     marginTop: 1,
   },
   detailValue: {
@@ -420,12 +403,22 @@ const styles = StyleSheet.create({
   categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'flex-end',
     gap: 6,
   },
   categoryDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  categoryText: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
   },
   propertyCard: {
     paddingVertical: Spacing.md,

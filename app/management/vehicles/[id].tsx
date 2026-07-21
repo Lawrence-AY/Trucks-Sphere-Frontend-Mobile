@@ -33,6 +33,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
 import { Vehicle } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
+import { UserActionInfo } from '../../../components/UserActionInfo';
 
 const VEHICLE_TABS = [
   { name: 'details', label: 'Details', icon: 'car-outline' as const },
@@ -113,27 +114,7 @@ export default function VehicleDetailScreen() {
           </View>
         </Card>
 
-        <Card style={{ marginTop: Spacing.md }}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Audit Trail</Text>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Created By</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>{vehicle.createdBy || '-'}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Created At</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>
-              {vehicle.createdAt ? formatEAT(vehicle.createdAt) : '-'}
-            </Text>
-          </View>
-          {vehicle.updatedAt && (
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Updated At</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>
-                {formatEAT(vehicle.updatedAt)}
-              </Text>
-            </View>
-          )}
-        </Card>
+        <UserActionInfo record={vehicle as any} />
       </View>
     );
   }

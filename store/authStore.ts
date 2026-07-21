@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import api from '../services/api';
 import { User } from './types';
 import { saveAuthData, getAuthData, clearAuthData } from '../services/database';
+import { setRealtimeSessionScope, useRealTimeSyncStore } from './realTimeSyncStore';
 
 const RESTORE_TIMEOUT_MS = 8000;
 
@@ -59,6 +60,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         phone: backendUser.phone || '',
         vendorId: backendUser.vendorId || undefined,
         quarryId: backendUser.quarryId || undefined,
+        quarryLocation: backendUser.quarryLocation || undefined,
         siteId: backendUser.siteId || undefined,
         isActive: true,
         createdBy: backendUser.createdBy || 'system',
@@ -72,6 +74,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
         userData: JSON.stringify(user),
       });
 
+      useRealTimeSyncStore.getState().clearSession();
+      setRealtimeSessionScope(user.uid);
       set({ user, isLoading: false, isAuthenticated: true, error: null });
     } catch (err: any) {
       const errorMsg = err?.response?.data?.error || err.message || 'Login failed';
@@ -89,6 +93,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       await api.post('/api/auth/logout').catch(() => {});
     } catch {}
     await clearAuthData();
+    useRealTimeSyncStore.getState().clearSession();
+    setRealtimeSessionScope();
     set({ user: null, isAuthenticated: false, isLoading: false });
   },
 
@@ -104,6 +110,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
           try {
             const res = await withTimeout(api.get('/api/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile');
             const user: User = res.data.user;
+            useRealTimeSyncStore.getState().clearSession();
+            setRealtimeSessionScope(user.uid);
             set({ user, isLoading: false, isAuthenticated: true });
             return;
           } catch (profileErr: any) {
@@ -116,6 +124,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
         if (stored.userData) {
           try {
             const user: User = JSON.parse(stored.userData);
+            useRealTimeSyncStore.getState().clearSession();
+            setRealtimeSessionScope(user.uid);
             set({ user, isLoading: false, isAuthenticated: true });
             return;
           } catch {}
@@ -123,6 +133,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
       }
     } catch (error) {
     }
+    useRealTimeSyncStore.getState().clearSession();
+    setRealtimeSessionScope();
     set({ user: null, isLoading: false, isAuthenticated: false });
   },
 

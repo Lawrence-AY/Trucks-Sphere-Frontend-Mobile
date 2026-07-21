@@ -77,8 +77,8 @@ function ModalPicker({ label, value, options, onSelect, icon }: { label: string;
 
 export default function PurchaseOrderScreen() {
   var params = useLocalSearchParams();
-  var id = params.id;
-  var isNew = params.new;
+  var id = typeof params.id === 'string' ? params.id : '';
+  var isNew = typeof params.new === 'string' ? params.new : '';
   var colors = useTheme();
   var auth = useAuthStore();
   var user = auth.user;
@@ -141,11 +141,13 @@ export default function PurchaseOrderScreen() {
   useEffect(function () {
     if (createMode) {
       fetchMaterials().then(function (m) {
-        setMaterials(m || []);
-        if (m.length > 0 && !materialId) setMaterialId(m[0].id);
-      }).catch(function () {});
-      fetchVendors().then(function (v) { setVendors(v || []); }).catch(function () {});
-      setLoading(false);
+        var items = Array.isArray(m) ? m : [];
+        setMaterials(items);
+        if (items.length > 0 && !materialId) setMaterialId(items[0].id);
+      }).catch(function () { setError('Unable to load materials. Please try again.'); })
+        .finally(function () { setLoading(false); });
+      fetchVendors().then(function (v) { setVendors(Array.isArray(v) ? v : []); })
+        .catch(function () { setError('Unable to load vendors. Please try again.'); });
     }
   }, [createMode]);
 
@@ -161,15 +163,20 @@ export default function PurchaseOrderScreen() {
   }, [vendorId, materialId, createMode]);
 
   function loadData(poIdOrNumber: string) {
-    if (!poIdOrNumber) return;
+    if (!poIdOrNumber || typeof poIdOrNumber !== 'string') {
+      setOrder(null); setDeliveries([]); setError('A purchase-order ID is required.'); setLoading(false); return;
+    }
     setLoading(true);
     setError('');
     fetchPurchaseOrders({ search: '' }).then(function (orders) {
-      var found = (orders || []).find(function (o) { return o.id === poIdOrNumber || o.poNumber === poIdOrNumber; });
+      var records = Array.isArray(orders) ? orders : [];
+      var found = records.find(function (o) { return o && (o.id === poIdOrNumber || o.poNumber === poIdOrNumber); });
       if (found) {
         setOrder(found);
-        fetchDeliveryOrders({ purchaseOrderId: found.id }).then(function (dos) { setDeliveries(dos || []); });
+        fetchDeliveryOrders({ purchaseOrderId: found.id }).then(function (dos) { setDeliveries(Array.isArray(dos) ? dos : []); })
+          .catch(function () { setDeliveries([]); });
       } else {
+        setOrder(null); setDeliveries([]);
         setError('No purchase order found for: ' + poIdOrNumber);
       }
       setLoading(false);
@@ -177,7 +184,7 @@ export default function PurchaseOrderScreen() {
   }
 
   useEffect(function () {
-    if (!createMode && id) { setSearchPo(id as string); loadData(id as string); }
+    if (!createMode && id) { setSearchPo(id); loadData(id); }
     else if (!createMode) setLoading(false);
   }, [id]);
 
@@ -244,7 +251,8 @@ export default function PurchaseOrderScreen() {
                </View>
             ) : null}
 
-            <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.accent, opacity: saving ? 0.7 : 1 }]} onPress={handleCreate} disabled={saving}>
+            {error ? <Text style={[styles.inlineError, { color: colors.danger }]}>{error}</Text> : null}
+            <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.accent, opacity: saving || loading ? 0.7 : 1 }]} onPress={handleCreate} disabled={saving || loading}>
               {saving ? <ActivityIndicator color="#FFF" size="small" /> : <Ionicons name="checkmark-circle" size={20} color="#FFF" />}
               <Text style={styles.submitBtnText}>{saving ? 'Creating...' : 'Create Purchase Order'}</Text>
             </TouchableOpacity>
@@ -258,7 +266,7 @@ export default function PurchaseOrderScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={styles.content}>
         {loading && <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>}
-        {error && !loading && <View style={styles.center}><Ionicons name="alert-circle-outline" size={48} color={colors.danger} /><Text style={{ fontSize: 14, color: colors.danger, textAlign: 'center', marginTop: Spacing.md }}>{error}</Text></View>}
+        {error && !loading && <View style={styles.center}><Ionicons name="alert-circle-outline" size={48} color={colors.danger} /><Text style={{ fontSize: 14, color: colors.danger, textAlign: 'center', marginTop: Spacing.md }}>{error}</Text><TouchableOpacity onPress={() => loadData(searchPo)} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: '700' }}>Try again</Text></TouchableOpacity></View>}
         {!loading && order && (
           <View style={[styles.receipt, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.receiptHeader}><Ionicons name="document-text" size={28} color={colors.primary} /><Text style={[styles.receiptTitle, { color: colors.text }]}>PURCHASE ORDER</Text></View>
@@ -271,6 +279,7 @@ export default function PurchaseOrderScreen() {
             </View>
           </View>
         )}
+        {!loading && !order && !error && <View style={styles.center}><Ionicons name="document-text-outline" size={48} color={colors.textMuted} /><Text style={{ color: colors.textMuted, marginTop: Spacing.md }}>No purchase order selected.</Text></View>}
       </ScrollView>
     </View>
   );
@@ -278,10 +287,6 @@ export default function PurchaseOrderScreen() {
 
 var styles = StyleSheet.create({
   content: { padding: Spacing.md, paddingBottom: Spacing['4xl'] },
-  createHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
-  createTitle: { fontSize: 20, fontWeight: '700' },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, height: 46, gap: Spacing.sm, marginBottom: Spacing.md },
-  searchInput: { flex: 1, fontSize: 14 },
   center: { alignItems: 'center', paddingVertical: Spacing['4xl'] },
   receipt: { borderWidth: 1.5, borderRadius: Radius.md, padding: Spacing.lg, marginBottom: Spacing.md },
   receiptHeader: { alignItems: 'center', marginBottom: Spacing.md },
@@ -302,6 +307,8 @@ var styles = StyleSheet.create({
   inputField: { flex: 1, fontSize: 14, height: 44 },
   submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: Radius.md, gap: Spacing.sm },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  inlineError: { fontSize: 13, fontWeight: '600', marginBottom: Spacing.md },
+  retryBtn: { marginTop: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderWidth: 1, borderRadius: Radius.md },
   modalOverlay: { flex: 1 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, paddingTop: Spacing['2xl'] },
   modalTitle: { fontSize: 18, fontWeight: '700' },

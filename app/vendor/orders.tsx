@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
-import { fetchPurchaseOrders } from '../../services/api';
-import { formatEAT } from '../../utils/helpers';
+import { useRealtimeCollection } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { formatEAT, normalizeVendorId } from '../../utils/helpers';
 import {
   CommandHeader,
   DataCard,
@@ -22,25 +23,25 @@ export default function VendorOrdersScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
   const vendorId = user?.vendorId || 'v1';
-  const [orders, setOrders] = useState<any[]>([]);
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const refresh = useRealTimeSyncStore((state) => state.refresh);
+  const { data: allOrders, loading } = useRealtimeCollection('purchaseOrders');
+  const orders = useMemo(() => allOrders.filter((o: any) =>
+    normalizeVendorId(o.vendorId || o.vendor || '') === normalizedUserVendorId
+  ), [allOrders, normalizedUserVendorId]);
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const data = (await fetchPurchaseOrders()) || [];
-      setOrders(data.filter((o: any) => o.vendorId === vendorId));
+      await refresh('purchaseOrders');
     } catch {
     } finally {
       setRefreshing(false);
-      setLoading(false);
     }
   };
-
-  useEffect(() => { loadData(); }, []);
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();

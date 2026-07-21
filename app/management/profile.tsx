@@ -24,6 +24,7 @@ export default function ManagementProfileScreen() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [editDisplayName, setEditDisplayName] = useState(user?.displayName || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [editEmail, setEditEmail] = useState(user?.email || '');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState('');
 
@@ -46,10 +47,11 @@ export default function ManagementProfileScreen() {
       const result = await updateProfile({
         displayName: editDisplayName.trim(),
         phone: editPhone.trim() || undefined,
+        email: editEmail.trim() || undefined,
       });
       // Update the local auth store
       useAuthStore.setState((state) => ({
-        user: state.user ? { ...state.user, displayName: editDisplayName.trim(), phone: editPhone.trim() } : null,
+        user: state.user ? { ...state.user, displayName: editDisplayName.trim(), phone: editPhone.trim(), email: editEmail.trim() } : null,
       }));
       Alert.alert('Success', 'Profile updated successfully.');
       setEditingProfile(false);
@@ -70,8 +72,8 @@ export default function ManagementProfileScreen() {
       setPwError('New password and confirm password do not match.');
       return;
     }
-    if (newPassword.length < 6) {
-      setPwError('New password must be at least 6 characters.');
+    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      setPwError('Use at least 8 characters, including a letter and a number.');
       return;
     }
     setSubmitting(true);
@@ -120,7 +122,7 @@ export default function ManagementProfileScreen() {
         {!editingProfile ? (
           <TouchableOpacity
             style={[styles.editBtn, { backgroundColor: colors.primary, marginTop: Spacing.md }]}
-            onPress={() => { setEditingProfile(true); setEditDisplayName(user?.displayName || ''); setEditPhone(user?.phone || ''); setProfileError(''); }}
+            onPress={() => { setEditingProfile(true); setEditDisplayName(user?.displayName || ''); setEditPhone(user?.phone || ''); setEditEmail(user?.email || ''); setProfileError(''); }}
             activeOpacity={0.7}
           >
             <Ionicons name="create-outline" size={16} color="#FFFFFF" />
@@ -145,6 +147,16 @@ export default function ManagementProfileScreen() {
               placeholder="Phone number"
               placeholderTextColor={colors.textTertiary}
               keyboardType="phone-pad"
+            />
+            <Text style={[styles.inputLabel, { color: colors.textMuted }]}>Email</Text>
+            <TextInput
+              style={[styles.input, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
+              value={editEmail}
+              onChangeText={setEditEmail}
+              placeholder="Your email address"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
             <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
               <TouchableOpacity
@@ -171,7 +183,7 @@ export default function ManagementProfileScreen() {
       <SectionTitle title="Account details" />
       <DataCard>
         <DetailRow icon="person-outline" label="Name" value={user?.displayName || 'N/A'} />
-        <DetailRow icon="mail-outline" label="Email" value={user?.email || 'N/A'} />
+    
         <DetailRow icon="shield-checkmark-outline" label="Role" value={getRoleLabel(user?.role || '')} />
         <DetailRow icon="call-outline" label="Phone" value={user?.phone || 'Not set'} />
         <DetailRow
@@ -218,7 +230,7 @@ export default function ManagementProfileScreen() {
             </Text>
             <TextInput
               style={[styles.input, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
-              placeholder="Min 6 characters"
+              placeholder="At least 8 characters, a letter and a number"
               placeholderTextColor={colors.textTertiary}
               secureTextEntry
               value={newPassword}

@@ -37,6 +37,7 @@ import { useDeliveryOrders } from '../../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../../store/realTimeSyncStore';
 import { Driver, Vendor, Job } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
+import { UserActionInfo } from '../../../components/UserActionInfo';
 
 const DRIVER_TABS = [
   { name: 'details', label: 'Details', icon: 'person-outline' as const },
@@ -184,27 +185,7 @@ export default function DriverDetailScreen() {
           </Card>
         )}
 
-        <Card style={{ marginTop: Spacing.md }}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Audit Trail</Text>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Created By</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>{driver.createdBy || '-'}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Created At</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>
-              {driver.createdAt ? formatEAT(driver.createdAt) : '-'}
-            </Text>
-          </View>
-          {driver.updatedAt && (
-            <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Updated At</Text>
-              <Text style={[styles.detailValue, { color: colors.text }]}>
-                {formatEAT(driver.updatedAt)}
-              </Text>
-            </View>
-          )}
-        </Card>
+        <UserActionInfo record={driver as any} />
       </View>
     );
   }

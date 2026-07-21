@@ -15,7 +15,7 @@ import api from '../api';
 import { getStoredToken } from '../database';
 
 // Valid status transitions
-const VALID_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
+const VALID_TRANSITIONS: Partial<Record<JobStatus, JobStatus[]>> = {
   draft: ['assigned', 'cancelled'],
   assigned: ['ready', 'cancelled'],
   ready: ['loading', 'cancelled'],

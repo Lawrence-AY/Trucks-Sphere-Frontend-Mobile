@@ -1,18 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 import { Spacing } from "../../constants/theme";
 import { useAuthStore } from "../../store/authStore";
-import {
-  fetchDeliveryOrders,
-  fetchDrivers,
-  fetchPurchaseOrders,
-  fetchVehicles,
-  fetchFuelRecords,
-} from "../../services/api";
-import { formatEAT } from "../../utils/helpers";
+import { useRealtimeCollection } from "../../store/realtimeData";
+import { useRealTimeSyncStore } from "../../store/realTimeSyncStore";
+import { formatEAT, normalizeVendorId } from "../../utils/helpers";
 import {
   DataCard,
   DetailRow,
@@ -25,47 +20,48 @@ import {
 export default function VendorDashboardScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  const vendorId = user?.vendorId || "v1";
+  const vendorId = user?.vendorId || "";
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [fuelRecords, setFuelRecords] = useState<any[]>([]);
+  const refresh = useRealTimeSyncStore((state) => state.refresh);
+  const { data: allDrivers, loading: driversLoading } = useRealtimeCollection('drivers');
+  const { data: allVehicles, loading: vehiclesLoading } = useRealtimeCollection('vehicles');
+  const { data: allOrders, loading: ordersLoading } = useRealtimeCollection('purchaseOrders');
+  const { data: allDeliveries, loading: deliveriesLoading } = useRealtimeCollection('deliveryOrders');
+  const { data: allFuelRecords, loading: fuelLoading } = useRealtimeCollection('fuelRecords');
+  const loading = driversLoading || vehiclesLoading || ordersLoading || deliveriesLoading || fuelLoading;
+
+  const drivers = useMemo(() => allDrivers.filter((d: any) =>
+    normalizeVendorId(d.vendorId || d.vendor || '') === normalizedUserVendorId
+  ), [allDrivers, normalizedUserVendorId]);
+  const vehicles = useMemo(() => allVehicles.filter((v: any) =>
+    normalizeVendorId(v.vendorId || v.vendor || '') === normalizedUserVendorId
+  ), [allVehicles, normalizedUserVendorId]);
+  const orders = useMemo(() => allOrders.filter((o: any) =>
+    normalizeVendorId(o.vendorId || o.vendor || '') === normalizedUserVendorId
+  ), [allOrders, normalizedUserVendorId]);
+  const deliveries = useMemo(() => allDeliveries.filter((d: any) =>
+    normalizeVendorId(d.vendorId || d.vendor || '') === normalizedUserVendorId
+  ), [allDeliveries, normalizedUserVendorId]);
+  const fuelRecords = useMemo(() => allFuelRecords.filter((f: any) =>
+    normalizeVendorId(f.vendorId || f.vendor || '') === normalizedUserVendorId
+  ), [allFuelRecords, normalizedUserVendorId]);
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [driverData, vehicleData, orderData, deliveryData, fuelData] =
-        await Promise.all([
-          fetchDrivers(),
-          fetchVehicles(),
-          fetchPurchaseOrders(),
-          fetchDeliveryOrders(),
-          fetchFuelRecords(),
-        ]);
-      setDrivers(
-        (driverData || []).filter((d: any) => d.vendorId === vendorId),
-      );
-      setVehicles(
-        (vehicleData || []).filter((v: any) => v.vendorId === vendorId),
-      );
-      setOrders((orderData || []).filter((o: any) => o.vendorId === vendorId));
-      setDeliveries(
-        (deliveryData || []).filter((d: any) => d.vendorId === vendorId),
-      );
-      setFuelRecords(fuelData || []);
+      await Promise.all([
+        refresh('drivers'),
+        refresh('vehicles'),
+        refresh('purchaseOrders'),
+        refresh('deliveryOrders'),
+        refresh('fuelRecords'),
+      ]);
     } catch (error) {
     } finally {
       setRefreshing(false);
-      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const activeTrips = useMemo(
     () =>
@@ -85,9 +81,13 @@ export default function VendorDashboardScreen() {
     [deliveries],
   );
 
+  // Keep this derived value for the dashboard totals and recent-fuel widgets.
   const vendorFuelRecords = useMemo(
-    () => fuelRecords.filter((f) => f.vendorId === vendorId),
-    [fuelRecords, vendorId],
+    () => fuelRecords.filter((f) => {
+      const recordVendorId = normalizeVendorId(f.vendorId || f.vendor || "");
+      return recordVendorId === normalizedUserVendorId;
+    }),
+    [fuelRecords, normalizedUserVendorId],
   );
 
   const totalFuelForVendor = useMemo(
@@ -106,7 +106,7 @@ export default function VendorDashboardScreen() {
   }, [deliveries]);
 
   const getJobFuel = (jobId: string) =>
-    fuelRecords
+    vendorFuelRecords
       .filter((f) => f.jobId === jobId)
       .reduce((sum, f) => sum + (f.fuelAmount || 0), 0);
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders, fetchQuarries, updateDeliveryOrder } from '../../services/api';
+import { fetchQuarries, updateDeliveryOrder } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
+import { useDeliveryOrders } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT } from '../../utils/helpers';
 import {
   DataCard,
@@ -28,7 +31,10 @@ import {
 
 export default function OperatorSiteReceiveScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const { user } = useAuthStore();
+  const allDeliveries = useDeliveryOrders();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -40,26 +46,45 @@ export default function OperatorSiteReceiveScreen() {
   const [saving, setSaving] = useState(false);
   const [quarries, setQuarries] = useState<any[]>([]);
 
-  const loadData = async () => {
-    setRefreshing(true);
-    try {
-      const [data, quarriesData] = await Promise.all([
-        fetchDeliveryOrders(),
-        fetchQuarries(),
-      ]);
-      // Show jobs that have been dispatched from quarry (loaded/in_transit) and haven't been fully site-processed yet
-      setDeliveries((data || []).filter((d: any) =>
-        ['loaded', 'dispatched', 'in_transit', 'en_route'].includes(d.status)
-      ));
-      setQuarries(quarriesData || []);
-    } catch {
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  };
+  const operatorUid = user?.uid || '';
+  const operatorSiteId = (user as any)?.siteId || '';
 
-  useEffect(() => { loadData(); }, []);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh('deliveryOrders');
+    setRefreshing(false);
+  }, [refresh]);
+
+  // Load quarries once
+  useEffect(() => {
+    fetchQuarries().then((data) => setQuarries(data || [])).catch(() => {});
+  }, []);
+
+  // Filter deliveries from the realtime store
+  const deliveries = useMemo(() => {
+    let filteredData = allDeliveries.filter((d: any) =>
+      ['loaded', 'dispatched', 'in_transit', 'en_route'].includes(d.status)
+    );
+    // Apply data isolation for operator-site role
+    if (operatorSiteId) {
+      filteredData = filteredData.filter((d: any) => !d.siteId || d.siteId === operatorSiteId);
+    }
+    if (operatorUid) {
+      filteredData = filteredData.filter((d: any) =>
+        d.createdByUid === operatorUid ||
+        d.siteOperatorUid === operatorUid ||
+        d.siteWeighInByUid === operatorUid ||
+        d.siteWeighOutByUid === operatorUid ||
+        d.receivedByUid === operatorUid
+      );
+    }
+    return filteredData;
+  }, [allDeliveries, operatorSiteId, operatorUid]);
+
+  // Mark loading as complete once we have any deliveries data
+  useEffect(() => {
+    if (allDeliveries.length > 0) setLoading(false);
+  }, [allDeliveries]);
 
   // Resolve quarry name from quarries collection
   const resolveQuarryName = (job: any): string => {
@@ -94,15 +119,18 @@ export default function OperatorSiteReceiveScreen() {
     setSaving(true);
     try {
       const now = new Date().toISOString();
-      const updated = await updateDeliveryOrder(activeJob.id, {
+      const updatePayload = {
         siteWeighInWeight: numericWeight,
         siteWeighInAt: now,
+        siteWeighInByUid: user?.uid || '',
         status: 'site_in',
         storageLot: lotNumber || undefined,
         materialSource: activeJob.materialSource || undefined,
         updatedAt: now,
-      });
-      setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
+      };
+      const merged = { ...activeJob, ...updatePayload };
+      optimisticUpdate('deliveryOrders', merged);
+      const updated = await updateDeliveryOrder(activeJob.id, updatePayload);
       setActiveJob(updated);
       Alert.alert('Saved', 'Site arrival weight recorded.');
     } catch (error: any) {
@@ -158,11 +186,24 @@ export default function OperatorSiteReceiveScreen() {
       const updated = await updateDeliveryOrder(activeJob.id, {
         siteWeighOutWeight: numericWeight,
         siteWeighOutAt: now,
+        siteWeighOutByUid: user?.uid || '',
         siteNetWeight: siteNet,
+        receivedByUid: user?.uid || '',
         status: 'delivered',
         updatedAt: now,
       });
-      setDeliveries((current) => current.filter((item) => item.id !== activeJob.id));
+      // Optimistically update the shared cache so the job moves to history / disappears from receive
+      const mergedOut = {
+        ...activeJob,
+        siteWeighOutWeight: numericWeight,
+        siteWeighOutAt: now,
+        siteWeighOutByUid: user?.uid || '',
+        siteNetWeight: siteNet,
+        receivedByUid: user?.uid || '',
+        status: 'delivered',
+        updatedAt: now,
+      };
+      optimisticUpdate('deliveryOrders', mergedOut);
       closeReceiveForm();
       Alert.alert('Completed', `Site processing complete.\n\nArrival: ${siteInWeight.toFixed(1)}T · Offload: ${numericWeight.toFixed(1)}T · Net: ${siteNet.toFixed(1)}T`, [
         { text: 'OK' },
@@ -195,7 +236,7 @@ export default function OperatorSiteReceiveScreen() {
           <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
           <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
           <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
-                          <DetailRow icon="location-outline" value={`Origin: ${activeJob.materialSource || activeJob.weighOutGeoLocation?.city || activeJob.weighOutGeoLocation?.town || activeJob.weighOutGeoLocation?.district || activeJob.weighOutGeoLocation?.name || activeJob.weighOutLocation || resolveQuarryName(activeJob)} → Dest: ${activeJob.siteName || '—'}`} />
+          <DetailRow icon="location-outline" value={`Origin: ${activeJob.materialSource || activeJob.weighOutGeoLocation?.city || activeJob.weighOutGeoLocation?.town || activeJob.weighOutGeoLocation?.district || activeJob.weighOutGeoLocation?.name || activeJob.weighOutLocation || resolveQuarryName(activeJob)} → Dest: ${activeJob.siteName || '—'}`} />
           {/* Lot Number Input */}
           <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.inputHeader}>
@@ -276,10 +317,10 @@ export default function OperatorSiteReceiveScreen() {
               placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               value={weightIn}
-                  onChangeText={(value) => {
-                    const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                    setWeightIn(filtered);
-                  }}
+              onChangeText={(value) => {
+                const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                setWeightIn(filtered);
+              }}
               editable={!hasSiteWeighIn}
             />
             <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>
@@ -320,10 +361,10 @@ export default function OperatorSiteReceiveScreen() {
               placeholderTextColor={colors.textTertiary}
               keyboardType="decimal-pad"
               value={weightOut}
-                  onChangeText={(value) => {
-                    const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                    setWeightOut(filtered);
-                  }}
+              onChangeText={(value) => {
+                const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                setWeightOut(filtered);
+              }}
               editable={hasSiteWeighIn}
             />
             <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>
@@ -359,7 +400,7 @@ export default function OperatorSiteReceiveScreen() {
 
   /* ─── List View ─── */
   return (
-    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}>
       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate..." />
       <SectionTitle title={`${filtered.length} to receive`} />
       {loading ? (

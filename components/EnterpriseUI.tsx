@@ -123,7 +123,7 @@ export function FilterRail({
             ]}
             onPress={() => onChange(option.key)}
           >
-            <Text style={[styles.filterText, { color: active ? '#06111F' : colors.textSecondary }]}>
+            <Text style={[styles.filterText, { color: active ? '#FFFFFF' : colors.textSecondary }]}>
               {option.label}
             </Text>
           </TouchableOpacity>
@@ -166,8 +166,8 @@ export function StatusPill({ status, compact = false }: { status: string; compac
   const color = getStatusColor(status);
   return (
     <View style={[styles.statusPill, { backgroundColor: `${color}18` }]}>
-      <View style={[styles.statusDot, { backgroundColor: color }]} />
-      <Text style={[styles.statusPillText, { color, fontSize: compact ? 10 : 11 }]}>
+      <View style={[styles.statusDot, ]} />
+      <Text style={[styles.statusPillText, ]}>
         {formatStatus(status)}
       </Text>
     </View>
@@ -252,9 +252,10 @@ export function EmptyState({
 const styles = StyleSheet.create({
   shell: { flex: 1 },
   shellContent: {
-    padding: Spacing.sm,
-    paddingBottom: Spacing['4xl'] + 24,
-    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing['3xl'],
+    gap: Spacing.sm,
   },
   commandHeader: {
     flexDirection: 'row',
@@ -264,25 +265,25 @@ const styles = StyleSheet.create({
   },
   commandCopy: { flex: 1 },
   eyebrow: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0,
-    marginBottom: 5,
+    marginBottom: 2,
   },
   commandTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     letterSpacing: 0,
   },
   commandSubtitle: {
-    fontSize: 14,
-    lineHeight: 19,
-    marginTop: 5,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
   searchField: {
-    height: 48,
-    borderRadius: Radius.lg,
+    height: 44,
+    borderRadius: Radius.md,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -296,23 +297,24 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   filterRail: {
-    gap: Spacing.sm,
-    paddingRight: Spacing.lg,
+    gap: 6,
+    paddingRight: Spacing.md,
   },
   filterChip: {
     borderWidth: 1,
+    minHeight: 34,
     borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
   },
   filterText: {
-    fontSize: 14,
-    fontWeight: '400',
+    fontSize: 12,
+    fontWeight: '700',
   },
   metricTile: {
     flex: 1,
-    minHeight: 118,
-    borderRadius: Radius.lg,
+    minHeight: 104,
+    borderRadius: Radius.md,
     borderWidth: 1,
     padding: Spacing.md,
     justifyContent: 'space-between',
@@ -351,10 +353,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   dataCard: {
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.lg,
-    gap: Spacing.md,
+    padding: Spacing.md,
+    gap: Spacing.sm,
   },
   sectionTitleRow: {
     flexDirection: 'row',
@@ -362,7 +364,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
   },
   detailRow: {
@@ -386,7 +388,7 @@ const styles = StyleSheet.create({
   },
   empty: {
     alignItems: 'center',
-    paddingVertical: 70,
+    paddingVertical: Spacing['3xl'],
     gap: Spacing.sm,
   },
   emptyIcon: {

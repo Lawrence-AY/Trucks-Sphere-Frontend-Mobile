@@ -55,13 +55,13 @@ export default function TabsLayout() {
           : [
               styles.tabBar,
               {
-                backgroundColor: '#FFFFFF',
+                backgroundColor: colors.surface,
                 borderTopColor: colors.border,
                 paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
                 height: Platform.OS === 'ios' ? 72 + insets.bottom : 72,
               },
             ],
-        headerStyle: { backgroundColor: '#FFFFFF' },
+        headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '700', fontSize: 17 },
         headerShadowVisible: false,

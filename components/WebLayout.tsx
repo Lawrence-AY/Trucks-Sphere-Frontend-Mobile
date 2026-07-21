@@ -93,9 +93,9 @@ export default function WebLayout({ children }: WebLayoutProps) {
       return <>{children}</>;
     }
     return (
-      <View style={styles.desktopContainer}>
+      <View style={[styles.desktopContainer, { backgroundColor: colors.background }]}>
         <Sidebar />
-        <View style={styles.desktopContent}>{children}</View>
+        <View style={[styles.desktopContent, { backgroundColor: colors.background }]}>{children}</View>
       </View>
     );
   }
@@ -106,12 +106,12 @@ export default function WebLayout({ children }: WebLayoutProps) {
       return <>{children}</>;
     }
     return (
-      <View style={styles.mobileRoot}>
+      <View style={[styles.mobileRoot, { backgroundColor: colors.background }]}>
         {/* Top Navbar */}
-        <View style={[styles.topBar, { backgroundColor: '#FFFFFF', borderBottomColor: colors.border }]}>
+        <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity
             onPress={openDrawer}
-            style={styles.hamburgerBtn}
+            style={[styles.hamburgerBtn, { backgroundColor: colors.inputBg }]}
             accessibilityLabel="Open navigation menu"
             accessibilityRole="button"
           >
@@ -123,7 +123,7 @@ export default function WebLayout({ children }: WebLayoutProps) {
               // @ts-ignore
               router.push('/screens/notifications');
             }}
-            style={styles.topBarNotifBtn}
+            style={[styles.topBarNotifBtn, { backgroundColor: colors.inputBg }]}
             accessibilityLabel="Notifications"
             accessibilityRole="button"
           >
@@ -147,12 +147,13 @@ export default function WebLayout({ children }: WebLayoutProps) {
                 styles.drawerPanel,
                 {
                   width: drawerWidth,
+                  backgroundColor: colors.surface,
                   transform: [{ translateX: slideAnim }],
                 },
               ]}
             >
-              <View style={styles.drawerHeader}>
-                <TouchableOpacity onPress={closeDrawer} style={styles.drawerCloseBtn}>
+              <View style={[styles.drawerHeader, { backgroundColor: colors.surface }]}>
+                <TouchableOpacity onPress={closeDrawer} style={[styles.drawerCloseBtn, { backgroundColor: colors.inputBg }]}>
                   <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
               </View>
@@ -176,18 +177,15 @@ const styles = StyleSheet.create({
   desktopContainer: {
     flex: 1,
     flexDirection: 'row' as const,
-    backgroundColor: '#F1F5F9',
   } as any,
   desktopContent: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
     overflow: 'hidden' as const,
   } as any,
 
   /* ── Mobile Web ── */
   mobileRoot: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
   },
   topBar: {
     flexDirection: 'row',
@@ -259,7 +257,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     bottom: 0,
-    backgroundColor: '#FFFFFF',
     zIndex: 101,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },

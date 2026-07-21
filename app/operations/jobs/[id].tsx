@@ -32,10 +32,11 @@ import { Tabs } from '../../../components/ui/Tabs';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { jobRepository } from '../../../services/repositories/JobRepository';
 import { Job } from '../../../store/types';
+import { UserActionInfo } from '../../../components/UserActionInfo';
 
 const JOB_TABS = [
   { name: 'overview', label: 'Overview', icon: 'information-circle-outline' as const },
-  { name: 'timeline', label: 'Timeline', icon: 'time-outline' as const },
+
   { name: 'weights', label: 'Weights', icon: 'scale-outline' as const },
 ];
 
@@ -101,11 +102,7 @@ export default function JobDetailScreen() {
     }
   }
 
-  function getNextStatuses(): string[] {
-    if (!job) return [];
-    return STATUS_TRANSITIONS[job.status] || [];
-  }
-
+ 
   async function handleStatusTransition(nextStatus: string) {
     if (!job) return;
     setUpdating(true);
@@ -161,10 +158,7 @@ export default function JobDetailScreen() {
               {job.quantityDispatched || job.quantityOrdered} {job.unit}
             </Text>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Status</Text>
-            <Badge label={job.status?.replace('_', ' ') || 'unknown'} variant={getStatusVariant(job.status)} dot />
-          </View>
+        
         </Card>
 
         <Card style={{ marginTop: Spacing.md }}>
@@ -199,77 +193,13 @@ export default function JobDetailScreen() {
           )}
         </Card>
 
-        {/* Status Transition Buttons */}
-        {getNextStatuses().length > 0 && (
-          <Card style={{ marginTop: Spacing.md }}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Actions</Text>
-            <View style={styles.transitionButtons}>
-              {getNextStatuses().map((nextStatus) => (
-                <Button
-                  key={nextStatus}
-                  title={`Mark ${nextStatus.replace('_', ' ')}`}
-                  onPress={() => handleStatusTransition(nextStatus)}
-                  icon="arrow-forward-circle-outline"
-                  size="sm"
-                  loading={updating}
-                />
-              ))}
-            </View>
-          </Card>
-        )}
+       
+
       </View>
     );
   }
 
-  function renderTimeline() {
-    if (!job) return null;
-    const timelineItems = [
-      { label: 'Created', time: job.createdAt, icon: 'add-circle-outline' as const },
-      { label: 'Dispatch', time: job.dispatchTime, icon: 'time-outline' as const },
-      { label: 'Quarry In', time: job.quarryInTime, icon: 'enter-outline' as const },
-      { label: 'Quarry Out', time: job.quarryOutTime, icon: 'exit-outline' as const },
-      { label: 'Site In', time: job.siteInTime, icon: 'enter-outline' as const },
-      { label: 'Site Out', time: job.siteOutTime, icon: 'exit-outline' as const },
-      { label: 'Receipt', time: job.receiptTime, icon: 'document-outline' as const },
-      { label: 'Completed', time: job.completionTime, icon: 'checkmark-circle-outline' as const },
-    ];
-
-    return (
-      <Card>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Job Timeline</Text>
-        {timelineItems.map((item, index) => {
-          const isComplete = !!item.time;
-          return (
-            <View key={item.label} style={styles.timelineItem}>
-              <View style={styles.timelineLeft}>
-                <View style={[styles.timelineDot, { backgroundColor: isComplete ? colors.success : colors.border }]}>
-                  <Ionicons
-                    name={item.icon}
-                    size={14}
-                    color={isComplete ? '#fff' : colors.textMuted}
-                  />
-                </View>
-                {index < timelineItems.length - 1 && (
-                  <View style={[styles.timelineLine, { backgroundColor: isComplete ? colors.success : colors.border }]} />
-                )}
-              </View>
-              <View style={styles.timelineContent}>
-                <Text style={[styles.timelineLabel, { color: isComplete ? colors.text : colors.textMuted }]}>
-                  {item.label}
-                </Text>
-                {item.time && (
-                  <Text style={[styles.timelineTime, { color: colors.textMuted }]}>
-                    {new Date(item.time).toLocaleString()}
-                  </Text>
-                )}
-              </View>
-            </View>
-          );
-        })}
-      </Card>
-    );
-  }
-
+  
   function renderWeights() {
     if (!job) return null;
     return (
@@ -355,8 +285,7 @@ export default function JobDetailScreen() {
               {job.materialName} - {job.vendorName}
             </Text>
           </View>
-          <Badge label={job.status?.replace('_', ' ') || 'unknown'} variant={getStatusVariant(job.status)} dot />
-        </View>
+         </View>
         {job.isDelayed && (
           <View style={[styles.delayedBanner, { backgroundColor: colors.danger + '15' }]}>
             <Ionicons name="time-outline" size={16} color={colors.danger} />
@@ -375,19 +304,11 @@ export default function JobDetailScreen() {
       {/* Tab Content */}
       <View style={{ marginTop: Spacing.md }}>
         {activeTab === 'overview' && renderOverview()}
-        {activeTab === 'timeline' && renderTimeline()}
+     
         {activeTab === 'weights' && renderWeights()}
       </View>
 
-      {/* Back Button */}
-      <View style={styles.actions}>
-        <Button
-          title="Back to Operations"
-          onPress={() => router.back()}
-          variant="ghost"
-          style={{ flex: 1 }}
-        />
-      </View>
+     
     </ScrollView>
     </View>
   );

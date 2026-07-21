@@ -36,9 +36,12 @@ async function backendRequest<T>(
   params?: any,
 ): Promise<T> {
   const token = await getStoredToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const headers: Record<string, string> = {};
+  // A JSON content type belongs on requests with a body. Sending it on every
+  // GET adds another non-simple browser header and needless CORS preflights.
+  if (data !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -73,12 +76,52 @@ async function backendRequest<T>(
   }
 }
 
-function unwrapItems<T = any>(data: any): T[] {
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.results)) return data.results;
+const COLLECTION_RESPONSE_KEYS: Record<string, string[]> = {
+  vendors: ['vendors'],
+  drivers: ['drivers'],
+  vehicles: ['vehicles'],
+  materials: ['materials'],
+  purchaseOrders: ['purchaseOrders', 'purchase_orders', 'orders'],
+  deliveryOrders: ['deliveryOrders', 'delivery_orders', 'orders'],
+  weighRecords: ['weighRecords', 'weighments'],
+  checkpoints: ['checkpoints'],
+  quarries: ['quarries'],
+  sites: ['sites'],
+  fuelRecords: ['fuelRecords', 'fuel'],
+  uploads: ['uploads'],
+  customers: ['customers'],
+  fuelStations: ['fuelStations', 'fuel_stations'],
+  users: ['users'],
+  roles: ['roles'],
+};
+
+/**
+ * Converts every supported collection envelope into a predictable array.
+ * Controllers currently return either a direct array or `{ data: [] }`, but
+ * named collection keys are accepted so an API envelope change cannot erase a
+ * valid collection in the UI.
+ */
+export function normalizeCollection<T = any>(response: any, collectionName?: string): T[] {
+  if (Array.isArray(response)) return response;
+
+  const candidates = [
+    response?.data,
+    response?.items,
+    response?.results,
+    ...(collectionName
+      ? (COLLECTION_RESPONSE_KEYS[collectionName] || []).map((key) => response?.[key])
+      : []),
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+
   return [];
+}
+
+function unwrapItems<T = any>(data: any): T[] {
+  return normalizeCollection<T>(data);
 }
 
 function unwrapOne<T = any>(data: any, fallback: T): T {
@@ -98,6 +141,9 @@ async function safeFetch<T>(
     return result;
   } catch (error: any) {
     const msg = error?.message || error?.code || String(error);
+    if (__DEV__) {
+      console.warn(`[API] ${label} collection request failed; retaining existing store data.`, msg);
+    }
     return [];
   }
 }
@@ -255,15 +301,13 @@ export async function fetchReports(): Promise<any[]> {
   );
 }
 
-export async function fetchAuditLogs(params?: {
+export async function fetchAuditLogs(_params?: {
   search?: string;
   severity?: string;
 }): Promise<any[]> {
-  return safeFetch("audit-logs", () =>
-    backendRequest<any>("get", "/api/audit-logs", undefined, params).then(
-      unwrapItems,
-    ),
-  );
+  // Audit-log retrieval is disabled to avoid an unbounded Firestore read
+  // stream. Keep the API surface for existing screens, but make no request.
+  return [];
 }
 
 export async function fetchUsers(params?: {
@@ -786,6 +830,60 @@ export async function downloadCategoryCSV(
   }
 }
 
+/**
+ * Download a vendor-specific per-category CSV file.
+ * Uses the authenticated vendor's own data (auto-filtered by vendorId on the backend).
+ * - Web: triggers browser download.
+ * - Native: saves to cache and shares.
+ */
+export async function downloadVendorCategoryCSV(
+  category: string,
+  params?: { filter?: string; start_date?: string; end_date?: string },
+): Promise<void> {
+  try {
+    const token = await getStoredToken();
+    const query = new URLSearchParams();
+    if (params?.filter) query.set('filter', params.filter);
+    if (params?.start_date) query.set('start_date', params.start_date);
+    if (params?.end_date) query.set('end_date', params.end_date);
+
+    const url = `${API_BASE_URL}/api/vendor/reports/export/csv/${category}?${query.toString()}`;
+
+    const response = await axios.get(url, {
+      responseType: 'blob',
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 15000,
+    });
+
+    if (Platform.OS === 'web') {
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `Vendor_${category}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      return;
+    }
+
+    // Native: read blob as text using FileReader, then save and share
+    const text = await blobToText(response.data);
+    const fileName = `Vendor_${category}_${new Date().toISOString().slice(0, 10)}.csv`;
+    const filePath = FileSystem.cacheDirectory + fileName;
+    await FileSystem.writeAsStringAsync(filePath, text, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(filePath, { mimeType: 'text/csv' });
+    }
+  } catch (error: any) {
+    throw error;
+  }
+}
+
 // ============== Issues API ==============
 
 export async function fetchIssues(params?: { status?: string }): Promise<any[]> {
@@ -877,6 +975,16 @@ export async function changePassword(payload: {
     return result;
   } catch (error: any) {
     const msg = error?.response?.data?.error || error?.message || 'Failed to change password.';
+    throw new Error(msg);
+  }
+}
+
+/** Sends a neutral password-reset request for an email address or username. */
+export async function requestPasswordReset(identifier: string): Promise<void> {
+  try {
+    await backendRequest<any>('post', '/api/auth/password-reset', { identifier });
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || error?.message || 'Unable to request a password reset.';
     throw new Error(msg);
   }
 }

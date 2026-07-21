@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,8 +17,10 @@ import { router } from 'expo-router';
 import * as Print from 'expo-print';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders, fetchQuarries, updateDeliveryOrder } from '../../services/api';
+import { fetchQuarries, updateDeliveryOrder } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { useDeliveryOrders } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { getNextId } from '../../services/counter';
@@ -259,7 +261,10 @@ function buildReceiptHtml(data: {
 export default function OperatorSiteWeightsScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const deliveries = useDeliveryOrders();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
+  const storeLoading = useRealTimeSyncStore((s) => s.isLoading);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -277,30 +282,67 @@ export default function OperatorSiteWeightsScreen() {
   const [grnVisible, setGrnVisible] = useState(false);
   const [grnData, setGrnData] = useState<any>(null);
 
-  const loadData = async (silent?: boolean) => {
-    if (!silent) setRefreshing(true);
-    try {
-      const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data);
-    } catch {
-    } finally {
-      setRefreshing(false);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh('deliveryOrders');
+    setRefreshing(false);
+  }, [refresh]);
+
+  // Mark loading as complete once we have data or store reports finished
+  useEffect(() => {
+    if (deliveries.length > 0) {
+      setLoading(false);
+    } else if (!storeLoading('deliveryOrders')) {
       setLoading(false);
     }
-  };
+  }, [deliveries, storeLoading]);
 
-  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
+  // Safety timeout: stop showing spinner after 10s regardless
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (loading) setLoading(false);
+    }, 10000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  /* ─── Data isolation: jobs belong to a site, not an individual operator ─── */
+  const operatorSiteId = (user as any)?.siteId || '';
 
   /* ─── Filtering & Categorizing ─── */
 
   const eligibleJobs = useMemo(() => {
-    return deliveries.filter(
+    let filtered = deliveries.filter(
       (d) =>
         !['cancelled', 'completed', 'delivered'].includes(d.status) &&
         d.siteWeighOutWeight == null &&
-        (d.siteWeighInWeight != null || d.status === 'weighed_in'),
+        (d.siteWeighInWeight != null || d.siteArrivalWeight != null || d.status === 'weighed_in' || d.status === 'site_in'),
     );
-  }, [deliveries]);
+    // Apply data isolation for operator-site role
+    if (operatorSiteId) {
+      filtered = filtered.filter((d: any) => !d.siteId || d.siteId === operatorSiteId);
+    }
+    return filtered;
+  }, [deliveries, operatorSiteId]);
+
+  useEffect(() => {
+    const evaluatedDocuments = deliveries.map((job: any) => {
+      let reason = '';
+      if (['cancelled', 'completed', 'delivered'].includes(job.status)) reason = `terminal status: ${job.status}`;
+      else if (job.siteWeighOutWeight != null) reason = 'site weight-out already recorded';
+      else if (job.siteWeighInWeight == null && job.siteArrivalWeight == null && !['weighed_in', 'site_in'].includes(job.status)) reason = 'site arrival weight/status missing';
+      else if (operatorSiteId && job.siteId && job.siteId !== operatorSiteId) reason = `different site: ${job.siteId}`;
+      return { documentId: job.id, included: !reason, reason: reason || undefined };
+    });
+    console.debug('[SiteWeights] weights query filters', {
+      excludedStatuses: ['cancelled', 'completed', 'delivered'],
+      requires: 'site arrival weight or legacy site_in/weighed_in status',
+      siteId: operatorSiteId || 'unscoped',
+    });
+    console.debug('[SiteWeights] weights query result', {
+      documentIds: eligibleJobs.map((job: any) => job.id),
+      evaluatedDocuments,
+    });
+  }, [deliveries, eligibleJobs, operatorSiteId]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -325,7 +367,7 @@ export default function OperatorSiteWeightsScreen() {
 
   /* ─── Active Job Calculations ─── */
 
-  const siteWeighIn = activeJob?.siteWeighInWeight ?? 0;
+  const siteWeighIn = activeJob?.siteWeighInWeight ?? activeJob?.siteArrivalWeight ?? 0;
   const weightOutNum = parseFloat(weightOutInput);
 
   const netWeight =
@@ -402,7 +444,7 @@ export default function OperatorSiteWeightsScreen() {
       const weightDifference =
         quarryNetWeight != null ? quarryNetWeight - siteNetWeight : null;
 
-      await updateDeliveryOrder(activeJob.id, {
+      const updatePayload = {
         siteWeighOutWeight: weightOutNum,
         siteWeighOutAt: now,
         siteNetWeight: siteNetWeight,
@@ -417,27 +459,19 @@ export default function OperatorSiteWeightsScreen() {
         receivedBy: user?.displayName || 'Site Operator',
         receiptNoteId,
         storageLot: lotNumber || undefined,
-        status: 'completed',
-        updatedAt: now,
-      });
-
-      const updatedJob = {
-        ...activeJob,
-        siteWeighOutWeight: weightOutNum,
-        siteWeighOutAt: now,
-        siteNetWeight: netWeight,
-        quantityDelivered: netWeight,
-        receivedAt: now,
-        receivedBy: user?.displayName || 'Site Operator',
-        receiptNoteId,
-        status: 'completed',
+        status: 'SITE_WEIGHED_OUT',
         updatedAt: now,
       };
-      setDeliveries((current) =>
-        current.map((item) =>
-          item.id === activeJob.id ? updatedJob : item,
-        ),
-      );
+
+      // Commit first; history is updated only after the backend confirms the
+      // site weigh-out transition.
+      const updatedJob = {
+        ...activeJob,
+        ...updatePayload,
+        siteNetWeight: netWeight,
+      };
+      const persisted = await updateDeliveryOrder(activeJob.id, updatePayload);
+      optimisticUpdate('deliveryOrders', persisted || updatedJob);
 
       setGrnData({
         ...updatedJob,
@@ -1072,7 +1106,7 @@ export default function OperatorSiteWeightsScreen() {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={loadData}
+          onRefresh={handleRefresh}
           tintColor={colors.primary}
         />
       }
@@ -1094,7 +1128,7 @@ export default function OperatorSiteWeightsScreen() {
         </DataCard>
       ) : filtered.length ? (
         filtered.map((item) => {
-          const siteIn = item.siteWeighInWeight ?? 0;
+          const siteIn = item.siteWeighInWeight ?? item.siteArrivalWeight ?? 0;
           const isCompleted =
             item.status === 'completed' || item.status === 'delivered';
           const lotNum = item.storageLot || item.lotNumber || item.destinationLot || '';

@@ -36,16 +36,33 @@ import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { fetchUsers, fetchRoles } from '../../services/api';
 import api from '../../services/api';
 import { showAlert } from '../../utils/webAlert';
+import { useAuthStore } from '../../store/authStore';
+import { MANAGEMENT_ROLES, normalizeRole } from '../../utils/access';
 
 const ROLE_OPTIONS = [
-  { id: 'management', name: 'Management' },
+  { id: 'super_admin', name: 'Super Admin — full system access' },
+  { id: 'management_edit', name: 'Management Edit — all management access except Master Data' },
+  { id: 'management_lite', name: 'Management Lite — fleet records, orders, and profile' },
   { id: 'operator_quarry', name: 'Operator at Quarry' },
   { id: 'operator_site', name: 'Operator at Site' },
   { id: 'operator_fuel', name: 'Fuel Attendant' },
 ];
 
+const QUARRY_LOCATION_OPTIONS = [
+  'Hindi',
+  'Ngomeni',
+  'Jaribuni',
+  'Mjanaheri Malindi',
+  'Kilifi',
+  'Malindi',
+  'Local Borrow pit',
+  'Witu',
+  'Baragoni',
+].map((name) => ({ id: name, name }));
+
 export default function UsersScreen() {
   const colors = useTheme();
+  const currentUser = useAuthStore((state) => state.user);
   const insets = useSafeAreaInsets();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,8 +76,9 @@ export default function UsersScreen() {
     displayName: '',
     username: '',
     password: '',
-    role: 'management',
+    role: 'management_edit',
     phone: '',
+    quarryLocation: '',
   });
   const [generatedUsername, setGeneratedUsername] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -76,8 +94,13 @@ export default function UsersScreen() {
     role: 'vendor',
     phone: '',
     newPassword: '',
+    quarryLocation: '',
   });
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
+  const isManagementEdit = normalizeRole(currentUser?.role) === MANAGEMENT_ROLES.EDIT;
+  const addRoleOptions = isManagementEdit
+    ? ROLE_OPTIONS.filter((option) => option.id !== MANAGEMENT_ROLES.SUPER_ADMIN)
+    : ROLE_OPTIONS;
 
   const loadUsers = useCallback(async () => {
     try {
@@ -137,18 +160,18 @@ export default function UsersScreen() {
     if (!form.password || form.password.length < 6) errors.password = 'Password must be at least 6 characters';
     if (!form.phone.trim()) errors.phone = 'Phone number is required';
     if (!form.role) errors.role = 'Role is required';
+    if (form.role === 'operator_quarry' && !form.quarryLocation) errors.quarryLocation = 'Quarry station is required';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   }
 
   function validateEditForm(): boolean {
     const errors: Record<string, string> = {};
-    if (!editForm.email.trim()) errors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(editForm.email)) errors.email = 'Invalid email';
     if (!editForm.displayName.trim()) errors.displayName = 'Name is required';
     if (!editForm.username.trim()) errors.username = 'Username is required';
     else if (!/^[a-zA-Z0-9_]+$/.test(editForm.username)) errors.username = 'Letters, numbers & underscores only';
     if (!editForm.role) errors.role = 'Role is required';
+    if (editForm.role === 'operator_quarry' && !editForm.quarryLocation) errors.quarryLocation = 'Quarry station is required';
     setEditFormErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -168,11 +191,12 @@ export default function UsersScreen() {
         password: form.password,
         role: form.role,
         phone: form.phone.trim(),
+        quarryLocation: form.role === 'operator_quarry' ? form.quarryLocation : '',
       });
 
       const uname = result?.data?.user?.generatedUsername || generateUsernameFromDisplay(form.displayName);
       // Reset form state first, then close modal
-      setForm({ displayName: '', username: '', password: '', role: 'management', phone: '' });
+      setForm({ displayName: '', username: '', password: '', role: 'management_edit', phone: '', quarryLocation: '' });
       setGeneratedUsername('');
       setFormErrors({});
       setShowAddModal(false);
@@ -195,6 +219,7 @@ export default function UsersScreen() {
       role: user.role || 'vendor',
       phone: user.phone || '',
       newPassword: '',
+      quarryLocation: user.quarryLocation || '',
     });
     setEditFormErrors({});
     setShowEditModal(true);
@@ -209,9 +234,9 @@ export default function UsersScreen() {
         displayName: editForm.displayName.trim(),
         name: editForm.displayName.trim(),
         username: editForm.username.trim(),
-        email: editForm.email.trim(),
         role: editForm.role,
         phone: editForm.phone.trim(),
+        quarryLocation: editForm.role === 'operator_quarry' ? editForm.quarryLocation : '',
       });
       showAlert('Success', 'User updated successfully');
       setShowEditModal(false);
@@ -307,6 +332,9 @@ export default function UsersScreen() {
   function getRoleBadge(role: string) {
     const config: Record<string, { variant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple'; label: string }> = {
       management: { variant: 'purple', label: 'Management' },
+      management_edit: { variant: 'purple', label: 'Management' },
+      management_lite: { variant: 'default', label: 'Management Lite' },
+      super_admin: { variant: 'danger', label: 'Super Admin' },
       vendor: { variant: 'info', label: 'Vendor' },
       operator_quarry: { variant: 'info', label: 'Quarry Op' },
       operator_site: { variant: 'warning', label: 'Site Op' },
@@ -389,6 +417,9 @@ export default function UsersScreen() {
                         <Text style={[styles.userPhone, { color: colors.textMuted }]}>
                           {user.phone}
                         </Text>
+                      ) : null}
+                      {user.role === 'operator_quarry' && user.quarryLocation ? (
+                        <Text style={[styles.userPhone, { color: colors.textMuted }]}>Stationed: {user.quarryLocation}</Text>
                       ) : null}
                     </View>
                   </View>
@@ -485,12 +516,24 @@ export default function UsersScreen() {
               <Select
                 label="Role"
                 value={form.role}
-                options={ROLE_OPTIONS}
+                options={addRoleOptions}
                 onSelect={(v) => updateForm('role', v)}
                 icon="shield-outline"
                 required
                 error={formErrors.role}
               />
+              {form.role === 'operator_quarry' && (
+                <Select
+                  label="Stationed at"
+                  value={form.quarryLocation}
+                  options={QUARRY_LOCATION_OPTIONS}
+                  onSelect={(v) => updateForm('quarryLocation', v)}
+                  icon="location-outline"
+                  required
+                  error={formErrors.quarryLocation}
+                  placeholder="Choose quarry location..."
+                />
+              )}
             </ScrollView>
 
             <View style={styles.modalActions}>
@@ -543,16 +586,6 @@ export default function UsersScreen() {
                 error={editFormErrors.username}
               />
               <Input
-                label="Email"
-                value={editForm.email}
-                onChangeText={(v) => updateEditForm('email', v)}
-                placeholder="john@example.com"
-                icon="mail-outline"
-                keyboardType="email-address"
-                required
-                error={editFormErrors.email}
-              />
-              <Input
                 label="Phone (optional)"
                 value={editForm.phone}
                 onChangeText={(v) => updateEditForm('phone', v)}
@@ -578,6 +611,18 @@ export default function UsersScreen() {
                 required
                 error={editFormErrors.role}
               />
+              {editForm.role === 'operator_quarry' && (
+                <Select
+                  label="Stationed at"
+                  value={editForm.quarryLocation}
+                  options={QUARRY_LOCATION_OPTIONS}
+                  onSelect={(v) => updateEditForm('quarryLocation', v)}
+                  icon="location-outline"
+                  required
+                  error={editFormErrors.quarryLocation}
+                  placeholder="Choose quarry location..."
+                />
+              )}
               <Text style={[styles.editHint, { color: colors.textMuted }]}>
                 Use the action buttons on the user card to activate, deactivate, or delete users.
               </Text>

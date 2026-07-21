@@ -1,19 +1,19 @@
 export const Colors = {
   light: {
-    primary: '#1B2A4A',      // Navy blue
-    primaryLight: '#E8EDF5',
-    accent: '#1B2A4A',
-    success: '#10B981',
+    primary: '#0D3150',     
+    primaryLight: '#E7F5FC',
+    accent: '#25D366',       // WhatsApp green
+    success: '#25D366',
     warning: '#F59E0B',
     danger: '#EF4444',
-    background: '#F0F2F5',
+    background: '#E9EDEF',
     surface: '#FFFFFF',
-    text: '#1E293B',
-    textSecondary: '#64748B',
-    textMuted: '#94A3B8',
-    textTertiary: '#94A3B8',
-    border: '#E2E8F0',
-    borderLight: '#F1F5F9',
+    text: '#1F2C34',
+    textSecondary: '#3B4A54',
+    textMuted: '#667781',
+    textTertiary: '#8696A0',
+    border: '#D9E1E5',
+    borderLight: '#F4F6F7',
     receiptBg: '#FFFDF7',
     receiptBorder: '#E5E0D5',
     badgeManagement: '#1B2A4A',
@@ -21,13 +21,13 @@ export const Colors = {
     badgeSite: '#8B5CF6',
     badgeVendor: '#F59E0B',
     overlay: 'rgba(0,0,0,0.5)',
-    inputBg: '#F1F5F9',
+    inputBg: '#F7F9FA',
     cardShadow: 'rgba(0,0,0,0.06)',
-    gradientStart: '#1B2A4A',
-    gradientEnd: '#2D4A7A',
+    gradientStart: '#0D3150',
+    gradientEnd: '#0D3150',
   },
   dark: {
-    primary: '#2EA8FF',
+    primary: '#2b77b9',
     primaryLight: '#0D3150',
     accent: '#31E7D0',
     success: '#22C55E',
@@ -75,6 +75,13 @@ export const Radius = {
 };
 
 export const Typography = {
+  caption: { fontSize: 12, lineHeight: 16 },
+  secondary: { fontSize: 13, lineHeight: 18 },
+  body: { fontSize: 14, lineHeight: 20 },
+  message: { fontSize: 15, lineHeight: 21 },
+  subtitle: { fontSize: 16, lineHeight: 22, fontWeight: '600' as const },
+  sectionTitle: { fontSize: 17, lineHeight: 23, fontWeight: '700' as const },
+  screenTitle: { fontSize: 20, lineHeight: 26, fontWeight: '800' as const },
   receipt: {
     fontFamily: 'monospace',
     fontSize: 13,

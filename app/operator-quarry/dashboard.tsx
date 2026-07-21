@@ -27,6 +27,7 @@ import {
 } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT, generateId, generateJobKey } from '../../utils/helpers';
+import { isActiveJob, normalizeJobStatus } from '../../utils/jobStatus';
 import {
   DataCard,
   DetailRow,
@@ -84,43 +85,56 @@ export default function OperatorQuarryDashboardScreen() {
     }
   }, [deliveries.length, drivers.length, vehicles.length]);
 
-  // Scope data to the operator's assigned quarry
+  // A quarry queue is shared by the staff working at that quarry. A shift
+  // must be able to continue jobs created or weighed by another operator.
+  const operatorUid = user?.uid || '';
   const operatorQuarryId = (user as any)?.quarryId || '';
-  const quarryDeliveries = operatorQuarryId
-    ? deliveries.filter((d) => !d.quarryId || d.quarryId === operatorQuarryId)
-    : deliveries;
+  const operatorQuarryLocation = (user as any)?.quarryLocation || '';
 
-  const queue = quarryDeliveries.filter(
-    (d) => !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status) && !d.weighInWeight,
-  );
-  const completed = quarryDeliveries.filter(
-    (d) => d.status === 'delivered' || d.status === 'completed' || d.status === 'loaded',
-  );
+  const operatorDeliveries = useMemo(() => {
+    return deliveries.filter((delivery: any) =>
+      (operatorQuarryId && delivery.quarryId === operatorQuarryId) ||
+      (operatorQuarryLocation && String(delivery.quarryName || '').trim().toLowerCase() === operatorQuarryLocation.trim().toLowerCase()) ||
+      (operatorUid && [delivery.createdByUid, delivery.quarryOperatorUid, delivery.weighInByUid, delivery.weighOutByUid].includes(operatorUid)),
+    );
+  }, [deliveries, operatorQuarryId, operatorQuarryLocation, operatorUid]);
+
+  // Dispatched loads have departed the quarry and must only appear in
+  // tracking/site views, never in the quarry queue or dashboard snapshot.
+  const queue = operatorDeliveries.filter((d) => (
+    !['DISPATCHED', 'IN_TRANSIT', 'ARRIVED_AT_SITE', 'SITE_WEIGHED_IN', 'SITE_WEIGHED_OUT', 'COMPLETED']
+      .includes(normalizeJobStatus(d.status)) &&
+    isActiveJob(d.status) &&
+    !d.weighInWeight
+  ));
+  const weighedOut = operatorDeliveries.filter((d) => normalizeJobStatus(d.status) === 'QUARRY_WEIGHED_OUT');
+  const completed = operatorDeliveries.filter((d) => !isActiveJob(d.status));
 
   const matchingPurchaseOrders = useMemo(() => {
     const term = poSearch.trim().toLowerCase();
     return purchaseOrders
-      .filter((order) => ['approved', 'pending', 'in_progress'].includes(order.status))
+      // An operator chooses the work order first. The job card then records
+      // both that PO's quarry and the operator who created the job.
+      .filter((order) => ['approved', 'pending', 'in_progress'].includes(String(order.status || '').toLowerCase()))
       .filter(
         (order) =>
           !term ||
           order.poNumber?.toLowerCase().includes(term) ||
           order.vendorName?.toLowerCase().includes(term),
-      )
-      .slice(0, 6);
+      );
   }, [poSearch, purchaseOrders]);
 
   const vendorDrivers = useMemo(() => {
     if (!selectedPo) return [];
     return drivers.filter(
-      (driver) => driver.vendorId === selectedPo.vendorId && driver.status === 'active',
+      (driver) => driver.vendorId === selectedPo.vendorId && String(driver.status || '').toLowerCase() === 'active',
     );
   }, [drivers, selectedPo]);
 
   const vendorVehicles = useMemo(() => {
     if (!selectedPo) return [];
     return vehicles.filter(
-      (vehicle) => vehicle.vendorId === selectedPo.vendorId && vehicle.status === 'active',
+      (vehicle) => vehicle.vendorId === selectedPo.vendorId && String(vehicle.status || '').toLowerCase() === 'active',
     );
   }, [vehicles, selectedPo]);
 
@@ -197,7 +211,12 @@ export default function OperatorQuarryDashboardScreen() {
       siteId: selectedPo.siteId || user?.siteId || '',
       siteName: selectedPo.siteName || 'Site',
       operatorUsername: user?.displayName || user?.email?.split('@')[0] || '',
+      operatorUid: user?.uid || '',
+      operatorName: user?.displayName || user?.name || user?.email?.split('@')[0] || '',
       createdBy: 'operator_quarry',
+      createdByUid: user?.uid || '',
+      createdByName: user?.displayName || user?.email?.split('@')[0] || '',
+      quarryOperatorUid: user?.uid || '',
       createdAt: now,
       updatedAt: now,
     };
@@ -207,7 +226,7 @@ export default function OperatorQuarryDashboardScreen() {
       closeAddForm();
     } catch (error: any) {
       setSubmitError(error?.response?.data?.error || error?.message || 'Failed to create job card.');
-      // Don't close the form — let the user fix & retry
+      // Don't close the form --- let the user fix & retry
     } finally {
       setSubmitting(false);
     }
@@ -220,8 +239,8 @@ export default function OperatorQuarryDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />
         }
       >
-        
- 
+
+
         {loading ? (
           <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading queue...</Text></DataCard>
         ) : queue.length ? (
@@ -254,34 +273,37 @@ export default function OperatorQuarryDashboardScreen() {
                     <Text style={[styles.jobMeta, { color: colors.textMuted }]}>{item.poNumber || 'No PO'}</Text>
                   </View>
                 </View>
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}
-                  onPress={() => {
-                    const d = drivers.find((dr: any) => dr.id === item.driverId);
-                    if (d) {
-                      setSelectedDriverId(d.id);
-                      setSelectedDriverData(d);
-                      setDriverProfileVisible(true);
-                    }
-                  }}
-                  activeOpacity={0.6}
-                >
-                  {/* Quick driver photo lookup */}
-                  {(() => {
-                    const d = drivers.find((dr: any) => dr.id === item.driverId);
-                    return d?.photoURL ? (
-                      <Image source={{ uri: d.photoURL }} style={styles.queueDriverPhoto} />
-                    ) : (
-                      <View style={[styles.queueDriverPhoto, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: colors.primary }}>
-                          {(d?.name || d?.fullName || 'D').charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    );
-                  })()}
-                  <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
-                  <Ionicons name="information-circle-outline" size={16} color={colors.textTertiary} />
-                </TouchableOpacity>
+                {(() => {
+                  const d = drivers.find((dr: any) => dr.id === item.driverId);
+                  return (
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}
+                      onPress={() => {
+                        if (d) {
+                          setSelectedDriverId(d.id);
+                          setSelectedDriverData(d);
+                          setDriverProfileVisible(true);
+                        }
+                      }}
+                      activeOpacity={0.6}
+                    >
+                      {/* Quick driver photo lookup */}
+                      {d?.photoURL ? (
+                        <Image source={{ uri: d.photoURL }} style={styles.queueDriverPhoto} />
+                      ) : (
+                        <View style={[styles.queueDriverPhoto, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: colors.primary }}>
+                            {(d?.name || d?.fullName || 'D').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+                      {!d?.photoURL && (
+                        <Ionicons name="information-circle-outline" size={16} color={colors.textTertiary} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })()}
                 <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
                 <DetailRow icon="business-outline" value={`${item.vendorName || 'N/A'}`} />
                 <View style={[styles.stageBadge, { backgroundColor: `${s.color}15`, borderColor: `${s.color}44` }]}>
@@ -297,6 +319,54 @@ export default function OperatorQuarryDashboardScreen() {
         ) : (
           <EmptyState icon="clipboard-outline" title="Queue Empty" subtitle="No active jobs in the quarry queue." />
         )}
+
+        {/* Weighed-Out Snapshot */}
+        {weighedOut.length > 0 && (
+          <>
+            <SectionTitle title={`Weighed Out — ${weighedOut.length}`} />
+            {weighedOut.slice(0, 10).map((item) => {
+              const wIn = item.weighInWeight || 0;
+              const wOut = item.weighOutWeight || 0;
+              const net = item.netWeight ?? (wOut - wIn);
+              return (
+                <DataCard key={item.id}>
+                  <View style={styles.cardHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
+                      <Text style={[styles.jobMeta, { color: colors.textMuted }]}>{item.poNumber || 'No PO'}</Text>
+                    </View>
+                  </View>
+                  <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+                  <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
+                  <DetailRow icon="location-outline" value={`To: ${item.siteName || 'Site'}`} />
+                  <DetailRow icon="person-outline" value={`Dispatched by: ${item.weighOutByName || item.createdByName || item.operatorUsername || '—'}`} />
+                  {/* Weight summary */}
+                  <View style={[styles.snapshotWeightRow, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+                    <View style={styles.weightCell}>
+                      <Text style={[styles.wLabel, { color: colors.textMuted }]}>IN</Text>
+                      <Text style={[styles.wValue, { color: '#2563EB' }]}>{wIn.toFixed(1)}T</Text>
+                    </View>
+                    <View style={styles.weightCell}>
+                      <Text style={[styles.wLabel, { color: colors.textMuted }]}>OUT</Text>
+                      <Text style={[styles.wValue, { color: '#7C3AED' }]}>{wOut.toFixed(1)}T</Text>
+                    </View>
+                    <View style={styles.weightCell}>
+                      <Text style={[styles.wLabel, { color: colors.textMuted }]}>NET</Text>
+                      <Text style={[styles.wValue, { color: colors.success, fontSize: 16 }]}>{net > 0 ? net.toFixed(1) : '—'}T</Text>
+                    </View>
+                  </View>
+                  <View style={[styles.stageBadge, { backgroundColor: '#7C3AED15', borderColor: '#7C3AED44' }]}>
+                    <Ionicons name="arrow-up-outline" size={14} color="#7C3AED" />
+                    <Text style={[styles.stageText, { color: '#7C3AED' }]}>Weighed Out</Text>
+                  </View>
+                  <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
+                    {formatEAT(item.weighOutAt || item.updatedAt || item.createdAt)}
+                  </Text>
+                </DataCard>
+              );
+            })}
+          </>
+        )}
       </PageShell>
 
       <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => setAddVisible(true)} activeOpacity={0.86}>
@@ -307,58 +377,69 @@ export default function OperatorQuarryDashboardScreen() {
       <Modal visible={addVisible} transparent animationType="slide" onRequestClose={closeAddForm}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.addSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md }}>
-              <View style={styles.sheetHead}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.sheetTitle, { color: colors.text }]}>Create Job Card</Text>
-                  <Text style={[styles.sheetSub, { color: colors.textMuted }]}>
-                    Search a Purchase Order, then assign a driver and vehicle to create a delivery job.
-                  </Text>
-                </View>
-                <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.inputBg }]} onPress={closeAddForm}>
-                  <Ionicons name="close" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
+            <View style={styles.sheetHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>Create Job Card</Text>
+                <Text style={[styles.sheetSub, { color: colors.textMuted }]}>
+                  Search a Purchase Order, then assign a driver and vehicle to create a delivery job.
+                </Text>
               </View>
+              <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.inputBg }]} onPress={closeAddForm}>
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
 
-              <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
-                <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
-                <TextInput
-                  style={[styles.poInput, { color: colors.text }]}
-                  placeholder="Search PO (e.g. POMAT004/V01)"
-                  placeholderTextColor={colors.textTertiary}
-                  value={selectedPo ? selectedPo.poNumber : poSearch}
-                  onChangeText={(value) => { setPoSearch(value); setSelectedPo(null); setSelectedDriver(null); setSelectedVehicle(null); }}
-                />
-              </View>
+            <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
+              <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
+              <TextInput
+                style={[styles.poInput, { color: colors.text }]}
+                placeholder="Search PO (e.g. POMAT004/V01)"
+                placeholderTextColor={colors.textTertiary}
+                value={selectedPo ? selectedPo.poNumber : poSearch}
+                onChangeText={(value) => { setPoSearch(value); setSelectedPo(null); setSelectedDriver(null); setSelectedVehicle(null); }}
+              />
+            </View>
+            <Text style={[styles.searchHint, { color: colors.textMuted }]}>Start typing to search purchase orders, or choose one from the list below.</Text>
 
-              {!selectedPo ? (
+            {!selectedPo ? (
+              <ScrollView style={styles.poScrollView} showsVerticalScrollIndicator={true} nestedScrollEnabled>
                 <View style={styles.optionList}>
-                  {matchingPurchaseOrders.map((order) => (
-                    <TouchableOpacity
-                      key={order.id}
-                      style={[styles.optionRow, { borderColor: colors.border }]}
-                      onPress={() => { setSelectedPo(order); setPoSearch(order.poNumber); setSelectedDriver(null); setSelectedVehicle(null); }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.optionTitle, { color: colors.text }]}>{order.poNumber}</Text>
-                        <Text style={[styles.optionMeta, { color: colors.textMuted }]}>{order.vendorName} · {order.materialName}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                    </TouchableOpacity>
-                  ))}
+                  {matchingPurchaseOrders.length ? (
+                    matchingPurchaseOrders.map((order) => (
+                      <TouchableOpacity
+                        key={order.id}
+                        style={[styles.optionRow, { borderColor: colors.border }]}
+                        onPress={() => { setSelectedPo(order); setPoSearch(order.poNumber); setSelectedDriver(null); setSelectedVehicle(null); }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.optionTitle, { color: colors.text }]}>{order.poNumber}</Text>
+                          <Text style={[styles.optionMeta, { color: colors.textMuted }]}>{order.vendorName} · {order.materialName}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Text style={[styles.emptyDrivers, { color: colors.textMuted }]}>
+                      {poSearch.trim()
+                        ? 'No matching purchase orders found.'
+                        : 'No active purchase orders are available.'}
+                    </Text>
+                  )}
                 </View>
-              ) : (
-                <View style={styles.selectedBlock}>
-                  <Text style={[styles.prefillTitle, { color: colors.text }]}>Order Details</Text>
-                  <DetailRow icon="document-outline" value={`Order: ${selectedPo.poNumber}`} />
-                  <DetailRow icon="business-outline" value={`Vendor: ${selectedPo.vendorName}`} />
-                  <DetailRow icon="cube-outline" value={`Material: ${selectedPo.materialName}`} />
-                </View>
-              )}
+              </ScrollView>
+            ) : (
+              <View style={styles.selectedBlock}>
+                <Text style={[styles.prefillTitle, { color: colors.text }]}>Order Details</Text>
+                <DetailRow icon="document-outline" value={`Order: ${selectedPo.poNumber}`} />
+                <DetailRow icon="business-outline" value={`Vendor: ${selectedPo.vendorName}`} />
+                <DetailRow icon="cube-outline" value={`Material: ${selectedPo.materialName}`} />
+              </View>
+            )}
 
-              {selectedPo && (
-                <>
-                  <Text style={[styles.driverLabel, { color: colors.text }]}>Select Driver</Text>
+            {selectedPo && (
+              <>
+                <Text style={[styles.driverLabel, { color: colors.text }]}>Select Driver</Text>
+                <ScrollView style={styles.selectScrollView} showsVerticalScrollIndicator={true} nestedScrollEnabled>
                   <View style={styles.optionList}>
                     {vendorDrivers.length ? (
                       vendorDrivers.map((driver) => {
@@ -390,12 +471,14 @@ export default function OperatorQuarryDashboardScreen() {
                       <Text style={[styles.emptyDrivers, { color: colors.textMuted }]}>No active drivers for this vendor.</Text>
                     )}
                   </View>
-                </>
-              )}
+                </ScrollView>
+              </>
+            )}
 
-              {selectedPo && (
-                <>
-                  <Text style={[styles.driverLabel, { color: colors.text }]}>Select Vehicle (Number Plate)</Text>
+            {selectedPo && (
+              <>
+                <Text style={[styles.driverLabel, { color: colors.text }]}>Select Vehicle (Number Plate)</Text>
+                <ScrollView style={styles.selectScrollView} showsVerticalScrollIndicator={true} nestedScrollEnabled>
                   <View style={styles.optionList}>
                     {vendorVehicles.length ? (
                       vendorVehicles.map((vehicle) => {
@@ -418,30 +501,30 @@ export default function OperatorQuarryDashboardScreen() {
                       <Text style={[styles.emptyDrivers, { color: colors.textMuted }]}>No active vehicles for this vendor.</Text>
                     )}
                   </View>
-                </>
-              )}
+                </ScrollView>
+              </>
+            )}
 
-              {/* Driver-Vehicle busy warning */}
-              {isDriverVehicleBusy && selectedDriver && selectedVehicle && (
-                <View style={[styles.busyWarning, { backgroundColor: '#EF444410', borderColor: '#EF444433' }]}>
-                  <Ionicons name="warning-outline" size={16} color="#EF4444" />
-                  <Text style={[styles.busyWarningText, { color: '#EF4444' }]}>
-                    {busyReason}
-                  </Text>
-                </View>
-              )}
+            {/* Driver-Vehicle busy warning */}
+            {isDriverVehicleBusy && selectedDriver && selectedVehicle && (
+              <View style={[styles.busyWarning, { backgroundColor: '#EF444410', borderColor: '#EF444433' }]}>
+                <Ionicons name="warning-outline" size={16} color="#EF4444" />
+                <Text style={[styles.busyWarningText, { color: '#EF4444' }]}>
+                  {busyReason}
+                </Text>
+              </View>
+            )}
 
-              {submitError ? <Text style={[styles.submitError, { color: colors.danger }]}>{submitError}</Text> : null}
+            {submitError ? <Text style={[styles.submitError, { color: colors.danger }]}>{submitError}</Text> : null}
 
-              <TouchableOpacity
-                style={[styles.createBtn, { backgroundColor: selectedPo && selectedDriver && selectedVehicle && !submitting && !isDriverVehicleBusy ? colors.primary : colors.border }]}
-                onPress={createQueueJob}
-                disabled={!selectedPo || !selectedDriver || !selectedVehicle || submitting || isDriverVehicleBusy}
-              >
-                {submitting ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Ionicons name="add-circle-outline" size={19} color="#FFFFFF" />}
-                <Text style={styles.createBtnText}>{submitting ? 'Creating...' : 'Create Job Card'}</Text>
-              </TouchableOpacity>
-            </ScrollView>
+            <TouchableOpacity
+              style={[styles.createBtn, { backgroundColor: selectedPo && selectedDriver && selectedVehicle && !submitting && !isDriverVehicleBusy ? colors.primary : colors.border }]}
+              onPress={createQueueJob}
+              disabled={!selectedPo || !selectedDriver || !selectedVehicle || submitting || isDriverVehicleBusy}
+            >
+              {submitting ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Ionicons name="add-circle-outline" size={19} color="#FFFFFF" />}
+              <Text style={styles.createBtnText}>{submitting ? 'Creating...' : 'Create Job Card'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -470,16 +553,19 @@ const styles = StyleSheet.create({
   stageText: { fontSize: 11, fontWeight: '700' },
   timestamp: { fontSize: 14, marginTop: Spacing.sm },
   queueDriverPhoto: { width: 24, height: 24, borderRadius: 12 },
+  searchHint: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs },
   modalDriverPhoto: { width: 32, height: 32, borderRadius: 16 },
   fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
-  addSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%' },
+  addSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%', gap: Spacing.md },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md },
   sheetTitle: { fontSize: 18, fontWeight: '900' },
   sheetSub: { fontSize: 13, lineHeight: 18, marginTop: 4 },
   iconButton: { width: 38, height: 38, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   inputWrap: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md },
   poInput: { flex: 1, height: 46, fontSize: 14, fontWeight: '700' },
+  poScrollView: { maxHeight: 400 },
+  selectScrollView: { maxHeight: 250 },
   optionList: { gap: Spacing.sm },
   optionRow: { minHeight: 58, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   optionTitle: { fontSize: 14, fontWeight: '900' },
@@ -495,4 +581,9 @@ const styles = StyleSheet.create({
   // Busy warning styles
   busyWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
   busyWarningText: { fontSize: 12, fontWeight: '700', flex: 1, lineHeight: 17 },
+  // Snapshot weighed-out weight row
+  snapshotWeightRow: { flexDirection: 'row', borderRadius: Radius.md, borderWidth: 1, padding: Spacing.sm, marginTop: Spacing.sm, gap: Spacing.xs },
+  weightCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
+  wLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  wValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
 });

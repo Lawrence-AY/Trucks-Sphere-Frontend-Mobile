@@ -1,28 +1,58 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { useDeliveryOrders, useVehicles, useVendors, useDrivers } from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useAuthStore } from '../../store/authStore';
+import { normalizeVendorId, formatEAT } from '../../utils/helpers';
+
+/**
+ * Bidirectional plate matching — checks if the delivery plate matches the truck plate
+ * regardless of which direction contains the shorter substring.
+ */
+/**
+ * Normalize a plate string for comparison: lowercase, trim, remove all spaces/hyphens.
+ */
+function normalizePlate(plate: string): string {
+  return (plate || '').toLowerCase().replace(/[\s\-]/g, '');
+}
 
 function getPlate(matchValue: any, truckPlate: string, truckPlateNumber: string): boolean {
-  const t = (matchValue || '').toLowerCase().trim();
-  const p1 = (truckPlate || '').toLowerCase().trim();
-  const p2 = (truckPlateNumber || '').toLowerCase().trim();
-  return (p1 && t === p1) || (p2 && t === p2) || (p1 && t.includes(p1)) || (p2 && t.includes(p2));
+  const t = normalizePlate(matchValue || '');
+  const p1 = normalizePlate(truckPlate || '');
+  const p2 = normalizePlate(truckPlateNumber || '');
+  if (!t) return false;
+  if (!p1 && !p2) return false;
+  // Exact match (after normalization)
+  if ((p1 && t === p1) || (p2 && t === p2)) return true;
+  // Bidirectional substring — either contains the other
+  if ((p1 && (t.includes(p1) || p1.includes(t))) || (p2 && (t.includes(p2) || p2.includes(t)))) return true;
+  return false;
 }
 
 export default function TruckHistoryScreen() {
   const { id, plate } = useLocalSearchParams<{ id: string; plate: string }>();
   const colors = useTheme();
+  const { user } = useAuthStore();
+  const vendorId = user?.vendorId || '';
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
 
   // Use realtime sync hooks — reliable, auto-polling, ETag-supported
   const allVehicles = useVehicles();
-  const allDeliveries = useDeliveryOrders();
+  const allDeliveriesRaw = useDeliveryOrders();
   const allVendors = useVendors();
   const allDrivers = useDrivers();
+
+  // Filter deliveries by vendorId using normalized comparison
+  const allDeliveries = useMemo(() => {
+    if (!normalizedUserVendorId) return allDeliveriesRaw;
+    return allDeliveriesRaw.filter((d: any) => {
+      const recordVendorId = normalizeVendorId(d.vendorId || d.vendor || '');
+      return recordVendorId === normalizedUserVendorId;
+    });
+  }, [allDeliveriesRaw, normalizedUserVendorId]);
 
   // Find the truck from realtime sync data
   const truck = useMemo(() => {
@@ -31,9 +61,9 @@ export default function TruckHistoryScreen() {
       t.id === id || t.registrationNumber === plate || t.plateNumber === plate || t.plate === plate
     );
     if (foundTruck) {
-      const vendorId = foundTruck.vendorId;
-      const matchedVendor = vendorId
-        ? allVendors.find((v: any) => v.id === vendorId || v.vendorId === vendorId)
+      const truckVendorId = foundTruck.vendorId;
+      const matchedVendor = truckVendorId
+        ? allVendors.find((v: any) => v.id === truckVendorId || v.vendorId === truckVendorId)
         : null;
       foundTruck.vendorName = foundTruck.vendorName || matchedVendor?.companyName || matchedVendor?.name || '';
     }
@@ -141,22 +171,62 @@ export default function TruckHistoryScreen() {
               <Ionicons name="cube-outline" size={14} color={colors.textSecondary} />
               <Text style={[styles.tripText, { color: colors.textSecondary }]}>{trip.material || trip.materialName || 'N/A'}</Text>
             </View>
+
+            {/* Site / Quarry Location Info */}
+            {(trip.quarryName || trip.siteName) ? (
+              <View style={styles.infoSection}>
+                <View style={styles.infoRow}>
+                  <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                  <View style={{ flex: 1 }}>
+                    {trip.quarryName ? (
+                      <Text style={[styles.tripText, { color: colors.textSecondary }]}>
+                        Quarry: {trip.quarryName}
+                      </Text>
+                    ) : null}
+                    {trip.siteName ? (
+                      <Text style={[styles.tripText, { color: colors.textSecondary }]}>
+                        Site: {trip.siteName}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Quarry Weigh-In */}
             {(trip.weighInWeight) != null && (
-              <View style={styles.tripRow}>
-                <Ionicons name="download-outline" size={14} color="#F59E0B" />
-                <Text style={[styles.tripText, { color: colors.textSecondary }]}>
-                  Quarry In: {Number(trip.weighInWeight).toFixed(1)}T
-                </Text>
+              <View style={styles.weightBlock}>
+                <View style={styles.tripRow}>
+                  <Ionicons name="download-outline" size={14} color="#F59E0B" />
+                  <Text style={[styles.tripText, { color: colors.textSecondary }]}>
+                    Quarry In: {Number(trip.weighInWeight).toFixed(1)}T
+                  </Text>
+                </View>
+                {trip.weighInAt ? (
+                  <Text style={[styles.timeText, { color: colors.textTertiary }]}>
+                    {formatEAT(trip.weighInAt)}
+                  </Text>
+                ) : null}
               </View>
             )}
+
+            {/* Quarry Weigh-Out */}
             {(trip.weighOutWeight) != null && (
-              <View style={styles.tripRow}>
-                <Ionicons name="arrow-up-circle-outline" size={14} color="#8B5CF6" />
-                <Text style={[styles.tripText, { color: colors.textSecondary }]}>
-                  Quarry Out: {Number(trip.weighOutWeight).toFixed(1)}T
-                </Text>
+              <View style={styles.weightBlock}>
+                <View style={styles.tripRow}>
+                  <Ionicons name="arrow-up-circle-outline" size={14} color="#8B5CF6" />
+                  <Text style={[styles.tripText, { color: colors.textSecondary }]}>
+                    Quarry Out: {Number(trip.weighOutWeight).toFixed(1)}T
+                  </Text>
+                </View>
+                {trip.weighOutAt ? (
+                  <Text style={[styles.timeText, { color: colors.textTertiary }]}>
+                    {formatEAT(trip.weighOutAt)}
+                  </Text>
+                ) : null}
               </View>
             )}
+
             {trip.netWeight != null && (
               <View style={styles.tripRow}>
                 <Ionicons name="analytics-outline" size={14} color="#2563EB" />
@@ -165,22 +235,41 @@ export default function TruckHistoryScreen() {
                 </Text>
               </View>
             )}
+
+            {/* Site Weigh-In */}
             {(trip.siteWeighInWeight) != null && (
-              <View style={styles.tripRow}>
-                <Ionicons name="scale-outline" size={14} color="#F59E0B" />
-                <Text style={[styles.tripText, { color: colors.textSecondary }]}>
-                  Site In: {Number(trip.siteWeighInWeight).toFixed(1)}T
-                </Text>
+              <View style={styles.weightBlock}>
+                <View style={styles.tripRow}>
+                  <Ionicons name="scale-outline" size={14} color="#F59E0B" />
+                  <Text style={[styles.tripText, { color: colors.textSecondary }]}>
+                    Site In: {Number(trip.siteWeighInWeight).toFixed(1)}T
+                  </Text>
+                </View>
+                {trip.siteWeighInAt ? (
+                  <Text style={[styles.timeText, { color: colors.textTertiary }]}>
+                    {formatEAT(trip.siteWeighInAt)}
+                  </Text>
+                ) : null}
               </View>
             )}
+
+            {/* Site Weigh-Out */}
             {(trip.siteWeighOutWeight) != null && (
-              <View style={styles.tripRow}>
-                <Ionicons name="arrow-up-circle-outline" size={14} color="#8B5CF6" />
-                <Text style={[styles.tripText, { color: colors.textSecondary }]}>
-                  Site Out: {Number(trip.siteWeighOutWeight).toFixed(1)}T
-                </Text>
+              <View style={styles.weightBlock}>
+                <View style={styles.tripRow}>
+                  <Ionicons name="arrow-up-circle-outline" size={14} color="#8B5CF6" />
+                  <Text style={[styles.tripText, { color: colors.textSecondary }]}>
+                    Site Out: {Number(trip.siteWeighOutWeight).toFixed(1)}T
+                  </Text>
+                </View>
+                {trip.siteWeighOutAt ? (
+                  <Text style={[styles.timeText, { color: colors.textTertiary }]}>
+                    {formatEAT(trip.siteWeighOutAt)}
+                  </Text>
+                ) : null}
               </View>
             )}
+
             {trip.siteNetWeight != null && (
               <View style={styles.tripRow}>
                 <Ionicons name="trending-up-outline" size={14} color="#10B981" />
@@ -221,4 +310,26 @@ const styles = StyleSheet.create({
   tripText: { fontSize: 13 },
   empty: { alignItems: 'center', marginTop: 40 },
   emptyText: { fontSize: 15, marginTop: Spacing.md },
+  // New styles for quarry/site info and timestamps
+  infoSection: {
+    marginTop: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: Radius.sm,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+  },
+  weightBlock: {
+    marginTop: 4,
+  },
+  timeText: {
+    fontSize: 11,
+    marginLeft: 20,
+    marginTop: 1,
+    fontStyle: 'italic',
+  },
 });

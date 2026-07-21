@@ -26,6 +26,7 @@ import { useDeliveryOrders } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatEAT } from '../../utils/helpers';
+import { isActiveJob } from '../../utils/jobStatus';
 import { uploadDriverPhotoWeighOut } from '../../services/uploadService';
 import { getCurrentLocation, reverseGeocodeRich, getLocationFromIP } from '../../services/geolocation';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
@@ -42,10 +43,10 @@ import {
 const escapeHtml = (str: string | null | undefined): string => {
   if (!str) return '';
   const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
+    '&': '&',
+    '<': '<',
+    '>': '>',
+    '"': '"',
     "'": '&#039;',
   };
   return str.replace(/[&<>"']/g, (m) => map[m]);
@@ -130,6 +131,7 @@ export default function OperatorQuarryWeighOutScreen() {
 
   // ─── Quarry data ───
   const [quarries, setQuarries] = useState<any[]>([]);
+  const [selectedQuarryId, setSelectedQuarryId] = useState('');
 
   const allDeliveries = useDeliveryOrders();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
@@ -145,15 +147,22 @@ export default function OperatorQuarryWeighOutScreen() {
     setRefreshing(false);
   }, [refresh]);
 
+  const operatorUid = user?.uid || '';
   const operatorQuarryId = (user as any)?.quarryId || '';
+  const operatorQuarryLocation = (user as any)?.quarryLocation || '';
 
+  // All personnel assigned to this quarry can complete a weigh-out. This is
+  // essential for shift handovers and matches the shared history ledger.
   const deliveries = useMemo(() => {
-    let filtered = allDeliveries.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status));
-    if (operatorQuarryId) {
-      filtered = filtered.filter((d: any) => !d.quarryId || d.quarryId === operatorQuarryId);
-    }
-    return filtered;
-  }, [allDeliveries, operatorQuarryId]);
+    return allDeliveries.filter((delivery: any) =>
+      ((operatorQuarryId && delivery.quarryId === operatorQuarryId) ||
+        (operatorQuarryLocation && String(delivery.quarryName || '').trim().toLowerCase() === operatorQuarryLocation.trim().toLowerCase()) ||
+        (operatorUid && [delivery.createdByUid, delivery.quarryOperatorUid, delivery.weighInByUid, delivery.weighOutByUid].includes(operatorUid))) &&
+      delivery.weighInWeight != null &&
+      delivery.weighOutWeight == null &&
+      isActiveJob(delivery.status),
+    );
+  }, [allDeliveries, operatorQuarryId, operatorQuarryLocation, operatorUid]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -166,6 +175,7 @@ export default function OperatorQuarryWeighOutScreen() {
     setDriverPhotoUri(null);
     setDriverPhotoURL(job.driverPhotoURL || null);
     setGeoLocation(null);
+    setSelectedQuarryId((user as any)?.quarryId || job.quarryId || '');
     await captureLocation();
   };
 
@@ -276,17 +286,12 @@ export default function OperatorQuarryWeighOutScreen() {
     try {
       const now = new Date().toISOString();
 
-      const operatorQuarryId = (user as any)?.quarryId || activeJob?.quarryId || '';
-      const operatorQuarryName = (user as any)?.quarryName || activeJob?.quarryName || '';
-      let resolvedQuarryId = operatorQuarryId;
-      let resolvedQuarryName = operatorQuarryName;
-      if (!resolvedQuarryId && !resolvedQuarryName && quarries.length > 0) {
-        const matched = quarries.find((q) =>
-          q.name && geoLocation?.address?.toLowerCase().includes(q.name.toLowerCase())
-        ) || quarries[0];
-        resolvedQuarryId = matched.id || '';
-        resolvedQuarryName = matched.name || '';
-      }
+      // Quarry selection is not a user-facing requirement at weigh-out. Keep
+      // the job's assigned quarry intact, falling back to the operator's
+      // assignment when the job does not yet contain one.
+      const resolvedQuarryId = selectedQuarryId || activeJob?.quarryId || operatorQuarryId;
+      const selectedQuarry = quarries.find((q) => q.id === resolvedQuarryId);
+      const resolvedQuarryName = selectedQuarry?.name || selectedQuarry?.location?.address || activeJob?.quarryName || operatorQuarryLocation || '';
 
       const updatePayload: any = {
         weighOutWeight: numericWeightOut,
@@ -297,7 +302,7 @@ export default function OperatorQuarryWeighOutScreen() {
         quarryName: resolvedQuarryName || activeJob?.quarryName || geoLocation?.address || 'Quarry',
         weighOutByUid: user?.uid || '',
         weighOutByName: user?.displayName || user?.name || 'Quarry Operator',
-        status: 'loaded',
+        status: 'DISPATCHED',
         updatedAt: now,
       };
       if (driverPhotoURL) {
@@ -319,8 +324,6 @@ export default function OperatorQuarryWeighOutScreen() {
           longitude: geoLocation.longitude,
         };
       }
-      optimisticUpdate('deliveryOrders', { ...activeJob, ...updatePayload });
-
       const geoCity = geoLocation?.city || '';
       const geoTown = geoLocation?.town || '';
       const geoDistrict = geoLocation?.district || '';
@@ -349,9 +352,11 @@ export default function OperatorQuarryWeighOutScreen() {
         operatorName: user?.displayName || user?.name || 'Quarry Operator',
       };
 
+      const persisted = await updateDeliveryOrder(activeJob.id, updatePayload);
+      // Move the job from queue to history only after the status transition is
+      // committed by the server; a rejected request remains actionable.
+      optimisticUpdate('deliveryOrders', persisted || { ...activeJob, ...updatePayload });
       closeWeighOutForm();
-
-      await updateDeliveryOrder(activeJob.id, updatePayload);
 
       setDeliveryNoteData(noteData);
       setDeliveryNoteVisible(true);
@@ -967,6 +972,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
   sectionIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   sectionTitleStyle: { fontSize: 16, fontWeight: '700', flex: 1 },
+  quarryOption: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm },
   sectionSub: { fontSize: 13, marginBottom: Spacing.md },
   photoStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full },
   photoStatusText: { fontSize: 11, fontWeight: '700' },
@@ -1003,28 +1009,30 @@ const styles = StyleSheet.create({
   submitBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.sm },
   cancelText: { fontSize: 14, fontWeight: '600' },
-  listWeighInBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, backgroundColor: '#2563EB12', marginTop: Spacing.sm },
-  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: 6 },
+  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: Spacing.sm },
   tapHintText: { fontSize: 11, fontWeight: '700' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  confirmDialog: { width: '100%', maxWidth: 380, borderRadius: 18, borderWidth: 1, padding: Spacing.xl },
-  confirmIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: Spacing.md },
-  confirmTitle: { fontSize: 20, fontWeight: '900', textAlign: 'center', marginBottom: Spacing.sm },
-  confirmSub: { fontSize: 13, textAlign: 'center', lineHeight: 18, marginBottom: Spacing.lg },
-  confirmSummary: { borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.lg, gap: 6 },
+  listWeighInBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.sm },
+  // Modal styles
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'center', padding: Spacing.lg },
+  confirmDialog: { borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg },
+  confirmIcon: { width: 56, height: 56, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
+  confirmTitle: { fontSize: 18, fontWeight: '800' },
+  confirmSub: { fontSize: 13, marginTop: 4, marginBottom: Spacing.md },
+  confirmSummary: { borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.md },
   confirmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
-  confirmLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  confirmValue: { fontSize: 12, fontWeight: '700', maxWidth: '75%' },
+  confirmLabel: { fontSize: 12, fontWeight: '600' },
+  confirmValue: { fontSize: 13, fontWeight: '700' },
   confirmDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 4 },
-  confirmActions: { flexDirection: 'row', gap: Spacing.md },
-  confirmCancelBtn: { flex: 1, minHeight: 48, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  confirmActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  confirmCancelBtn: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
   confirmCancelText: { fontSize: 14, fontWeight: '700' },
-  confirmProceedBtn: { flex: 1, minHeight: 48, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
-  confirmProceedText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  grnExportSection: { marginBottom: Spacing.lg },
-  grnExportTitle: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.sm },
+  confirmProceedBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm },
+  confirmProceedText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  // Export section
+  grnExportSection: { marginTop: Spacing.sm, marginBottom: Spacing.md },
+  grnExportTitle: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.sm },
   grnDownloadRow: { flexDirection: 'row', gap: Spacing.sm },
-  grnDownloadBtn: { flex: 1, borderRadius: Radius.lg, paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  grnDownloadBtn: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: 2 },
   grnDownloadBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  grnDownloadBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '600' },
+  grnDownloadBtnSub: { color: '#FFFFFFCC', fontSize: 10, fontWeight: '600' },
 });

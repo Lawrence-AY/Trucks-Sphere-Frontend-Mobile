@@ -32,7 +32,9 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { purchaseOrderRepository } from '../../../services/repositories/PurchaseOrderRepository';
 import { PurchaseOrder } from '../../../store/types';
+import { useAuthStore } from '../../../store/authStore';
 import { formatEAT, formatNumber } from '../../../utils/helpers';
+import { MANAGEMENT_ROLES, normalizeRole } from '../../../utils/access';
 
 const STATUS_BADGE: Record<string, { variant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple'; label: string }> = {
   draft: { variant: 'default', label: 'Draft' },
@@ -45,12 +47,14 @@ const STATUS_BADGE: Record<string, { variant: 'default' | 'success' | 'warning' 
 
 export default function PurchaseOrderListScreen() {
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
   const insets = useSafeAreaInsets();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [filtered, setFiltered] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const isLite = normalizeRole(user?.role) === MANAGEMENT_ROLES.LITE;
 
   useEffect(() => {
     loadOrders();
@@ -151,7 +155,7 @@ export default function PurchaseOrderListScreen() {
         </View>
 
         {/* Action Buttons */}
-        {item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'archived' && (
+        {!isLite && item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'archived' && (
           <View style={styles.poActions}>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.primary + '15' }]}

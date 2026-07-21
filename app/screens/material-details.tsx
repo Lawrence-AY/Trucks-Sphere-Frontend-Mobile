@@ -15,7 +15,7 @@ import { Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
 import { fetchDeliveryOrders, fetchMaterials, fetchPurchaseOrders } from '../../services/api';
-import { formatEAT } from '../../utils/helpers';
+import { formatEAT, normalizeVendorId } from '../../utils/helpers';
 
 export default function MaterialDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,7 +27,8 @@ export default function MaterialDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const vendorId = user?.role === 'vendor' ? user.vendorId || 'v1' : null;
+  const vendorId = user?.role === 'vendor' ? user.vendorId || 'v1' : '';
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
 
   useEffect(() => {
     const loadData = async () => {
@@ -49,8 +50,14 @@ export default function MaterialDetailsScreen() {
           return;
         }
 
-        const visibleOrders = vendorId ? (orderData || []).filter((item: any) => item.vendorId === vendorId) : orderData || [];
-        const visibleDeliveries = vendorId ? (deliveryData || []).filter((item: any) => item.vendorId === vendorId) : deliveryData || [];
+        const visibleOrders = normalizedUserVendorId ? (orderData || []).filter((item: any) => {
+          const recordVendorId = normalizeVendorId(item.vendorId || item.vendor || '');
+          return recordVendorId === normalizedUserVendorId;
+        }) : (orderData || []);
+        const visibleDeliveries = normalizedUserVendorId ? (deliveryData || []).filter((item: any) => {
+          const recordVendorId = normalizeVendorId(item.vendorId || item.vendor || '');
+          return recordVendorId === normalizedUserVendorId;
+        }) : (deliveryData || []);
         setMaterial(found);
         setOrders(visibleOrders.filter((order: any) => order.materialId === found.id || order.materialName === found.name));
         setDeliveries(visibleDeliveries.filter((job: any) => job.materialId === found.id || job.materialName === found.name));

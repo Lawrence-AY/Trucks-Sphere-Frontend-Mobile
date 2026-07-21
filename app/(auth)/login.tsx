@@ -1,5 +1,5 @@
 //login.tsx
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -10,12 +10,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Radius, Spacing } from '../../constants/theme';
+import { managementHomeRoute, normalizeRole } from '../../utils/access';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -30,10 +30,11 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const role = useAuthStore.getState().user?.role || '';
+      const role = normalizeRole(useAuthStore.getState().user?.role);
       switch (role) {
-        case 'management':
-        case 'admin': router.replace('/management/dashboard' as any); break;
+        case 'super_admin':
+        case 'management_edit':
+        case 'management_lite': router.replace(managementHomeRoute(role) as any); break;
         case 'vendor': router.replace('/vendor/dashboard' as any); break;
         case 'operator_site': router.replace('/operator-site/schedule' as any); break;
          case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
@@ -82,12 +83,12 @@ export default function LoginScreen() {
           ) : null}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Username</Text>
-            <View style={[styles.inputWrap, { borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' }]}>
-              <Ionicons name="person-outline" size={18} color="#94A3B8" />
+            <Text style={styles.label}>Username or Email</Text>
+            <View style={styles.inputWrap}>
+              <Ionicons name="person-outline" size={20} color="#667781" />
               <TextInput
-                style={[styles.input, { color: '#1E293B' }]}
-                placeholder="Username"
+                style={styles.input}
+                placeholder="Username or email"
                 placeholderTextColor="#94A3B8"
                 value={username}
                 onChangeText={(v) => { setUsername(v); setLocalError(''); }}
@@ -99,10 +100,10 @@ export default function LoginScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <View style={[styles.inputWrap, { borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' }]}>
-              <Ionicons name="lock-closed-outline" size={18} color="#94A3B8" />
+            <View style={styles.inputWrap}>
+              <Ionicons name="lock-closed-outline" size={20} color="#667781" />
               <TextInput
-                style={[styles.input, { color: '#1E293B' }]}
+                style={styles.input}
                 placeholder="Password"
                 placeholderTextColor="#94A3B8"
                 value={password}
@@ -111,7 +112,7 @@ export default function LoginScreen() {
                 editable={!isLoading}
               />
               <TouchableOpacity onPress={() => setShowPassword((c) => !c)}>
-                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={19} color="#94A3B8" />
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#667781" />
               </TouchableOpacity>
             </View>
           </View>
@@ -120,9 +121,7 @@ export default function LoginScreen() {
             {isLoading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.loginBtnText}>Login</Text>}
           </TouchableOpacity>
 
-    
-         
-          <View style={{ height: 16 }} />
+          <View style={{ height: 20 }} />
           <Text style={styles.version}>v1.0.0</Text>
         </View>
       </ScrollView>
@@ -131,13 +130,13 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F2F5' },
+  container: { flex: 1, backgroundColor: '#E9EDEF' },
   content: { flexGrow: 1, justifyContent: 'center', padding: Spacing.xl },
   panel: {
     width: '100%', maxWidth: 440, alignSelf: 'center',
-    borderRadius: 20, padding: Spacing.xl,
+    borderRadius: Radius.xl, padding: Spacing['2xl'],
     backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: '#E2E8F0',
+    borderWidth: 1, borderColor: '#D9E1E5',
   },
   brand: { alignItems: 'center', marginBottom: Spacing.lg },
   appIcon: {
@@ -146,16 +145,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: Spacing.md,
   },
-  brandName: { color: '#1E293B', fontSize: 20, fontWeight: '700' },
-  brandAccent: { color: '#1B2A4A' },
-  tagline: { color: '#94A3B8', marginTop: 4, fontSize: 14 },
+  brandName: { color: '#1F2C34', fontSize: 21, fontWeight: '800' },
+  brandAccent: { color: '#229ED9' },
+  tagline: { color: '#667781', marginTop: 4, fontSize: 14 },
   illustration: {
-    height: 64, borderRadius: Radius.lg,
-    backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0',
+    height: 76, borderRadius: Radius.lg,
+    backgroundColor: '#E8EDF5', borderWidth: 1, borderColor: '#CBD7EA',
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xl,
   },
-  title: { color: '#1E293B', fontSize: 20, fontWeight: '700' },
-  subtitle: { color: '#64748B', fontSize: 14, lineHeight: 19, marginTop: Spacing.xs, marginBottom: Spacing.xl },
+  title: { color: '#1F2C34', fontSize: 22, fontWeight: '800' },
+  subtitle: { color: '#667781', fontSize: 14, lineHeight: 20, marginTop: Spacing.xs, marginBottom: Spacing.xl },
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     padding: Spacing.md, borderRadius: Radius.md,
@@ -164,19 +163,19 @@ const styles = StyleSheet.create({
   },
   errorText: { color: '#DC2626', fontSize: 14, flex: 1 },
   inputGroup: { marginBottom: Spacing.lg },
-  label: { color: '#475569', fontSize: 14, fontWeight: '600', marginBottom: Spacing.xs },
+  label: { color: '#3B4A54', fontSize: 14, fontWeight: '700', marginBottom: Spacing.sm },
   inputWrap: {
-    height: 48, borderRadius: Radius.md, borderWidth: 1,
+    height: 58, borderRadius: Radius.lg, borderWidth: 1,
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg, borderColor: '#D9E1E5', backgroundColor: '#F7F9FA',
   },
-  input: { flex: 1, fontSize: 14 },
+  input: { flex: 1, fontSize: 16, color: '#1F2C34' },
   loginBtn: {
-    height: 48, borderRadius: Radius.md, backgroundColor: '#1B2A4A',
+    height: 54, borderRadius: Radius.lg, backgroundColor: '#229ED9',
     alignItems: 'center', justifyContent: 'center',
   },
   loginBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   hint: { color: '#94A3B8', fontSize: 14, textAlign: 'center', marginTop: Spacing.lg },
  
-  version: { color: '#CBD5E1', fontSize: 14, textAlign: 'center', marginTop: Spacing.sm },
+  version: { color: '#8696A0', fontSize: 13, textAlign: 'center', marginTop: Spacing.sm },
 });

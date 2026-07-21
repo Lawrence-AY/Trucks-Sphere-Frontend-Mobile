@@ -66,9 +66,7 @@ export default function DriverHistoryScreen() {
         )}
         <View style={styles.chatHeaderInfo}>
           <Text style={[styles.chatName, { color: colors.text }]}>{driverName}</Text>
-          <Text style={[styles.chatStatus, { color: colors.textSecondary }]}>
-            {driver?.status === 'active' ? 'Active' : driver?.status || ''} · {truck?.plateNumber || truck?.plate || 'No truck'}
-          </Text>
+           
         </View>
       </View>
 

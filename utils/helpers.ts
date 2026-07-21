@@ -8,6 +8,7 @@
 export function formatEAT(dateStr: string): string {
   try {
     const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return dateStr;
     return date.toLocaleDateString('en-KE', {
       year: 'numeric',
       month: 'short',
@@ -15,6 +16,7 @@ export function formatEAT(dateStr: string): string {
       hour: '2-digit',
       minute: '2-digit',
       timeZone: 'Africa/Nairobi',
+      timeZoneName: 'short',
     });
   } catch {
     return dateStr;
@@ -115,6 +117,9 @@ export function formatStatus(status: string): string {
 export function getRoleLabel(role: string): string {
   const labels: Record<string, string> = {
     management: 'Management',
+    super_admin: 'Super Admin',
+    management_edit: 'Management Edit',
+    management_lite: 'Management Lite',
     operator_quarry: 'Quarry Operator',
     operator_site: 'Site Operator',
     operator_fuel: 'Fuel Operator',
@@ -158,7 +163,7 @@ export function formatCurrency(amount: number): string {
 }
 
 export function normalizeVendorId(id: string): string {
-  return id?.replace(/[^a-zA-Z0-9_-]/g, '');
+  return (id || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
 }
 
 export function generateId(): string {

@@ -7,6 +7,9 @@
 export type UserRole =
   | 'admin'
   | 'management'
+  | 'super_admin'
+  | 'management_edit'
+  | 'management_lite'
   | 'operator_quarry'
   | 'operator_site'
   | 'operator_fuel'
@@ -18,6 +21,16 @@ export type DriverStatus = 'active' | 'inactive' | 'suspended' | 'on_trip';
 export type VehicleStatus = 'active' | 'inactive' | 'on_trip' | 'in_maintenance' | 'out_of_service';
 export type POStatus = 'draft' | 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled' | 'archived';
 export type JobStatus =
+  | 'CREATED'
+  | 'ASSIGNED'
+  | 'QUARRY_QUEUED'
+  | 'QUARRY_WEIGHED_IN'
+  | 'QUARRY_WEIGHED_OUT'
+  | 'DISPATCHED'
+  | 'IN_TRANSIT'
+  | 'ARRIVED_AT_SITE'
+  | 'SITE_WEIGHED_IN'
+  | 'SITE_WEIGHED_OUT'
   | 'draft'
   | 'assigned'
   | 'ready'
@@ -47,6 +60,17 @@ export interface AuditTrail {
   deletedAt?: string;
 }
 
+/** Structured actor data stored on operational records by the API. */
+export interface UserReference {
+  uid: string;
+  username: string;
+  displayName: string;
+  email: string;
+  role: string;
+  entityId?: string;
+  entityType?: string;
+}
+
 // ─── User ───
 export interface User extends AuditTrail {
   uid: string;
@@ -59,6 +83,7 @@ export interface User extends AuditTrail {
   photoURL?: string;
   vendorId?: string;
   quarryId?: string;
+  quarryLocation?: string;
   siteId?: string;
   fuelStationId?: string;
   employeeNumber?: string;

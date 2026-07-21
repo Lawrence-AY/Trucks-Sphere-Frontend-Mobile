@@ -15,6 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { DataCard, PageShell, SectionTitle } from '../../components/EnterpriseUI';
 import { fetchIssues, createIssue, updateIssue, deleteIssue } from '../../services/api';
+import { normalizeRole } from '../../utils/access';
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: '#10B981',
@@ -24,15 +25,18 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  open: '#F59E0B',
-  resolved: '#10B981',
+  OPEN: '#F59E0B',
+  IN_REVIEW: '#2563EB',
+  IN_PROGRESS: '#7C3AED',
+  RESOLVED: '#10B981',
+  REJECTED: '#EF4444',
 };
 
 export default function IssuesScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
-  const role = user?.role || '';
-  const isManagement = role === 'admin' || role === 'management';
+  const role = normalizeRole(user?.role);
+  const isManagement = role === 'super_admin';
 
   const [loading, setLoading] = useState(true);
   const [issues, setIssues] = useState<any[]>([]);
@@ -94,7 +98,7 @@ export default function IssuesScreen() {
             async (notes) => {
               setResolving((prev) => ({ ...prev, [id]: true }));
               try {
-                await updateIssue(id, { status: 'resolved', resolutionNotes: notes || undefined });
+                await updateIssue(id, { status: 'RESOLVED', resolutionNotes: notes || undefined });
                 await loadIssues();
               } catch (err: any) {
                 Alert.alert('Error', err.message || 'Failed to resolve.');
@@ -113,7 +117,7 @@ export default function IssuesScreen() {
   const handleResolveQuick = async (id: string) => {
     setResolving((prev) => ({ ...prev, [id]: true }));
     try {
-      await updateIssue(id, { status: 'resolved', resolutionNotes: 'Marked as resolved.' });
+      await updateIssue(id, { status: 'RESOLVED', resolutionNotes: 'Marked as resolved.' });
       await loadIssues();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to resolve.');
@@ -125,7 +129,7 @@ export default function IssuesScreen() {
   const handleReopen = async (id: string) => {
     setResolving((prev) => ({ ...prev, [id]: true }));
     try {
-      await updateIssue(id, { status: 'open' });
+      await updateIssue(id, { status: 'OPEN' });
       await loadIssues();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to reopen.');
@@ -281,7 +285,7 @@ export default function IssuesScreen() {
               </View>
               {/* Actions */}
               <View style={{ gap: 4 }}>
-                {isManagement && issue.status === 'open' && (
+                {isManagement && issue.status === 'OPEN' && (
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: '#10B981' }]}
                     onPress={() => handleResolve(issue.id)}
@@ -291,7 +295,7 @@ export default function IssuesScreen() {
                     <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700' }}>Resolve</Text>
                   </TouchableOpacity>
                 )}
-                {isManagement && issue.status === 'resolved' && (
+                {isManagement && issue.status === 'RESOLVED' && (
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: '#F59E0B' }]}
                     onPress={() => handleReopen(issue.id)}
@@ -301,7 +305,7 @@ export default function IssuesScreen() {
                     <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '700' }}>Reopen</Text>
                   </TouchableOpacity>
                 )}
-                {issue.status !== 'resolved' && issue.submittedBy === user?.uid && (
+                {issue.status !== 'RESOLVED' && issue.submittedBy === user?.uid && (
                   <TouchableOpacity
                     style={[styles.actionBtn, { backgroundColor: '#EF4444' }]}
                     onPress={() => handleDelete(issue.id)}

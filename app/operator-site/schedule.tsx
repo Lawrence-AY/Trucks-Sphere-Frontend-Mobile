@@ -18,7 +18,6 @@ import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import {
   createDeliveryOrder,
-  fetchDeliveryOrders,
   fetchDrivers,
   fetchPurchaseOrders,
   fetchVehicles,
@@ -26,6 +25,8 @@ import {
   updateDeliveryOrder,
 } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { useDeliveryOrders } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT, generateId, generateJobKey } from '../../utils/helpers';
 import {
   DataCard,
@@ -56,10 +57,18 @@ const MATERIAL_SOURCE_OPTIONS = [
 export default function OperatorSiteDashboardScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
+  
+  // Use realtime store for delivery orders — instant cache-first loading
+  const rawDeliveries = useDeliveryOrders();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const storeLoading = useRealTimeSyncStore((s) => s.isLoading);
+  
+  // Local state for deliveries filtered by site
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [allDrivers, setAllDrivers] = useState<any[]>([]);
   const [allVehicles, setAllVehicles] = useState<any[]>([]);
+  const [fabDataLoaded, setFabDataLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -105,31 +114,69 @@ export default function OperatorSiteDashboardScreen() {
   const [fabSubmitting, setFabSubmitting] = useState(false);
   const [fabSubmitError, setFabSubmitError] = useState('');
 
-  const loadData = async (silent?: boolean) => {
-    if (!silent) setRefreshing(true);
-    try {
-      const [data, driverData, orders, vehicleData] = await Promise.all([
-        fetchDeliveryOrders(),
-        fetchDrivers(),
-        fetchPurchaseOrders(),
-        fetchVehicles(),
-      ]);
-      setDeliveries(data || []);
-      setPurchaseOrders(orders || []);
-      setAllDrivers(driverData || []);
-      setAllVehicles(vehicleData || []);
-      // Build driver lookup map
-      const map: Record<string, any> = {};
-      (driverData || []).forEach((d: any) => { if (d.id) map[d.id] = d; });
-      setDriverMap(map);
-    } catch {
-    } finally {
-      setRefreshing(false);
+  // Site operators share a single receiving queue. The operator who records
+  // the site weigh-in is stored on the delivery as the actual receiver.
+  useEffect(() => {
+    setDeliveries(rawDeliveries || []);
+    if (rawDeliveries.length > 0) {
       setLoading(false);
+    } else if (!storeLoading('deliveryOrders')) {
+      // Store finished loading with empty data — stop spinner
+      setLoading(false);
+    }
+  }, [rawDeliveries, storeLoading]);
+
+  // Safety timeout: if loading persists > 10s, show data anyway
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (loading) setLoading(false);
+    }, 10000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  // Lazy-load FAB data (drivers, POs, vehicles) only when opening the FAB
+  const loadFabData = async () => {
+    if (!fabDataLoaded) {
+      try {
+        const [driverData, orders, vehicleData] = await Promise.all([
+          fetchDrivers(),
+          fetchPurchaseOrders(),
+          fetchVehicles(),
+        ]);
+        setAllDrivers(driverData || []);
+        setPurchaseOrders(orders || []);
+        setAllVehicles(vehicleData || []);
+        // Build driver lookup map
+        const map: Record<string, any> = {};
+        (driverData || []).forEach((d: any) => { if (d.id) map[d.id] = d; });
+        setDriverMap(map);
+        setFabDataLoaded(true);
+      } catch { /* ignore */ }
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  // Refresh handler — uses the realtime store refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refresh('deliveryOrders');
+    // Also reload FAB data on pull-to-refresh
+    if (fabDataLoaded) {
+      try {
+        const [driverData, orders, vehicleData] = await Promise.all([
+          fetchDrivers(),
+          fetchPurchaseOrders(),
+          fetchVehicles(),
+        ]);
+        setAllDrivers(driverData || []);
+        setPurchaseOrders(orders || []);
+        setAllVehicles(vehicleData || []);
+        const map: Record<string, any> = {};
+        (driverData || []).forEach((d: any) => { if (d.id) map[d.id] = d; });
+        setDriverMap(map);
+      } catch { /* ignore */ }
+    }
+    setRefreshing(false);
+  };
 
   /* ─── Filtered & categorized data ─── */
 
@@ -139,6 +186,8 @@ export default function OperatorSiteDashboardScreen() {
     () => deliveries.filter((d) => {
       if (['cancelled', 'delivered', 'completed'].includes(d.status)) return false;
       if (d.siteWeighOutWeight != null) return false;
+      // Exclude jobs that already have site arrival recorded — they belong on Weights tab
+      if (d.siteWeighInWeight != null || d.siteArrivalWeight != null || d.status === 'site_in') return false;
       // Must have been weighed at quarry (has both weigh in and weigh out weights)
       return d.weighInWeight != null && d.weighOutWeight != null;
     }),
@@ -284,12 +333,23 @@ export default function OperatorSiteDashboardScreen() {
       const now = new Date().toISOString();
       const lotValue = getLotInput(job.id).trim();
       const materialSourceValue = (materialSourceInputs[job.id] || '').trim();
-      await updateDeliveryOrder(job.id, {
+      const transitionPayload = {
         siteWeighInWeight: weightInNum,
         siteWeighInAt: now,
-        status: 'site_in',
-        updatedAt: now,
         materialSource: materialSourceValue || undefined,
+        siteWeighInByUid: user?.uid || '',
+        createdByUid: job.createdByUid || user?.uid || '',
+        siteOperatorUid: user?.uid || '',
+      };
+      console.debug('[SiteWeights] schedule save started', {
+        documentId: job.id,
+        documentBeforeUpdate: job,
+        payload: transitionPayload,
+      });
+      const persistedJob = await updateDeliveryOrder(job.id, transitionPayload);
+      console.debug('[SiteWeights] schedule save succeeded', {
+        documentId: job.id,
+        documentAfterUpdate: persistedJob,
       });
 
       // Persist storage lot assignment if provided
@@ -307,14 +367,39 @@ export default function OperatorSiteDashboardScreen() {
           item.id === job.id
             ? {
                 ...item,
+                ...persistedJob,
                 siteWeighInWeight: weightInNum,
                 siteWeighInAt: now,
                 status: 'site_in',
+                workflowStage: 'ready_for_site_weights',
+                currentStage: 'site_weights',
+                siteArrivalCompleted: true,
+                arrivalCompleted: true,
                 updatedAt: now,
               }
             : item,
         ),
       );
+
+      // Propagate to shared cache so Weights tab sees it immediately
+      const updatedJob = {
+        ...job,
+        ...persistedJob,
+        siteWeighInWeight: weightInNum,
+        siteWeighInAt: now,
+        status: 'site_in',
+        workflowStage: 'ready_for_site_weights',
+        currentStage: 'site_weights',
+        siteArrivalCompleted: true,
+        arrivalCompleted: true,
+        updatedAt: now,
+        materialSource: materialSourceValue || job.materialSource,
+        siteWeighInByUid: user?.uid || '',
+        createdByUid: job.createdByUid || user?.uid || '',
+        siteOperatorUid: user?.uid || '',
+      };
+      useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', updatedJob);
+      useRealTimeSyncStore.getState().invalidateETag('deliveryOrders');
 
       // Clear inputs
       setWeightInInputs((prev) => {
@@ -331,7 +416,7 @@ export default function OperatorSiteDashboardScreen() {
       setExpandedJobId(null);
 
       // Keep this job visible in its next-step state; navigation is optional.
-      setSuccessJob({ ...job, siteWeighInWeight: weightInNum, siteWeighInAt: now, status: 'site_in' });
+      setSuccessJob(updatedJob);
       setSuccessModalVisible(true);
     } catch (error: any) {
       setSubmitErrors((prev) => ({
@@ -450,12 +535,18 @@ export default function OperatorSiteDashboardScreen() {
       siteWeighInWeight: weightInNum,
       siteWeighInAt: now,
       createdBy: 'operator_site',
+      createdByUid: user?.uid || '',
+      siteWeighInByUid: user?.uid || '',
+      siteOperatorUid: user?.uid || '',
       createdAt: now,
       updatedAt: now,
     };
 
     try {
       const createdJob = await createDeliveryOrder(payload);
+      // Optimistically push to shared cache so Weights tab sees it immediately
+      useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', createdJob);
+      useRealTimeSyncStore.getState().invalidateETag('deliveryOrders');
       setDeliveries((current) => [createdJob, ...current]);
       closeFab();
       setSuccessJob(createdJob);
@@ -475,7 +566,7 @@ export default function OperatorSiteDashboardScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={loadData}
+            onRefresh={handleRefresh}
             tintColor={colors.primary}
           />
         }
@@ -759,64 +850,66 @@ export default function OperatorSiteDashboardScreen() {
                       />
                     </View>
 
-                    {/* Material Source Selector */}
-                    <View style={[styles.fabSourceBlock, { marginBottom: Spacing.sm }]}>
-                      <TouchableOpacity
-                        style={[styles.fabInputWrap, { borderColor: (materialSourceInputs[item.id] || '').trim() ? colors.primary : colors.border, backgroundColor: colors.inputBg }]}
-                        activeOpacity={0.8}
-                        onPress={() => {
-                          setMaterialSourceOpenInputs((prev) => ({ ...prev, [item.id]: !prev[item.id] }));
-                        }}
-                      >
-                        <Ionicons name="map-outline" size={18} color={colors.textMuted} />
-                        <TextInput
-                          style={[styles.fabInput, { color: colors.text }]}
-                          placeholder="Select material source (quarry)"
-                          placeholderTextColor={colors.textTertiary}
-                          value={materialSourceOpenInputs[item.id] ? (materialSourceSearchInputs[item.id] || '') : (materialSourceInputs[item.id] || '')}
-                          onFocus={() => {
-                            setMaterialSourceOpenInputs((prev) => ({ ...prev, [item.id]: true }));
-                            setMaterialSourceSearchInputs((prev) => ({ ...prev, [item.id]: '' }));
-                          }}
-                          onChangeText={(value) => {
-                            setMaterialSourceSearchInputs((prev) => ({ ...prev, [item.id]: value }));
-                            setMaterialSourceOpenInputs((prev) => ({ ...prev, [item.id]: true }));
-                          }}
-                        />
-                        <Ionicons name={materialSourceOpenInputs[item.id] ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
-                      </TouchableOpacity>
-                      {materialSourceOpenInputs[item.id] && (
-                        <View style={[styles.fabDropdown, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                          {MATERIAL_SOURCE_OPTIONS.filter((source) => {
-                            const term = (materialSourceSearchInputs[item.id] || '').trim().toLowerCase();
-                            return !term || source.toLowerCase().includes(term);
-                          }).length ? (
-                            MATERIAL_SOURCE_OPTIONS.filter((source) => {
-                              const term = (materialSourceSearchInputs[item.id] || '').trim().toLowerCase();
-                              return !term || source.toLowerCase().includes(term);
-                            }).map((source) => {
-                              const active = (materialSourceInputs[item.id] || '') === source;
-                              return (
-                                <TouchableOpacity
-                                  key={source}
-                                  style={[styles.fabDropdownItem, active && { backgroundColor: `${colors.primary}10` }]}
-                                  onPress={() => {
-                                    setMaterialSourceInputs((prev) => ({ ...prev, [item.id]: source }));
-                                    setMaterialSourceSearchInputs((prev) => ({ ...prev, [item.id]: '' }));
-                                    setMaterialSourceOpenInputs((prev) => ({ ...prev, [item.id]: false }));
-                                  }}
-                                >
-                                  <Text style={[styles.fabDropdownText, { color: colors.text }]}>{source}</Text>
-                                  {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
-                                </TouchableOpacity>
-                              );
-                            })
-                          ) : (
-                            <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No matching source.</Text>
-                          )}
-                        </View>
-                      )}
-                    </View>
+                     {/* Material Source Selector — hidden when job is from quarry (has quarry weights) */}
+                     {!hasQuarryWeights && (
+                       <View style={[styles.fabSourceBlock, { marginBottom: Spacing.sm }]}>
+                         <TouchableOpacity
+                           style={[styles.fabInputWrap, { borderColor: (materialSourceInputs[item.id] || '').trim() ? colors.primary : colors.border, backgroundColor: colors.inputBg }]}
+                           activeOpacity={0.8}
+                           onPress={() => {
+                             setMaterialSourceOpenInputs((prev) => ({ ...prev, [item.id]: !prev[item.id] }));
+                           }}
+                         >
+                           <Ionicons name="map-outline" size={18} color={colors.textMuted} />
+                           <TextInput
+                             style={[styles.fabInput, { color: colors.text }]}
+                             placeholder="Select material source (quarry)"
+                             placeholderTextColor={colors.textTertiary}
+                             value={materialSourceOpenInputs[item.id] ? (materialSourceSearchInputs[item.id] || '') : (materialSourceInputs[item.id] || '')}
+                             onFocus={() => {
+                               setMaterialSourceOpenInputs((prev) => ({ ...prev, [item.id]: true }));
+                               setMaterialSourceSearchInputs((prev) => ({ ...prev, [item.id]: '' }));
+                             }}
+                             onChangeText={(value) => {
+                               setMaterialSourceSearchInputs((prev) => ({ ...prev, [item.id]: value }));
+                               setMaterialSourceOpenInputs((prev) => ({ ...prev, [item.id]: true }));
+                             }}
+                           />
+                           <Ionicons name={materialSourceOpenInputs[item.id] ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+                         </TouchableOpacity>
+                         {materialSourceOpenInputs[item.id] && (
+                           <View style={[styles.fabDropdown, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                             {MATERIAL_SOURCE_OPTIONS.filter((source) => {
+                               const term = (materialSourceSearchInputs[item.id] || '').trim().toLowerCase();
+                               return !term || source.toLowerCase().includes(term);
+                             }).length ? (
+                               MATERIAL_SOURCE_OPTIONS.filter((source) => {
+                                 const term = (materialSourceSearchInputs[item.id] || '').trim().toLowerCase();
+                                 return !term || source.toLowerCase().includes(term);
+                               }).map((source) => {
+                                 const active = (materialSourceInputs[item.id] || '') === source;
+                                 return (
+                                   <TouchableOpacity
+                                     key={source}
+                                     style={[styles.fabDropdownItem, active && { backgroundColor: `${colors.primary}10` }]}
+                                     onPress={() => {
+                                       setMaterialSourceInputs((prev) => ({ ...prev, [item.id]: source }));
+                                       setMaterialSourceSearchInputs((prev) => ({ ...prev, [item.id]: '' }));
+                                       setMaterialSourceOpenInputs((prev) => ({ ...prev, [item.id]: false }));
+                                     }}
+                                   >
+                                     <Text style={[styles.fabDropdownText, { color: colors.text }]}>{source}</Text>
+                                     {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                                   </TouchableOpacity>
+                                 );
+                               })
+                             ) : (
+                               <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No matching source.</Text>
+                             )}
+                           </View>
+                         )}
+                       </View>
+                     )}
 
                     {error ? (
                       <Text style={styles.errorText}>{error}</Text>
@@ -890,7 +983,7 @@ export default function OperatorSiteDashboardScreen() {
       {/* ─── FAB: Register Unscheduled Arrival ─── */}
       <TouchableOpacity
         style={[styles.fabBtn, { backgroundColor: colors.primary }]}
-        onPress={() => setFabVisible(true)}
+        onPress={() => { loadFabData(); setFabVisible(true); }}
         activeOpacity={0.86}
       >
         <Ionicons name="add" size={28} color="#FFFFFF" />

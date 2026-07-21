@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
-import { fetchVehicles, fetchDrivers, fetchDeliveryOrders } from '../../services/api';
+import { useRealtimeCollection } from '../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { normalizeVendorId } from '../../utils/helpers';
 import {
   DataCard,
   DetailRow,
@@ -20,32 +22,33 @@ export default function VendorTrucksScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
   const vendorId = user?.vendorId || 'v1';
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const refresh = useRealTimeSyncStore((state) => state.refresh);
+  const { data: allVehicles, loading: vehiclesLoading } = useRealtimeCollection('vehicles');
+  const { data: allDrivers, loading: driversLoading } = useRealtimeCollection('drivers');
+  const { data: allDeliveries, loading: deliveriesLoading } = useRealtimeCollection('deliveryOrders');
+  const vehicles = useMemo(() => allVehicles.filter((v: any) =>
+    normalizeVendorId(v.vendorId || v.vendor || '') === normalizedUserVendorId
+  ), [allVehicles, normalizedUserVendorId]);
+  const drivers = useMemo(() => allDrivers.filter((d: any) =>
+    normalizeVendorId(d.vendorId || d.vendor || '') === normalizedUserVendorId
+  ), [allDrivers, normalizedUserVendorId]);
+  const deliveries = useMemo(() => allDeliveries.filter((d: any) =>
+    normalizeVendorId(d.vendorId || d.vendor || '') === normalizedUserVendorId
+  ), [allDeliveries, normalizedUserVendorId]);
+  const loading = vehiclesLoading || driversLoading || deliveriesLoading;
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [vehicleData, driverData, deliveryData] = await Promise.all([
-        fetchVehicles(),
-        fetchDrivers(),
-        fetchDeliveryOrders(),
-      ]);
-      setVehicles((vehicleData || []).filter((v: any) => v.vendorId === vendorId));
-      setDrivers((driverData || []).filter((d: any) => d.vendorId === vendorId));
-      setDeliveries((deliveryData || []).filter((d: any) => d.vendorId === vendorId));
+      await Promise.all([refresh('vehicles'), refresh('drivers'), refresh('deliveryOrders')]);
     } catch (error) {
     } finally {
       setRefreshing(false);
-      setLoading(false);
     }
   };
-
-  useEffect(() => { loadData(); }, []);
 
   const vehiclesWithStats = useMemo(() => {
     const query = search.toLowerCase();
@@ -77,26 +80,14 @@ export default function VendorTrucksScreen() {
       );
   }, [vehicles, drivers, deliveries, search]);
 
-  const activeCount = vehiclesWithStats.filter((v) => v.status === 'active').length;
-
+ 
   return (
     <PageShell
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />
       }
     >
-      <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-        <View style={[styles.statChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="car" size={18} color={colors.accent} />
-          <Text style={[styles.statValue, { color: colors.text }]}>{vehiclesWithStats.length}</Text>
-          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total</Text>
-        </View>
-        <View style={[styles.statChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-          <Text style={[styles.statValue, { color: colors.text }]}>{activeCount}</Text>
-          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Active</Text>
-        </View>
-      </View>
+
 
       <SearchField value={search} onChangeText={setSearch} placeholder="Search plate, make, model, driver..." />
       <SectionTitle title={`${vehiclesWithStats.length} trucks`} />
@@ -130,12 +121,7 @@ export default function VendorTrucksScreen() {
               </View>
             </View>
             <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
-              <View style={styles.miniStat}>
-                <Ionicons name="person-outline" size={14} color={colors.primary} />
-                <Text style={[styles.miniStatText, { color: colors.textSecondary }]}>
-                  {vehicle.assignedDriver?.name || 'No driver'}
-                </Text>
-              </View>
+            
               <View style={styles.miniStat}>
                 <Ionicons name="layers-outline" size={14} color={colors.accent} />
                 <Text style={[styles.miniStatText, { color: colors.textSecondary }]}>
@@ -149,7 +135,6 @@ export default function VendorTrucksScreen() {
                 </Text>
               </View>
             </View>
-            <DetailRow icon="speedometer-outline" value={`Capacity: ${vehicle.capacity || 'N/A'} tonnes`} />
           </DataCard>
         ))
       ) : (

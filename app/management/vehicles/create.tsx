@@ -5,7 +5,6 @@
  *   - Select vendor (required)
  *   - Full vehicle details form
  *   - Compliance dates (insurance, inspection)
- *   - Capacity information
  */
 
 import React, { useEffect, useState } from 'react';
@@ -60,8 +59,6 @@ export default function CreateVehicleScreen() {
     model: '',
     year: '',
     type: '',
-    capacity: '',
-    capacityUnit: 'tonnes',
     color: '',
     insuranceExpiry: '',
     inspectionExpiry: '',
@@ -106,9 +103,6 @@ export default function CreateVehicleScreen() {
     if (!form.model.trim()) newErrors.model = 'Model is required';
     if (!form.year.trim()) newErrors.year = 'Year is required';
     if (!form.type) newErrors.type = 'Vehicle type is required';
-    if (!form.capacity || isNaN(Number(form.capacity)) || Number(form.capacity) <= 0) {
-      newErrors.capacity = 'Valid capacity is required';
-    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -121,8 +115,6 @@ export default function CreateVehicleScreen() {
       model: '',
       year: '',
       type: '',
-      capacity: '',
-      capacityUnit: 'tonnes',
       color: '',
       insuranceExpiry: '',
       inspectionExpiry: '',
@@ -144,8 +136,6 @@ export default function CreateVehicleScreen() {
         make: form.make.trim(),
         model: form.model.trim(),
         year: Number(form.year.trim()),
-        capacity: Number(form.capacity),
-        capacityUnit: form.capacityUnit,
         color: form.color.trim() || undefined,
         insuranceExpiry: form.insuranceExpiry.trim() || undefined,
         inspectionExpiry: form.inspectionExpiry.trim() || undefined,
@@ -247,18 +237,6 @@ export default function CreateVehicleScreen() {
             required
             error={errors.type}
             placeholder="Select type..."
-          />
-
-          <Input
-            label="Capacity"
-            value={form.capacity}
-            onChangeText={(v) => updateField('capacity', v)}
-            placeholder="e.g. 30"
-            icon="scale-outline"
-            keyboardType="numeric"
-            required
-            error={errors.capacity}
-            suffix={form.capacityUnit}
           />
 
           <Input

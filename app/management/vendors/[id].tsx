@@ -37,6 +37,7 @@ import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { Vendor, Driver, Vehicle } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
+import { UserActionInfo } from '../../../components/UserActionInfo';
 
 const VENDOR_TABS = [
   { name: 'overview', label: 'Overview', icon: 'information-circle-outline' as const },
@@ -264,17 +265,20 @@ function OverviewTab({ vendor, colors }: { vendor: Vendor; colors: any }) {
   ];
 
   return (
-    <Card>
-      {fields.map((field, i) => (
-        <View key={i} style={styles.fieldRow}>
-          <View style={styles.fieldLabel}>
-            <Ionicons name={field.icon as any} size={16} color={colors.textMuted} />
-            <Text style={[styles.fieldLabelText, { color: colors.textMuted }]}>{field.label}</Text>
+    <>
+      <Card>
+        {fields.map((field, i) => (
+          <View key={i} style={styles.fieldRow}>
+            <View style={styles.fieldLabel}>
+              <Ionicons name={field.icon as any} size={16} color={colors.textMuted} />
+              <Text style={[styles.fieldLabelText, { color: colors.textMuted }]}>{field.label}</Text>
+            </View>
+            <Text style={[styles.fieldValue, { color: colors.text }]}>{field.value || '-'}</Text>
           </View>
-          <Text style={[styles.fieldValue, { color: colors.text }]}>{field.value || '-'}</Text>
-        </View>
-      ))}
-    </Card>
+        ))}
+      </Card>
+      <UserActionInfo record={vendor as any} />
+    </>
   );
 }
 

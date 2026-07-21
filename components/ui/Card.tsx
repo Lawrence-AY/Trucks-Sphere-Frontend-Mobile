@@ -14,7 +14,7 @@ export function Card({
   children,
   style,
   variant = 'default',
-  padding = 'lg',
+  padding = 'md',
 }: CardProps) {
   const colors = useTheme();
   const paddingValue = typeof padding === 'number' ? padding : Spacing[padding];
@@ -54,5 +54,10 @@ export function Card({
 const styles = StyleSheet.create({
   card: {
     marginBottom: Spacing.md,
+    elevation: 0,
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
   },
 });

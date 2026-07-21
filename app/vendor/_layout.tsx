@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
 import { getRoleLabel, normalizeVendorId } from '../../utils/helpers';
 import {
   getPendingAuthorizations,
@@ -26,7 +27,7 @@ import {
 } from '../../services/api';
 
 const BOTTOM_TABS = ['dashboard', 'trips', 'orders', 'materials'];
-const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings'];
+const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings', 'fuel', 'reports'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   dashboard: { icon: 'home-outline', label: 'Home' },
@@ -41,12 +42,13 @@ const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: 
   { label: 'Drivers', icon: 'people-outline', route: '/vendor/drivers' },
   { label: 'Trucks', icon: 'car-outline', route: '/vendor/trucks' },
   { label: 'Profile', icon: 'person-outline', route: '/vendor/profile' },
-  { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
+  { label: 'Reports', icon: 'bar-chart-outline', route: '/vendor/reports' },
   { label: 'Fuel', icon: 'water-outline', route: '/vendor/fuel' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
 
 export default function VendorLayout() {
+  const colors = useTheme();
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -191,13 +193,13 @@ export default function VendorLayout() {
       <Tabs
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
-          tabBarActiveTintColor: '#1B2A4A',
-          tabBarInactiveTintColor: '#94A3B8',
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
-            backgroundColor: '#FFFFFF',
-            borderTopColor: '#E2E8F0',
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
             borderTopWidth: 1,
             paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
             paddingTop: 6,
@@ -209,8 +211,8 @@ export default function VendorLayout() {
             shadowRadius: 8,
           },
           headerShown: Platform.OS !== 'web',
-          headerStyle: { backgroundColor: '#FFFFFF' },
-          headerTintColor: '#1E293B',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700', fontSize: 16 },
           headerShadowVisible: false,
           headerRight: Platform.OS === 'web' ? undefined : () => (
@@ -225,7 +227,7 @@ export default function VendorLayout() {
                 <Ionicons
                   name="notifications-outline"
                   size={22}
-                  color={pendingAuths.length > 0 ? '#EF4444' : '#1B2A4A'}
+                  color={pendingAuths.length > 0 ? colors.danger : colors.primary}
                 />
                 {pendingAuths.length > 0 && (
                   <View style={styles.authBadge}>
@@ -247,7 +249,7 @@ export default function VendorLayout() {
                 </TouchableOpacity>
               )}
               <TouchableOpacity onPress={toggleMenu} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
-                <Ionicons name="menu-outline" size={24} color="#1B2A4A" />
+                <Ionicons name="menu-outline" size={24} color={colors.primary} />
               </TouchableOpacity>
             </View>
           ),

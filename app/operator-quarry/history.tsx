@@ -13,6 +13,7 @@ import { formatEAT } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { useDeliveryOrders } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useAuthStore } from '../../store/authStore';
 import {
   DataCard,
   EmptyState,
@@ -34,6 +35,7 @@ const FILTER_LABELS: Record<FilterPeriod, string> = {
 
 export default function OperatorQuarryHistoryScreen() {
   const colors = useTheme();
+  const { user } = useAuthStore();
   const deliveries = useDeliveryOrders();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
   const [refreshing, setRefreshing] = useState(false);
@@ -47,9 +49,10 @@ export default function OperatorQuarryHistoryScreen() {
   };
 
   useEffect(() => {
-    // Initial fetch
-    refresh('deliveryOrders');
-    setLoading(false);
+    // The delivery-orders hook establishes the shared subscription.  Refresh
+    // it once here so a history opened immediately after a weigh-out sees the
+    // server record as well as any optimistic update.
+    void refresh('deliveryOrders').finally(() => setLoading(false));
   }, []);
 
   // Auto-hide loading when realtime data arrives
@@ -81,28 +84,60 @@ export default function OperatorQuarryHistoryScreen() {
 
   const startDate = getStartOfPeriod(filter);
 
-  const activeQueue = useMemo(() => {
-    return deliveries.filter(
-      (d) => !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status),
+  // History is a quarry ledger: every operator assigned to the quarry sees
+  // dispatches completed there, including those recorded by another shift.
+  const operatorUid = user?.uid || '';
+  const operatorQuarryId = (user as any)?.quarryId || '';
+  const operatorQuarryLocation = (user as any)?.quarryLocation || '';
+
+  // The API authorizes this collection by quarry. Keep the final client-side
+  // filter as a defence-in-depth check for cached or stale records.
+  const operatorDeliveries = useMemo(() => {
+    return deliveries.filter((delivery: any) =>
+      (operatorQuarryId && delivery.quarryId === operatorQuarryId) ||
+      (operatorQuarryLocation && String(delivery.quarryName || '').trim().toLowerCase() === operatorQuarryLocation.trim().toLowerCase()) ||
+      (operatorUid && [delivery.createdByUid, delivery.quarryOperatorUid, delivery.weighInByUid, delivery.weighOutByUid].includes(operatorUid)),
     );
-  }, [deliveries]);
+  }, [deliveries, operatorQuarryId, operatorQuarryLocation, operatorUid]);
+
+  const isDispatchRecord = (delivery: any) => {
+    const status = String(delivery.status || '').toLowerCase();
+    // A quarry weigh-out stores status as `DISPATCHED`.  Older records may
+    // carry a later lifecycle status, so keep those visible as well.
+    return Boolean(delivery.weighOutAt || delivery.weighOutWeight != null) || [
+      'quarry_weighed_out',
+      'dispatched',
+      'in_transit',
+      'en_route',
+      'at_site',
+      'delivered',
+      'completed',
+      'loaded',
+    ].includes(status);
+  };
+
+  const recordTimestamp = (delivery: any) =>
+    delivery.weighOutAt || delivery.dispatchedAt || delivery.updatedAt || delivery.createdAt;
+
+  const activeQueue = useMemo(() => {
+    return operatorDeliveries.filter(
+      (d) => !isDispatchRecord(d) && String(d.status || '').toLowerCase() !== 'cancelled',
+    );
+  }, [operatorDeliveries]);
 
   const completedRecords = useMemo(() => {
-    return deliveries
-      .filter(
-        (d) =>
-          d.status === 'delivered' || d.status === 'completed' || d.status === 'loaded',
-      )
+    return operatorDeliveries
+      .filter(isDispatchRecord)
       .filter((d) => {
-        const updated = new Date(d.updatedAt || d.createdAt);
-        return updated >= startDate;
+        const timestamp = recordTimestamp(d);
+        const dispatchedAt = timestamp ? new Date(timestamp) : null;
+        return Boolean(dispatchedAt && !Number.isNaN(dispatchedAt.getTime()) && dispatchedAt >= startDate);
       })
       .sort(
         (a, b) =>
-          new Date(b.updatedAt || b.createdAt).getTime() -
-          new Date(a.updatedAt || a.createdAt).getTime(),
+          new Date(recordTimestamp(b)).getTime() - new Date(recordTimestamp(a)).getTime(),
       );
-  }, [deliveries, startDate]);
+  }, [operatorDeliveries, startDate]);
 
   /* ─── Export Logic ─── */
 
@@ -328,6 +363,16 @@ export default function OperatorQuarryHistoryScreen() {
               </View>
             )}
 
+            {/* Dispatched by */}
+            <View style={styles.tableRow}>
+              <View style={styles.tableCell}>
+                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Dispatched by</Text>
+                <Text style={[styles.tableValue, { color: colors.text }]}>
+                  {item.createdByName || item.weighOutByName || item.operatorUsername || '—'}
+                </Text>
+              </View>
+            </View>
+
             {/* Per-Delivery Export Actions — CSV only */}
             <View style={styles.deliveryExportRow}>
               <TouchableOpacity
@@ -340,7 +385,7 @@ export default function OperatorQuarryHistoryScreen() {
             </View>
 
             <Text style={[styles.tableTimestamp, { color: colors.textTertiary }]}>
-              Completed: {formatEAT(item.updatedAt || item.createdAt)}
+              Dispatched: {formatEAT(recordTimestamp(item))}
             </Text>
           </DataCard>
         ))

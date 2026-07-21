@@ -16,6 +16,7 @@ import { Radius, Spacing } from '../../constants/theme';
 import { useDeliveryOrders, useMaterials } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT } from '../../utils/helpers';
+import { isActiveJob } from '../../utils/jobStatus';
 import {
   DataCard,
   DetailRow,
@@ -101,7 +102,7 @@ export default function ManagementActiveScreen() {
 
     return deliveries.filter((item) => {
       // Exclude completed / delivered / cancelled — active board shows only open jobs
-      if (['delivered', 'completed', 'cancelled'].includes(item.status)) return false;
+      if (!isActiveJob(item.status)) return false;
 
       const matchesSearch = !query || [
         item.jobId, item.poNumber, item.driverName, item.plateNumber, item.vendorName, item.materialName,
@@ -128,7 +129,7 @@ export default function ManagementActiveScreen() {
 
   /* ─── Counts for UI ─── */
   const activeCount = deliveries.filter(
-    (item) => !['delivered', 'completed', 'cancelled'].includes(item.status)
+    (item) => isActiveJob(item.status)
   ).length;
   const flaggedCount = deliveries.filter(isFlagged).length;
 

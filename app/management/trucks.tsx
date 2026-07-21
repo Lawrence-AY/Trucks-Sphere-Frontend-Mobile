@@ -3,8 +3,8 @@ import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
-import { useAuthStore } from '../../store/authStore';
 import { fetchVehicles, fetchVendors } from '../../services/api';
+import { Button } from '../../components/ui/Button';
 import {
   DataCard,
   DetailRow,
@@ -65,6 +65,10 @@ export default function ManagementTrucksScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+      <SectionTitle
+        title="Trucks"
+        action={<Button title="Add truck" icon="add" size="sm" onPress={() => router.push('/management/vehicles/create' as any)} />}
+      />
       <SearchField value={search} onChangeText={setSearch} placeholder="Search plate, model..." />
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading vehicles...</Text></DataCard>
@@ -79,7 +83,6 @@ export default function ManagementTrucksScreen() {
             </View>
             {item.driverName ? <DetailRow icon="person-outline" value={`Driver: ${item.driverName}`} /> : null}
             {getVendorName(item) ? <DetailRow icon="business-outline" value={`Vendor: ${getVendorName(item)}`} /> : null}
-            <DetailRow icon="scale-outline" value={`Capacity: ${item.capacity || 'N/A'} tonnes`} />
           </DataCard>
         ))
       ) : (

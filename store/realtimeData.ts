@@ -11,8 +11,8 @@
  *   const vendors = useVendors();
  *   const deliveryOrders = useDeliveryOrders({ status: 'in_transit' });
  */
-import { useEffect, useMemo, useRef } from 'react';
-import { useRealTimeSyncStore } from './realTimeSyncStore';
+import { useEffect, useMemo } from 'react';
+import { getRealtimeCollectionKey, useRealTimeSyncStore } from './realTimeSyncStore';
 
 // ============================================================
 // React hook for any collection — stale-while-revalidate
@@ -23,37 +23,54 @@ export function useRealtimeCollection(
 ): { data: any[]; loading: boolean; error: string | null } {
   const subscribe = useRealTimeSyncStore((s) => s.subscribe);
   const unsubscribe = useRealTimeSyncStore((s) => s.unsubscribe);
-  const getData = useRealTimeSyncStore((s) => s.getData);
-  const isLoading = useRealTimeSyncStore((s) => s.isLoading);
-  const getError = useRealTimeSyncStore((s) => s.getError);
 
   // Build a stable params key to avoid re-subscribing on every render
-  const paramsKey = JSON.stringify(params);
-
-  // Track previous subscription to clean up on params change
-  const prevKeyRef = useRef<string>(paramsKey);
+  const paramsKey = params
+    ? JSON.stringify(Object.fromEntries(Object.entries(params).sort(([a], [b]) => a.localeCompare(b))))
+    : '{}';
 
   useEffect(() => {
-    // Unsubscribe from previous params if they changed
-    if (prevKeyRef.current !== paramsKey) {
-      const prevParams = prevKeyRef.current !== '{}'
-        ? JSON.parse(prevKeyRef.current)
-        : undefined;
-      unsubscribe(collectionName, prevParams);
-    }
-    prevKeyRef.current = paramsKey;
-
     subscribe(collectionName, params);
     return () => {
       unsubscribe(collectionName, params);
     };
   }, [collectionName, paramsKey, subscribe, unsubscribe]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const data = getData(collectionName);
-  const loading = isLoading(collectionName);
-  const error = getError(collectionName);
+  // Select stable primitive values from the store instead of the whole
+  // collections object.  Zustand's useSyncExternalStore warns when the
+  // selector returns a new object reference on every call, which can degrade
+  // into an infinite render loop.  By selecting a snapshot of the relevant
+  // cache entries as a JSON string we keep the reference stable across
+  // updates that only touch unrelated collections.
+  // This must match the store's account-scoped cache key exactly. The old
+  // suffix-only lookup could never find `sync_cache_<user>_<collection>`,
+  // leaving management dashboards blank even after the API had populated it.
+  const cacheKey = useMemo(
+    () => getRealtimeCollectionKey(collectionName, params),
+    [collectionName, paramsKey],
+  );
 
-  return { data, loading, error };
+  const snapshot = useRealTimeSyncStore((s) => {
+    // Select only this exact collection/query so updates to another collection
+    // cannot overwrite its snapshot or cause an unrelated render.
+    const entry = s.collections[cacheKey];
+    if (!entry) return '';
+    return JSON.stringify([entry.data, entry.loading, entry.error]);
+  });
+
+  return useMemo(() => {
+    if (!snapshot) return { data: [] as any[], loading: false, error: null as string | null };
+    try {
+      const [data, loading, error] = JSON.parse(snapshot);
+      return {
+        data: Array.isArray(data) ? data : ([] as any[]),
+        loading: Boolean(loading),
+        error: (error as string | null) || null,
+      };
+    } catch {
+      return { data: [] as any[], loading: false, error: null as string | null };
+    }
+  }, [snapshot]);
 }
 
 // ============================================================

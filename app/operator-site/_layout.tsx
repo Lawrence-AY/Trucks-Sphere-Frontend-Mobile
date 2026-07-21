@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
 import { getRoleLabel } from '../../utils/helpers';
 
 const BOTTOM_TABS = ['schedule', 'weights', 'history'];
@@ -30,14 +31,13 @@ const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: s
 
 // Menu items for operator site drawer — includes Issues
 const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
-  
   { label: 'Issues', icon: 'warning-outline', route: '/screens/issues' },
   { label: 'Profile', icon: 'person-outline', route: '/operator-site/profile' },
-  { label: 'Settings', icon: 'settings-outline', route: '/operator-site/settings' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
 
 export default function OperatorSiteLayout() {
+  const colors = useTheme();
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -91,21 +91,21 @@ export default function OperatorSiteLayout() {
       <Tabs
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
-          tabBarActiveTintColor: '#1B2A4A',
-          tabBarInactiveTintColor: '#94A3B8',
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
-            backgroundColor: '#FFFFFF',
-            borderTopColor: '#E2E8F0',
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
             borderTopWidth: 1,
             paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
             paddingTop: 6,
             height: Platform.OS === 'ios' ? 68 + insets.bottom : 68,
           },
           headerShown: Platform.OS !== 'web',
-          headerStyle: { backgroundColor: '#FFFFFF' },
-          headerTintColor: '#1E293B',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700', fontSize: 16 },
           headerShadowVisible: false,
           headerRight: Platform.OS === 'web' ? undefined : () => (
@@ -120,10 +120,10 @@ export default function OperatorSiteLayout() {
                 onPress={() => router.push('/screens/notifications' as any)}
                 style={{ paddingHorizontal: 6, paddingVertical: 8 }}
               >
-                <Ionicons name="notifications-outline" size={22} color="#1B2A4A" />
+                <Ionicons name="notifications-outline" size={22} color={colors.primary} />
               </TouchableOpacity>
               <TouchableOpacity onPress={toggleMenu} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
-                <Ionicons name="menu-outline" size={24} color="#1B2A4A" />
+                <Ionicons name="menu-outline" size={24} color={colors.primary} />
               </TouchableOpacity>
             </View>
           ),
