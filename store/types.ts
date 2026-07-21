@@ -315,21 +315,21 @@ export interface PurchaseOrder extends AuditTrail {
   customerId?: string;
   customerName?: string;
   vendorId: string;
+  vendorNumber?: string;
   vendorName: string;
   companyName?: string;
   materialId: string;
+  materialNumber?: string;
   materialName: string;
   quantity: number;
   unit: string;
   unitPrice?: number;
   totalAmount?: number;
-  expectedCompletion?: string;
   status: POStatus;
   quarryId?: string;
   quarryName?: string;
   siteId?: string;
   siteName?: string;
-  notes?: string;
   // Workflow
   approvedBy?: string;
   approvedAt?: string;
@@ -377,6 +377,11 @@ export interface Job extends AuditTrail {
   siteWeighOutWeight?: number;
   siteNetWeight?: number;
   weightVariance?: number;
+  // Site arrival variance = site weigh-in minus quarry weigh-out.
+  siteArrivalWeightVariance?: number;
+  siteArrivalWeightVarianceTolerance?: number;
+  siteArrivalWeightVarianceFlagged?: boolean;
+  siteArrivalWeightVarianceStatus?: 'within_tolerance' | 'flagged';
   weighInAt?: string;
   weighOutAt?: string;
   siteWeighInAt?: string;

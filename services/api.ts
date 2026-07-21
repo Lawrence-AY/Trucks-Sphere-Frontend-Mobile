@@ -7,19 +7,9 @@
 import axios from "axios";
 import { getStoredToken, clearAuthData } from "./database";
 import { Platform } from "react-native";
+import { API_BASE_URL } from "./config";
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-
-// Detect environment for API URL
-function getBaseUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  if (process.env.EXPO_PUBLIC_API_IP)
-    return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
-  if (Platform.OS === "android") return "http://10.0.2.2:5000";
-  return "http://192.168.1.211:5000";
-}
-
-const API_BASE_URL = getBaseUrl();
 
 // ============== Auth Expiry Handler ==============
 
@@ -57,6 +47,7 @@ async function backendRequest<T>(
     });
     return response.data;
   } catch (error: any) {
+    const requestUrl = `${API_BASE_URL}${url}`;
     const status = error?.response?.status;
     const errorCode =
       error?.response?.data?.code ||
@@ -72,6 +63,14 @@ async function backendRequest<T>(
       await clearAuthData();
       if (onAuthExpired) onAuthExpired();
     }
+    // Keep the complete URL in device logs. This makes APK configuration
+    // problems diagnosable without presenting raw transport errors to users.
+    const logRequestFailure = status && status < 500 ? console.warn : console.error;
+    logRequestFailure(`[API] ${method.toUpperCase()} ${requestUrl} failed`, {
+      status: status || null,
+      code: errorCode || null,
+      message: error?.response?.data?.message || error?.response?.data?.error || error?.message || 'Request failed',
+    });
     throw error;
   }
 }
@@ -215,6 +214,19 @@ export async function fetchDeliveryOrders(params?: {
     const url = "/api/delivery-orders";
     return backendRequest<any>("get", url, undefined, params).then(unwrapItems);
   });
+}
+
+export async function previewPurchaseOrderNumber(
+  vendorId: string,
+  materialId: string,
+): Promise<string> {
+  const result = await backendRequest<{ poNumber?: string }>(
+    "get",
+    "/api/purchase-orders/preview-number",
+    undefined,
+    { vendorId, materialId },
+  );
+  return result?.poNumber || "";
 }
 
 /**

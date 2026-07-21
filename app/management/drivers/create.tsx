@@ -286,12 +286,7 @@ export default function CreateDriverScreen() {
         <Text style={styles.backTitle}>{isEditMode ? 'Edit Driver' : 'Onboard Driver'}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>{isEditMode ? 'Edit Driver' : 'Onboard Driver'}</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            {isEditMode ? 'Update driver information. Insurance and compliance are inherited from the assigned vendor.' : 'Add a new driver to the system. Insurance & compliance are inherited from the assigned vendor.'}
-          </Text>
-        </View>
+        
 
         <Card>
           <Select

@@ -37,24 +37,13 @@ import { purchaseOrderRepository } from '../../../services/repositories/Purchase
 import { PurchaseOrder } from '../../../store/types';
 import { formatEAT, formatNumber } from '../../../utils/helpers';
 import { StackScreen } from '../../../components/ui/StackScreen';
-import { UserActionInfo } from '../../../components/UserActionInfo';
 import { useAuthStore } from '../../../store/authStore';
 import { hasManagementPermission } from '../../../utils/access';
 
 const PO_TABS = [
   { name: 'details', label: 'Details', icon: 'information-circle-outline' as const },
   { name: 'jobs', label: 'Jobs', icon: 'briefcase-outline' as const },
-  { name: 'timeline', label: 'Timeline', icon: 'time-outline' as const },
 ];
-
-const STATUS_BADGE: Record<string, { variant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple'; label: string }> = {
-  draft: { variant: 'default', label: 'Draft' },
-  approved: { variant: 'info', label: 'Approved' },
-  in_progress: { variant: 'purple', label: 'In Progress' },
-  completed: { variant: 'success', label: 'Completed' },
-  cancelled: { variant: 'danger', label: 'Cancelled' },
-  archived: { variant: 'default', label: 'Archived' },
-};
 
 export default function PurchaseOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,7 +56,6 @@ export default function PurchaseOrderDetailScreen() {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Confirm dialogs
-  const [showApprove, setShowApprove] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -88,32 +76,7 @@ export default function PurchaseOrderDetailScreen() {
     }
   }
 
-  function getStatusBadge(status?: string) {
-    const config = STATUS_BADGE[status || ''] || { variant: 'default' as any, label: status || 'Unknown' };
-    return <Badge label={config.label} variant={config.variant} size="md" dot />;
-  }
-
-  function getProgress(): number {
-    if (!po?.quantity) return 0;
-    const delivered = po.quantityDelivered || po.deliveredQuantity || 0;
-    return Math.min(100, Math.round((delivered / po.quantity) * 100));
-  }
-
   // ─── Workflow Actions ───
-
-  async function handleApprove() {
-    setActionLoading(true);
-    try {
-      await purchaseOrderRepository.approve(id!, 'current_user');
-      Alert.alert('Approved', 'Purchase order has been approved');
-      loadPO();
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to approve');
-    } finally {
-      setActionLoading(false);
-      setShowApprove(false);
-    }
-  }
 
   async function handleCancel() {
     setActionLoading(true);
@@ -169,13 +132,6 @@ export default function PurchaseOrderDetailScreen() {
       <View style={styles.actionsRow}>
         {status === 'draft' && (
           <>
-            <Button
-              title="Approve"
-              onPress={() => setShowApprove(true)}
-              variant="success"
-              size="sm"
-              icon="checkmark-circle"
-            />
             <Button
               title="Edit"
               onPress={() => router.push(`/management/purchase-orders/edit/${po.id}` as any)}
@@ -242,9 +198,6 @@ export default function PurchaseOrderDetailScreen() {
     return <StackScreen title="Purchase order" fallbackHref="/management/purchase-orders" error="This purchase order is unavailable." onRetry={loadPO} />;
   }
 
-  const progress = getProgress();
-  const delivered = po.quantityDelivered || po.deliveredQuantity || 0;
-
   return (
     <>
       <StackScreen
@@ -264,7 +217,6 @@ export default function PurchaseOrderDetailScreen() {
                 {po.companyName || po.vendorName || 'Unknown Vendor'}
               </Text>
             </View>
-            {getStatusBadge(po.status)}
           </View>
 
           {/* Actions */}
@@ -277,20 +229,9 @@ export default function PurchaseOrderDetailScreen() {
         {/* Tab Content */}
         {activeTab === 'details' && <DetailsTab po={po} colors={colors} />}
         {activeTab === 'jobs' && <JobsTab poId={po.id} colors={colors} />}
-        {activeTab === 'timeline' && <TimelineTab po={po} colors={colors} />}
       </StackScreen>
 
       {/* Confirm Dialogs */}
-      <ConfirmDialog
-        visible={showApprove}
-        title="Approve Purchase Order"
-        message="Are you sure you want to approve this purchase order?"
-        variant="info"
-        confirmLabel="Approve"
-        onConfirm={handleApprove}
-        onCancel={() => setShowApprove(false)}
-        loading={actionLoading}
-      />
       <ConfirmDialog
         visible={showCancel}
         title="Cancel Purchase Order"
@@ -329,14 +270,10 @@ export default function PurchaseOrderDetailScreen() {
 function DetailsTab({ po, colors }: { po: PurchaseOrder; colors: any }) {
   const fields = [
     { label: 'PO Number', value: po.poNumber || po.id, icon: 'finger-print-outline' },
-    { label: 'Company Name', value: po.companyName || po.vendorName || '-', icon: 'business-outline' },
-    { label: 'Material', value: po.materialName, icon: 'cube-outline' },
+    { label: 'Vendor', value: `${po.vendorNumber || String(po.vendorId || '').replace(/^V/i, '')} - ${po.companyName || po.vendorName || '-'}`, icon: 'business-outline' },
+    { label: 'Material', value: `${po.materialNumber || String(po.materialId || '').replace(/^MAT/i, '')} - ${po.materialName || '-'}`, icon: 'cube-outline' },
     { label: 'Quantity', value: `${formatNumber(po.quantity || 0)} ${po.unit || 'units'}`, icon: 'scale-outline' },
-    { label: 'Delivered', value: formatNumber(po.quantityDelivered || po.deliveredQuantity || 0), icon: 'checkmark-circle-outline' },
-    { label: 'Remaining', value: formatNumber(po.remainingQuantity || Math.max(0, (po.quantity || 0) - (po.quantityDelivered || po.deliveredQuantity || 0))), icon: 'hourglass-outline' },
-    { label: 'Expected Completion', value: po.expectedCompletion ? formatEAT(po.expectedCompletion) : '-', icon: 'calendar-outline' },
-    { label: 'Created At', value: po.createdAt ? formatEAT(po.createdAt) : '-', icon: 'time-outline' },
-    { label: 'Notes', value: po.notes || '-', icon: 'document-text-outline' },
+   { label: 'Created At', value: po.createdAt ? formatEAT(po.createdAt) : '-', icon: 'time-outline' },
   ];
 
   return (
@@ -352,7 +289,6 @@ function DetailsTab({ po, colors }: { po: PurchaseOrder; colors: any }) {
           </View>
         ))}
       </Card>
-      <UserActionInfo record={po as any} />
     </>
   );
 }
@@ -420,34 +356,6 @@ function JobsTab({ poId, colors }: { poId: string; colors: any }) {
 }
 
 // ─── Timeline Tab ───
-function TimelineTab({ po, colors }: { po: PurchaseOrder; colors: any }) {
-  const events = [
-    { label: 'Purchase Order Created', time: po.createdAt, icon: 'add-circle-outline', color: colors.primary },
-    { label: 'Status: Draft', time: po.createdAt, icon: 'document-outline', color: colors.textMuted },
-  ];
-
-  if (po.approvedAt) {
-    events.push({ label: 'Purchase Order Approved', time: po.approvedAt, icon: 'checkmark-circle-outline', color: colors.success });
-  }
-
-  return (
-    <Card>
-      {events.map((event, i) => (
-        <View key={i} style={styles.timelineItem}>
-          <View style={[styles.timelineDot, { backgroundColor: event.color }]} />
-          {i < events.length - 1 && <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />}
-          <View style={styles.timelineContent}>
-            <Text style={[styles.timelineLabel, { color: colors.text }]}>{event.label}</Text>
-            <Text style={[styles.timelineTime, { color: colors.textMuted }]}>
-              {event.time ? formatEAT(event.time) : '-'}
-            </Text>
-          </View>
-        </View>
-      ))}
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

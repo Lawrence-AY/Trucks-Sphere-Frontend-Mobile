@@ -33,11 +33,10 @@ import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { jobRepository } from '../../../services/repositories/JobRepository';
 import { Job } from '../../../store/types';
 import { UserActionInfo } from '../../../components/UserActionInfo';
+import { JobDocuments } from '../../../components/JobDocuments';
 
 const JOB_TABS = [
   { name: 'overview', label: 'Overview', icon: 'information-circle-outline' as const },
-
-  { name: 'weights', label: 'Weights', icon: 'scale-outline' as const },
 ];
 
 // Valid status transitions
@@ -193,6 +192,8 @@ export default function JobDetailScreen() {
           )}
         </Card>
 
+        <JobDocuments job={job} />
+
        
 
       </View>
@@ -200,45 +201,6 @@ export default function JobDetailScreen() {
   }
 
   
-  function renderWeights() {
-    if (!job) return null;
-    return (
-      <Card>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Weight Records</Text>
-        <View style={styles.detailRow}>
-          <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Weigh In</Text>
-          <Text style={[styles.detailValue, { color: colors.text }]}>
-            {job.weighInWeight ? `${job.weighInWeight} kg` : 'Not recorded'}
-          </Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Weigh Out</Text>
-          <Text style={[styles.detailValue, { color: colors.text }]}>
-            {job.weighOutWeight ? `${job.weighOutWeight} kg` : 'Not recorded'}
-          </Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Net Weight</Text>
-          <Text style={[styles.detailValue, { color: colors.text }]}>
-            {job.netWeight ? `${job.netWeight} kg` : 'Not calculated'}
-          </Text>
-        </View>
-        {job.weightVariance !== undefined && (
-          <View style={[styles.alert, { backgroundColor: (job.weightVariance > 0 ? colors.warning : colors.success) + '15' }]}>
-            <Ionicons
-              name={job.weightVariance > 0 ? 'alert-circle' : 'checkmark-circle'}
-              size={16}
-              color={job.weightVariance > 0 ? colors.warning : colors.success}
-            />
-            <Text style={[styles.alertText, { color: job.weightVariance > 0 ? colors.warning : colors.success }]}>
-              Variance: {job.weightVariance > 0 ? '+' : ''}{job.weightVariance} kg
-            </Text>
-          </View>
-        )}
-      </Card>
-    );
-  }
-
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -305,7 +267,6 @@ export default function JobDetailScreen() {
       <View style={{ marginTop: Spacing.md }}>
         {activeTab === 'overview' && renderOverview()}
      
-        {activeTab === 'weights' && renderWeights()}
       </View>
 
      

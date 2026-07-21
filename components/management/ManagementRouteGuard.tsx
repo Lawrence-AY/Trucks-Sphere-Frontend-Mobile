@@ -4,8 +4,8 @@ import { View } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
 import { canAccessRoute, isManagementRole, managementHomeRoute } from '../../utils/access';
 
-const PUBLIC_PREFIXES = ['/(auth)', '/login', '/forgot-password'];
-const MANAGEMENT_CONTROLLED_PREFIXES = ['/management', '/track', '/audit-log'];
+const PUBLIC_PREFIXES = ['/(auth)', '/login', '/forgot-password', '/track'];
+const MANAGEMENT_CONTROLLED_PREFIXES = ['/management', '/audit-log'];
 
 function isPublicRoute(pathname: string) {
   return pathname === '/' || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -18,7 +18,7 @@ function isManagementControlledRoute(pathname: string) {
 /**
  * A single deep-link guard for every management-controlled route. Route
  * layouts remain useful for native transitions, but this root guard also
- * covers URLs such as /track that live outside the /management folder.
+ * covers controlled URLs that live outside the /management folder.
  */
 export function ManagementRouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname() || '/';

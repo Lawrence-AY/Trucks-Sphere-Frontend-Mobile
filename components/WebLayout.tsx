@@ -122,14 +122,6 @@ export default function WebLayout({ children }: WebLayoutProps) {
         <Sidebar />
         <View style={[styles.desktopContent, { backgroundColor: colors.background }]}>
           {children}
-          <TouchableOpacity
-            onPress={openDrawer}
-            style={[styles.desktopHamburgerBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            accessibilityLabel="Open navigation menu"
-            accessibilityRole="button"
-          >
-            <Ionicons name="menu-outline" size={26} color={colors.text} />
-          </TouchableOpacity>
         </View>
         {navigationDrawer}
       </View>
@@ -190,24 +182,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden' as const,
     position: 'relative' as const,
   } as any,
-  desktopHamburgerBtn: {
-    position: 'absolute' as const,
-    top: 16,
-    right: 16,
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-
   /* ── Mobile Web ── */
   mobileRoot: {
     flex: 1,

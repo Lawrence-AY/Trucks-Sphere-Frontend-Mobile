@@ -17,7 +17,7 @@ import { Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
-import { reverseGeocode, reverseGeocodeRich } from '../../services/geolocation';
+import { formatCapturedGeoLocation, reverseGeocode, reverseGeocodeRich } from '../../services/geolocation';
 
 /* ─────────── Helper: escape HTML special characters ─────────── */
 const escapeHtml = (str: string | null | undefined): string => {
@@ -87,6 +87,7 @@ function buildReceiptNoteHtml(data: {
   vendorName: string;
   materialName: string;
   quarryName: string;
+  quarryOrigin?: string;
   quarryCityTown?: string;
   quarryPersonnel?: string;
   quarryWeighIn?: string;
@@ -102,7 +103,7 @@ function buildReceiptNoteHtml(data: {
 }): string {
   const {
     receiptNoteId, jobId, poNumber, driverName, plateNumber,
-    vendorName, materialName, quarryName, quarryCityTown,
+    vendorName, materialName, quarryName, quarryOrigin, quarryCityTown,
     quarryPersonnel, quarryWeighIn, quarryWeighOut, quarryNetWeight,
     siteName, siteWeighIn, siteWeighOut, siteNetWeight,
     weighOutGeoAddress, timestamp, operatorName,
@@ -172,7 +173,7 @@ function buildReceiptNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Route </div>
-    
+    <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${e(quarryOrigin) || e(quarryName) || 'N/A'}</span></div>
     <div class="row"><span class="label">City / Town</span><span class="value">${e(quarryCityTown) || 'N/A'}</span></div>
     ${weighOutGeoAddress ? `<div class="row"><span class="label">Weigh-Out Location</span><span class="value">${e(weighOutGeoAddress)}</span></div>` : ''}
     <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(siteName) || 'N/A'}</span></div>
@@ -317,9 +318,12 @@ export default function ReceiptNoteScreen() {
   const driverName = delivery.driverName || 'N/A';
   const plateNumber = delivery.plateNumber || 'N/A';
   const vendorName = delivery.vendorName || 'N/A';
-  const vendorId = delivery.vendorId || '';
   const materialName = delivery.materialName || 'N/A';
   const quarryName = resolvedQuarryName || delivery.quarryName || 'N/A';
+  const quarryOrigin = formatCapturedGeoLocation(
+    delivery?.weighOutGeoLocation,
+    delivery?.weighOutLocation || quarryName,
+  );
   const quarryCityTown = geoCity || geoTown || delivery?.weighOutGeoLocation?.address || delivery?.weighOutLocation || null;
   const quarryPersonnel = delivery?.operatorUsername || delivery?.weighOutByName || delivery?.quarryOperatorName || delivery?.weighOutBy || delivery?.weighOutOperator || null;
   const siteName = delivery.siteName || 'N/A';
@@ -340,7 +344,7 @@ const exportRows = [
   ['Truck', plateNumber],
   ['Vendor', vendorName],
   ['Material', materialName],
-   
+  ['Origin (Quarry)', quarryOrigin || quarryName],
   ['City / Town', quarryCityTown || 'N/A'],
   ['Quarry Personnel', quarryPersonnel || 'N/A'],
   ['Weigh-Out Location', geoAddress || 'N/A'],
@@ -377,6 +381,7 @@ const exportRows = [
         vendorName,
         materialName,
         quarryName,
+        quarryOrigin: quarryOrigin || undefined,
         quarryCityTown: quarryCityTown || undefined,
         quarryPersonnel: quarryPersonnel || undefined,
         quarryWeighIn: quarryWeighIn != null ? `${quarryWeighIn.toFixed(1)} T` : undefined,
@@ -445,18 +450,12 @@ const exportRows = [
         <SectionBlock title="PARTIES" colors={colors}>
           <RNRow label="Driver" value={driverName} colors={colors} />
           <RNRow label="Truck" value={plateNumber} colors={colors} />
-          <RNRow
-            label="Vendor"
-            value={vendorName}
-            colors={colors}
-            tappable={!!vendorId}
-            onPress={() => vendorId && router.push(`/screens/vendor-detail?id=${vendorId}` as any)}
-          />
+          <RNRow label="Vendor" value={vendorName} colors={colors} />
         </SectionBlock>
 
         {/* Route & Geolocation */}
         <SectionBlock title="ROUTE " colors={colors}>
-         
+          <RNRow label="Origin (Quarry)" value={quarryOrigin || quarryName} colors={colors} />
           {quarryCityTown ? (
             <RNRow label="City / Town" value={quarryCityTown} colors={colors} />
           ) : null}

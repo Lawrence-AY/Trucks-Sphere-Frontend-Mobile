@@ -45,8 +45,6 @@ export default function EditPurchaseOrderScreen() {
     materialId: '',
     quantity: '',
     unit: 'Tonnes',
-    expectedCompletion: '',
-    notes: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -74,8 +72,6 @@ export default function EditPurchaseOrderScreen() {
         materialId: p.materialId || '',
         quantity: String(p.quantity || ''),
         unit: p.unit || 'Tonnes',
-        expectedCompletion: p.expectedCompletion?.split('T')[0] || '',
-        notes: p.notes || '',
       });
     } catch {
       Alert.alert('Error', 'Failed to load purchase order');
@@ -120,15 +116,13 @@ export default function EditPurchaseOrderScreen() {
 
       await purchaseOrderRepository.update(id!, {
         vendorId: form.vendorId,
+        vendorNumber: String(selectedVendor?.vendorId || selectedVendor?.id || '').replace(/^V/i, ''),
         vendorName: selectedVendor?.companyName || (selectedVendor as any)?.name || '',
         materialId: form.materialId,
+        materialNumber: String(selectedMaterial?.id || '').replace(/^MAT/i, ''),
         materialName: selectedMaterial?.name || '',
         quantity: parseFloat(form.quantity),
         unit: form.unit,
-        expectedCompletion: form.expectedCompletion
-          ? new Date(form.expectedCompletion).toISOString()
-          : undefined,
-        notes: form.notes,
         updatedAt: new Date().toISOString(),
       });
 
@@ -171,7 +165,7 @@ export default function EditPurchaseOrderScreen() {
           <Select
             label="Vendor"
             value={form.vendorId}
-            options={vendors.map((v) => ({ id: v.id, name: v.companyName || (v as any).name || 'Unknown Vendor', subtitle: v.vendorId }))}
+            options={vendors.map((v) => ({ id: v.id, name: `${String(v.vendorId || v.id).replace(/^V/i, '')} - ${v.companyName || (v as any).name || 'Unknown Vendor'}` }))}
             onSelect={(v) => updateField('vendorId', v)}
             icon="business-outline"
             required
@@ -185,7 +179,7 @@ export default function EditPurchaseOrderScreen() {
               value={form.materialId}
               options={filteredMaterials.map((m) => ({
                 id: m.id,
-                name: `${m.name} (${m.category})`,
+                name: `${String(m.id).replace(/^MAT/i, '')} - ${m.name}`,
               }))}
               onSelect={(v) => updateField('materialId', v)}
               icon="cube-outline"
@@ -236,23 +230,6 @@ export default function EditPurchaseOrderScreen() {
             error={errors.unit}
           />
 
-          <Input
-            label="Expected Completion"
-            value={form.expectedCompletion}
-            onChangeText={(v) => updateField('expectedCompletion', v)}
-            placeholder="YYYY-MM-DD"
-            icon="calendar-outline"
-          />
-
-          <Input
-            label="Notes"
-            value={form.notes}
-            onChangeText={(v) => updateField('notes', v)}
-            placeholder="Additional notes..."
-            icon="document-text-outline"
-            multiline
-            numberOfLines={3}
-          />
         </Card>
 
         <View style={styles.actions}>

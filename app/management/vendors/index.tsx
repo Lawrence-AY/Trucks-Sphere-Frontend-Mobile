@@ -27,7 +27,6 @@ import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
-import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
@@ -208,14 +207,6 @@ export default function VendorListScreen() {
               {vendors.length} vendor{vendors.length !== 1 ? 's' : ''}
             </Text>
           </View>
-          {canWriteVendors && (
-            <Button
-              title="Add Vendor"
-              onPress={() => router.push('/management/vendors/create' as any)}
-              icon="add-circle-outline"
-              size="sm"
-            />
-          )}
         </View>
 
         {/* Search */}
@@ -259,6 +250,17 @@ export default function VendorListScreen() {
           />
         }
       />
+
+      {canWriteVendors && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: colors.primary, bottom: insets.bottom + Spacing.xl }]}
+          onPress={() => router.push('/management/vendors/create' as any)}
+          accessibilityLabel="Add vendor"
+          accessibilityRole="button"
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -383,5 +385,19 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     marginTop: 1,
+  },
+  fab: {
+    position: 'absolute',
+    right: Spacing.xl,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 6,
   },
 });

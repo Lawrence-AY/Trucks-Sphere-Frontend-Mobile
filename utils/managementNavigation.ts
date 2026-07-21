@@ -17,7 +17,6 @@ export type ManagementNavigationSection = {
 export const SuperAdminSidebar: ManagementNavigationSection[] = [
   { title: 'Overview', icon: 'apps-outline', items: [
     { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard' },
-    { label: 'Analytics', icon: 'analytics-outline', route: '/management/analytics' },
   ] },
   { title: 'Operations', icon: 'radio-outline', items: [
     { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active' },
@@ -49,7 +48,6 @@ export const SuperAdminSidebar: ManagementNavigationSection[] = [
 export const AdminSidebar: ManagementNavigationSection[] = [
   { title: 'Overview', icon: 'apps-outline', items: [
     { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard' },
-    { label: 'Analytics', icon: 'analytics-outline', route: '/management/analytics' },
     { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active' },
   ] },
   { title: 'Operations', icon: 'radio-outline', items: [

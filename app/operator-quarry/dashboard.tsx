@@ -23,6 +23,7 @@ import { useAuthStore } from '../../store/authStore';
 import {
   useDeliveryOrders,
   useDrivers,
+  usePurchaseOrders,
   useVehicles,
 } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
@@ -46,7 +47,8 @@ export default function OperatorQuarryDashboardScreen() {
   const vehicles = useVehicles();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
   const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
-  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const purchaseOrders = usePurchaseOrders();
+  const [freshPurchaseOrders, setFreshPurchaseOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [addVisible, setAddVisible] = useState(false);
@@ -63,10 +65,12 @@ export default function OperatorQuarryDashboardScreen() {
   const loadData = async (silent?: boolean) => {
     if (!silent) setRefreshing(true);
     try {
-      // Purchase orders fetched once (static ref data), deliveries/drivers/vehicles via realtime store
-      const orders = await fetchPurchaseOrders();
-      setPurchaseOrders(orders || []);
-      await refresh('deliveryOrders');
+      const [orders] = await Promise.all([
+        fetchPurchaseOrders(),
+        refresh('purchaseOrders'),
+        refresh('deliveryOrders'),
+      ]);
+      setFreshPurchaseOrders(orders || []);
     } catch {
     } finally {
       setRefreshing(false);
@@ -112,17 +116,25 @@ export default function OperatorQuarryDashboardScreen() {
 
   const matchingPurchaseOrders = useMemo(() => {
     const term = poSearch.trim().toLowerCase();
-    return purchaseOrders
+    const orders = [...purchaseOrders, ...freshPurchaseOrders].filter(
+      (order, index, items) => items.findIndex((item) => item.id === order.id) === index,
+    );
+    return orders
       // An operator chooses the work order first. The job card then records
       // both that PO's quarry and the operator who created the job.
-      .filter((order) => ['approved', 'pending', 'in_progress'].includes(String(order.status || '').toLowerCase()))
+      .filter((order) => !['completed', 'cancelled', 'archived'].includes(String(order.status || '').toLowerCase()))
+      .filter((order) => {
+        const ordered = Number(order.quantity ?? 0);
+        const allocated = Number(order.allocatedQuantity ?? order.quantityDelivered ?? order.deliveredQuantity ?? 0);
+        return Math.max(ordered - allocated, 0) > 0;
+      })
       .filter(
         (order) =>
           !term ||
           order.poNumber?.toLowerCase().includes(term) ||
           order.vendorName?.toLowerCase().includes(term),
       );
-  }, [poSearch, purchaseOrders]);
+  }, [poSearch, purchaseOrders, freshPurchaseOrders]);
 
   const vendorDrivers = useMemo(() => {
     if (!selectedPo) return [];
@@ -338,7 +350,7 @@ export default function OperatorQuarryDashboardScreen() {
                   </View>
                   <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
                   <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
-                  <DetailRow icon="location-outline" value={`To: ${item.siteName || 'Site'}`} />
+                 
                   <DetailRow icon="person-outline" value={`Dispatched by: ${item.weighOutByName || item.createdByName || item.operatorUsername || '—'}`} />
                   {/* Weight summary */}
                   <View style={[styles.snapshotWeightRow, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
@@ -369,7 +381,11 @@ export default function OperatorQuarryDashboardScreen() {
         )}
       </PageShell>
 
-      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => setAddVisible(true)} activeOpacity={0.86}>
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => { void loadData(true); setAddVisible(true); }}
+        activeOpacity={0.86}
+      >
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
 
@@ -431,8 +447,9 @@ export default function OperatorQuarryDashboardScreen() {
               <View style={styles.selectedBlock}>
                 <Text style={[styles.prefillTitle, { color: colors.text }]}>Order Details</Text>
                 <DetailRow icon="document-outline" value={`Order: ${selectedPo.poNumber}`} />
-                <DetailRow icon="business-outline" value={`Vendor: ${selectedPo.vendorName}`} />
-                <DetailRow icon="cube-outline" value={`Material: ${selectedPo.materialName}`} />
+                <DetailRow icon="business-outline" value={`Vendor: ${selectedPo.vendorNumber || String(selectedPo.vendorId || '').replace(/^V/i, '')} - ${selectedPo.vendorName}`} />
+                <DetailRow icon="cube-outline" value={`Material: ${selectedPo.materialNumber || String(selectedPo.materialId || '').replace(/^MAT/i, '')} - ${selectedPo.materialName}`} />
+               
               </View>
             )}
 

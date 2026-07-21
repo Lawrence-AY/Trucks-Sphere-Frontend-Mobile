@@ -8,7 +8,7 @@ import { Spacing, Radius } from '../../constants/theme';
 import { fetchDeliveryOrders, fetchCheckpoints } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
-import { reverseGeocodeRich } from '../../services/geolocation';
+import { formatCapturedGeoLocation, reverseGeocodeRich } from '../../services/geolocation';
 
 const NAVY = '#1B2A4A';
 
@@ -34,9 +34,9 @@ function buildDeliveryNoteHtml(data: {
   vendorName: string;
   materialName: string;
   quarryName: string;
+  quarrySource?: string;
   quarryCityTown?: string;
   quarryPersonnel?: string;
-  siteName: string;
   netWeight?: string;
   weighInWeight?: string;
   weighOutWeight?: string;
@@ -47,8 +47,8 @@ function buildDeliveryNoteHtml(data: {
 }): string {
   const {
     jobId, poNumber, driverName, plateNumber, vendorName,
-    materialName, quarryName, quarryCityTown, quarryPersonnel,
-    siteName, netWeight, weighInWeight, weighOutWeight,
+    materialName, quarryName, quarrySource, quarryCityTown, quarryPersonnel,
+    netWeight, weighInWeight, weighOutWeight,
     weighOutGeoAddress, weighOutCity, weighOutTown, timestamp,
   } = data;
 
@@ -115,10 +115,10 @@ function buildDeliveryNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Route & Geolocation</div>
- 
+    <div class="row"><span class="label">Source (Quarry)</span><span class="value">${e(quarrySource) || 'N/A'}</span></div>
+    
     <div class="row"><span class="label">City / Town</span><span class="value">${e(quarryCityTown) || e(weighOutCity) || 'N/A'}</span></div>
-    <div class="row"><span class="label">Weigh-Out Location</span><span class="value">${e(geoText)}</span></div>
-    <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(siteName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Weigh-Out Location</span><span class="value">${e(quarrySource) || e(geoText)}</span></div>
   </div>
 
   <div class="section">
@@ -268,7 +268,17 @@ export default function DeliveryNoteScreen() {
   const handleSearch = () => { loadData(searchJobId.trim()); };
 
   const netWeight = delivery?.netWeight || (delivery?.weighInWeight && delivery?.weighOutWeight ? (delivery.weighInWeight - delivery.weighOutWeight).toFixed(1) : null);
-  const quarryCityTown = geoCity || geoTown || delivery?.weighOutGeoLocation?.address || delivery?.weighOutLocation || null;
+  const capturedQuarrySource = formatCapturedGeoLocation(
+    {
+      city: delivery?.weighOutGeoLocation?.city || geoCity,
+      town: delivery?.weighOutGeoLocation?.town || geoTown,
+      district: delivery?.weighOutGeoLocation?.district,
+      address: delivery?.weighOutGeoLocation?.address || geoAddress,
+      name: delivery?.weighOutGeoLocation?.name,
+    },
+    delivery?.weighOutLocation || '',
+  );
+  const quarryCityTown = delivery?.weighOutGeoLocation?.city || delivery?.weighOutGeoLocation?.town || geoCity || geoTown || null;
   const quarryPersonnel = delivery?.operatorUsername || delivery?.weighOutByName || delivery?.quarryOperatorName || delivery?.weighOutBy || delivery?.weighOutOperator || null;
 
   const exportHeaders = ['Field', 'Value'];
@@ -281,11 +291,11 @@ export default function DeliveryNoteScreen() {
       ['Driver', delivery.driverName || 'N/A'],
       ['Truck', delivery.plateNumber || 'N/A'],
       ['Material', delivery.materialName || 'N/A'],
-     ['Recorded By', quarryPersonnel || 'N/A'],
+      ['Source (Quarry)', capturedQuarrySource || 'N/A'],
+      ['Recorded By', quarryPersonnel || 'N/A'],
       ['City / Town', quarryCityTown || 'N/A'],
       ['Quarry Personnel', quarryPersonnel || 'N/A'],
-      ['Geolocation (Weigh-Out)', geoAddress || 'N/A'],
-      ['Destination', delivery.siteName || 'N/A'],
+      ['Geolocation (Weigh-Out)', capturedQuarrySource || 'N/A'],
       ['Weigh-In', delivery.weighInWeight ? `${delivery.weighInWeight} t` : '—'],
       ['Weigh-Out', delivery.weighOutWeight ? `${delivery.weighOutWeight} t` : '—'],
       ['Net Weight', `${netWeight} tonnes`],
@@ -317,15 +327,15 @@ export default function DeliveryNoteScreen() {
         vendorName: delivery.vendorName || '',
         materialName: delivery.materialName || '',
         quarryName: delivery.quarryName || '',
+        quarrySource: capturedQuarrySource || '',
         quarryCityTown: quarryCityTown || '',
         quarryPersonnel: quarryPersonnel || '',
-        siteName: delivery.siteName || '',
         netWeight: netWeight ? `${netWeight}` : '',
         weighInWeight: delivery.weighInWeight ? `${delivery.weighInWeight} t` : '',
         weighOutWeight: delivery.weighOutWeight ? `${delivery.weighOutWeight} t` : '',
-        weighOutGeoAddress: geoAddress || '',
-        weighOutCity: geoCity || '',
-        weighOutTown: geoTown || '',
+        weighOutGeoAddress: delivery?.weighOutGeoLocation?.address || geoAddress || delivery?.weighOutLocation || '',
+        weighOutCity: delivery?.weighOutGeoLocation?.city || geoCity || '',
+        weighOutTown: delivery?.weighOutGeoLocation?.town || geoTown || '',
         timestamp: formatEAT(delivery.createdAt) || new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' }),
       };
       const html = buildDeliveryNoteHtml(pdfData);
@@ -390,7 +400,6 @@ export default function DeliveryNoteScreen() {
               <View style={[styles.line, { backgroundColor: '#DDD' }]} />
             </View>
             <View style={{ padding: Spacing.sm }}>
-              <Text style={styles.rHead}>{delivery.siteName}</Text>
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <DNRow label="Delivery Note #" value={delivery.jobId} bold />
               <DNRow label="Purchase Order" value={delivery.poNumber} />
@@ -405,9 +414,7 @@ export default function DeliveryNoteScreen() {
               <DNRow label="Material" value={delivery.materialName} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>ROUTE </Text>
-              
-              {geoAddress ? <DNRow label="Weigh-Out Location" value={geoAddress} /> : null}
-              <DNRow label="Destination" value={delivery.siteName} />
+              <DNRow label="Source (Quarry)" value={capturedQuarrySource || 'N/A'} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               {quarryPersonnel ? (
                 <>

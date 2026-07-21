@@ -16,6 +16,27 @@ export interface GeoLocationFull {
   name?: string;
 }
 
+/**
+ * Present a saved quarry geolocation as the city/town and the captured
+ * location. This is intentionally separate from a configured quarry name:
+ * receipts and reports need to show where the weigh-out was actually captured.
+ */
+export function formatCapturedGeoLocation(
+  location?: Partial<GeoLocationFull> | null,
+  fallback = '',
+): string {
+  const city = location?.city || location?.town || location?.district || '';
+  const address = location?.address || location?.name || fallback;
+
+  if (city && address) {
+    return address.toLocaleLowerCase().includes(city.toLocaleLowerCase())
+      ? address
+      : `${city} — ${address}`;
+  }
+
+  return city || address || '';
+}
+
 export async function requestLocationPermissions(): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   return status === 'granted';

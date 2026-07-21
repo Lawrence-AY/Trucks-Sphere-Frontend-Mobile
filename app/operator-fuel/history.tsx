@@ -189,8 +189,7 @@ export default function FuelHistoryScreen() {
     "Vendor",
     "Fuel (L)",
     "Auth Code",
-    "Dispensed At",
-    "Completed",
+    "Timestamp (EAT)",
   ];
 
   const exportRows = useMemo(() => {
@@ -201,8 +200,7 @@ export default function FuelHistoryScreen() {
       item.vendorName || "N/A",
       item.fuelAmount != null ? item.fuelAmount.toFixed(1) : "0.0",
       item.authorizationCode || item.authorizationId || "",
-      item.dispensedAt || item.createdAt || "",
-      item.completed ? "Yes" : "No",
+      formatEAT(item.dispensedAt || item.createdAt || ""),
     ]);
   }, [filtered]);
 

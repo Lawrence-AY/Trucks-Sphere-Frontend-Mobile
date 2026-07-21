@@ -4,9 +4,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "set DEBUG= && npx expo start",
-    "android": "set DEBUG= && npx expo start --android",
-    "ios": "set DEBUG= && npx expo start --ios",
-    "web": "set DEBUG= && npx expo start --web"
+    "android": "set DEBUG= && npx expo start --android"
   },
   "dependencies": {
     "@expo/metro-runtime": "~56.0.15",

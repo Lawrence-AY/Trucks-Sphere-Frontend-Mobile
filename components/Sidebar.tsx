@@ -236,23 +236,22 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
             })}
           </View>
         ))}
+        {/* Keep logout in the scrollable navigation so it remains reachable on shorter screens. */}
+        <TouchableOpacity
+          style={[styles.logoutBtn, { backgroundColor: `${colors.danger}16`, borderColor: `${colors.danger}45` }, loggingOut && { opacity: 0.6 }]}
+          onPress={handleLogout}
+          disabled={loggingOut}
+        >
+          {loggingOut ? (
+            <ActivityIndicator color="#EF4444" size="small" />
+          ) : (
+            <>
+              <Ionicons name="log-out-outline" size={20} color={colors.danger} />
+              <Text style={[styles.logoutText, { color: colors.danger }]}>Logout</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </ScrollView>
-
-      {/* Logout */}
-      <TouchableOpacity
-        style={[styles.logoutBtn, { backgroundColor: `${colors.danger}16`, borderColor: `${colors.danger}45` }, loggingOut && { opacity: 0.6 }]}
-        onPress={handleLogout}
-        disabled={loggingOut}
-      >
-        {loggingOut ? (
-          <ActivityIndicator color="#EF4444" size="small" />
-        ) : (
-          <>
-            <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-            <Text style={[styles.logoutText, { color: colors.danger }]}>Logout</Text>
-          </>
-        )}
-      </TouchableOpacity>
     </View>
   );
 }
@@ -347,6 +346,7 @@ const styles = StyleSheet.create({
   },
   navContent: {
     paddingVertical: 12,
+    paddingBottom: 24,
   },
   navSectionHeader: {
     flexDirection: 'row',

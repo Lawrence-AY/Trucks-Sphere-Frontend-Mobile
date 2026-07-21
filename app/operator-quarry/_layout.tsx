@@ -42,6 +42,7 @@ export default function OperatorQuarryLayout() {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabBottomInset = Math.max(insets.bottom, 6);
   const { width: screenWidth } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -100,9 +101,9 @@ export default function OperatorQuarryLayout() {
             backgroundColor: colors.surface,
             borderTopColor: colors.border,
             borderTopWidth: 1,
-            paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
+            paddingBottom: tabBottomInset + 4,
             paddingTop: 6,
-            height: Platform.OS === 'ios' ? 68 + insets.bottom : 68,
+            height: 68 + tabBottomInset,
           },
           headerShown: Platform.OS !== 'web',
           headerStyle: { backgroundColor: colors.surface },
@@ -184,7 +185,6 @@ export default function OperatorQuarryLayout() {
               <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B' }}>
                 {user?.displayName || 'User'}
               </Text>
-              <Text style={{ fontSize: 14, color: '#64748B' }}>{user?.email || ''}</Text>
               <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#229ED912' }}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#229ED9' }}>
                   {getRoleLabel(user?.role || '')}

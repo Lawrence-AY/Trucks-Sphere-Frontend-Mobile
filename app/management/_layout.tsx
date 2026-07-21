@@ -61,7 +61,7 @@ const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = 
   profile: { icon: 'person-outline', label: 'Profile', family: 'Ionicons' },
 };
 
-const getManagementScreenOptions = (colors: any) => ({
+const getManagementScreenOptions = (colors: any, bottomInset: number) => ({
   tabBarActiveTintColor: colors.primary,
   tabBarInactiveTintColor: colors.textMuted,
   tabBarShowLabel: Platform.OS !== 'web',
@@ -72,9 +72,9 @@ const getManagementScreenOptions = (colors: any) => ({
         backgroundColor: colors.surface,
         borderTopColor: colors.border,
         borderTopWidth: 1,
-        paddingBottom: 6,
+        paddingBottom: bottomInset + 4,
         paddingTop: 6,
-        height: 68,
+        height: 68 + bottomInset,
       },
   headerShown: Platform.OS !== 'web',
   headerStyle: { backgroundColor: colors.surface },
@@ -123,6 +123,7 @@ export default function ManagementLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const tabBottomInset = Math.max(insets.bottom, 6);
   const { width: screenWidth } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -196,7 +197,7 @@ export default function ManagementLayout() {
     <View style={{ flex: 1 }}>
       <Tabs
         tabBar={Platform.OS === 'web' ? NoopTabBar : undefined}
-        screenOptions={getManagementScreenOptions(colors)}
+        screenOptions={getManagementScreenOptions(colors, tabBottomInset)}
       >
         {BOTTOM_TABS.map((tabName) => {
           const route = `/management/${tabName}`;
@@ -270,7 +271,6 @@ export default function ManagementLayout() {
                 <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
               </View>
               <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'User'}</Text>
-              <Text style={{ fontSize: 14, color: colors.textMuted }}>{user?.email || ''}</Text>
               <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.primaryLight }}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary }}>{getRoleLabel(user?.role || '')}</Text>
               </View>

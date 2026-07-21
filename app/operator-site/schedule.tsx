@@ -136,23 +136,20 @@ export default function OperatorSiteDashboardScreen() {
 
   // Lazy-load FAB data (drivers, POs, vehicles) only when opening the FAB
   const loadFabData = async () => {
-    if (!fabDataLoaded) {
-      try {
-        const [driverData, orders, vehicleData] = await Promise.all([
-          fetchDrivers(),
-          fetchPurchaseOrders(),
-          fetchVehicles(),
-        ]);
-        setAllDrivers(driverData || []);
-        setPurchaseOrders(orders || []);
-        setAllVehicles(vehicleData || []);
-        // Build driver lookup map
-        const map: Record<string, any> = {};
-        (driverData || []).forEach((d: any) => { if (d.id) map[d.id] = d; });
-        setDriverMap(map);
-        setFabDataLoaded(true);
-      } catch { /* ignore */ }
-    }
+    try {
+      const [driverData, orders, vehicleData] = await Promise.all([
+        fetchDrivers(),
+        fetchPurchaseOrders(),
+        fetchVehicles(),
+      ]);
+      setAllDrivers(driverData || []);
+      setPurchaseOrders(orders || []);
+      setAllVehicles(vehicleData || []);
+      const map: Record<string, any> = {};
+      (driverData || []).forEach((d: any) => { if (d.id) map[d.id] = d; });
+      setDriverMap(map);
+      setFabDataLoaded(true);
+    } catch { /* keep the current data if a refresh fails */ }
   };
 
   // Refresh handler — uses the realtime store refresh
@@ -293,20 +290,16 @@ export default function OperatorSiteDashboardScreen() {
       return;
     }
 
-   
-    // Low weight warning: 2% variation OR >5.0T absolute difference from quarry weighOut
-    const quarryWeighOut = job.weighOutWeight || 0;
-    const lowWeightThreshold = quarryWeighOut > 0 ? quarryWeighOut * 0.98 : (job.quantityOrdered || 0) * 0.3;
-    const weightDiff = quarryWeighOut > 0 ? quarryWeighOut - weightInNum : 0;
+    // Arrival variance is Site Weigh-In minus Quarry Weigh-Out. A variance
+    // from -5.0T through +5.0T is accepted; anything beyond is flagged.
+    const quarryWeighOut = Number(job.weighOutWeight || 0);
+    const arrivalVariance = quarryWeighOut > 0 ? weightInNum - quarryWeighOut : null;
 
-    if (quarryWeighOut > 0 && (weightInNum < lowWeightThreshold || weightDiff > 5.0)) {
-      const variationPercent = ((quarryWeighOut - weightInNum) / quarryWeighOut * 100).toFixed(1);
-      const reason = weightDiff > 5.0
-        ? `The Site Arrival Weight (${weightInNum.toFixed(1)}T) differs by ${weightDiff.toFixed(1)}T from the Quarry Weigh Out (${quarryWeighOut.toFixed(1)}T). This exceeds the 5.0T tolerance.`
-        : `The Site Arrival Weight (${weightInNum.toFixed(1)}T) is ${variationPercent}% below the Quarry Weigh Out (${quarryWeighOut.toFixed(1)}T).`;
+    if (arrivalVariance != null && Math.abs(arrivalVariance) > 5.0) {
+      const signedVariance = `${arrivalVariance > 0 ? '+' : ''}${arrivalVariance.toFixed(1)}`;
       Alert.alert(
         'Weight Variance Alert',
-        `${reason} Do you want to proceed?`,
+        `Site Arrival Weight (${weightInNum.toFixed(1)}T) is ${signedVariance}T against the Quarry Weigh Out (${quarryWeighOut.toFixed(1)}T). This is outside the ±5.0T tolerance. Do you want to proceed?`,
         [
           { text: 'No', style: 'cancel' },
           {
@@ -439,7 +432,12 @@ export default function OperatorSiteDashboardScreen() {
   const fabMatchingPOs = useMemo(() => {
     const term = fabPoSearch.trim().toLowerCase();
     return purchaseOrders
-      .filter((order) => ['approved', 'pending', 'in_progress'].includes(order.status))
+      .filter((order) => !['completed', 'cancelled', 'archived'].includes(String(order.status || '').toLowerCase()))
+      .filter((order) => {
+        const ordered = Number(order.quantity || 0);
+        const allocated = Number(order.allocatedQuantity ?? order.quantityDelivered ?? order.deliveredQuantity ?? 0);
+        return Math.max(ordered - allocated, 0) > 0;
+      })
       .filter(
         (order) =>
           !term ||
@@ -598,6 +596,12 @@ export default function OperatorSiteDashboardScreen() {
             const error = submitErrors[item.id];
             const weightInVal = getWeightInput(item.id);
             const hasSiteWeighIn = item.siteWeighInWeight != null || ['site_in', 'weighed_in'].includes(item.status);
+            const enteredSiteWeighIn = parseFloat(weightInVal);
+            const quarryWeighOut = Number(item.weighOutWeight || 0);
+            const arrivalVariance = quarryWeighOut > 0 && Number.isFinite(enteredSiteWeighIn)
+              ? enteredSiteWeighIn - quarryWeighOut
+              : null;
+            const isArrivalVarianceFlagged = arrivalVariance != null && Math.abs(arrivalVariance) > 5;
 
             return (
               <DataCard key={item.id}>
@@ -708,6 +712,15 @@ export default function OperatorSiteDashboardScreen() {
                     </View>
                   )}
 
+                  {hasSiteWeighIn && item.siteArrivalWeightVariance != null ? (
+                    <View style={[styles.tapHint, { backgroundColor: item.siteArrivalWeightVarianceFlagged ? '#FEF2F2' : '#ECFDF5' }]}>
+                      <Ionicons name={item.siteArrivalWeightVarianceFlagged ? 'warning-outline' : 'checkmark-circle-outline'} size={12} color={item.siteArrivalWeightVarianceFlagged ? '#DC2626' : '#059669'} />
+                      <Text style={[styles.tapHintText, { color: item.siteArrivalWeightVarianceFlagged ? '#B91C1C' : '#047857' }]}>
+                        Arrival variance: {item.siteArrivalWeightVariance > 0 ? '+' : ''}{Number(item.siteArrivalWeightVariance).toFixed(1)}T {item.siteArrivalWeightVarianceFlagged ? '— flagged' : '— within tolerance'}
+                      </Text>
+                    </View>
+                  ) : null}
+
                   {/* Tap hint */}
                   {!isExpanded && !hasSiteWeighIn && (
                     <View
@@ -736,12 +749,14 @@ export default function OperatorSiteDashboardScreen() {
                   activeOpacity={0.6}
                   onPress={() => {
                     const d = driverMap[item.driverId];
-                    if (d) {
-                      setSelectedDriverId(d.id);
-                      setSelectedDriverData(d);
-                      setSelectedDriverJobId(item.jobId);
-                      setDriverProfileVisible(true);
-                    }
+                    if (!item.driverId) return;
+                    // The driver map is loaded lazily for the FAB. Open the
+                    // bottom sheet even before that cache is populated; the
+                    // sheet will fetch the driver details itself.
+                    setSelectedDriverId(item.driverId);
+                    setSelectedDriverData(d || null);
+                    setSelectedDriverJobId(item.jobId);
+                    setDriverProfileVisible(true);
                   }}
                 >
                   {driverMap[item.driverId]?.photoURL ? (
@@ -837,6 +852,32 @@ export default function OperatorSiteDashboardScreen() {
                         Tonnes
                       </Text>
                     </View>
+
+                    {arrivalVariance != null ? (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          marginTop: Spacing.sm,
+                          padding: Spacing.sm,
+                          borderRadius: Radius.md,
+                          backgroundColor: isArrivalVarianceFlagged ? '#FEF2F2' : '#ECFDF5',
+                          borderWidth: 1,
+                          borderColor: isArrivalVarianceFlagged ? '#FECACA' : '#A7F3D0',
+                        }}
+                      >
+                        <Ionicons
+                          name={isArrivalVarianceFlagged ? 'warning-outline' : 'checkmark-circle-outline'}
+                          size={17}
+                          color={isArrivalVarianceFlagged ? '#DC2626' : '#059669'}
+                        />
+                        <Text style={{ flex: 1, fontSize: 12, fontWeight: '700', color: isArrivalVarianceFlagged ? '#B91C1C' : '#047857' }}>
+                          Arrival variance: {arrivalVariance > 0 ? '+' : ''}{arrivalVariance.toFixed(1)}T
+                          {isArrivalVarianceFlagged ? ' — outside ±5.0T tolerance' : ' — within ±5.0T tolerance'}
+                        </Text>
+                      </View>
+                    ) : null}
 
                     {/* Storage Lot Input */}
                     <View style={[styles.lotInputWrap, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>

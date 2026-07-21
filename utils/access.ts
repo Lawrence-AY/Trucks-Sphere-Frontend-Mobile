@@ -52,7 +52,6 @@ export function managementHomeRoute(role?: string): string {
 
 /** Screens that are not a management route but are part of management access. */
 const SPECIAL_ROUTE_ACCESS: Array<{ prefix: string; roles: ManagementRole[] }> = [
-  { prefix: '/track', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/audit-log', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/operations/jobs', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
 ];
@@ -109,6 +108,8 @@ export function canAccessManagementRoute(role: string | undefined, route: string
 }
 
 export function canAccessRoute(role: string | undefined, route: string): boolean {
+  // Public delivery tracking is deliberately available without an account.
+  if (routeMatches(route, '/track')) return true;
   if (route.startsWith('/management')) return canAccessManagementRoute(role, route);
   const normalizedRole = normalizeRole(role);
   if (normalizedRole === MANAGEMENT_ROLES.SUPER_ADMIN) return true;

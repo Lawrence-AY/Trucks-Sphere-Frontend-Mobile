@@ -8,6 +8,7 @@ import {
   PageShell,
   SectionTitle,
 } from '../../components/EnterpriseUI';
+import { JobDocuments } from '../../components/JobDocuments';
 import { Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import {
@@ -18,6 +19,7 @@ import {
   fetchVehicles,
 } from '../../services/api';
 import { formatEAT, formatStatus, generateReceiptNoteId, getStatusColor } from '../../utils/helpers';
+import { normalizeJobStatus } from '../../utils/jobStatus';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -101,8 +103,13 @@ export default function JobDetailsScreen() {
   const timelineCheckpoints = useMemo(() => checkpoints.filter((item) => item.type !== 'loading'), [checkpoints]);
   const isWeight = useMemo(() => timelineCheckpoints.some((item) => item.weight !== undefined && item.weight !== null), [timelineCheckpoints]);
 
-  const isCompleted = job?.status === 'completed' || job?.status === 'delivered';
-  const receiptNoteId = isCompleted && job?.jobId ? (job.receiptNoteId || generateReceiptNoteId(job.jobId)) : null;
+  const isReceiptReady = Boolean(job?.siteWeighOutAt) || [
+    'SITE_WEIGHED_OUT',
+    'COMPLETED',
+    'RECEIPT_UPLOADED',
+    'RECONCILIATION',
+  ].includes(normalizeJobStatus(job?.status));
+  const receiptNoteId = isReceiptReady && job?.jobId ? (job.receiptNoteId || generateReceiptNoteId(job.jobId)) : null;
 
   if (loading) {
     return (
@@ -175,6 +182,8 @@ export default function JobDetailsScreen() {
           </TouchableOpacity>
         </View>
       </DataCard>
+
+      <JobDocuments job={job} showReceiptNote={isReceiptReady} />
 
       <SectionTitle title="Journey Timeline" />
       <DataCard>

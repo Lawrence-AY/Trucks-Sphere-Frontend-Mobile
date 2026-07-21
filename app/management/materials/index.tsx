@@ -204,14 +204,7 @@ export default function MaterialsListScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.title, { color: colors.text }]}>Materials</Text>
-            <Text style={[styles.count, { color: colors.textMuted }]}>
-              {materials.length} material{materials.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        </View>
+      
 
         {/* Search */}
         <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>

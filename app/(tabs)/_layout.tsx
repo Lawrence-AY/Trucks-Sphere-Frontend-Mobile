@@ -38,6 +38,7 @@ const getTabIcon = (name: string, focused: boolean, color: string) => {
 export default function TabsLayout() {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
+  const tabBottomInset = Math.max(insets.bottom, 6);
 
   return (
     <Tabs
@@ -57,8 +58,8 @@ export default function TabsLayout() {
               {
                 backgroundColor: colors.surface,
                 borderTopColor: colors.border,
-                paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
-                height: Platform.OS === 'ios' ? 72 + insets.bottom : 72,
+                paddingBottom: tabBottomInset + 4,
+                height: 72 + tabBottomInset,
               },
             ],
         headerStyle: { backgroundColor: colors.surface },

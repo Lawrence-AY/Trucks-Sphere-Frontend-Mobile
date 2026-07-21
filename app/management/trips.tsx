@@ -14,7 +14,6 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
-  StatusPill,
 } from '../../components/EnterpriseUI';
 
 export default function ManagementTripsScreen() {
@@ -77,7 +76,6 @@ export default function ManagementTripsScreen() {
                 <Text style={[styles.title, { color: colors.text }]}>{item.jobId || item.id}</Text>
                 <Text style={[styles.reference, { color: colors.textMuted }]}>PO: {item.poNumber || 'N/A'}</Text>
               </View>
-              <StatusPill status={item.status} />
             </View>
             <DetailRow
               icon="person-outline"

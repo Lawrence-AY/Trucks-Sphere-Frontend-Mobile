@@ -543,7 +543,7 @@ export default function OperatorQuarryWeighOutScreen() {
             <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
             <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
             <DetailRow icon="location-outline" value={`Origin: ${(geoLocation as any)?.city || (geoLocation as any)?.town || (geoLocation as any)?.district || geoLocation?.address || activeJob.quarryName || 'Quarry'}`} />
-            <DetailRow icon="flag-outline" value={`Dest: ${activeJob.siteName || '—'}`} />
+            
             <View style={styles.divider} />
             <View style={styles.draftWeightRow}>
               <View style={{ flex: 1 }}>

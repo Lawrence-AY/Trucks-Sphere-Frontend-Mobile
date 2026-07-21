@@ -131,7 +131,11 @@ export default function OperatorSiteReceiveScreen() {
       const merged = { ...activeJob, ...updatePayload };
       optimisticUpdate('deliveryOrders', merged);
       const updated = await updateDeliveryOrder(activeJob.id, updatePayload);
-      setActiveJob(updated);
+      const persisted = { ...merged, ...updated };
+      // The server calculates and returns the signed site-arrival variance.
+      // Apply it immediately so the site workflow shows the current flag.
+      optimisticUpdate('deliveryOrders', persisted);
+      setActiveJob(persisted);
       Alert.alert('Saved', 'Site arrival weight recorded.');
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Could not save weigh-in.');

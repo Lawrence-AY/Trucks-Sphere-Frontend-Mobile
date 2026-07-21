@@ -701,15 +701,7 @@ export default function OperatorSiteHistoryScreen() {
         />
       }
     >
-      {/* ─── Analytics Overview ─── */}
-      <View style={styles.analyticsHeader}>
-        <Text style={[styles.analyticsTitle, { color: colors.text }]}>
-          Analytics & Reporting
-        </Text>
-        <Text style={[styles.analyticsSub, { color: colors.textMuted }]}>
-          {FILTER_LABELS[filter]}
-        </Text>
-      </View>
+     
 
      
 
