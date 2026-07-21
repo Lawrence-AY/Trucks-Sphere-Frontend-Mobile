@@ -34,7 +34,7 @@ import { purchaseOrderRepository } from '../../../services/repositories/Purchase
 import { PurchaseOrder } from '../../../store/types';
 import { useAuthStore } from '../../../store/authStore';
 import { formatEAT, formatNumber } from '../../../utils/helpers';
-import { MANAGEMENT_ROLES, normalizeRole } from '../../../utils/access';
+import { hasManagementPermission } from '../../../utils/access';
 
 const STATUS_BADGE: Record<string, { variant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple'; label: string }> = {
   draft: { variant: 'default', label: 'Draft' },
@@ -54,7 +54,8 @@ export default function PurchaseOrderListScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const isLite = normalizeRole(user?.role) === MANAGEMENT_ROLES.LITE;
+  const canCreatePurchaseOrder = hasManagementPermission(user?.role, 'purchaseOrders.create');
+  const canEditPurchaseOrder = hasManagementPermission(user?.role, 'purchaseOrders.edit');
 
   useEffect(() => {
     loadOrders();
@@ -155,7 +156,7 @@ export default function PurchaseOrderListScreen() {
         </View>
 
         {/* Action Buttons */}
-        {!isLite && item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'archived' && (
+        {canEditPurchaseOrder && item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'archived' && (
           <View style={styles.poActions}>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.primary + '15' }]}
@@ -224,12 +225,14 @@ export default function PurchaseOrderListScreen() {
               {orders.length} PO{orders.length !== 1 ? 's' : ''}
             </Text>
           </View>
-          <Button
-            title="Create PO"
-            onPress={() => router.push('/screens/purchase-order?new=true' as any)}
-            icon="add-circle-outline"
-            size="sm"
-          />
+          {canCreatePurchaseOrder && (
+            <Button
+              title="Create PO"
+              onPress={() => router.push('/management/purchase-orders/create' as any)}
+              icon="add-circle-outline"
+              size="sm"
+            />
+          )}
         </View>
 
         {/* Search */}
@@ -263,8 +266,8 @@ export default function PurchaseOrderListScreen() {
             icon="document-text-outline"
             title={search ? 'No POs found' : 'No purchase orders yet'}
             subtitle={search ? 'Try a different search term' : 'Create your first purchase order'}
-            actionLabel={search ? undefined : 'Create PO'}
-            onAction={search ? undefined : () => router.push('/screens/purchase-order?new=true' as any)}
+            actionLabel={!search && canCreatePurchaseOrder ? 'Create PO' : undefined}
+            onAction={!search && canCreatePurchaseOrder ? () => router.push('/management/purchase-orders/create' as any) : undefined}
           />
         }
       />

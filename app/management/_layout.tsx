@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import {
   Platform, StyleSheet, View, Text, TouchableOpacity, Animated, Pressable, useWindowDimensions, ScrollView, Modal, ActivityIndicator,
@@ -11,18 +11,17 @@ import { Spacing, Radius } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { getRoleLabel } from '../../utils/helpers';
 import { canAccessManagementRoute, MANAGEMENT_ROLES, managementHomeRoute, normalizeRole } from '../../utils/access';
+import { getManagementNavigation } from '../../utils/managementNavigation';
 
 const DEFAULT_BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
-const LITE_BOTTOM_TABS = ['dashboard', 'orders', 'profile'];
+const LITE_BOTTOM_TABS = ['dashboard', 'vendors', 'trucks', 'drivers', 'orders', 'profile'];
 const BOTTOM_TABS = [...new Set([...DEFAULT_BOTTOM_TABS, ...LITE_BOTTOM_TABS])];
 const HIDDEN_TABS = [
   'super-admin',
   'edit',
   'lite',
-  'drivers',
   'drivers/[id]',
   'drivers/create',
-  'trucks',
   'trips',
   'settings',
   'fuel',
@@ -46,7 +45,6 @@ const HIDDEN_TABS = [
   'vehicles',
   'vehicles/[id]',
   'vehicles/create',
-  'vendors',
   'vendors/[id]',
   'vendors/create',
   'vendors/edit/[id]',
@@ -54,6 +52,9 @@ const HIDDEN_TABS = [
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'grid-outline', label: 'Dashboard', family: 'Ionicons' },
+  vendors: { icon: 'business-outline', label: 'Vendors', family: 'Ionicons' },
+  trucks: { icon: 'car-outline', label: 'Trucks', family: 'Ionicons' },
+  drivers: { icon: 'people-outline', label: 'Drivers', family: 'Ionicons' },
   orders: { icon: 'document-text-outline', label: 'Orders', family: 'Ionicons' },
   active: { icon: 'pulse-outline', label: 'Active', family: 'Ionicons' },
   materials: { icon: 'cube-outline', label: 'Materials', family: 'Ionicons' },
@@ -115,76 +116,6 @@ const MANAGEMENT_TAB_OPTIONS: Record<string, any> = Object.fromEntries(
   }),
 );
 
-type DrawerItem = {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  route?: string;
-};
-
-type DrawerSection = {
-  title: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  items: DrawerItem[];
-};
-
-const DRAWER_SECTIONS: DrawerSection[] = [
-  {
-    title: 'Operations',
-    icon: 'radio-outline',
-    items: [
-      { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard' },
-      { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active' },
-      { label: 'Completed Trips', icon: 'checkmark-done-outline', route: '/management/trips' },
-     ],
-  },
-  {
-    title: 'Procurement',
-    icon: 'cube-outline',
-    items: [
-      { label: 'Orders', icon: 'document-text-outline', route: '/management/orders' },
-      { label: 'Materials', icon: 'cube-outline', route: '/management/materials' },
-    ],
-  },
-  {
-    title: 'Fleet',
-    icon: 'car-outline',
-    items: [
-      { label: 'Vendors', icon: 'business-outline', route: '/management/vendors' },
-      { label: 'Vehicles', icon: 'car-outline', route: '/management/trucks' },
-      { label: 'Drivers', icon: 'people-outline', route: '/management/drivers' },
-    ],
-  },
-  {
-    title: 'Locations',
-    icon: 'location-outline',
-    items: [
-
-      { label: 'Fuel Records', icon: 'water-outline', route: '/management/fuel' },
-    ],
-  },
-  {
-    title: 'Intelligence',
-    icon: 'analytics-outline',
-    items: [
-      { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports' },
- 
-      { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
-    ],
-  },
-  {
-    title: 'Administration',
-    icon: 'settings-outline',
-    items: [
-      { label: 'Users', icon: 'person-add-outline', route: '/management/users' },
-      { label: 'Roles', icon: 'shield-checkmark-outline', route: '/management/roles' },
-      { label: 'Master Data', icon: 'server-outline', route: '/management/master-data' },
-      { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
-
-      { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
-    ],
-  },
-];
-
 export default function ManagementLayout() {
   const colors = useTheme();
   const user = useAuthStore((s) => s.user);
@@ -210,13 +141,19 @@ export default function ManagementLayout() {
     }
   }, [pathname, role, router]);
 
-  const drawerSections = DRAWER_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.map((item) => item.route === '/management/dashboard' ? { ...item, route: managementHomeRoute(role) } : item).filter((item) => {
-      if (item.route === '__logout__' || item.route === '/management/profile' || item.route === '/(auth)/forgot-password') return true;
-      return item.route ? canAccessManagementRoute(role, item.route) : false;
-    }),
-  })).filter((section) => section.items.length > 0);
+  // Each management role has its own complete navigation definition. This is
+  // deliberately not a shared menu that is filtered after the fact.
+  const drawerSections = useMemo(() => {
+    const sections = getManagementNavigation(role);
+    return [
+      ...sections,
+      {
+        title: 'Session',
+        icon: 'log-out-outline' as keyof typeof Ionicons.glyphMap,
+        items: [{ label: 'Logout', icon: 'log-out-outline' as keyof typeof Ionicons.glyphMap, route: '__logout__' }],
+      },
+    ];
+  }, [role]);
 
   const toggleMenu = useCallback(() => {
     if (menuOpen) {

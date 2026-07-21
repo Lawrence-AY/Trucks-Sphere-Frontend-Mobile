@@ -3,6 +3,7 @@ import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
+import { isManagementRole, managementHomeRoute } from '../utils/access';
 
 const LOADING_MESSAGES = [
   'Loading fleet',
@@ -65,14 +66,16 @@ export default function IndexScreen() {
         router.replace('/(auth)/login');
         return;
       }
-      const role = useAuthStore.getState().user?.role ;
+      const role = useAuthStore.getState().user?.role;
+      if (isManagementRole(role)) {
+        router.replace(managementHomeRoute(role) as any);
+        return;
+      }
       switch (role) {
-        case 'management': router.replace('/management/dashboard' as any); break;
         case 'vendor': router.replace('/vendor/dashboard' as any); break;
         case 'operator_site': router.replace('/operator-site/schedule' as any); break;
         case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
         case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
-        case 'admin': router.replace('/management/dashboard' as any); break;
         default: router.replace('/management/dashboard' as any);
       }
     }, 900);

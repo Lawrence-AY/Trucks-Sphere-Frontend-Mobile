@@ -34,6 +34,8 @@ import { vehicleRepository } from '../../../services/repositories/VehicleReposit
 import { Vehicle } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
 import { UserActionInfo } from '../../../components/UserActionInfo';
+import { useAuthStore } from '../../../store/authStore';
+import { hasManagementPermission } from '../../../utils/access';
 
 const VEHICLE_TABS = [
   { name: 'details', label: 'Details', icon: 'car-outline' as const },
@@ -44,6 +46,8 @@ const VEHICLE_TABS = [
 export default function VehicleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const canWriteTrucks = hasManagementPermission(user?.role, 'trucks.write');
   const insets = useSafeAreaInsets();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -196,7 +200,7 @@ export default function VehicleDetailScreen() {
             />
           </View>
 
-          <View style={styles.actionsRow}>
+          {canWriteTrucks && <View style={styles.actionsRow}>
             <Button
               title="Edit"
               onPress={() => Alert.alert('Coming Soon', 'Edit functionality coming soon')}
@@ -204,7 +208,7 @@ export default function VehicleDetailScreen() {
               size="sm"
               icon="create-outline"
             />
-          </View>
+          </View>}
         </View>
 
         <Tabs

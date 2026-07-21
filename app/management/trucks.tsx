@@ -5,6 +5,8 @@ import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { fetchVehicles, fetchVendors } from '../../services/api';
 import { Button } from '../../components/ui/Button';
+import { useAuthStore } from '../../store/authStore';
+import { hasManagementPermission } from '../../utils/access';
 import {
   DataCard,
   DetailRow,
@@ -17,6 +19,8 @@ import {
 
 export default function ManagementTrucksScreen() {
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const canWriteTrucks = hasManagementPermission(user?.role, 'trucks.write');
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,14 +71,14 @@ export default function ManagementTrucksScreen() {
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
       <SectionTitle
         title="Trucks"
-        action={<Button title="Add truck" icon="add" size="sm" onPress={() => router.push('/management/vehicles/create' as any)} />}
+        action={canWriteTrucks ? <Button title="Add truck" icon="add" size="sm" onPress={() => router.push('/management/vehicles/create' as any)} /> : undefined}
       />
       <SearchField value={search} onChangeText={setSearch} placeholder="Search plate, model..." />
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading vehicles...</Text></DataCard>
       ) : filtered.length ? (
         filtered.map((item) => (
-          <DataCard key={item.id} onPress={() => router.push(`/screens/truck-history?id=${item.id}&plate=${encodeURIComponent(item.plateNumber || item.plate || '')}` as any)}>
+          <DataCard key={item.id} onPress={() => router.push(`/management/vehicles/${item.id}` as any)}>
             <View style={styles.cardHead}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.plateNumber}</Text>

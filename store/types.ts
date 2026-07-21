@@ -5,7 +5,10 @@
 
 // ─── User Roles ───
 export type UserRole =
+  | 'superadmin'
   | 'admin'
+  | 'adminlite'
+  // Legacy values may exist in persisted sessions while accounts are migrated.
   | 'management'
   | 'super_admin'
   | 'management_edit'
@@ -182,6 +185,7 @@ export interface Vehicle extends AuditTrail {
   vendorName?: string;
   make: string;
   model: string;
+  type?: string;
   year: number;
   capacity: number; // tonnes
   capacityUnit: string;

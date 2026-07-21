@@ -56,7 +56,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         displayName: backendUser.displayName || backendUser.name || email.split('@')[0],
         name: backendUser.name || backendUser.displayName,
         username: backendUser.username || undefined,
-        role: backendUser.role || 'management',
+        role: backendUser.role || 'admin',
         phone: backendUser.phone || '',
         vendorId: backendUser.vendorId || undefined,
         quarryId: backendUser.quarryId || undefined,

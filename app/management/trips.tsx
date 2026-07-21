@@ -70,7 +70,7 @@ export default function ManagementTripsScreen() {
         trips.map((item) => (
           <DataCard
             key={item.id}
-            onPress={() => router.push(`/screens/job-details?id=${item.jobId || item.id}` as any)}
+            onPress={() => router.push(`/operations/jobs/${item.id}` as any)}
           >
             <View style={styles.cardHeader}>
               <View style={styles.cardHeading}>

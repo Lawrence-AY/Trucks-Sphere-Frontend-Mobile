@@ -38,6 +38,8 @@ import { vendorRepository } from '../../../services/repositories/VendorRepositor
 import { Vendor, Driver, Vehicle } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
 import { UserActionInfo } from '../../../components/UserActionInfo';
+import { useAuthStore } from '../../../store/authStore';
+import { hasManagementPermission } from '../../../utils/access';
 
 const VENDOR_TABS = [
   { name: 'overview', label: 'Overview', icon: 'information-circle-outline' as const },
@@ -51,6 +53,10 @@ const VENDOR_TABS = [
 export default function VendorDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const canWriteVendors = hasManagementPermission(user?.role, 'vendors.write');
+  const canWriteDrivers = hasManagementPermission(user?.role, 'drivers.write');
+  const canWriteTrucks = hasManagementPermission(user?.role, 'trucks.write');
   const insets = useSafeAreaInsets();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -179,36 +185,36 @@ export default function VendorDetailScreen() {
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.headerActions}>
-          <Button
+        {(canWriteVendors || canWriteDrivers || canWriteTrucks) && <View style={styles.headerActions}>
+          {canWriteVendors && <Button
             title="Edit"
             onPress={() => router.push(`/management/vendors/edit/${vendor.id}` as any)}
             variant="secondary"
             size="sm"
             icon="create-outline"
-          />
-          <Button
+          />}
+          {canWriteDrivers && <Button
             title="Add Driver"
             onPress={() => router.push(`/management/drivers/create?vendorId=${vendor.id}` as any)}
             variant="secondary"
             size="sm"
             icon="person-add-outline"
-          />
-          <Button
+          />}
+          {canWriteTrucks && <Button
             title="Add Vehicle"
             onPress={() => router.push(`/management/vehicles/create?vendorId=${vendor.id}` as any)}
             variant="secondary"
             size="sm"
             icon="car-outline"
-          />
-          <Button
+          />}
+          {canWriteVendors && <Button
             title="Delete"
             onPress={() => setShowDeleteConfirm(true)}
             variant="danger"
             size="sm"
             icon="trash-outline"
-          />
-        </View>
+          />}
+        </View>}
       </View>
 
       {/* Tabs */}
@@ -220,10 +226,10 @@ export default function VendorDetailScreen() {
           <OverviewTab vendor={vendor} colors={colors} />
         )}
         {activeTab === 'drivers' && (
-          <DriversTab drivers={drivers} vendorId={vendor.id} colors={colors} />
+          <DriversTab drivers={drivers} vendorId={vendor.id} colors={colors} canWrite={canWriteDrivers} />
         )}
         {activeTab === 'vehicles' && (
-          <VehiclesTab vehicles={vehicles} vendorId={vendor.id} colors={colors} />
+          <VehiclesTab vehicles={vehicles} vendorId={vendor.id} colors={colors} canWrite={canWriteTrucks} />
         )}
         
         {activeTab === 'jobs' && (
@@ -283,16 +289,16 @@ function OverviewTab({ vendor, colors }: { vendor: Vendor; colors: any }) {
 }
 
 // ─── Drivers Tab ───
-function DriversTab({ drivers, vendorId, colors }: { drivers: Driver[]; vendorId: string; colors: any }) {
+function DriversTab({ drivers, vendorId, colors, canWrite }: { drivers: Driver[]; vendorId: string; colors: any; canWrite: boolean }) {
   return (
     <>
-      <Button
+      {canWrite && <Button
         title="Add Driver"
         onPress={() => router.push(`/management/drivers/create?vendorId=${vendorId}` as any)}
         icon="person-add-outline"
         size="sm"
         style={{ marginBottom: Spacing.md }}
-      />
+      />}
       {drivers.length === 0 ? (
         <EmptyState icon="people-outline" title="No drivers" subtitle="Add drivers to this vendor" />
       ) : (
@@ -326,16 +332,16 @@ function DriversTab({ drivers, vendorId, colors }: { drivers: Driver[]; vendorId
 }
 
 // ─── Vehicles Tab ───
-function VehiclesTab({ vehicles, vendorId, colors }: { vehicles: Vehicle[]; vendorId: string; colors: any }) {
+function VehiclesTab({ vehicles, vendorId, colors, canWrite }: { vehicles: Vehicle[]; vendorId: string; colors: any; canWrite: boolean }) {
   return (
     <>
-      <Button
+      {canWrite && <Button
         title="Add Vehicle"
         onPress={() => router.push(`/management/vehicles/create?vendorId=${vendorId}` as any)}
         icon="car-outline"
         size="sm"
         style={{ marginBottom: Spacing.md }}
-      />
+      />}
       {vehicles.length === 0 ? (
         <EmptyState icon="car-outline" title="No vehicles" subtitle="Add vehicles to this vendor" />
       ) : (

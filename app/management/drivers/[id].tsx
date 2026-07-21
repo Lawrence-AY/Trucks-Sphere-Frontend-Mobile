@@ -38,6 +38,8 @@ import { useRealTimeSyncStore } from '../../../store/realTimeSyncStore';
 import { Driver, Vendor, Job } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
 import { UserActionInfo } from '../../../components/UserActionInfo';
+import { useAuthStore } from '../../../store/authStore';
+import { hasManagementPermission } from '../../../utils/access';
 
 const DRIVER_TABS = [
   { name: 'details', label: 'Details', icon: 'person-outline' as const },
@@ -48,6 +50,8 @@ const DRIVER_TABS = [
 export default function DriverDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const canWriteDrivers = hasManagementPermission(user?.role, 'drivers.write');
   const insets = useSafeAreaInsets();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
 
@@ -308,7 +312,7 @@ export default function DriverDetailScreen() {
               </Text>
             </View>
           </View>
-          <View style={styles.actions}>
+          {canWriteDrivers && <View style={styles.actions}>
             <Button
               title="Edit"
               icon="create-outline"
@@ -323,7 +327,7 @@ export default function DriverDetailScreen() {
               variant="danger"
               style={{ flex: 1 }}
             />
-          </View>
+          </View>}
         </View>
 
         <Tabs

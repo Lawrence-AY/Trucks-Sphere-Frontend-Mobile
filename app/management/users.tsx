@@ -33,13 +33,22 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
-import { fetchUsers, fetchRoles } from '../../services/api';
+import { fetchUsers } from '../../services/api';
 import api from '../../services/api';
 import { showAlert } from '../../utils/webAlert';
-import { useAuthStore } from '../../store/authStore';
-import { MANAGEMENT_ROLES, normalizeRole } from '../../utils/access';
+import { MANAGEMENT_ROLE_OPTIONS } from '../../utils/access';
 
 const ROLE_OPTIONS = [
+  ...MANAGEMENT_ROLE_OPTIONS,
+  { id: 'vendor', name: 'Vendor' },
+  { id: 'operator_quarry', name: 'Operator Quarry' },
+  { id: 'operator_site', name: 'Operator Site' },
+  { id: 'operator_fuel', name: 'Fuel Operator' },
+];
+
+// Legacy labels are retained only to recognise older persisted accounts; they
+// are intentionally never supplied to the user-creation role selector.
+/* Legacy role labels from pre-RBAC releases. Kept as a comment for migration reference only.
   { id: 'super_admin', name: 'Super Admin — full system access' },
   { id: 'management_edit', name: 'Management Edit — all management access except Master Data' },
   { id: 'management_lite', name: 'Management Lite — fleet records, orders, and profile' },
@@ -47,6 +56,7 @@ const ROLE_OPTIONS = [
   { id: 'operator_site', name: 'Operator at Site' },
   { id: 'operator_fuel', name: 'Fuel Attendant' },
 ];
+*/
 
 const QUARRY_LOCATION_OPTIONS = [
   'Hindi',
@@ -62,7 +72,6 @@ const QUARRY_LOCATION_OPTIONS = [
 
 export default function UsersScreen() {
   const colors = useTheme();
-  const currentUser = useAuthStore((state) => state.user);
   const insets = useSafeAreaInsets();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +85,7 @@ export default function UsersScreen() {
     displayName: '',
     username: '',
     password: '',
-    role: 'management_edit',
+    role: 'admin',
     phone: '',
     quarryLocation: '',
   });
@@ -97,10 +106,6 @@ export default function UsersScreen() {
     quarryLocation: '',
   });
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
-  const isManagementEdit = normalizeRole(currentUser?.role) === MANAGEMENT_ROLES.EDIT;
-  const addRoleOptions = isManagementEdit
-    ? ROLE_OPTIONS.filter((option) => option.id !== MANAGEMENT_ROLES.SUPER_ADMIN)
-    : ROLE_OPTIONS;
 
   const loadUsers = useCallback(async () => {
     try {
@@ -196,7 +201,7 @@ export default function UsersScreen() {
 
       const uname = result?.data?.user?.generatedUsername || generateUsernameFromDisplay(form.displayName);
       // Reset form state first, then close modal
-      setForm({ displayName: '', username: '', password: '', role: 'management_edit', phone: '', quarryLocation: '' });
+      setForm({ displayName: '', username: '', password: '', role: 'admin', phone: '', quarryLocation: '' });
       setGeneratedUsername('');
       setFormErrors({});
       setShowAddModal(false);
@@ -331,10 +336,13 @@ export default function UsersScreen() {
 
   function getRoleBadge(role: string) {
     const config: Record<string, { variant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple'; label: string }> = {
-      management: { variant: 'purple', label: 'Management' },
-      management_edit: { variant: 'purple', label: 'Management' },
-      management_lite: { variant: 'default', label: 'Management Lite' },
+      superadmin: { variant: 'danger', label: 'Super Admin' },
       super_admin: { variant: 'danger', label: 'Super Admin' },
+      admin: { variant: 'purple', label: 'Admin' },
+      management: { variant: 'purple', label: 'Admin' },
+      management_edit: { variant: 'purple', label: 'Admin' },
+      adminlite: { variant: 'default', label: 'Admin Lite' },
+      management_lite: { variant: 'default', label: 'Admin Lite' },
       vendor: { variant: 'info', label: 'Vendor' },
       operator_quarry: { variant: 'info', label: 'Quarry Op' },
       operator_site: { variant: 'warning', label: 'Site Op' },
@@ -516,7 +524,7 @@ export default function UsersScreen() {
               <Select
                 label="Role"
                 value={form.role}
-                options={addRoleOptions}
+                options={ROLE_OPTIONS}
                 onSelect={(v) => updateForm('role', v)}
                 icon="shield-outline"
                 required

@@ -33,6 +33,8 @@ import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { Vendor } from '../../../store/types';
 import { fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../../services/api';
+import { useAuthStore } from '../../../store/authStore';
+import { hasManagementPermission } from '../../../utils/access';
 
 const STATUS_BADGE: Record<string, { variant: 'success' | 'warning' | 'danger'; label: string }> = {
   active: { variant: 'success', label: 'Active' },
@@ -42,6 +44,8 @@ const STATUS_BADGE: Record<string, { variant: 'success' | 'warning' | 'danger'; 
 
 export default function VendorListScreen() {
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const canWriteVendors = hasManagementPermission(user?.role, 'vendors.write');
   const insets = useSafeAreaInsets();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [filtered, setFiltered] = useState<Vendor[]>([]);
@@ -204,12 +208,14 @@ export default function VendorListScreen() {
               {vendors.length} vendor{vendors.length !== 1 ? 's' : ''}
             </Text>
           </View>
-          <Button
-            title="Add Vendor"
-            onPress={() => router.push('/management/vendors/create' as any)}
-            icon="add-circle-outline"
-            size="sm"
-          />
+          {canWriteVendors && (
+            <Button
+              title="Add Vendor"
+              onPress={() => router.push('/management/vendors/create' as any)}
+              icon="add-circle-outline"
+              size="sm"
+            />
+          )}
         </View>
 
         {/* Search */}
@@ -248,8 +254,8 @@ export default function VendorListScreen() {
                 ? 'Try a different search term'
                 : 'Create your first vendor to get started'
             }
-            actionLabel={search ? undefined : 'Add Vendor'}
-            onAction={search ? undefined : () => router.push('/management/vendors/create' as any)}
+            actionLabel={!search && canWriteVendors ? 'Add Vendor' : undefined}
+            onAction={!search && canWriteVendors ? () => router.push('/management/vendors/create' as any) : undefined}
           />
         }
       />

@@ -9,6 +9,7 @@ import { Colors } from '../constants/theme';
 import Toast from 'react-native-toast-message';
 import WebLayout from '../components/WebLayout';
 import { setOnAuthExpired } from '../services/api';
+import { ManagementRouteGuard } from '../components/management/ManagementRouteGuard';
 
 void ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -39,8 +40,9 @@ export default function RootLayout() {
       style={[styles.container, { backgroundColor: Colors.light.background }]}
     >
       <StatusBar style="dark" />
-      <WebLayout>
-        <Stack screenOptions={{ headerShown: false }}>
+      <ManagementRouteGuard>
+        <WebLayout>
+          <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -53,8 +55,9 @@ export default function RootLayout() {
           <Stack.Screen name="site" options={{ headerShown: false }} />
           <Stack.Screen name="screens" options={{ headerShown: false }} />
           <Stack.Screen name="track" options={{ headerShown: false }} />
-        </Stack>
-      </WebLayout>
+          </Stack>
+        </WebLayout>
+      </ManagementRouteGuard>
       <Toast />
     </GestureHandlerRootView>
   );

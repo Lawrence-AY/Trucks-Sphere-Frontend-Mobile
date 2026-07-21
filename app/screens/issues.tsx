@@ -15,7 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { DataCard, PageShell, SectionTitle } from '../../components/EnterpriseUI';
 import { fetchIssues, createIssue, updateIssue, deleteIssue } from '../../services/api';
-import { normalizeRole } from '../../utils/access';
+import { MANAGEMENT_ROLES, normalizeRole } from '../../utils/access';
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: '#10B981',
@@ -36,7 +36,7 @@ export default function IssuesScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
   const role = normalizeRole(user?.role);
-  const isManagement = role === 'super_admin';
+  const isManagement = role === MANAGEMENT_ROLES.SUPER_ADMIN;
 
   const [loading, setLoading] = useState(true);
   const [issues, setIssues] = useState<any[]>([]);

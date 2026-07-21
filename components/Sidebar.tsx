@@ -17,12 +17,14 @@ import { useTheme } from '../hooks/useTheme';
 import { getRoleLabel } from '../utils/helpers';
 import { showConfirm } from '../utils/webAlert';
 import type { UserRole } from '../store/types';
+import { isManagementRole, managementHomeRoute, normalizeRole } from '../utils/access';
+import { getManagementNavigation } from '../utils/managementNavigation';
 
 type NavItem = {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   route?: string;
-  roles: UserRole[];
+  roles?: UserRole[];
   activeRoutes?: string[];
 };
 
@@ -31,46 +33,6 @@ type NavSection = {
   icon: keyof typeof Ionicons.glyphMap;
   items: NavItem[];
 };
-
-const MANAGEMENT_SECTIONS: NavSection[] = [
-  {
-    title: 'Main',
-    icon: 'apps-outline',
-    items: [
-      { label: 'Dashboard', icon: 'apps-outline', route: '/management/dashboard', roles: ['admin', 'management'], activeRoutes: ['/management/dashboard'] },
-      { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active', roles: ['admin', 'management'], activeRoutes: ['/management/active'] },
-      { label: 'Orders', icon: 'document-text-outline', route: '/management/orders', roles: ['admin', 'management'], activeRoutes: ['/management/orders'] },
-      { label: 'Materials', icon: 'cube-outline', route: '/management/materials', roles: ['admin', 'management'], activeRoutes: ['/management/materials'] },
-      { label: 'Vendors', icon: 'business-outline', route: '/management/vendors', roles: ['admin', 'management'], activeRoutes: ['/management/vendors'] },
-      { label: 'Drivers', icon: 'people-outline', route: '/management/drivers', roles: ['admin', 'management'], activeRoutes: ['/management/drivers'] },
-      { label: 'Trucks', icon: 'car-outline', route: '/management/trucks', roles: ['admin', 'management'], activeRoutes: ['/management/trucks'] },
-    ],
-  },
-  {
-    title: 'Operations',
-    icon: 'radio-outline',
-    items: [
-      { label: 'Fuel Records', icon: 'water-outline', route: '/management/fuel', roles: ['admin', 'management'], activeRoutes: ['/management/fuel'] },
-    ],
-  },
-  {
-    title: 'Intelligence',
-    icon: 'analytics-outline',
-    items: [
-      { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports', roles: ['admin', 'management'], activeRoutes: ['/management/reports'] },
-      { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['admin', 'management'], activeRoutes: ['/screens/issues'] },
-    ],
-  },
-  {
-    title: 'Administration',
-    icon: 'settings-outline',
-    items: [
-      { label: 'Users', icon: 'person-add-outline', route: '/management/users', roles: ['admin', 'management'], activeRoutes: ['/management/users'] },
-      { label: 'Master Data', icon: 'server-outline', route: '/management/master-data', roles: ['admin', 'management'], activeRoutes: ['/management/master-data'] },
-      { label: 'Profile', icon: 'person-outline', route: '/management/profile', roles: ['admin', 'management'], activeRoutes: ['/management/profile'] },
-    ],
-  },
-];
 
 const ROLE_SECTIONS: NavSection[] = [
   {
@@ -129,17 +91,19 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
     ? [styles.containerDrawer, { width: '100%', backgroundColor: colors.surface }]
     : [styles.container, { width: Math.min(260, width * 0.25), backgroundColor: colors.surface, borderRightColor: colors.border }];
 
-  const role = (user?.role || '') as UserRole;
+  const rawRole = (user?.role || '') as UserRole;
+  const role = normalizeRole(user?.role);
 
   const navSections = useMemo(() => {
-    const source = role === 'admin' || role === 'management' ? MANAGEMENT_SECTIONS : ROLE_SECTIONS;
+    if (isManagementRole(role)) return getManagementNavigation(role);
+    const source = ROLE_SECTIONS;
     return source
       .map((section) => ({
         ...section,
-        items: section.items.filter((item) => item.roles.includes(role)),
+        items: section.items.filter((item) => item.roles?.includes(rawRole)),
       }))
       .filter((section) => section.items.length > 0);
-  }, [role]);
+  }, [rawRole, role]);
 
   const isActive = (item: NavItem): boolean => {
     if (item.activeRoutes) {
@@ -179,11 +143,11 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
       <TouchableOpacity
         style={[styles.logoSection, { borderBottomColor: colors.border }]}
         onPress={() => {
-          switch (role) {
-            case 'management':
-            case 'admin':
-              handleNav('/management/dashboard');
-              break;
+          if (isManagementRole(role)) {
+            handleNav(managementHomeRoute(role));
+            return;
+          }
+          switch (rawRole) {
             case 'vendor':
               handleNav('/vendor/dashboard');
               break;
@@ -197,7 +161,7 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
               handleNav('/operator-fuel/dispense');
               break;
             default:
-              handleNav('/management/dashboard');
+              handleNav('/(auth)/login');
           }
         }}
       >
@@ -222,7 +186,7 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
           </Text>
           <View style={styles.roleBadge}>
             <Ionicons name="shield-checkmark" size={10} color={colors.primary} />
-            <Text style={[styles.roleText, { color: colors.primary }]}>{getRoleLabel(role)}</Text>
+            <Text style={[styles.roleText, { color: colors.primary }]}>{getRoleLabel(user?.role || '')}</Text>
           </View>
         </View>
       </View>

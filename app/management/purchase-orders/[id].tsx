@@ -38,6 +38,8 @@ import { PurchaseOrder } from '../../../store/types';
 import { formatEAT, formatNumber } from '../../../utils/helpers';
 import { StackScreen } from '../../../components/ui/StackScreen';
 import { UserActionInfo } from '../../../components/UserActionInfo';
+import { useAuthStore } from '../../../store/authStore';
+import { hasManagementPermission } from '../../../utils/access';
 
 const PO_TABS = [
   { name: 'details', label: 'Details', icon: 'information-circle-outline' as const },
@@ -57,6 +59,8 @@ const STATUS_BADGE: Record<string, { variant: 'default' | 'success' | 'warning' 
 export default function PurchaseOrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const canEditPurchaseOrder = hasManagementPermission(user?.role, 'purchaseOrders.edit');
   const [po, setPo] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details');
@@ -158,7 +162,7 @@ export default function PurchaseOrderDetailScreen() {
   // ─── Available Actions Based on Status ───
 
   function renderActions() {
-    if (!po) return null;
+    if (!po || !canEditPurchaseOrder) return null;
     const status = po.status;
 
     return (

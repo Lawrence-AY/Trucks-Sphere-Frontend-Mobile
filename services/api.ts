@@ -217,6 +217,18 @@ export async function fetchDeliveryOrders(params?: {
   });
 }
 
+/**
+ * Finalized site jobs available for fuel dispensing. This endpoint is scoped
+ * for fuel operators and avoids exposing the full delivery-order board.
+ */
+export async function fetchFuelReadyDeliveryOrders(): Promise<any[]> {
+  return safeFetch("fuel-ready-delivery-orders", () =>
+    backendRequest<any>("get", "/api/delivery-orders/fuel-ready").then(
+      unwrapItems,
+    ),
+  );
+}
+
 export async function createDeliveryOrder(payload: any): Promise<any> {
   const result = unwrapOne(
     await backendRequest("post", "/api/delivery-orders", payload),

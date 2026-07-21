@@ -230,7 +230,7 @@ export default function ManagementActiveScreen() {
       ) : filtered.length ? (
         filtered.map((item) => {
           return (
-            <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}` as any)}>
+            <DataCard key={item.id} onPress={() => router.push(`/operations/jobs/${item.id}` as any)}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber || item.jobId}</Text>

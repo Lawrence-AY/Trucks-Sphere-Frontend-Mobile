@@ -106,8 +106,8 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 
 // ─── Legacy helper aliases (for backward compatibility) ───
 
-export function getStatusColor(status: string): { bg: string; text: string } {
-  return STATUS_COLORS[status] || { bg: '#F3F4F6', text: '#6B7280' };
+export function getStatusColor(status: string): string {
+  return STATUS_COLORS[status]?.text || '#6B7280';
 }
 
 export function formatStatus(status: string): string {
@@ -116,17 +116,19 @@ export function formatStatus(status: string): string {
 
 export function getRoleLabel(role: string): string {
   const labels: Record<string, string> = {
-    management: 'Management',
+    superadmin: 'Super Admin',
     super_admin: 'Super Admin',
-    management_edit: 'Management Edit',
-    management_lite: 'Management Lite',
+    admin: 'Admin',
+    adminlite: 'Admin Lite',
+    management: 'Admin',
+    management_edit: 'Admin',
+    management_lite: 'Admin Lite',
     operator_quarry: 'Quarry Operator',
     operator_site: 'Site Operator',
     operator_fuel: 'Fuel Operator',
     quarry_operator: 'Quarry Operator',
     site_operator: 'Site Operator',
     fuel_operator: 'Fuel Operator',
-    admin: 'System Administrator',
     vendor: 'Vendor',
     driver: 'Driver',
   };
@@ -162,7 +164,7 @@ export function formatCurrency(amount: number): string {
   return `KES ${formatNumber(amount)}`;
 }
 
-export function normalizeVendorId(id: string): string {
+export function normalizeVendorId(id?: string): string {
   return (id || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
 }
 
@@ -230,15 +232,16 @@ export function generatePONumber(): string {
   return '';
 }
 
-export function generateReceiptNoteId(): string {
-  return `RN-${Date.now().toString(36).toUpperCase()}`;
+export function generateReceiptNoteId(jobId?: string): string {
+  const suffix = jobId ? String(jobId).replace(/[^a-zA-Z0-9]/g, '').slice(-8).toUpperCase() : Date.now().toString(36).toUpperCase();
+  return `RN-${suffix}`;
 }
 
 export function generateFuelRecordId(): string {
   return `FUEL-${Date.now().toString(36).toUpperCase()}`;
 }
 
-export function generateReceiptText(): string {
+export function generateReceiptText(_data?: Record<string, unknown>): string {
   return `Receipt #${Date.now().toString(36).toUpperCase()}`;
 }
 

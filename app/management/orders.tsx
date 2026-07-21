@@ -9,9 +9,13 @@ import { fetchMaterials } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { DataCard, DetailRow, EmptyState, PageShell, SearchField, SectionTitle } from '../../components/EnterpriseUI';
+import { useAuthStore } from '../../store/authStore';
+import { hasManagementPermission } from '../../utils/access';
 
 export default function ManagementOrdersScreen() {
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const canCreatePurchaseOrder = hasManagementPermission(user?.role, 'purchaseOrders.create');
   const [search, setSearch] = useState('');
   const [materials, setMaterials] = useState<any[]>([]);
   const [materialFilter, setMaterialFilter] = useState('');
@@ -104,7 +108,7 @@ export default function ManagementOrdersScreen() {
 
         {filtered.length > 0 ? (
           filtered.map((item: any) => (
-            <DataCard key={item.id} onPress={() => router.push(`/screens/purchase-order?id=${item.id}` as any)}>
+            <DataCard key={item.id} onPress={() => router.push(`/management/purchase-orders/${item.id}` as any)}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber}</Text>
@@ -120,9 +124,11 @@ export default function ManagementOrdersScreen() {
         )}
       </PageShell> 
 
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/screens/purchase-order?new=true' as any)} activeOpacity={0.85}>
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      {canCreatePurchaseOrder && (
+        <TouchableOpacity style={styles.fab} onPress={() => router.push('/management/purchase-orders/create' as any)} activeOpacity={0.85} accessibilityLabel="Create purchase order">
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

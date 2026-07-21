@@ -134,7 +134,9 @@ export const TAB_CONFIG = {
 };
 
 export const ROLES = {
+  SUPER_ADMIN: 'superadmin',
   ADMIN: 'admin',
+  ADMIN_LITE: 'adminlite',
   MANAGEMENT: 'management',
   OPERATOR_QUARRY: 'operator_quarry',
   OPERATOR_SITE: 'operator_site',

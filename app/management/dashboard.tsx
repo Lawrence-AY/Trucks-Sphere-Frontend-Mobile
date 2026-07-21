@@ -206,7 +206,7 @@ function ManagementDashboardContent() {
         recentDeliveries.map((item) => (
           <DataCard
             key={item.id}
-            onPress={() => router.push(`/screens/job-details?id=${item.jobId}`)}
+            onPress={() => router.push(`/operations/jobs/${item.id}` as any)}
           >
             <View style={styles.deliveryHead}>
               <View>

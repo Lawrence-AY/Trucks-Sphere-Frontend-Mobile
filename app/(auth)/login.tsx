@@ -15,7 +15,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Radius, Spacing } from '../../constants/theme';
-import { managementHomeRoute, normalizeRole } from '../../utils/access';
+import { isManagementRole, managementHomeRoute, normalizeRole } from '../../utils/access';
 
 export default function LoginScreen() {
   const [username, setUsername] = useState('');
@@ -31,10 +31,11 @@ export default function LoginScreen() {
   useEffect(() => {
     if (isAuthenticated) {
       const role = normalizeRole(useAuthStore.getState().user?.role);
+      if (isManagementRole(role)) {
+        router.replace(managementHomeRoute(role) as any);
+        return;
+      }
       switch (role) {
-        case 'super_admin':
-        case 'management_edit':
-        case 'management_lite': router.replace(managementHomeRoute(role) as any); break;
         case 'vendor': router.replace('/vendor/dashboard' as any); break;
         case 'operator_site': router.replace('/operator-site/schedule' as any); break;
          case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
@@ -88,7 +89,7 @@ export default function LoginScreen() {
               <Ionicons name="person-outline" size={20} color="#667781" />
               <TextInput
                 style={styles.input}
-                placeholder="Username or email"
+                placeholder="Username"
                 placeholderTextColor="#94A3B8"
                 value={username}
                 onChangeText={(v) => { setUsername(v); setLocalError(''); }}

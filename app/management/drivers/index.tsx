@@ -30,10 +30,14 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
 import { fetchVendors } from '../../../services/api';
+import { useAuthStore } from '../../../store/authStore';
+import { hasManagementPermission } from '../../../utils/access';
 
 
 export default function DriverListScreen() {
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const canWriteDrivers = hasManagementPermission(user?.role, 'drivers.write');
   const [drivers, setDrivers] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -217,20 +221,23 @@ export default function DriverListScreen() {
                 ? 'Try a different search term'
                 : 'Create your first driver to get started'
             }
-            actionLabel={search ? undefined : 'Add Driver'}
-            onAction={search ? undefined : () => router.push('/management/drivers/create' as any)}
+            actionLabel={!search && canWriteDrivers ? 'Add Driver' : undefined}
+            onAction={!search && canWriteDrivers ? () => router.push('/management/drivers/create' as any) : undefined}
           />
         }
       />
 
       {/* FAB - Add Driver */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
-        onPress={() => router.push('/management/drivers/create' as any)}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      {canWriteDrivers && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: colors.primary }]}
+          onPress={() => router.push('/management/drivers/create' as any)}
+          activeOpacity={0.85}
+          accessibilityLabel="Add driver"
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
