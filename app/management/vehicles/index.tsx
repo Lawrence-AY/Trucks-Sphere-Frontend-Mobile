@@ -21,7 +21,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
@@ -33,6 +33,7 @@ import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { Vehicle, Vendor } from '../../../store/types';
+import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 
 export default function VehiclesListScreen() {
   const colors = useTheme();
@@ -182,6 +183,7 @@ export default function VehiclesListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ManagementSearchHeader title="Vehicles" search={search} onChangeSearch={setSearch} placeholder="Search vehicles..." />
       {/* Back Button */}
       <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -202,23 +204,6 @@ export default function VehiclesListScreen() {
             icon="add-circle-outline"
             size="sm"
           />
-        </View>
-
-        {/* Search */}
-        <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search vehicles..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Vendor Filter */}
@@ -321,10 +306,10 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing['4xl'],
   },
   vehicleCard: {
-    borderRadius: Radius.lg,
+    borderRadius: 5,
     borderWidth: 1,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginBottom: 0.1,
   },
   vehicleHeader: {
     flexDirection: 'row',

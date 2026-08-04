@@ -21,6 +21,7 @@ import {
   SectionTitle,
 } from '../../components/EnterpriseUI';
 import { getRoleLabel } from '../../utils/helpers';
+import { getPasswordChangeError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
 import { updateProfile, changePassword } from '../../services/api';
 
 export default function VendorProfileScreen() {
@@ -63,16 +64,9 @@ export default function VendorProfileScreen() {
   };
 
   const handleChangePassword = async () => {
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Validation', 'All password fields are required.');
-      return;
-    }
-    if (newPassword.length < 6) {
-      Alert.alert('Validation', 'New password must be at least 6 characters.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      Alert.alert('Validation', 'New password and confirm password do not match.');
+    const passwordError = getPasswordChangeError(currentPassword, newPassword, confirmPassword);
+    if (passwordError) {
+      Alert.alert('Validation', passwordError);
       return;
     }
     setPasswordSaving(true);
@@ -230,10 +224,11 @@ export default function VendorProfileScreen() {
                 style={[styles.editInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBg }]}
                 value={newPassword}
                 onChangeText={setNewPassword}
-                placeholder="Enter new password (min 6 chars)"
+                placeholder="Enter a strong new password"
                 placeholderTextColor={colors.textTertiary}
                 secureTextEntry
               />
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>{PASSWORD_REQUIREMENTS}</Text>
             </View>
             <View style={styles.editField}>
               <Text style={[styles.editLabel, { color: colors.textMuted }]}>Confirm Password</Text>

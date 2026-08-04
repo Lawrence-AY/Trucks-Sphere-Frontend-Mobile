@@ -17,3 +17,4 @@ expo.err.log
 .idea/
 .idea
 .expo/dev/logs/start.log
+/dist

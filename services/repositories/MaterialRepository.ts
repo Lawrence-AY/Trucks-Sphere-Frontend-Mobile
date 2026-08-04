@@ -64,6 +64,23 @@ class MaterialRepository extends BaseRepository<Material> {
     }
   }
 
+  /** Synchronize the complete TruckSphere material catalogue to Odoo. */
+  async syncWithOdoo(): Promise<{ total: number; synced: number; skipped: number; imported: number; updatedFromOdoo: number; failed: number }> {
+    let job = (await api.post<any>('/api/materials/sync/odoo', {})).data;
+    const deadline = Date.now() + 5 * 60_000;
+
+    while (job?.status === 'running' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      job = (await api.get<any>('/api/materials/sync/odoo')).data;
+    }
+
+    if (job?.status !== 'completed') {
+      throw new Error(job?.result?.code || 'ODOO_MATERIAL_SYNC_FAILED');
+    }
+    this.invalidateCache();
+    return job.result;
+  }
+
   /**
    * Get the display fields for a material (for dynamic forms).
    * Returns what fields to show when dispatching this material.

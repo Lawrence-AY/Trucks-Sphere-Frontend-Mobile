@@ -22,7 +22,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router } from '../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
@@ -37,6 +37,8 @@ import { fetchUsers } from '../../services/api';
 import api from '../../services/api';
 import { showAlert } from '../../utils/webAlert';
 import { MANAGEMENT_ROLE_OPTIONS } from '../../utils/access';
+import { getStrongPasswordError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
+import { ManagementSearchHeader } from '../../components/ManagementSearchHeader';
 
 const ROLE_OPTIONS = [
   ...MANAGEMENT_ROLE_OPTIONS,
@@ -44,7 +46,13 @@ const ROLE_OPTIONS = [
   { id: 'operator_quarry', name: 'Operator Quarry' },
   { id: 'operator_site', name: 'Operator Site' },
   { id: 'operator_fuel', name: 'Fuel Operator' },
+  { id: 'operator_warehouse', name: 'Warehouse Personnel' },
 ];
+
+// Vendor accounts are created from their vendor profile, which supplies the
+// required vendor association. Keep the option available for editing existing
+// accounts, but do not offer an invalid role in the standalone Add User form.
+const ADD_USER_ROLE_OPTIONS = ROLE_OPTIONS.filter((role) => role.id !== 'vendor');
 
 // Legacy labels are retained only to recognise older persisted accounts; they
 // are intentionally never supplied to the user-creation role selector.
@@ -162,7 +170,11 @@ export default function UsersScreen() {
   function validateForm(): boolean {
     const errors: Record<string, string> = {};
     if (!form.displayName.trim()) errors.displayName = 'Full name is required';
-    if (!form.password || form.password.length < 6) errors.password = 'Password must be at least 6 characters';
+    if (!form.password) errors.password = 'Password is required';
+    else {
+      const passwordError = getStrongPasswordError(form.password);
+      if (passwordError) errors.password = passwordError;
+    }
     if (!form.phone.trim()) errors.phone = 'Phone number is required';
     if (!form.role) errors.role = 'Role is required';
     if (form.role === 'operator_quarry' && !form.quarryLocation) errors.quarryLocation = 'Quarry station is required';
@@ -257,8 +269,13 @@ export default function UsersScreen() {
 
   async function handleResetPassword() {
     if (!editingUser) return;
-    if (!editForm.newPassword || editForm.newPassword.length < 6) {
-      setEditFormErrors((prev) => ({ ...prev, newPassword: 'Password must be at least 6 characters' }));
+    if (!editForm.newPassword) {
+      setEditFormErrors((prev) => ({ ...prev, newPassword: 'New password is required' }));
+      return;
+    }
+    const passwordError = getStrongPasswordError(editForm.newPassword);
+    if (passwordError) {
+      setEditFormErrors((prev) => ({ ...prev, newPassword: passwordError }));
       return;
     }
     setEditSaving(true);
@@ -347,6 +364,7 @@ export default function UsersScreen() {
       operator_quarry: { variant: 'info', label: 'Quarry Op' },
       operator_site: { variant: 'warning', label: 'Site Op' },
       operator_fuel: { variant: 'success', label: 'Fuel Op' },
+      operator_warehouse: { variant: 'purple', label: 'Warehouse' },
     };
     const c = config[role] || { variant: 'default' as any, label: role };
     return <Badge label={c.label} variant={c.variant} size="sm" />;
@@ -354,6 +372,7 @@ export default function UsersScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ManagementSearchHeader title="Users" search={search} onChangeSearch={setSearch} placeholder="Search users..." />
       {/* Back Button */}
       <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -372,15 +391,6 @@ export default function UsersScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Search */}
-        <Input
-          label="Search"
-          placeholder="Search users..."
-          value={search}
-          onChangeText={setSearch}
-          icon="search-outline"
-        />
-
         {loading ? (
           <LoadingSkeleton lines={6} variant="card" />
         ) : filteredUsers.length === 0 ? (
@@ -505,12 +515,13 @@ export default function UsersScreen() {
                 label="Password"
                 value={form.password}
                 onChangeText={(v) => updateForm('password', v)}
-                placeholder="Min 6 characters"
+                placeholder="Enter a strong password"
                 icon="lock-closed-outline"
                 secureTextEntry
                 required
                 error={formErrors.password}
               />
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>{PASSWORD_REQUIREMENTS}</Text>
               <Input
                 label="Phone"
                 value={form.phone}
@@ -524,11 +535,12 @@ export default function UsersScreen() {
               <Select
                 label="Role"
                 value={form.role}
-                options={ROLE_OPTIONS}
+                options={ADD_USER_ROLE_OPTIONS}
                 onSelect={(v) => updateForm('role', v)}
                 icon="shield-outline"
                 required
                 error={formErrors.role}
+                nativeModal
               />
               {form.role === 'operator_quarry' && (
                 <Select
@@ -540,24 +552,26 @@ export default function UsersScreen() {
                   required
                   error={formErrors.quarryLocation}
                   placeholder="Choose quarry location..."
+                  nativeModal
                 />
               )}
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <Button
-                title="Cancel"
-                onPress={() => setShowAddModal(false)}
-                variant="secondary"
-                style={{ flex: 1 }}
-              />
-              <Button
-                title="Create User"
-                onPress={handleAddUser}
-                icon="person-add-outline"
-                style={{ flex: 1 }}
-                loading={saving}
-              />
+              <View style={styles.modalActionRow}>
+                <Button
+                  title="Cancel"
+                  onPress={() => setShowAddModal(false)}
+                  variant="secondary"
+                  style={styles.modalActionButton}
+                />
+                <Button
+                  title="Create User"
+                  onPress={handleAddUser}
+                  style={styles.modalActionButton}
+                  loading={saving}
+                />
+              </View>
             </View>
           </View>
         </View>
@@ -605,11 +619,12 @@ export default function UsersScreen() {
                 label="New Password"
                 value={editForm.newPassword}
                 onChangeText={(v) => updateEditForm('newPassword', v)}
-                placeholder="Enter a new password to reset"
+                placeholder="Enter a strong new password"
                 icon="lock-closed-outline"
                 secureTextEntry
                 error={editFormErrors.newPassword}
               />
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>{PASSWORD_REQUIREMENTS}</Text>
               <Select
                 label="Role"
                 value={editForm.role}
@@ -618,6 +633,7 @@ export default function UsersScreen() {
                 icon="shield-outline"
                 required
                 error={editFormErrors.role}
+                nativeModal
               />
               {editForm.role === 'operator_quarry' && (
                 <Select
@@ -629,6 +645,7 @@ export default function UsersScreen() {
                   required
                   error={editFormErrors.quarryLocation}
                   placeholder="Choose quarry location..."
+                  nativeModal
                 />
               )}
               <Text style={[styles.editHint, { color: colors.textMuted }]}>
@@ -637,37 +654,40 @@ export default function UsersScreen() {
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <Button
-                title="Reset Password"
-                onPress={handleResetPassword}
-                variant="secondary"
-                style={{ flex: 1 }}
-                loading={editSaving}
-              />
-              <Button
-                title="Delete"
-                onPress={() => {
-                  handleDeleteUser(editingUser, () => {
-                    setShowEditModal(false);
-                    setEditingUser(null);
-                  });
-                }}
-                variant="danger"
-                style={{ flex: 1 }}
-              />
-              <Button
-                title="Cancel"
-                onPress={() => { setShowEditModal(false); setEditingUser(null); }}
-                variant="secondary"
-                style={{ flex: 1 }}
-              />
-              <Button
-                title="Update User"
-                onPress={handleUpdateUser}
-                icon="save-outline"
-                style={{ flex: 1 }}
-                loading={editSaving}
-              />
+              <View style={styles.modalActionRow}>
+                <Button
+                  title="Cancel"
+                  onPress={() => { setShowEditModal(false); setEditingUser(null); }}
+                  variant="secondary"
+                  style={styles.modalActionButton}
+                />
+                <Button
+                  title="Save Changes"
+                  onPress={handleUpdateUser}
+                  style={styles.modalActionButton}
+                  loading={editSaving}
+                />
+              </View>
+              <View style={styles.modalActionRow}>
+                <Button
+                  title="Reset Password"
+                  onPress={handleResetPassword}
+                  variant="secondary"
+                  style={styles.modalActionButton}
+                  loading={editSaving}
+                />
+                <Button
+                  title="Delete User"
+                  onPress={() => {
+                    handleDeleteUser(editingUser, () => {
+                      setShowEditModal(false);
+                      setEditingUser(null);
+                    });
+                  }}
+                  variant="danger"
+                  style={styles.modalActionButton}
+                />
+              </View>
             </View>
           </View>
         </View>
@@ -824,10 +844,15 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   modalActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  modalActionButton: {
+    flex: 1,
   },
 });

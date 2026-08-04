@@ -16,10 +16,10 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   RefreshControl,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -29,9 +29,10 @@ import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
-import { fetchVendors } from '../../../services/api';
+import api, { fetchVendors } from '../../../services/api';
 import { useAuthStore } from '../../../store/authStore';
 import { hasManagementPermission } from '../../../utils/access';
+import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 
 
 export default function DriverListScreen() {
@@ -42,6 +43,7 @@ export default function DriverListScreen() {
   const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncingOdoo, setSyncingOdoo] = useState(false);
   const [search, setSearch] = useState('');
   const [vendorNameMap, setVendorNameMap] = useState<Record<string, string>>({});
 
@@ -90,6 +92,37 @@ export default function DriverListScreen() {
     driverRepository.invalidateCache();
     await loadDrivers();
     setRefreshing(false);
+  }
+
+  async function syncOdooDrivers() {
+    setSyncingOdoo(true);
+    try {
+      let job = (await api.post('/api/drivers/sync/odoo')).data;
+      const deadline = Date.now() + 60_000;
+
+      while (job?.status === 'running' && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        job = (await api.get('/api/drivers/sync/odoo')).data;
+      }
+
+      if (job?.status === 'completed') {
+        driverRepository.invalidateCache();
+        await loadDrivers();
+        const result = job.result || {};
+        Alert.alert(
+          'Odoo drivers synchronized',
+          `${result.imported || 0} added · ${result.updatedFromOdoo || 0} updated`,
+        );
+      } else if (job?.status === 'failed') {
+        Alert.alert('Odoo sync failed', `Error code: ${job?.result?.code || 'ODOO_DRIVER_SYNC_FAILED'}`);
+      } else {
+        Alert.alert('Odoo sync is still running', 'Pull down to refresh the driver list in a moment.');
+      }
+    } catch {
+      Alert.alert('Odoo sync failed', 'Unable to synchronize Odoo drivers. Please try again.');
+    } finally {
+      setSyncingOdoo(false);
+    }
   }
 
   function filterDrivers() {
@@ -173,35 +206,14 @@ export default function DriverListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ManagementSearchHeader title="Drivers" search={search} onChangeSearch={setSearch} placeholder="Search drivers..." />
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.title, { color: colors.text }]}>
-              Drivers
-            </Text>
-            <Text style={[styles.count, { color: colors.textMuted }]}>
-              {drivers.length} driver{drivers.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
+          <Text style={[styles.count, { color: colors.textMuted }]}>
+            {drivers.length} driver{drivers.length !== 1 ? 's' : ''}
+          </Text>
+          
         </View>
-
-        {/* Search */}
-        <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search drivers..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-
       </View>
 
       <FlatList
@@ -254,11 +266,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
   },
   count: {
     fontSize: 13,
-    marginTop: 2,
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 7,
+  },
+  syncButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   searchBar: {
     flexDirection: 'row',
@@ -280,10 +303,10 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing['4xl'],
   },
   driverCard: {
-    borderRadius: Radius.lg,
+    borderRadius: 5,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    marginBottom: 0.1,
   },
   driverHeader: {
     flexDirection: 'row',

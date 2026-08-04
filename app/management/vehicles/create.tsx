@@ -19,7 +19,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
@@ -27,6 +28,7 @@ import { Card } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
+import { CsvImportPanel } from '../../../components/CsvImportPanel';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { Vendor } from '../../../store/types';
@@ -136,6 +138,7 @@ export default function CreateVehicleScreen() {
         make: form.make.trim(),
         model: form.model.trim(),
         year: Number(form.year.trim()),
+        type: form.type,
         color: form.color.trim() || undefined,
         insuranceExpiry: form.insuranceExpiry.trim() || undefined,
         inspectionExpiry: form.inspectionExpiry.trim() || undefined,
@@ -168,12 +171,16 @@ export default function CreateVehicleScreen() {
         <Text style={styles.backTitle}>Create Vehicle</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Create Vehicle</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Add a new vehicle to the system
-          </Text>
-        </View>
+        
+
+        <CsvImportPanel
+          type="vehicles"
+          requiredColumns="vendor_id or vendor_name, registration_number, type"
+          onCompleted={async () => {
+            vehicleRepository.invalidateCache();
+            await loadVendors();
+          }}
+        />
 
         <Card>
           <Select

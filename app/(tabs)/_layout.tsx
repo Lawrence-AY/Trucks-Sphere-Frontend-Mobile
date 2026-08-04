@@ -1,12 +1,12 @@
 import { Tabs } from 'expo-router';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, ViewStyle } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 
 type TabName = string;
 
-const BOTTOM_TABS: TabName[] = ['dashboard', 'active', 'orders', 'materials','vendors'];
+const BOTTOM_TABS: TabName[] = ['dashboard', 'active', 'orders', 'materials', 'vendors'];
 const HIDDEN_TABS: TabName[] = ['drivers', 'search', 'history', 'profile', 'trucks'];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
@@ -19,6 +19,7 @@ const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = 
   profile: { icon: 'person', label: 'Profile', family: 'Ionicons' },
   trucks: { icon: 'car', label: 'Trucks', family: 'Ionicons' },
   orders: { icon: 'document-text', label: 'Orders', family: 'Ionicons' },
+  vendors: { icon: 'storefront', label: 'Vendors', family: 'Ionicons' },
 };
 
 const getTabIcon = (name: string, focused: boolean, color: string) => {
@@ -38,7 +39,31 @@ const getTabIcon = (name: string, focused: boolean, color: string) => {
 export default function TabsLayout() {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
-  const tabBottomInset = Math.max(insets.bottom, 6);
+  const bottomInset = Math.max(insets.bottom, 6);
+
+  // Floating tab bar style – properly typed with `as const` for display
+  const floatingTabBarStyle: ViewStyle = Platform.select({
+    web: { display: 'none' as const },
+    default: {
+      position: 'absolute',
+      left: 20,
+      right: 20,
+      bottom: 20,
+      borderRadius: 25,
+      backgroundColor: colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 7,
+      paddingHorizontal: 4,
+      paddingBottom: bottomInset + 4,
+      height: 72 + bottomInset,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.1,
+      shadowRadius: 10,
+      elevation: 5,
+    },
+  }) as ViewStyle; // Cast to satisfy the union type
 
   return (
     <Tabs
@@ -48,20 +73,8 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarShowLabel: Platform.OS !== 'web',
         headerShown: Platform.OS !== 'web',
-        tabBarLabelStyle: Platform.OS === 'web'
-          ? { display: 'none' }
-          : styles.tabBarLabel,
-        tabBarStyle: Platform.OS === 'web'
-          ? { display: 'none', height: 0, overflow: 'hidden', position: 'absolute', opacity: 0, pointerEvents: 'none' }
-          : [
-              styles.tabBar,
-              {
-                backgroundColor: colors.surface,
-                borderTopColor: colors.border,
-                paddingBottom: tabBottomInset + 4,
-                height: 72 + tabBottomInset,
-              },
-            ],
+        tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : styles.tabBarLabel,
+        tabBarStyle: floatingTabBarStyle,
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '700', fontSize: 17 },
@@ -101,11 +114,6 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: {
-    borderTopWidth: 1,
-    paddingTop: 7,
-    paddingHorizontal: 4,
-  },
   tabBarLabel: {
     fontSize: 10,
     fontWeight: '700',

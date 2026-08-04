@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { StyleSheet } from 'react-native';
+import { Chip } from 'react-native-paper';
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple';
 type BadgeSize = 'sm' | 'md';
@@ -22,65 +21,36 @@ const VARIANT_COLORS: Record<BadgeVariant, { bg: string; text: string }> = {
   purple: { bg: '#EDE9FE', text: '#5B21B6' },
 };
 
-export function Badge({
-  label,
-  variant = 'default',
-  size = 'sm',
-  dot = false,
-}: BadgeProps) {
+export function Badge({ label, variant = 'default', size = 'sm', dot = false }: BadgeProps) {
   const colors = VARIANT_COLORS[variant];
-  const isSmall = size === 'sm';
 
   return (
-    <View
-      style={[
-        styles.badge,
-        {
-          backgroundColor: colors.bg,
-          paddingHorizontal: isSmall ? Spacing.sm : Spacing.md,
-          paddingVertical: isSmall ? 3 : 5,
-        },
-      ]}
+    <Chip
+      compact
+      icon={dot ? 'circle' : undefined}
+      style={[styles.badge, { backgroundColor: colors.bg }, size === 'md' && styles.medium]}
+      textStyle={[styles.label, { color: colors.text }, size === 'md' && styles.labelMedium]}
+      theme={{ colors: { onSurfaceVariant: colors.text } }}
     >
-      {dot && (
-        <View
-          style={[
-            styles.dot,
-            { backgroundColor: colors.text },
-          ]}
-        />
-      )}
-      <Text
-        style={[
-          styles.label,
-          {
-            color: colors.text,
-            fontSize: isSmall ? 11 : 12,
-          },
-        ]}
-      >
-        {label}
-      </Text>
-    </View>
+      {label}
+    </Chip>
   );
 }
 
 const styles = StyleSheet.create({
   badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radius.full,
-    gap: 4,
     alignSelf: 'flex-start',
+    minHeight: 24,
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  medium: {
+    minHeight: 30,
   },
   label: {
+    fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
     letterSpacing: 0.3,
+  },
+  labelMedium: {
+    fontSize: 12,
   },
 });

@@ -1,7 +1,8 @@
 import React, { ReactNode } from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { StyleSheet, ViewStyle } from 'react-native';
+import { Card as PaperCard } from 'react-native-paper';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 
 interface CardProps {
   children: ReactNode;
@@ -18,46 +19,24 @@ export function Card({
 }: CardProps) {
   const colors = useTheme();
   const paddingValue = typeof padding === 'number' ? padding : Spacing[padding];
-
-  const variantStyles: Record<string, ViewStyle> = {
-    default: {
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    elevated: {
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    outlined: {
-      backgroundColor: 'transparent',
-      borderWidth: 1.5,
-      borderColor: colors.primary + '30',
-    },
+  const sharedProps = {
+    style: [styles.card, variant === 'default' && { borderColor: colors.border, borderWidth: 1 }, style],
+    contentStyle: { padding: paddingValue },
   };
 
-  return (
-    <View
-      style={[
-        styles.card,
-        variantStyles[variant],
-        { padding: paddingValue, borderRadius: Radius.md },
-        style,
-      ]}
-    >
-      {children}
-    </View>
-  );
+  if (variant === 'elevated') {
+    return <PaperCard mode="elevated" elevation={1} {...sharedProps}>{children}</PaperCard>;
+  }
+
+  if (variant === 'outlined') {
+    return <PaperCard mode="outlined" {...sharedProps}>{children}</PaperCard>;
+  }
+
+  return <PaperCard mode="contained" {...sharedProps}>{children}</PaperCard>;
 }
 
 const styles = StyleSheet.create({
   card: {
     marginBottom: Spacing.md,
-    elevation: 0,
-    shadowColor: 'transparent',
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    shadowOffset: { width: 0, height: 0 },
   },
 });

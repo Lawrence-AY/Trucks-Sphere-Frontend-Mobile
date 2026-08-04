@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 import { showAlert } from '../../utils/webAlert';
+import { getPasswordChangeError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
 import { changePassword } from '../../services/api';
 
 export default function ManagementSettingsScreen() {
@@ -18,16 +19,9 @@ export default function ManagementSettingsScreen() {
   const [updating, setUpdating] = useState(false);
 
   const handlePasswordUpdate = async () => {
-    if (!currentPw || !newPw || !confirmPw) {
-      showAlert('Error', 'Please fill all password fields');
-      return;
-    }
-    if (newPw !== confirmPw) {
-      showAlert('Error', 'New passwords do not match');
-      return;
-    }
-    if (newPw.length < 6) {
-      showAlert('Error', 'Password must be at least 6 characters');
+    const passwordError = getPasswordChangeError(currentPw, newPw, confirmPw);
+    if (passwordError) {
+      showAlert('Error', passwordError);
       return;
     }
     setUpdating(true);
@@ -80,7 +74,8 @@ export default function ManagementSettingsScreen() {
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: Spacing.lg }}>Update Password</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Current password" placeholderTextColor={colors.textMuted} value={currentPw} onChangeText={setCurrentPw} secureTextEntry />
-            <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="New password (min 6 chars)" placeholderTextColor={colors.textMuted} value={newPw} onChangeText={setNewPw} secureTextEntry />
+            <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Enter a strong new password" placeholderTextColor={colors.textMuted} value={newPw} onChangeText={setNewPw} secureTextEntry />
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: Spacing.sm }}>{PASSWORD_REQUIREMENTS}</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Confirm new password" placeholderTextColor={colors.textMuted} value={confirmPw} onChangeText={setConfirmPw} secureTextEntry />
             <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md }}>
               <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E2E8F0' }]} onPress={() => { setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw(''); }} disabled={updating}>

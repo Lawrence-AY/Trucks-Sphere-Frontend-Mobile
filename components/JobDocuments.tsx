@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Radius, Spacing } from '../constants/theme';
@@ -33,6 +33,7 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
   const poId = String(job?.purchaseOrderId || job?.poNumber || '');
   const receiptAvailable = Boolean(jobId);
   const receiptNoteId = String(job?.receiptNoteId || (jobId ? generateReceiptNoteId(jobId) : 'Pending'));
+  const externalDeliveryNoteUrl = String(job?.deliveryNoteURL || job?.photoURL || '').trim();
 
   const baseRows = [
     ['Job ID', jobId || '—'],
@@ -120,11 +121,30 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
     }
   }
 
+  async function openExternalDeliveryNote() {
+    if (!externalDeliveryNoteUrl) return;
+    await Linking.openURL(externalDeliveryNoteUrl);
+  }
+
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Job Documents</Text>
-      <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>Tap a document to open it.</Text>
-      {documents.filter((document) => document.kind !== 'receipt' || showReceiptNote).map((document) => {
+      {externalDeliveryNoteUrl ? (
+        <TouchableOpacity
+          style={[styles.externalNote, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+          onPress={() => { void openExternalDeliveryNote(); }}
+          accessibilityRole="link"
+          accessibilityLabel="View attached external delivery note"
+        >
+          <Ionicons name="document-attach-outline" size={20} color="#1D4ED8" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.externalNoteTitle}>External delivery note attached</Text>
+            <Text style={styles.externalNoteMeta} numberOfLines={1}>{job?.deliveryNoteFileName || 'View the captured note'}</Text>
+          </View>
+          <Ionicons name="open-outline" size={18} color="#1D4ED8" />
+        </TouchableOpacity>
+      ) : null}
+       {documents.filter((document) => document.kind !== 'receipt' || showReceiptNote).map((document) => {
         const isExporting = exporting?.startsWith(`${document.kind}-`);
         return (
           <TouchableOpacity
@@ -159,16 +179,19 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
 }
 
 const styles = StyleSheet.create({
-  section: { marginTop: Spacing.lg, gap: Spacing.sm },
+  section: { marginTop: 0, gap: 2.5 },
   sectionTitle: { fontSize: 17, fontWeight: '800' },
   sectionSubtitle: { fontSize: 13, marginBottom: Spacing.xs },
+  externalNote: { minHeight: 58, borderWidth: 1, borderRadius: Radius.lg, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  externalNoteTitle: { color: '#1E3A8A', fontSize: 13, fontWeight: '800' },
+  externalNoteMeta: { color: '#2563EB', fontSize: 11, fontWeight: '600', marginTop: 1 },
   card: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md, gap: Spacing.md },
   cardDisabled: { opacity: 0.65 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   iconWrap: { width: 42, height: 42, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   cardCopy: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 15, fontWeight: '800' },
-  cardIdentifier: { fontSize: 12, fontWeight: '700', marginTop: 2 },
+  cardIdentifier: { fontSize: 12, fontWeight: '700', marginTop: 1 },
   unavailable: { fontSize: 12, lineHeight: 17 },
   actions: { alignItems: 'flex-end' },
 });

@@ -18,7 +18,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../../../utils/router';
 import { useTheme } from '../../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../../constants/theme';
 import { Card } from '../../../../components/ui/Card';
@@ -61,6 +62,11 @@ export default function EditMaterialScreen() {
     measurementType: 'Tonnes' as MeasurementUnit,
     defaultUnit: 'Tonnes',
     description: '',
+    unitPrice: '',
+    salesPrice: '',
+    barcode: '',
+    weight: '',
+    volume: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -83,6 +89,11 @@ export default function EditMaterialScreen() {
         measurementType: m.measurementType || 'Tonnes',
         defaultUnit: m.defaultUnit || 'Tonnes',
         description: m.description || '',
+        unitPrice: m.unitPrice === undefined ? '' : String(m.unitPrice),
+        salesPrice: m.salesPrice === undefined ? '' : String(m.salesPrice),
+        barcode: m.barcode || '',
+        weight: m.weight === undefined ? '' : String(m.weight),
+        volume: m.volume === undefined ? '' : String(m.volume),
       });
     } catch {
       Alert.alert('Error', 'Failed to load material');
@@ -108,6 +119,11 @@ export default function EditMaterialScreen() {
     if (!form.name.trim()) newErrors.name = 'Material name is required';
     if (!form.category) newErrors.category = 'Category is required';
     if (!form.measurementType) newErrors.measurementType = 'Measurement type is required';
+    for (const field of ['unitPrice', 'salesPrice', 'weight', 'volume'] as const) {
+      if (form[field].trim() && (!Number.isFinite(Number(form[field])) || Number(form[field]) < 0)) {
+        newErrors[field] = 'Enter a valid non-negative number';
+      }
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -122,6 +138,11 @@ export default function EditMaterialScreen() {
         measurementType: form.measurementType,
         defaultUnit: form.defaultUnit,
         description: form.description,
+        unitPrice: form.unitPrice.trim() ? Number(form.unitPrice) : undefined,
+        salesPrice: form.salesPrice.trim() ? Number(form.salesPrice) : undefined,
+        barcode: form.barcode.trim() || undefined,
+        weight: form.weight.trim() ? Number(form.weight) : undefined,
+        volume: form.volume.trim() ? Number(form.volume) : undefined,
         updatedAt: new Date().toISOString(),
       });
       router.back();
@@ -200,6 +221,49 @@ export default function EditMaterialScreen() {
             icon="document-text-outline"
             multiline
             numberOfLines={3}
+          />
+          <Input
+            label="Purchase Cost (KES)"
+            value={form.unitPrice}
+            onChangeText={(v) => updateField('unitPrice', v)}
+            placeholder="Optional cost per unit"
+            icon="cash-outline"
+            keyboardType="numeric"
+            error={errors.unitPrice}
+          />
+          <Input
+            label="Sales Price (KES)"
+            value={form.salesPrice}
+            onChangeText={(v) => updateField('salesPrice', v)}
+            placeholder="Optional selling price per unit"
+            icon="pricetag-outline"
+            keyboardType="numeric"
+            error={errors.salesPrice}
+          />
+          <Input
+            label="Barcode"
+            value={form.barcode}
+            onChangeText={(v) => updateField('barcode', v)}
+            placeholder="Optional product barcode"
+            icon="barcode-outline"
+          />
+          <Input
+            label="Weight (kg)"
+            value={form.weight}
+            onChangeText={(v) => updateField('weight', v)}
+            placeholder="Optional unit weight"
+            icon="barbell-outline"
+            keyboardType="numeric"
+            error={errors.weight}
+          />
+          <Input
+            label="Volume (m³)"
+            value={form.volume}
+            onChangeText={(v) => updateField('volume', v)}
+            placeholder="Optional unit volume"
+            icon="cube-outline"
+            keyboardType="numeric"
+            error={errors.volume}
           />
 
         </Card>

@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import {
@@ -24,10 +26,12 @@ import {
   receiveLot,
   updateDeliveryOrder,
 } from '../../services/api';
+import { uploadDeliveryNote, type UploadFile } from '../../services/uploadService';
 import { useAuthStore } from '../../store/authStore';
 import { useDeliveryOrders } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT, generateId, generateJobKey } from '../../utils/helpers';
+import { normalizeJobStatus } from '../../utils/jobStatus';
 import {
   DataCard,
   DetailRow,
@@ -53,6 +57,10 @@ const MATERIAL_SOURCE_OPTIONS = [
   'Witu',
   'Baragoni',
 ];
+
+type CapturedDeliveryNote = UploadFile & {
+  displayName: string;
+};
 
 export default function OperatorSiteDashboardScreen() {
   const colors = useTheme();
@@ -111,6 +119,7 @@ export default function OperatorSiteDashboardScreen() {
   const [fabMaterialSourceOpen, setFabMaterialSourceOpen] = useState(false);
   const [fabWeightIn, setFabWeightIn] = useState('');
   const [fabLotNumber, setFabLotNumber] = useState('');
+  const [fabDeliveryNote, setFabDeliveryNote] = useState<CapturedDeliveryNote | null>(null);
   const [fabSubmitting, setFabSubmitting] = useState(false);
   const [fabSubmitError, setFabSubmitError] = useState('');
 
@@ -181,12 +190,15 @@ export default function OperatorSiteDashboardScreen() {
   // and have NOT been weighed in at site yet — once weighed in, they move to Weights tab
   const allScheduled = useMemo(
     () => deliveries.filter((d) => {
-      if (['cancelled', 'delivered', 'completed'].includes(d.status)) return false;
+      const status = normalizeJobStatus(d.status);
+      if (['CANCELLED', 'COMPLETED', 'SITE_WEIGHED_OUT'].includes(status)) return false;
       if (d.siteWeighOutWeight != null) return false;
       // Exclude jobs that already have site arrival recorded — they belong on Weights tab
-      if (d.siteWeighInWeight != null || d.siteArrivalWeight != null || d.status === 'site_in') return false;
+      if (d.siteWeighInWeight != null || d.siteArrivalWeight != null || status === 'SITE_WEIGHED_IN') return false;
       // Must have been weighed at quarry (has both weigh in and weigh out weights)
-      return d.weighInWeight != null && d.weighOutWeight != null;
+      const hasQuarryWeights = d.weighInWeight != null && d.weighOutWeight != null;
+      const isSubmittedWarehouseDelivery = Boolean(d.isWarehouseDelivery && d.packagingPhotoURL) && ['DISPATCHED', 'IN_TRANSIT', 'ARRIVED_AT_SITE'].includes(status);
+      return hasQuarryWeights || isSubmittedWarehouseDelivery;
     }),
     [deliveries],
   );
@@ -478,8 +490,66 @@ export default function OperatorSiteDashboardScreen() {
     setFabMaterialSourceOpen(false);
     setFabWeightIn('');
     setFabLotNumber('');
+    setFabDeliveryNote(null);
     setFabSubmitting(false);
     setFabSubmitError('');
+  };
+
+  const captureExternalDeliveryNote = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Camera permission needed', 'Allow camera access to capture the external delivery note.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    setFabDeliveryNote({
+      uri: asset.uri,
+      name: asset.fileName || `delivery-note-${Date.now()}.jpg`,
+      mimeType: asset.mimeType || 'image/jpeg',
+      displayName: asset.fileName || 'Captured delivery note',
+    });
+  };
+
+  const chooseExternalDeliveryNotePhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Photo library permission needed', 'Allow photo library access to select the external delivery note.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    setFabDeliveryNote({
+      uri: asset.uri,
+      name: asset.fileName || `delivery-note-${Date.now()}.jpg`,
+      mimeType: asset.mimeType || 'image/jpeg',
+      displayName: asset.fileName || 'Selected delivery note',
+    });
+  };
+
+  const chooseExternalDeliveryNoteFile = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['image/*', 'application/pdf'],
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    setFabDeliveryNote({
+      uri: asset.uri,
+      name: asset.name || `delivery-note-${Date.now()}.pdf`,
+      mimeType: asset.mimeType || 'application/pdf',
+      displayName: asset.name || 'Selected delivery note',
+    });
   };
 
   const handleFabSubmit = async () => {
@@ -542,13 +612,34 @@ export default function OperatorSiteDashboardScreen() {
 
     try {
       const createdJob = await createDeliveryOrder(payload);
+      let completedJob = createdJob;
+      let deliveryNoteUploadFailed = false;
+      if (fabDeliveryNote) {
+        try {
+          const uploaded = await uploadDeliveryNote(createdJob.id, fabDeliveryNote);
+          completedJob = {
+            ...createdJob,
+            deliveryNoteURL: uploaded.photoURL,
+            photoURL: uploaded.photoURL,
+            deliveryNoteFileName: fabDeliveryNote.name,
+            deliveryNoteMimeType: fabDeliveryNote.mimeType,
+          };
+        } catch {
+          // The arrival has already been created. Do not encourage a second
+          // submission, which would create a duplicate job card.
+          deliveryNoteUploadFailed = true;
+        }
+      }
       // Optimistically push to shared cache so Weights tab sees it immediately
-      useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', createdJob);
+      useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', completedJob);
       useRealTimeSyncStore.getState().invalidateETag('deliveryOrders');
-      setDeliveries((current) => [createdJob, ...current]);
+      setDeliveries((current) => [completedJob, ...current]);
       closeFab();
-      setSuccessJob(createdJob);
+      setSuccessJob(completedJob);
       setSuccessModalVisible(true);
+      if (deliveryNoteUploadFailed) {
+        Alert.alert('Job registered', 'The job was registered, but the delivery note could not be uploaded. The note was not saved.');
+      }
     } catch (error: any) {
       setFabSubmitError(error?.response?.data?.error || error?.message || 'Failed to register unscheduled arrival.');
     } finally {
@@ -595,7 +686,7 @@ export default function OperatorSiteDashboardScreen() {
             const isSubmitting = submitting[item.id];
             const error = submitErrors[item.id];
             const weightInVal = getWeightInput(item.id);
-            const hasSiteWeighIn = item.siteWeighInWeight != null || ['site_in', 'weighed_in'].includes(item.status);
+            const hasSiteWeighIn = item.siteWeighInWeight != null || normalizeJobStatus(item.status) === 'SITE_WEIGHED_IN';
             const enteredSiteWeighIn = parseFloat(weightInVal);
             const quarryWeighOut = Number(item.weighOutWeight || 0);
             const arrivalVariance = quarryWeighOut > 0 && Number.isFinite(enteredSiteWeighIn)
@@ -640,9 +731,8 @@ export default function OperatorSiteDashboardScreen() {
                   />
                   <DetailRow
                     icon="location-outline"
-                      value={`From: ${item.materialSource || item.weighOutGeoLocation?.city || item.weighOutGeoLocation?.town || item.weighOutGeoLocation?.district || item.weighOutGeoLocation?.name || item.weighOutLocation || item.quarryName || 'Quarry'}`}
+                    value={`From: ${item.isWarehouseDelivery ? 'Warehouse' : item.quarryLocation || item.materialSource || item.weighOutGeoLocation?.city || item.weighOutGeoLocation?.town || item.weighOutGeoLocation?.district || item.weighOutGeoLocation?.name || item.weighOutLocation || item.quarryName || 'Quarry'}`}
                   />
-
                   {/* Quarry Weights (Weigh Out + Net Weight) */}
                   {hasQuarryWeights && (
                     <View style={styles.quarryWeightsRow}>
@@ -699,10 +789,31 @@ export default function OperatorSiteDashboardScreen() {
                     </TouchableOpacity>
                   ) : null}
 
+                  {item.packagingPhotoURL ? (
+                    <TouchableOpacity
+                      style={styles.dispatchPhotoSection}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        setPhotoViewerUri(item.packagingPhotoURL);
+                        setPhotoViewerVisible(true);
+                      }}
+                    >
+                      <View style={styles.dispatchPhotoHeader}>
+                        <Ionicons name="archive-outline" size={14} color={colors.textMuted} />
+                        <Text style={[styles.dispatchPhotoLabel, { color: colors.textMuted }]}>Packaging Photo</Text>
+                      </View>
+                      <Image
+                        source={{ uri: item.packagingPhotoURL }}
+                        style={[styles.dispatchPhotoThumb, { borderColor: colors.border }]}
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+                  ) : null}
+
                   <Text
                     style={[styles.timestamp, { color: colors.textTertiary }]}
                   >
-                    {`Dispatched: ${formatEAT(item.weighOutAt || item.updatedAt || item.createdAt)}`}
+                    {`${item.isWarehouseDelivery ? 'Submitted' : 'Dispatched'}: ${formatEAT(item.weighOutAt || item.submittedAt || item.updatedAt || item.createdAt)}`}
                   </Text>
 
                   {hasSiteWeighIn && (
@@ -1247,6 +1358,61 @@ export default function OperatorSiteDashboardScreen() {
                 </View>
               )}
 
+              {fabSelectedPo && (
+                <View style={[styles.fabDeliveryNote, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
+                  <View style={styles.fabDeliveryNoteHeader}>
+                    <Ionicons name="document-attach-outline" size={19} color={colors.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.fabLabel, { color: colors.text, marginTop: 0 }]}>External Delivery Note</Text>
+                      <Text style={[styles.fabNoteHelp, { color: colors.textMuted }]}>Optional — photograph a paper note or attach an image/PDF issued elsewhere.</Text>
+                    </View>
+                  </View>
+                  <View style={styles.fabNoteActions}>
+                    <TouchableOpacity
+                      style={[styles.fabNoteAction, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                      onPress={captureExternalDeliveryNote}
+                    >
+                      <Ionicons name="camera-outline" size={16} color={colors.primary} />
+                      <Text style={[styles.fabNoteActionText, { color: colors.text }]}>Camera</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.fabNoteAction, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                      onPress={chooseExternalDeliveryNotePhoto}
+                    >
+                      <Ionicons name="images-outline" size={16} color={colors.primary} />
+                      <Text style={[styles.fabNoteActionText, { color: colors.text }]}>Gallery</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.fabNoteAction, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                      onPress={chooseExternalDeliveryNoteFile}
+                    >
+                      <Ionicons name="attach-outline" size={16} color={colors.primary} />
+                      <Text style={[styles.fabNoteActionText, { color: colors.text }]}>File</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {fabDeliveryNote ? (
+                    <View style={[styles.fabSelectedNote, { borderColor: `${colors.primary}55`, backgroundColor: `${colors.primary}0D` }]}>
+                      {fabDeliveryNote.mimeType?.startsWith('image/') ? (
+                        <Image source={{ uri: fabDeliveryNote.uri }} style={styles.fabDeliveryNotePreview} />
+                      ) : (
+                        <View style={[styles.fabDeliveryNotePreview, styles.fabPdfPreview, { backgroundColor: '#FEE2E2' }]}>
+                          <Ionicons name="document-text-outline" size={22} color="#B91C1C" />
+                          <Text style={styles.fabPdfPreviewText}>PDF</Text>
+                        </View>
+                      )}
+                      <Text style={[styles.fabSelectedNoteName, { color: colors.text }]} numberOfLines={2}>{fabDeliveryNote.displayName}</Text>
+                      <TouchableOpacity
+                        onPress={() => setFabDeliveryNote(null)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Remove external delivery note"
+                      >
+                        <Ionicons name="close-circle" size={21} color={colors.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
+                </View>
+              )}
+
               {fabSubmitError ? <Text style={[styles.fabSubmitError, { color: colors.danger }]}>{fabSubmitError}</Text> : null}
 
               <TouchableOpacity
@@ -1633,6 +1799,17 @@ const styles = StyleSheet.create({
   fabDropdownItem: { minHeight: 42, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   fabDropdownText: { fontSize: 14, fontWeight: '800' },
   fabEmpty: { fontSize: 13, fontWeight: '700', paddingVertical: Spacing.md },
+  fabDeliveryNote: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, gap: Spacing.sm },
+  fabDeliveryNoteHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  fabNoteHelp: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  fabNoteActions: { flexDirection: 'row', gap: Spacing.xs },
+  fabNoteAction: { flex: 1, minHeight: 38, borderWidth: 1, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4, paddingHorizontal: 4 },
+  fabNoteActionText: { fontSize: 11, fontWeight: '800' },
+  fabSelectedNote: { minHeight: 52, borderWidth: 1, borderRadius: Radius.sm, padding: Spacing.xs, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  fabDeliveryNotePreview: { width: 42, height: 42, borderRadius: Radius.sm, resizeMode: 'cover' },
+  fabPdfPreview: { alignItems: 'center', justifyContent: 'center' },
+  fabPdfPreviewText: { color: '#B91C1C', fontSize: 9, fontWeight: '900' },
+  fabSelectedNoteName: { flex: 1, fontSize: 12, fontWeight: '800' },
   fabSubmitError: { fontSize: 13, fontWeight: '800', lineHeight: 18 },
   fabCreateBtn: { minHeight: 50, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   fabCreateBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },

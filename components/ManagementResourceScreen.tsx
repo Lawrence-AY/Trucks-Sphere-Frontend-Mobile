@@ -10,10 +10,10 @@ import {
   EmptyState,
   MetricTile,
   PageShell,
-  SearchField,
   SectionTitle,
   StatusPill,
 } from './EnterpriseUI';
+import { ManagementSearchHeader } from './ManagementSearchHeader';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -84,7 +84,9 @@ export default function ManagementResourceScreen({
   const activeCount = items.filter((item) => item.status === 'active' || item.active === true).length;
 
   return (
-    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+    <>
+      <ManagementSearchHeader title={title} search={search} onChangeSearch={setSearch} placeholder={searchPlaceholder} />
+      <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
       <CommandHeader eyebrow={eyebrow} title={title} subtitle={subtitle} />
 
       <View style={styles.metrics}>
@@ -92,7 +94,6 @@ export default function ManagementResourceScreen({
         <MetricTile icon="checkmark-circle-outline" label="Active" value={activeCount} tone={colors.success} />
       </View>
 
-      <SearchField value={search} onChangeText={setSearch} placeholder={searchPlaceholder} />
       <SectionTitle title={`${filtered.length} records`} />
 
       {loading ? (
@@ -124,7 +125,8 @@ export default function ManagementResourceScreen({
       ) : (
         <EmptyState icon={icon} title={emptyTitle} subtitle="Refresh the data or adjust your search." />
       )}
-    </PageShell>
+      </PageShell>
+    </>
   );
 }
 

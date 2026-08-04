@@ -5,7 +5,7 @@
  * Gracefully returns empty arrays on network errors.
  */
 import axios from "axios";
-import { getStoredToken, clearAuthData } from "./database";
+import { getStoredToken, getAuthData, saveAuthData, clearAuthData } from "./database";
 import { Platform } from "react-native";
 import { API_BASE_URL } from "./config";
 import * as FileSystem from 'expo-file-system/legacy';
@@ -14,9 +14,63 @@ import * as Sharing from 'expo-sharing';
 // ============== Auth Expiry Handler ==============
 
 let onAuthExpired: (() => void) | null = null;
+let refreshInFlight: Promise<string> | null = null;
+
+/** Return a client-safe API reference code without exposing failure details. */
+export function getErrorCode(error: any): string {
+  const serverCode = String(
+    error?.response?.data?.code ||
+    error?.response?.data?.errorCode ||
+    error?.response?.data?.error ||
+    error?.code ||
+    '',
+  ).trim().toUpperCase();
+  if (/^[A-Z0-9_:-]+$/.test(serverCode)) return serverCode;
+  const status = Number(error?.response?.status);
+  if (Number.isFinite(status) && status > 0) return `HTTP_${status}`;
+  if (error?.code === 'ECONNABORTED') return 'NETWORK_TIMEOUT';
+  return 'NETWORK_UNAVAILABLE';
+}
+
+export function toPublicError(error: any): Error {
+  const code = getErrorCode(error);
+  return Object.assign(new Error(`Error code: ${code}`), {
+    code,
+    statusCode: error?.response?.status || null,
+    isPublicError: true,
+  });
+}
 
 export function setOnAuthExpired(handler: () => void) {
   onAuthExpired = handler;
+}
+
+export async function refreshAccessToken(): Promise<string> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const stored = await getAuthData();
+    if (!stored.refreshToken) throw new Error('No refresh token is available.');
+    const response = await axios.post<{ token?: string; refreshToken?: string }>(
+      `${API_BASE_URL}/api/auth/refresh`,
+      { refreshToken: stored.refreshToken },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 10000 },
+    );
+    const { token, refreshToken } = response.data;
+    if (!token || !refreshToken) throw new Error('Invalid refresh response.');
+    await saveAuthData({ token, refreshToken, userData: stored.userData || undefined });
+    return token;
+  })();
+
+  try {
+    return await refreshInFlight;
+  } catch (error) {
+    await clearAuthData();
+    if (onAuthExpired) onAuthExpired();
+    throw error;
+  } finally {
+    refreshInFlight = null;
+  }
 }
 
 async function backendRequest<T>(
@@ -32,19 +86,17 @@ async function backendRequest<T>(
   if (data !== undefined) {
     headers["Content-Type"] = "application/json";
   }
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
+  const sendRequest = (accessToken: string | null) => axios.request<T>({
+    baseURL: API_BASE_URL,
+    url,
+    method,
+    data,
+    params,
+    headers: accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers,
+    timeout: 10000,
+  });
   try {
-    const response = await axios.request<T>({
-      baseURL: API_BASE_URL,
-      url,
-      method,
-      data,
-      params,
-      headers,
-      timeout: 10000,
-    });
+    const response = await sendRequest(token);
     return response.data;
   } catch (error: any) {
     const requestUrl = `${API_BASE_URL}${url}`;
@@ -54,14 +106,14 @@ async function backendRequest<T>(
       error?.response?.data?.errorInfo?.code ||
       "";
     // Firebase token expired → auto logout
-    if (
-      status === 401 &&
-      (errorCode === "auth/id-token-expired" ||
-        errorCode.includes("token-expired") ||
-        errorCode.includes("TOKEN_EXPIRED"))
-    ) {
-      await clearAuthData();
-      if (onAuthExpired) onAuthExpired();
+    if (status === 401 && token && !url.startsWith('/api/auth/')) {
+      try {
+        const refreshedToken = await refreshAccessToken();
+        const response = await sendRequest(refreshedToken);
+        return response.data;
+      } catch (refreshError) {
+        throw toPublicError(refreshError);
+      }
     }
     // Keep the complete URL in device logs. This makes APK configuration
     // problems diagnosable without presenting raw transport errors to users.
@@ -71,7 +123,7 @@ async function backendRequest<T>(
       code: errorCode || null,
       message: error?.response?.data?.message || error?.response?.data?.error || error?.message || 'Request failed',
     });
-    throw error;
+    throw toPublicError(error);
   }
 }
 
@@ -92,6 +144,7 @@ const COLLECTION_RESPONSE_KEYS: Record<string, string[]> = {
   fuelStations: ['fuelStations', 'fuel_stations'],
   users: ['users'],
   roles: ['roles'],
+  warehouseJobs: ['warehouseJobs', 'warehouse_jobs'],
 };
 
 /**
@@ -274,6 +327,14 @@ export async function updateDeliveryOrder(
   );
 }
 
+/** Retry an Odoo receipt synchronization after a previously failed attempt. */
+export async function syncDeliveryOrderWithOdoo(id: string): Promise<any> {
+  return unwrapOne(
+    await backendRequest('post', `/api/delivery-orders/${id}/sync-odoo`),
+    { id },
+  );
+}
+
 export async function fetchWeighments(params?: {
   jobId?: string;
   type?: string;
@@ -332,6 +393,25 @@ export async function fetchAuditLogs(_params?: {
   // Audit-log retrieval is disabled to avoid an unbounded Firestore read
   // stream. Keep the API surface for existing screens, but make no request.
   return [];
+}
+
+export async function fetchWarehouseJobs(params?: {
+  search?: string;
+  vendorId?: string;
+  status?: string;
+}): Promise<any[]> {
+  return safeFetch('warehouse-jobs', () =>
+    backendRequest<any>('get', '/api/warehouse-jobs', undefined, params).then(
+      (data) => normalizeCollection(data, 'warehouseJobs'),
+    ),
+  );
+}
+
+export async function createWarehouseJob(payload: any): Promise<any> {
+  return unwrapOne(
+    await backendRequest('post', '/api/warehouse-jobs', payload),
+    payload,
+  );
 }
 
 export async function fetchUsers(params?: {
@@ -638,14 +718,17 @@ export async function fetchPublicTracking(trackingId: string): Promise<any> {
         ? "Unable to reach the tracking server. Please check your internet connection."
         : error?.message || "A network error occurred. Please try again.";
       console.log(`[API] Public tracking ${trackingId} failed: network error`, error?.code);
-      throw Object.assign(new Error(netMsg), { isNetworkError: true });
+      throw Object.assign(new Error(`Error code: ${getErrorCode(error)}`), {
+        code: getErrorCode(error),
+        isNetworkError: true,
+      });
     }
 
     // Server returned a structured error
     console.log(`[API] Public tracking ${trackingId} failed:`, status, serverCode, serverMessage);
-    throw Object.assign(new Error(serverMessage || "This tracking link has expired or is no longer active."), {
+    throw Object.assign(new Error(`Error code: ${getErrorCode(error)}`), {
       statusCode: status,
-      errorCode: serverCode || null,
+      errorCode: getErrorCode(error),
       isTrackingError: true,
     });
   }
@@ -676,14 +759,17 @@ export async function fetchPublicTrackingByPlate(plateNumber: string): Promise<a
         ? "Unable to reach the tracking server. Please check your internet connection."
         : error?.message || "A network error occurred. Please try again.";
       console.log(`[API] Public tracking by plate ${plateNumber} failed: network error`, error?.code);
-      throw Object.assign(new Error(netMsg), { isNetworkError: true });
+      throw Object.assign(new Error(`Error code: ${getErrorCode(error)}`), {
+        code: getErrorCode(error),
+        isNetworkError: true,
+      });
     }
 
     // Server returned a structured error
     console.log(`[API] Public tracking by plate ${plateNumber} failed:`, status, serverCode, serverMessage);
-    throw Object.assign(new Error(serverMessage || "This tracking link has expired or is no longer active."), {
+    throw Object.assign(new Error(`Error code: ${getErrorCode(error)}`), {
       statusCode: status,
-      errorCode: serverCode || null,
+      errorCode: getErrorCode(error),
       isTrackingError: true,
     });
   }

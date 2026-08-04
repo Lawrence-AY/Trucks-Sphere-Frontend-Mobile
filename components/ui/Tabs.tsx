@@ -1,14 +1,15 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 
 interface Tab {
   name: string;
   label: string;
   icon?: keyof typeof Ionicons.glyphMap;
   count?: number;
+  tone?: 'danger';
 }
 
 interface TabsProps {
@@ -21,62 +22,35 @@ export function Tabs({ tabs, activeTab, onTabChange }: TabsProps) {
   const colors = useTheme();
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.container}
-      contentContainerStyle={styles.content}
-    >
-      {tabs.map((tab) => {
-        const isActive = tab.name === activeTab;
-        return (
-          <TouchableOpacity
-            key={tab.name}
-            style={[
-              styles.tab,
-              {
-                backgroundColor: isActive ? colors.primary : colors.surface,
-                borderColor: isActive ? colors.primary : colors.border,
-              },
-            ]}
-            onPress={() => onTabChange(tab.name)}
-            activeOpacity={0.7}
-          >
-            {tab.icon && (
-              <Ionicons
-                name={tab.icon}
-                size={16}
-                color={isActive ? '#FFFFFF' : colors.textMuted}
-              />
-            )}
-            <Text
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.row}>
+        {tabs.map((tab) => {
+          const active = tab.name === activeTab;
+          const danger = tab.tone === 'danger';
+          const color = danger ? '#B91C1C' : active ? '#FFFFFF' : colors.textSecondary;
+
+          return (
+            <TouchableOpacity
+              key={tab.name}
+              onPress={() => onTabChange(tab.name)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
               style={[
-                styles.tabLabel,
-                { color: isActive ? '#FFFFFF' : colors.textMuted },
+                styles.tab,
+                {
+                  backgroundColor: active ? (danger ? '#B91C1C' : colors.primary) : colors.surface,
+                  borderColor: active ? (danger ? '#B91C1C' : colors.primary) : (danger ? '#FECACA' : colors.border),
+                },
               ]}
             >
-              {tab.label}
-            </Text>
-            {tab.count !== undefined && (
-              <View
-                style={[
-                  styles.count,
-                  { backgroundColor: isActive ? '#FFFFFF30' : colors.border },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.countText,
-                    { color: isActive ? '#FFFFFF' : colors.textMuted },
-                  ]}
-                >
-                  {tab.count}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        );
-      })}
+              {tab.icon ? <Ionicons name={tab.icon} size={17} color={color} /> : null}
+              <Text style={[styles.tabLabel, { color }]} numberOfLines={1}>
+                {tab.count === undefined ? tab.label : `${tab.label} (${tab.count})`}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </ScrollView>
   );
 }
@@ -86,29 +60,25 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   content: {
-    gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
   },
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
   tab: {
+    width: 180,
+    minHeight: 40,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.full,
-    borderWidth: 1,
+    justifyContent: 'center',
     gap: 6,
   },
   tabLabel: {
     fontSize: 13,
-    fontWeight: '600',
-  },
-  count: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: Radius.full,
-  },
-  countText: {
-    fontSize: 11,
     fontWeight: '700',
   },
 });

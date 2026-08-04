@@ -1,20 +1,11 @@
-//login.tsx
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Button, Card, HelperText, Text, TextInput } from 'react-native-paper';
 import { useAuthStore } from '../../store/authStore';
 import { Radius, Spacing } from '../../constants/theme';
+import { useTheme, useThemeMode } from '../../hooks/useTheme';
 import { isManagementRole, managementHomeRoute, normalizeRole } from '../../utils/access';
 
 export default function LoginScreen() {
@@ -22,26 +13,26 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
-  const { login, isLoading, isAuthenticated, restoreSession, clearError, error } = useAuthStore();
+  const { login, isLoading, isAuthenticated, clearError, error } = useAuthStore();
+  const colors = useTheme();
+  const { isDark, toggleTheme } = useThemeMode();
+  const appearanceIconColor = isDark ? colors.accent : colors.primary;
+  const appearanceIconBackground = isDark ? `${colors.accent}1A` : colors.primaryLight;
 
   useEffect(() => {
-    // Skip restore to prevent stale session from affecting login
-  }, []);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      const role = normalizeRole(useAuthStore.getState().user?.role);
-      if (isManagementRole(role)) {
-        router.replace(managementHomeRoute(role) as any);
-        return;
-      }
-      switch (role) {
-        case 'vendor': router.replace('/vendor/dashboard' as any); break;
-        case 'operator_site': router.replace('/operator-site/schedule' as any); break;
-         case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
-         case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
-         default: router.replace('/management/dashboard' as any);
-      }
+    if (!isAuthenticated) return;
+    const role = normalizeRole(useAuthStore.getState().user?.role);
+    if (isManagementRole(role)) {
+      router.replace(managementHomeRoute(role) as any);
+      return;
+    }
+    switch (role) {
+      case 'vendor': router.replace('/vendor/dashboard' as any); break;
+      case 'operator_site': router.replace('/operator-site/schedule' as any); break;
+      case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
+      case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
+      case 'operator_warehouse': router.replace('/warehouse' as any); break;
+      default: router.replace('/management/dashboard' as any);
     }
   }, [isAuthenticated]);
 
@@ -60,123 +51,98 @@ export default function LoginScreen() {
   const displayError = localError || error;
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <View style={styles.panel}>
+        <Card mode="outlined" style={[styles.panel, { backgroundColor: colors.surface, borderColor: colors.border }]} contentStyle={styles.panelContent}>
+         
           <View style={styles.brand}>
-          
-            <Text style={styles.brandName}>TRUCK<Text style={styles.brandAccent}>SPHERE</Text></Text>
-            <Text style={styles.tagline}>Fleet operations</Text>
+            <Text variant="titleLarge" style={[styles.brandName, { color: colors.text }]}>TRUCK<Text style={[styles.brandAccent, { color: colors.primary }]}>SPHERE</Text></Text>
+            <Text variant="bodyMedium" style={[styles.tagline, { color: colors.textSecondary }]}>Fleet operations</Text>
           </View>
 
-          <View style={styles.illustration}>
-            <Ionicons name="bus" size={40} color="#1B2A4A" />
+          <View style={[styles.illustration, { backgroundColor: colors.primaryLight }]}>
+            <Ionicons name="bus" size={40} color={isDark ? colors.text : colors.primary} />
           </View>
 
-          <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to continue managing fleet operations.</Text>
+          <Text variant="headlineSmall" style={[styles.title, { color: colors.text }]}>Welcome back</Text>
+          <Text variant="bodyMedium" style={[styles.subtitle, { color: colors.textSecondary }]}>Sign in to continue managing fleet operations.</Text>
 
-          {displayError ? (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle-outline" size={17} color="#EF4444" />
-              <Text style={styles.errorText}>{displayError}</Text>
-            </View>
-          ) : null}
+          {displayError ? <HelperText type="error" visible style={styles.error}>{displayError}</HelperText> : null}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Username or Email</Text>
-            <View style={styles.inputWrap}>
-              <Ionicons name="person-outline" size={20} color="#667781" />
-              <TextInput
-                style={styles.input}
-                placeholder="Username"
-                placeholderTextColor="#94A3B8"
-                value={username}
-                onChangeText={(v) => { setUsername(v); setLocalError(''); }}
-                autoCapitalize="none"
-                editable={!isLoading}
-              />
-            </View>
-          </View>
+          <TextInput
+            mode="outlined"
+            label="Username"
+            value={username}
+            onChangeText={(value) => { setUsername(value); setLocalError(''); }}
+            autoCapitalize="none"
+            disabled={isLoading}
+            left={<TextInput.Icon icon={({ color, size }) => <Ionicons name="person-outline" color={color} size={size} />} />}
+            style={[styles.input, { backgroundColor: colors.surface }]}
+            outlineColor={colors.border}
+            activeOutlineColor={isDark ? colors.accent : colors.primary}
+            textColor={colors.text}
+          />
+          <TextInput
+            mode="outlined"
+            label="Password"
+            value={password}
+            onChangeText={(value) => { setPassword(value); setLocalError(''); }}
+            secureTextEntry={!showPassword}
+            disabled={isLoading}
+            left={<TextInput.Icon icon={({ color, size }) => <Ionicons name="lock-closed-outline" color={color} size={size} />} />}
+            right={<TextInput.Icon icon={({ color, size }) => <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} color={color} size={size} />} onPress={() => setShowPassword((current) => !current)} forceTextInputFocus={false} />}
+            style={[styles.input, { backgroundColor: colors.surface }]}
+            outlineColor={colors.border}
+            activeOutlineColor={isDark ? colors.accent : colors.primary}
+            textColor={colors.text}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputWrap}>
-              <Ionicons name="lock-closed-outline" size={20} color="#667781" />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#94A3B8"
-                value={password}
-                onChangeText={(v) => { setPassword(v); setLocalError(''); }}
-                secureTextEntry={!showPassword}
-                editable={!isLoading}
-              />
-              <TouchableOpacity onPress={() => setShowPassword((c) => !c)}>
-                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#667781" />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <Button mode="contained" buttonColor={colors.primary} onPress={handleLogin} loading={isLoading} disabled={isLoading} style={styles.loginButton} contentStyle={styles.loginButtonContent} labelStyle={styles.loginButtonLabel}>
+            Login
+          </Button>
 
-          <TouchableOpacity style={[styles.loginBtn, isLoading && { opacity: 0.7 }]} onPress={handleLogin} disabled={isLoading} activeOpacity={0.85}>
-            {isLoading ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Text style={styles.loginBtnText}>Login</Text>}
-          </TouchableOpacity>
-
-          <View style={{ height: 20 }} />
-          <Text style={styles.version}>v1.0.0</Text>
-        </View>
+          <Text variant="labelSmall" style={[styles.version, { color: colors.textMuted }]}>v1.0.0</Text>
+        </Card>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E9EDEF' },
+  container: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', padding: Spacing.xl },
-  panel: {
-    width: '100%', maxWidth: 440, alignSelf: 'center',
-    borderRadius: Radius.xl, padding: Spacing['2xl'],
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: '#D9E1E5',
-  },
-  brand: { alignItems: 'center', marginBottom: Spacing.lg },
-  appIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
+  panel: { width: '100%', maxWidth: 440, alignSelf: 'center', borderRadius: Radius.xl },
+  panelContent: { padding: Spacing['2xl'] },
+  appearanceButton: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 6,
+    paddingRight: 10,
     marginBottom: Spacing.md,
+    borderRadius: 999,
+    borderWidth: 1,
   },
-  brandName: { color: '#1F2C34', fontSize: 21, fontWeight: '800' },
-  brandAccent: { color: '#229ED9' },
-  tagline: { color: '#667781', marginTop: 4, fontSize: 14 },
-  illustration: {
-    height: 76, borderRadius: Radius.lg,
-    backgroundColor: '#E8EDF5', borderWidth: 1, borderColor: '#CBD7EA',
-    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xl,
+  appearanceIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  title: { color: '#1F2C34', fontSize: 22, fontWeight: '800' },
-  subtitle: { color: '#667781', fontSize: 14, lineHeight: 20, marginTop: Spacing.xs, marginBottom: Spacing.xl },
-  errorBox: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    padding: Spacing.md, borderRadius: Radius.md,
-    backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
-    marginBottom: Spacing.lg,
-  },
-  errorText: { color: '#DC2626', fontSize: 14, flex: 1 },
-  inputGroup: { marginBottom: Spacing.lg },
-  label: { color: '#3B4A54', fontSize: 14, fontWeight: '700', marginBottom: Spacing.sm },
-  inputWrap: {
-    height: 58, borderRadius: Radius.lg, borderWidth: 1,
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingHorizontal: Spacing.lg, borderColor: '#D9E1E5', backgroundColor: '#F7F9FA',
-  },
-  input: { flex: 1, fontSize: 16, color: '#1F2C34' },
-  loginBtn: {
-    height: 54, borderRadius: Radius.lg, backgroundColor: '#229ED9',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  loginBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  hint: { color: '#94A3B8', fontSize: 14, textAlign: 'center', marginTop: Spacing.lg },
- 
-  version: { color: '#8696A0', fontSize: 13, textAlign: 'center', marginTop: Spacing.sm },
+  appearanceLabel: { fontSize: 12, fontWeight: '700' },
+  brand: { alignItems: 'center', marginBottom: Spacing.lg },
+  brandName: { fontWeight: '800' },
+  brandAccent: {},
+  tagline: { marginTop: 4 },
+  illustration: { height: 76, borderRadius: Radius.lg, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xl },
+  title: { fontWeight: '800' },
+  subtitle: { lineHeight: 20, marginTop: Spacing.xs, marginBottom: Spacing.lg },
+  error: { marginBottom: Spacing.sm },
+  input: { marginBottom: Spacing.md },
+  loginButton: { marginTop: Spacing.sm },
+  loginButtonContent: { height: 52 },
+  loginButtonLabel: { fontSize: 16, fontWeight: '700' },
+  version: { textAlign: 'center', marginTop: Spacing.xl },
 });

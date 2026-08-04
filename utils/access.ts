@@ -51,9 +51,10 @@ export function managementHomeRoute(role?: string): string {
 }
 
 /** Screens that are not a management route but are part of management access. */
-const SPECIAL_ROUTE_ACCESS: Array<{ prefix: string; roles: ManagementRole[] }> = [
+const SPECIAL_ROUTE_ACCESS: Array<{ prefix: string; roles: string[] }> = [
   { prefix: '/audit-log', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/operations/jobs', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
+  { prefix: '/warehouse', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, 'operator_warehouse'] },
 ];
 
 /**
@@ -117,6 +118,7 @@ export function canAccessRoute(role: string | undefined, route: string): boolean
   if (isManagementRole(normalizedRole)) {
     return Boolean(policy?.roles.includes(normalizedRole));
   }
+  if (normalizedRole === 'operator_warehouse') return Boolean(policy?.roles.includes(normalizedRole));
   return !policy;
 }
 

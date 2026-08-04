@@ -32,6 +32,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { materialRepository } from '../../../services/repositories/MaterialRepository';
 import { Material, MaterialCategory } from '../../../store/types';
+import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 
 const CATEGORIES: MaterialCategory[] = ['Aggregates', 'Steel', 'Cement', 'Liquid', 'Blocks', 'Other'];
 
@@ -203,26 +204,8 @@ export default function MaterialsListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ManagementSearchHeader title="Materials" search={search} onChangeSearch={setSearch} placeholder="Search materials..." />
       <View style={styles.header}>
-      
-
-        {/* Search */}
-        <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search materials..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-
         {/* Category Filter */}
         <FlatList
           horizontal
@@ -371,10 +354,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   materialCard: {
-    borderRadius: Radius.lg,
+    borderRadius: 5,
     borderWidth: 1,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginBottom: 0.1,
   },
   materialHeader: {
     flexDirection: 'row',
@@ -431,5 +414,21 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.27,
     shadowRadius: 4.65,
+  },
+  syncFab: {
+    position: 'absolute',
+    right: 26,
+    bottom: 94,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
   },
 });

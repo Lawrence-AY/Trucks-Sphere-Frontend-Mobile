@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { HelperText, TextInput as PaperTextInput } from 'react-native-paper';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 
 interface InputProps {
   label: string;
@@ -40,71 +41,46 @@ export function Input({
   onBlur,
 }: InputProps) {
   const colors = useTheme();
-  const [focused, setFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  const isPassword = secureTextEntry;
-  const borderColor = error
-    ? colors.danger
-    : focused
-    ? colors.primary
-    : colors.border;
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, { color: colors.textMuted }]}>
-        {label}
-        {required && <Text style={{ color: colors.danger }}> *</Text>}
-      </Text>
-      <View
-        style={[
-          styles.inputWrap,
-          {
-            borderColor,
-            backgroundColor: editable ? colors.surface : colors.inputBg,
-            minHeight: multiline ? numberOfLines * 24 + 20 : 44,
-          },
-        ]}
-      >
-        {icon && <Ionicons name={icon} size={18} color={colors.textMuted} style={styles.icon} />}
-        <TextInput
-          style={[
-            styles.input,
-            {
-              color: colors.text,
-              height: multiline ? numberOfLines * 24 : 44,
-            },
-          ]}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textMuted + '80'}
-          keyboardType={keyboardType}
-          multiline={multiline}
-          numberOfLines={numberOfLines}
-          secureTextEntry={isPassword && !showPassword}
-          editable={editable}
-          autoFocus={autoFocus}
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            setFocused(false);
-            onBlur?.();
-          }}
-        />
-        {suffix && <Text style={[styles.suffix, { color: colors.textMuted }]}>{suffix}</Text>}
-        {isPassword && (
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <Ionicons
-              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-              size={18}
-              color={colors.textMuted}
+      <PaperTextInput
+        mode="outlined"
+        label={required ? `${label} *` : label}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textMuted}
+        keyboardType={keyboardType}
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        secureTextEntry={secureTextEntry && !showPassword}
+        disabled={!editable}
+        autoFocus={autoFocus}
+        onBlur={onBlur}
+        error={Boolean(error)}
+        outlineColor={colors.border}
+        activeOutlineColor={colors.primary}
+        textColor={colors.text}
+        cursorColor={colors.primary}
+        selectionColor={colors.primary}
+        dense={!multiline}
+        style={[styles.input, multiline && { minHeight: Math.max(numberOfLines * 28 + 32, 100) }]}
+        left={icon ? <PaperTextInput.Icon icon={({ color, size }) => <Ionicons name={icon} color={color} size={size} />} /> : undefined}
+        right={
+          secureTextEntry ? (
+            <PaperTextInput.Icon
+              icon={({ color, size }) => <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} color={color} size={size} />}
+              onPress={() => setShowPassword((current) => !current)}
+              forceTextInputFocus={false}
             />
-          </TouchableOpacity>
-        )}
-      </View>
-      {error && (
-        <Text style={[styles.error, { color: colors.danger }]}>{error}</Text>
-      )}
+          ) : suffix ? (
+            <PaperTextInput.Affix text={suffix} />
+          ) : undefined
+        }
+      />
+      {error ? <HelperText type="error" visible>{error}</HelperText> : null}
     </View>
   );
 }
@@ -113,33 +89,7 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: Spacing.md,
   },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: Spacing.xs,
-  },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-  },
-  icon: {
-    marginRight: 4,
-  },
   input: {
-    flex: 1,
-    fontSize: 14,
-    paddingVertical: 0,
-  },
-  suffix: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  error: {
-    fontSize: 12,
-    marginTop: 4,
+    backgroundColor: 'transparent',
   },
 });

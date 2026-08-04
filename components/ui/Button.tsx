@@ -1,8 +1,9 @@
 import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, StyleSheet, ViewStyle } from 'react-native';
+import { StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Button as PaperButton } from 'react-native-paper';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success' | 'warning';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -31,68 +32,53 @@ export function Button({
   style,
 }: ButtonProps) {
   const colors = useTheme();
-
-  const variantStyles: Record<ButtonVariant, { bg: string; text: string }> = {
-    primary: { bg: colors.primary, text: '#FFFFFF' },
-    secondary: { bg: colors.surface, text: colors.text },
-    danger: { bg: colors.danger, text: '#FFFFFF' },
-    ghost: { bg: 'transparent', text: colors.primary },
-    success: { bg: colors.success, text: '#FFFFFF' },
-    warning: { bg: '#F59E0B', text: '#FFFFFF' },
-  };
-
-  const sizeStyles: Record<ButtonSize, { height: number; fontSize: number; iconSize: number; paddingHorizontal: number }> = {
-    sm: { height: 36, fontSize: 13, iconSize: 16, paddingHorizontal: Spacing.md },
-    md: { height: 44, fontSize: 14, iconSize: 18, paddingHorizontal: Spacing.lg },
-    lg: { height: 52, fontSize: 16, iconSize: 20, paddingHorizontal: Spacing.xl },
-  };
-
-  const vs = variantStyles[variant];
-  const ss = sizeStyles[size];
+  const buttonColor = ({
+    primary: colors.primary,
+    success: colors.success,
+    danger: colors.danger,
+    warning: colors.warning,
+  } as Partial<Record<ButtonVariant, string>>)[variant];
+  const textColor = variant === 'secondary' || variant === 'ghost' ? colors.text : '#FFFFFF';
+  const mode = variant === 'ghost' ? 'text' : variant === 'secondary' ? 'outlined' : 'contained';
+  const height = { sm: 36, md: 44, lg: 52 }[size];
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.button,
-        {
-          backgroundColor: vs.bg,
-          height: ss.height,
-          paddingHorizontal: ss.paddingHorizontal,
-          borderWidth: variant === 'secondary' ? 1 : 0,
-          borderColor: colors.border,
-          opacity: disabled ? 0.5 : 1,
-        },
-        fullWidth && styles.fullWidth,
-        style,
-      ]}
+    <PaperButton
+      mode={mode}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.7}
+      loading={loading}
+      buttonColor={buttonColor}
+      textColor={textColor}
+      icon={icon ? ({ color, size: iconSize }) => <Ionicons name={icon} color={color} size={iconSize} /> : undefined}
+      contentStyle={[styles.content, { height }]}
+      labelStyle={[styles.label, size === 'sm' && styles.labelSmall, size === 'lg' && styles.labelLarge]}
+      style={[styles.button, fullWidth && styles.fullWidth, style]}
+      uppercase={false}
     >
-      {loading ? (
-        <ActivityIndicator color={vs.text} size="small" />
-      ) : (
-        <>
-          {icon && <Ionicons name={icon} size={ss.iconSize} color={vs.text} />}
-          <Text style={[styles.text, { color: vs.text, fontSize: ss.fontSize }]}>{title}</Text>
-        </>
-      )}
-    </TouchableOpacity>
+      {title}
+    </PaperButton>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.md,
-    gap: Spacing.sm,
+    borderRadius: 5,
+  },
+  content: {
+    paddingHorizontal: Spacing.sm,
   },
   fullWidth: {
     width: '100%',
   },
-  text: {
+  label: {
+    fontSize: 14,
     fontWeight: '700',
+  },
+  labelSmall: {
+    fontSize: 13,
+  },
+  labelLarge: {
+    fontSize: 16,
   },
 });

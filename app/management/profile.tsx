@@ -14,6 +14,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { DataCard, DetailRow, PageShell, SectionTitle } from '../../components/EnterpriseUI';
 import { getRoleLabel } from '../../utils/helpers';
+import { getPasswordChangeError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
 import { changePassword, updateProfile } from '../../services/api';
 
 export default function ManagementProfileScreen() {
@@ -64,16 +65,9 @@ export default function ManagementProfileScreen() {
 
   const handleChangePassword = async () => {
     setPwError('');
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPwError('All fields are required.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPwError('New password and confirm password do not match.');
-      return;
-    }
-    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
-      setPwError('Use at least 8 characters, including a letter and a number.');
+    const passwordError = getPasswordChangeError(currentPassword, newPassword, confirmPassword);
+    if (passwordError) {
+      setPwError(passwordError);
       return;
     }
     setSubmitting(true);
@@ -230,12 +224,13 @@ export default function ManagementProfileScreen() {
             </Text>
             <TextInput
               style={[styles.input, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
-              placeholder="At least 8 characters, a letter and a number"
+              placeholder="Enter a strong new password"
               placeholderTextColor={colors.textTertiary}
               secureTextEntry
               value={newPassword}
               onChangeText={(v) => { setNewPassword(v); setPwError(''); }}
             />
+            <Text style={{ fontSize: 12, color: colors.textMuted }}>{PASSWORD_REQUIREMENTS}</Text>
 
             <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
               Confirm New Password

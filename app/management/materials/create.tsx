@@ -17,10 +17,11 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Switch,
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
@@ -68,6 +69,12 @@ export default function CreateMaterialScreen() {
     measurementType: '' as string,
     defaultUnit: '',
     description: '',
+    unitPrice: '',
+    salesPrice: '',
+    barcode: '',
+    weight: '',
+    volume: '',
+    isWarehouseMaterial: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [properties, setProperties] = useState<MaterialProperty[]>([]);
@@ -107,6 +114,11 @@ export default function CreateMaterialScreen() {
     if (!form.name.trim()) newErrors.name = 'Material name is required';
     if (!form.category) newErrors.category = 'Category is required';
     if (!form.measurementType) newErrors.measurementType = 'Measurement type is required';
+    for (const field of ['unitPrice', 'salesPrice', 'weight', 'volume'] as const) {
+      if (form[field].trim() && (!Number.isFinite(Number(form[field])) || Number(form[field]) < 0)) {
+        newErrors[field] = 'Enter a valid non-negative number';
+      }
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -122,6 +134,12 @@ export default function CreateMaterialScreen() {
         measurementType: form.measurementType as MeasurementUnit,
         defaultUnit: form.defaultUnit.trim() || undefined,
         description: form.description.trim() || undefined,
+        unitPrice: form.unitPrice.trim() ? Number(form.unitPrice) : undefined,
+        salesPrice: form.salesPrice.trim() ? Number(form.salesPrice) : undefined,
+        barcode: form.barcode.trim() || undefined,
+        weight: form.weight.trim() ? Number(form.weight) : undefined,
+        volume: form.volume.trim() ? Number(form.volume) : undefined,
+        isWarehouseMaterial: form.isWarehouseMaterial,
         properties: properties.length > 0 ? properties : undefined,
         status: 'active',
       });
@@ -153,12 +171,7 @@ export default function CreateMaterialScreen() {
         <Text style={styles.backTitle}>Create Material</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Create Material</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Add a new material to the system
-          </Text>
-        </View>
+        
 
         <Card>
           <Input
@@ -170,6 +183,19 @@ export default function CreateMaterialScreen() {
             required
             error={errors.name}
           />
+
+          <View style={[styles.warehouseOption, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.warehouseOptionTitle, { color: colors.text }]}>Warehouse reference material</Text>
+              <Text style={[styles.warehouseOptionText, { color: colors.textMuted }]}>Use this custom MAT as the fixed reference for warehouse jobs.</Text>
+            </View>
+            <Switch
+              value={form.isWarehouseMaterial}
+              onValueChange={(value) => setForm((prev) => ({ ...prev, isWarehouseMaterial: value }))}
+              trackColor={{ false: colors.border, true: colors.primary + '80' }}
+              thumbColor={form.isWarehouseMaterial ? colors.primary : colors.surface}
+            />
+          </View>
 
           <Select
             label="Category"
@@ -209,6 +235,49 @@ export default function CreateMaterialScreen() {
             icon="document-text-outline"
             multiline
             numberOfLines={3}
+          />
+          <Input
+            label="Purchase Cost (KES)"
+            value={form.unitPrice}
+            onChangeText={(v) => updateField('unitPrice', v)}
+            placeholder="Optional cost per unit"
+            icon="cash-outline"
+            keyboardType="numeric"
+            error={errors.unitPrice}
+          />
+          <Input
+            label="Sales Price (KES)"
+            value={form.salesPrice}
+            onChangeText={(v) => updateField('salesPrice', v)}
+            placeholder="Optional selling price per unit"
+            icon="pricetag-outline"
+            keyboardType="numeric"
+            error={errors.salesPrice}
+          />
+          <Input
+            label="Barcode"
+            value={form.barcode}
+            onChangeText={(v) => updateField('barcode', v)}
+            placeholder="Optional product barcode"
+            icon="barcode-outline"
+          />
+          <Input
+            label="Weight (kg)"
+            value={form.weight}
+            onChangeText={(v) => updateField('weight', v)}
+            placeholder="Optional unit weight"
+            icon="barbell-outline"
+            keyboardType="numeric"
+            error={errors.weight}
+          />
+          <Input
+            label="Volume (m³)"
+            value={form.volume}
+            onChangeText={(v) => updateField('volume', v)}
+            placeholder="Optional unit volume"
+            icon="cube-outline"
+            keyboardType="numeric"
+            error={errors.volume}
           />
         </Card>
 
@@ -334,6 +403,17 @@ const styles = StyleSheet.create({
   propertiesSection: {
     marginTop: Spacing.lg,
   },
+  warehouseOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.md,
+  },
+  warehouseOptionTitle: { fontSize: 14, fontWeight: '700' },
+  warehouseOptionText: { fontSize: 12, lineHeight: 17, marginTop: 2 },
   propertiesHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

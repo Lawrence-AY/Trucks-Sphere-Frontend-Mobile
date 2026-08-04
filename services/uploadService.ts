@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 import axios, { AxiosError } from 'axios';
 import { getStoredToken } from './database';
 import { API_BASE_URL } from './config';
+import { getErrorCode } from './api';
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getStoredToken();
   const headers: Record<string, string> = {};
@@ -22,11 +23,21 @@ export interface UploadResult {
   photoURL: string;
 }
 
+export interface UploadFile {
+  uri: string;
+  name?: string;
+  mimeType?: string;
+}
+
 /**
- * Extract a human-readable error message from an Axios error,
- * falling back to the generic Error.message.
+ * Return a stable reference code without exposing upload diagnostics.
  */
-function extractErrorMessage(error: unknown): string {
+function extractErrorMessage(error: any): string {
+  return `Error code: ${getErrorCode(error)}`;
+
+  /* Legacy diagnostic formatting deliberately disabled: user-facing errors
+   * must be stable reference codes rather than backend failure details.
+   *
   if (error instanceof AxiosError) {
     // No response from server (network down, wrong IP, timeout)
     if (!error.response) {
@@ -54,6 +65,7 @@ function extractErrorMessage(error: unknown): string {
   // Non-Axios error (unlikely but handle it)
   if (error instanceof Error) return error.message;
   return 'An unknown error occurred during upload.';
+  */
 }
 
 /**
@@ -75,12 +87,22 @@ export async function uploadDriverPhoto(driverId: string, fileUri: string): Prom
  * Storage folder: "Deliverynotes/"
  * Firestore field: deliveryOrders/{deliveryOrderId}.photoURL
  */
-export async function uploadDeliveryNote(deliveryOrderId: string, fileUri: string): Promise<UploadResult> {
+export async function uploadDeliveryNote(deliveryOrderId: string, file: string | UploadFile): Promise<UploadResult> {
   return uploadFile(
     `delivery-note/${deliveryOrderId}`,
-    fileUri,
+    file,
     'note',
     `delivery-${deliveryOrderId}`
+  );
+}
+
+/** Upload the required package-condition photo for a warehouse dispatch. */
+export async function uploadWarehousePackagingPhoto(warehouseJobId: string, file: string | UploadFile): Promise<UploadResult> {
+  return uploadFile(
+    `warehouse-packaging/${warehouseJobId}`,
+    file,
+    'file',
+    `warehouse-packaging-${warehouseJobId}`,
   );
 }
 
@@ -130,7 +152,7 @@ export async function uploadFuelPumpPhoto(jobId: string, fileUri: string): Promi
 
 async function uploadFile(
   endpoint: string,
-  fileUri: string,
+  file: string | UploadFile,
   fileFieldName: string,
   filename: string
 ): Promise<UploadResult> {
@@ -139,6 +161,13 @@ async function uploadFile(
   delete headers['Content-Type'];
 
   const formData = new FormData();
+  const fileUri = typeof file === 'string' ? file : file.uri;
+  const fileName = typeof file === 'string'
+    ? `${filename}.jpg`
+    : (file.name || `${filename}.jpg`);
+  const mimeType = typeof file === 'string'
+    ? 'image/jpeg'
+    : (file.mimeType || 'application/octet-stream');
 
   // On web, expo-image-picker camera returns blob: URLs.
   // React Native's { uri, name, type } object format is NOT understood
@@ -147,14 +176,14 @@ async function uploadFile(
   // 400 {"error":"No file provided"}.
   if (Platform.OS === 'web' && (fileUri.startsWith('blob:') || fileUri.startsWith('data:'))) {
     const blob: Blob = await fetch(fileUri).then((r) => r.blob());
-    formData.append('file', blob, `${filename}.jpg`);
+    formData.append('file', blob, fileName);
   } else {
     // Native (iOS / Android): React Native's networking layer understands
     // { uri, name, type } and will stream the file from disk.
     formData.append('file', {
       uri: fileUri,
-      name: `${filename}.jpg`,
-      type: 'image/jpeg',
+      name: fileName,
+      type: mimeType,
     } as any);
   }
 

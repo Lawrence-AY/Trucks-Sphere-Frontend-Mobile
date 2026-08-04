@@ -9,7 +9,7 @@ const LOADING_MESSAGES = [
   'Loading fleet',
   'Preparing deliveries',
   'Connecting operations',
-  'Syncing data',
+  'Syncing data', 
 ];
 
 export default function IndexScreen() {
@@ -76,6 +76,7 @@ export default function IndexScreen() {
         case 'operator_site': router.replace('/operator-site/schedule' as any); break;
         case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
         case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
+        case 'operator_warehouse': router.replace('/warehouse' as any); break;
         default: router.replace('/management/dashboard' as any);
       }
     }, 900);

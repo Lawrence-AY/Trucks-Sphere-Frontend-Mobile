@@ -300,6 +300,9 @@ export default function OperatorQuarryWeighOutScreen() {
         weighOutLocation: geoLocation?.address || 'Weigh-Out Location',
         quarryId: resolvedQuarryId || activeJob?.quarryId || '',
         quarryName: resolvedQuarryName || activeJob?.quarryName || geoLocation?.address || 'Quarry',
+        // The operator's assigned quarry location is the dispatch source used
+        // by the Site Schedule, independent of the phone's GPS reading.
+        quarryLocation: operatorQuarryLocation || activeJob?.quarryLocation || '',
         weighOutByUid: user?.uid || '',
         weighOutByName: user?.displayName || user?.name || 'Quarry Operator',
         status: 'DISPATCHED',

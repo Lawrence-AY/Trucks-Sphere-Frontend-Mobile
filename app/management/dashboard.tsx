@@ -7,24 +7,22 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 import { Spacing } from "../../constants/theme";
 import { useAuthStore } from "../../store/authStore";
 import { useRealtimeCollection } from "../../store/realtimeData";
 import { useRealTimeSyncStore } from "../../store/realTimeSyncStore";
-import { formatEAT } from "../../utils/helpers";
 import { isActiveJob, normalizeJobStatus } from "../../utils/jobStatus";
 import { MANAGEMENT_ROLES, normalizeRole } from "../../utils/access";
 import { ManagementLiteDashboard } from "./lite";
 import {
   DataCard,
-  DetailRow,
   EmptyState,
   MetricTile,
   PageShell,
   SectionTitle,
 } from "../../components/EnterpriseUI";
+import { TripListCard } from "../../components/TripListCard";
 
 function isDelayed(item: any) {
   if (!isActiveJob(item.status)) return false;
@@ -70,16 +68,18 @@ function ManagementDashboardContent() {
   }, [refresh]);
 
   const stats = useMemo(() => {
-    const activeTrips = deliveries.filter((item) => isActiveJob(item.status));
-    const deliveredTrips = deliveries.filter((item) => {
+    const nonBackorderDeliveries = deliveries.filter((item) => !item.isBackorder);
+    const activeTrips = nonBackorderDeliveries.filter((item) => isActiveJob(item.status));
+    const deliveredTrips = nonBackorderDeliveries.filter((item) => {
       const status = normalizeJobStatus(item.status);
       return ["SITE_WEIGHED_OUT", "COMPLETED"].includes(status);
     });
+    const delayedTrips = nonBackorderDeliveries.filter(isDelayed).length;
     return {
-      totalTrips: deliveries.length,
+      totalTrips: nonBackorderDeliveries.length,
       activeTrips: activeTrips.length,
       delivered: deliveredTrips.length,
-      delayed: deliveries.filter(isDelayed).length,
+      delayed: delayedTrips,
       totalVendors: vendors.length,
       totalDrivers: drivers.length,
       totalVehicles: vehicles.length,
@@ -93,6 +93,7 @@ function ManagementDashboardContent() {
 
   const recentDeliveries = useMemo(() => {
     return [...deliveries]
+      .filter((item) => Boolean(item.driverId || item.driverName))
       .sort(
         (a, b) =>
           new Date(b.updatedAt || b.createdAt).getTime() -
@@ -100,6 +101,11 @@ function ManagementDashboardContent() {
       )
       .slice(0, 4);
   }, [deliveries]);
+
+  const driverPhotos = useMemo(
+    () => new Map(drivers.map((driver: any) => [String(driver.id || '').trim(), driver.photoURL || driver.photoUrl || ''])),
+    [drivers],
+  );
 
   const dashboardError = deliveriesError || driversError || vehiclesError || vendorsError || fuelError;
 
@@ -120,6 +126,8 @@ function ManagementDashboardContent() {
             label="Total trips"
             value={stats.totalTrips}
             tone={colors.primary}
+            compact
+            emphasized
             onPress={() => router.push("/management/trips" as any)}
           />
           <MetricTile
@@ -127,6 +135,8 @@ function ManagementDashboardContent() {
             label="Active trips"
             value={stats.activeTrips}
             tone={colors.accent}
+            compact
+            emphasized
             onPress={() => router.push("/management/active")}
           />
         </View>
@@ -136,6 +146,8 @@ function ManagementDashboardContent() {
             label="Delivered"
             value={stats.delivered}
             tone={colors.success}
+            compact
+            emphasized
             onPress={() => router.push("/management/trips" as any)}
           />
           <MetricTile
@@ -143,6 +155,8 @@ function ManagementDashboardContent() {
             label="Delayed"
             value={stats.delayed}
             tone={stats.delayed ? colors.danger : colors.success}
+            compact
+            emphasized
             onPress={() => router.push("/management/active" as any)}
           />
         </View>
@@ -152,6 +166,8 @@ function ManagementDashboardContent() {
             label="Vendors"
             value={stats.totalVendors}
             tone={colors.warning}
+            compact
+            emphasized
             onPress={() => router.push("/management/vendors" as any)}
           />
           <MetricTile
@@ -159,6 +175,8 @@ function ManagementDashboardContent() {
             label="Drivers"
             value={stats.totalDrivers}
             tone="#8B5CF6"
+            compact
+            emphasized
             onPress={() => router.push("/management/drivers" as any)}
           />
         </View>
@@ -168,6 +186,8 @@ function ManagementDashboardContent() {
             label="Vehicles"
             value={stats.totalVehicles}
             tone={colors.accent}
+            compact
+            emphasized
             onPress={() => router.push("/management/trucks")}
           />
           <MetricTile
@@ -175,6 +195,8 @@ function ManagementDashboardContent() {
             label="Fuel Dispensed"
             value={`${totalFuelDispensed.toFixed(1)}L`}
             tone="#F59E0B"
+            compact
+            emphasized
             onPress={() => router.push("/management/fuel" as any)}
           />
         </View>
@@ -203,37 +225,12 @@ function ManagementDashboardContent() {
           subtitle="Pull down to retry. If this continues, check the API connection."
         />
       ) : recentDeliveries.length ? (
-        recentDeliveries.map((item) => (
-          <DataCard
-            key={item.id}
-            onPress={() => router.push(`/operations/jobs/${item.id}` as any)}
-          >
-            <View style={styles.deliveryHead}>
-              <View>
-                <Text style={[styles.deliveryId, { color: colors.text }]}>
-                  {item.poNumber || "Unlinked PO"}
-                </Text>
-                <Text
-                  style={[styles.deliveryMeta, { color: colors.textMuted }]}
-                >
-                  {item.jobId}
-                </Text>
-              </View>
-            </View>
-            <DetailRow
-              icon="person-outline"
-              value={`${item.driverName || "Unassigned"} - ${item.plateNumber || "No vehicle"}`}
-            />
-            <DetailRow
-              icon="cube-outline"
-              value={`${item.materialName || "Material"} `}
-            />
-            
-            <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
-              {formatEAT(item.updatedAt || item.createdAt)}
-            </Text>
-          </DataCard>
-        ))
+        <View style={styles.recentTripList}>
+        {recentDeliveries.map((item) => {
+          const driverPhoto = driverPhotos.get(String(item.driverId || '').trim());
+          return <TripListCard key={item.id} trip={item} driverPhoto={driverPhoto} onPress={() => router.push(`/operations/jobs/${item.id}` as any)} />;
+        })}
+        </View>
       ) : (
         <EmptyState
           icon="checkmark-circle-outline"
@@ -246,16 +243,9 @@ function ManagementDashboardContent() {
 }
 
 const styles = StyleSheet.create({
-  metricGrid: { gap: Spacing.sm },
-  metricRow: { flexDirection: "row", gap: Spacing.xs },
+  metricGrid: { gap: 2.5 },
+  metricRow: { flexDirection: "row", gap:2.5 },
+  recentTripList: { gap: 0.1 },
   link: { fontSize: 13, fontWeight: "900" },
   loadingText: { fontSize: 13, fontWeight: "700" },
-  deliveryHead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: Spacing.xs,
-  },
-  deliveryId: { fontSize: 16, fontWeight: "900" },
-  deliveryMeta: { fontSize: 12, marginTop: 0.1, fontWeight: "700" },
-  timestamp: { fontSize: 11, fontWeight: "700" },
 });

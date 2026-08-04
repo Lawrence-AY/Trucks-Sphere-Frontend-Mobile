@@ -59,6 +59,33 @@ export default function OperatorSiteHistoryScreen() {
   const operatorUid = user?.uid || '';
   const operatorSiteId = (user as any)?.siteId || '';
 
+
+  
+  function formatEAT(value: any): string {
+  if (!value) return '';
+  try {
+    const d = value instanceof Date
+      ? value
+      : typeof value?.toDate === 'function'
+        ? value.toDate()
+        : typeof value === 'object' && typeof value.seconds === 'number'
+          ? new Date(value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1e6))
+          : new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-KE', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Africa/Nairobi',
+      hour12: false,
+      timeZoneName: 'short',
+    });
+  } catch { 
+    return '';
+  }
+}
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await refresh('deliveryOrders');
@@ -228,14 +255,12 @@ export default function OperatorSiteHistoryScreen() {
     "Driver",
     "Truck Plate",
     "Material",
-    "Qty Ordered (t)",
+    "Lot Number",
     "Quarry Net (t)",
     "Site In (t)",
     "Site Out (t)",
     "Site Net (t)",
-    "Expected (t)",
     "Difference (t)",
-    "Status",
     "Finalized",
   ];
 
@@ -263,15 +288,13 @@ export default function OperatorSiteHistoryScreen() {
         r.driverName || "",
         r.plateNumber || "",
         r.materialName || "",
-        String(r.quantityOrdered ?? ""),
+        r.storageLot || r.lotNumber || r.destinationLot || "â€”",
         quarryNet != null ? quarryNet.toFixed(1) : "—",
         siteIn != null ? siteIn.toFixed(1) : "—",
         siteOut != null ? siteOut.toFixed(1) : "—",
         siteNet != null ? siteNet.toFixed(1) : "—",
-        r.quantityOrdered != null ? r.quantityOrdered.toFixed(1) : "—",
         diff != null ? `${diff > 0 ? "+" : ""}${diff.toFixed(2)}` : "—",
-        r.status || "",
-        r.receivedAt || r.updatedAt || r.createdAt || "",
+        formatEAT(r.receivedAt || r.updatedAt || r.createdAt || ""),
       ];
     });
 
@@ -911,7 +934,7 @@ export default function OperatorSiteHistoryScreen() {
           return (
             <DataCard key={item.id} onPress={() => openDetail(item)}>
               <View style={styles.tableHeaderRow}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 0 }}>
                   <Text style={[styles.tableJobId, { color: colors.text }]}>
                     {item.jobId}
                   </Text>
@@ -1143,7 +1166,7 @@ const styles = StyleSheet.create({
   materialNet: { fontSize: 15, fontWeight: "900" },
   // Table rows
   tableHeaderRow: {
-    flexDirection: "row",
+    flexDirection: "column",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: Spacing.sm,
@@ -1192,9 +1215,9 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.full,
+    borderRadius: 1,
     borderWidth: 1,
-    maxWidth: '50%',
+    maxWidth: '100%',
     minWidth: 0,
   },
   rnBadgeText: { fontSize: 11, fontWeight: "700", flexShrink: 1 },
@@ -1217,7 +1240,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   detailJobId: { fontSize: 18, fontWeight: "900" },
-  detailPo: { fontSize: 12, fontWeight: "600", marginTop: 2 },
+  detailPo: { fontSize: 12, fontWeight: "600", marginTop: 1 },
   detailCloseBtn: {
     width: 36,
     height: 36,
@@ -1229,7 +1252,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.md,
     padding: Spacing.md,
-    gap: 6,
+    gap: 3,
   },
   detailSectionTitle: {
     fontSize: 10,
@@ -1252,7 +1275,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   detailWeightSubsection: {
     marginTop: 6,

@@ -34,6 +34,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { fetchAuditLogs } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
+import { ManagementSearchHeader } from '../../components/ManagementSearchHeader';
 
 interface AuditEntry {
   id: string;
@@ -317,27 +318,11 @@ export default function AuditLogsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ManagementSearchHeader title="Audit Logs" search={search} onChangeSearch={setSearch} placeholder="Search logs..." />
       <View style={styles.header}>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
           Track all system activities and changes
         </Text>
-
-        {/* Search */}
-        <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search logs..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
 
         {/* Entity Filter */}
         <View style={styles.filterRow}>

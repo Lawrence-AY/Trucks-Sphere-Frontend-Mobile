@@ -577,7 +577,7 @@ export default function FuelDispenseScreen() {
 
       {/* FAB Button */}
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: "#F59E0B" }]}
+        style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={openFlow}
         activeOpacity={0.86}
       >

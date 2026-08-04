@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Modal, StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Dialog, Portal, Text } from 'react-native-paper';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Spacing } from '../../constants/theme';
 import { Button } from './Button';
 
 interface ConfirmDialogProps {
@@ -31,91 +32,61 @@ export function ConfirmDialog({
   loading = false,
 }: ConfirmDialogProps) {
   const colors = useTheme();
-
-  const variantColors = {
-    danger: { bg: '#FEE2E2', icon: '#EF4444', btn: 'danger' as const },
-    warning: { bg: '#FEF3C7', icon: '#F59E0B', btn: 'warning' as const },
-    info: { bg: '#DBEAFE', icon: '#3B82F6', btn: 'primary' as const },
-  };
-
-  const vc = variantColors[variant];
+  const variantConfig = {
+    danger: { color: colors.danger, button: 'danger' as const, fallbackIcon: 'alert-circle' as const },
+    warning: { color: colors.warning, button: 'warning' as const, fallbackIcon: 'warning' as const },
+    info: { color: colors.primary, button: 'primary' as const, fallbackIcon: 'information-circle' as const },
+  }[variant];
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={[styles.dialog, { backgroundColor: colors.surface }]}>
-          <View style={[styles.iconWrap, { backgroundColor: vc.bg }]}>
-            <Ionicons
-              name={icon || (variant === 'danger' ? 'alert-circle' : variant === 'warning' ? 'warning' : 'information-circle')}
-              size={32}
-              color={vc.icon}
-            />
+    <Portal>
+      <Dialog visible={visible} onDismiss={loading ? undefined : onCancel} style={styles.dialog}>
+        <Dialog.Title>{title}</Dialog.Title>
+        <Dialog.Content>
+          <View style={styles.content}>
+            <View style={[styles.iconWrap, { backgroundColor: `${variantConfig.color}1F` }]}>
+              <Ionicons name={icon || variantConfig.fallbackIcon} size={30} color={variantConfig.color} />
+            </View>
+            <Text variant="bodyMedium" style={[styles.message, { color: colors.textMuted }]}>{message}</Text>
           </View>
-          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-          <Text style={[styles.message, { color: colors.textMuted }]}>{message}</Text>
-          <View style={styles.actions}>
-            <Button
-              title={cancelLabel}
-              onPress={onCancel}
-              variant="secondary"
-              style={styles.actionBtn}
-              disabled={loading}
-            />
-            <Button
-              title={confirmLabel}
-              onPress={onConfirm}
-              variant={vc.btn}
-              style={styles.actionBtn}
-              loading={loading}
-            />
-          </View>
-        </View>
-      </View>
-    </Modal>
+        </Dialog.Content>
+        <Dialog.Actions style={styles.actions}>
+          <Button title={cancelLabel} onPress={onCancel} variant="secondary" disabled={loading} />
+          <Button title={confirmLabel} onPress={onConfirm} variant={variantConfig.button} loading={loading} />
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
   dialog: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: Radius.lg,
-    padding: Spacing.xl,
-    alignItems: 'center',
+    maxWidth: 440,
+    alignSelf: 'center',
+    width: '92%',
   },
-  iconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
+  content: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
   },
   message: {
-    fontSize: 14,
-    textAlign: 'center',
+    flex: 1,
+    flexShrink: 1,
     lineHeight: 20,
-    marginBottom: Spacing.xl,
+  },
+  iconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    width: '100%',
-  },
-  actionBtn: {
-    flex: 1,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: Spacing.sm,
   },
 });

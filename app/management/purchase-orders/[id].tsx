@@ -23,7 +23,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../../utils/router';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
 import { Card } from '../../../components/ui/Card';
@@ -40,9 +41,9 @@ import { StackScreen } from '../../../components/ui/StackScreen';
 import { useAuthStore } from '../../../store/authStore';
 import { hasManagementPermission } from '../../../utils/access';
 
-const PO_TABS = [
+const BASE_PO_TABS = [
   { name: 'details', label: 'Details', icon: 'information-circle-outline' as const },
-  { name: 'jobs', label: 'Jobs', icon: 'briefcase-outline' as const },
+  // 'jobs' tab intentionally hidden from users
 ];
 
 export default function PurchaseOrderDetailScreen() {
@@ -82,8 +83,12 @@ export default function PurchaseOrderDetailScreen() {
     setActionLoading(true);
     try {
       await purchaseOrderRepository.cancel(id!);
-      Alert.alert('Cancelled', 'Purchase order has been cancelled');
-      loadPO();
+      setShowCancel(false);
+      Alert.alert(
+        'Purchase order cancelled',
+        'This purchase order has been removed from the active purchase order list.',
+        [{ text: 'OK', onPress: () => router.replace('/management/purchase-orders' as any) }]
+      );
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to cancel');
     } finally {
@@ -128,64 +133,17 @@ export default function PurchaseOrderDetailScreen() {
     if (!po || !canEditPurchaseOrder) return null;
     const status = po.status;
 
+    if (status !== 'completed') return null;
+
     return (
       <View style={styles.actionsRow}>
-        {status === 'draft' && (
-          <>
-            <Button
-              title="Edit"
-              onPress={() => router.push(`/management/purchase-orders/edit/${po.id}` as any)}
-              variant="secondary"
-              size="sm"
-              icon="create-outline"
-            />
-            <Button
-              title="Cancel"
-              onPress={() => setShowCancel(true)}
-              variant="danger"
-              size="sm"
-              icon="close-circle"
-            />
-          </>
-        )}
-        {status === 'approved' && (
-          <>
-            <Button
-              title="Cancel PO"
-              onPress={() => setShowCancel(true)}
-              variant="danger"
-              size="sm"
-              icon="close-circle"
-            />
-          </>
-        )}
-        {status === 'in_progress' && (
-          <Button
-            title="Cancel PO"
-            onPress={() => setShowCancel(true)}
-            variant="danger"
-            size="sm"
-            icon="close-circle"
-          />
-        )}
-        {status === 'completed' && (
-          <Button
-            title="Archive"
-            onPress={() => setShowArchive(true)}
-            variant="secondary"
-            size="sm"
-            icon="archive-outline"
-          />
-        )}
-        {['draft', 'cancelled', 'archived'].includes(status) && (
-          <Button
-            title="Cancel PO"
-            onPress={() => setShowDelete(true)}
-            variant="danger"
-            size="sm"
-            icon="close-circle"
-          />
-        )}
+        <Button
+          title="Archive"
+          onPress={() => setShowArchive(true)}
+          variant="secondary"
+          size="sm"
+          icon="archive-outline"
+        />
       </View>
     );
   }
@@ -198,6 +156,30 @@ export default function PurchaseOrderDetailScreen() {
     return <StackScreen title="Purchase order" fallbackHref="/management/purchase-orders" error="This purchase order is unavailable." onRetry={loadPO} />;
   }
 
+  const purchaseOrderId = po.id;
+  const canCancelPurchaseOrder = canEditPurchaseOrder && !['completed', 'cancelled', 'archived'].includes(po.status);
+  const poTabs = [
+    ...BASE_PO_TABS,
+    ...(canEditPurchaseOrder && po.status === 'draft'
+      ? [{ name: 'edit', label: 'Edit', icon: 'create-outline' as const }]
+      : []),
+    ...(canCancelPurchaseOrder
+      ? [{ name: 'cancel', label: 'Cancel', icon: 'close-circle-outline' as const, tone: 'danger' as const }]
+      : []),
+  ];
+
+  function handleTabChange(tabName: string) {
+    if (tabName === 'edit') {
+      router.push(`/management/purchase-orders/edit/${purchaseOrderId}` as any);
+      return;
+    }
+    if (tabName === 'cancel') {
+      setShowCancel(true);
+      return;
+    }
+    setActiveTab(tabName);
+  }
+
   return (
     <>
       <StackScreen
@@ -206,38 +188,24 @@ export default function PurchaseOrderDetailScreen() {
         fallbackHref="/management/purchase-orders"
         contentStyle={styles.content}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={[styles.poNumber, { color: colors.text }]}>
-                {po.poNumber || po.id}
-              </Text>
-              <Text style={[styles.poVendor, { color: colors.textMuted }]}>
-                {po.companyName || po.vendorName || 'Unknown Vendor'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Actions */}
-          {renderActions()}
-        </View>
+      
 
         {/* Tabs */}
-        <Tabs tabs={PO_TABS} activeTab={activeTab} onTabChange={setActiveTab} />
+        <Tabs tabs={poTabs} activeTab={activeTab} onTabChange={handleTabChange} />
+        {renderActions() ? <View style={styles.tabActions}>{renderActions()}</View> : null}
 
         {/* Tab Content */}
         {activeTab === 'details' && <DetailsTab po={po} colors={colors} />}
-        {activeTab === 'jobs' && <JobsTab poId={po.id} colors={colors} />}
       </StackScreen>
 
       {/* Confirm Dialogs */}
       <ConfirmDialog
         visible={showCancel}
-        title="Cancel Purchase Order"
-        message="Are you sure you want to cancel this purchase order? This action cannot be undone."
+        title="Cancel this purchase order?"
+        message={`Cancel ${po.poNumber || po.id}? This stops further processing for this purchase order and cannot be undone.`}
         variant="danger"
-        confirmLabel="Cancel PO"
+        confirmLabel="Yes, cancel"
+        cancelLabel="Keep order"
         onConfirm={handleCancel}
         onCancel={() => setShowCancel(false)}
         loading={actionLoading}
@@ -347,7 +315,7 @@ function JobsTab({ poId, colors }: { poId: string; colors: any }) {
                 {job.materialName} - {job.quantityDispatched || job.quantityOrdered} {job.unit}
               </Text>
             </View>
-            <Badge label={job.status?.replace('_', ' ') || 'unknown'} variant="default" size="sm" />
+         
           </View>
         </TouchableOpacity>
       ))}
@@ -431,6 +399,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
+  },
+  tabActions: {
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.md,
   },
   fieldRow: {
     flexDirection: 'row',

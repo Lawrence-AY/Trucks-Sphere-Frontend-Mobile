@@ -139,6 +139,7 @@ export default function VendorDashboardScreen() {
           label="Orders"
           value={orders.length}
           tone={colors.primary}
+          compact
           onPress={() => router.push("/vendor/orders" as any)}
         />
         <MetricTile
@@ -146,6 +147,7 @@ export default function VendorDashboardScreen() {
           label="Drivers"
           value={drivers.length}
           tone={colors.accent}
+          compact
           onPress={() => router.push("/vendor/drivers" as any)}
         />
       </View>
@@ -155,6 +157,7 @@ export default function VendorDashboardScreen() {
           label="Trucks"
           value={vehicles.length}
           tone={colors.success}
+          compact
           onPress={() => router.push("/vendor/trucks" as any)}
         />
         <MetricTile
@@ -162,6 +165,7 @@ export default function VendorDashboardScreen() {
           label="Trips"
           value={deliveries.length}
           tone={colors.warning}
+          compact
           onPress={() => router.push("/vendor/trips" as any)}
         />
       </View>
@@ -171,12 +175,14 @@ export default function VendorDashboardScreen() {
           label="Completed"
           value={completedTrips}
           tone="#10B981"
+          compact
         />
         <MetricTile
           icon="water"
           label="Fuel Dispensed"
           value={`${totalFuelForVendor.toFixed(1)}L`}
           tone="#F59E0B"
+          compact
           onPress={() => router.push("/vendor/fuel" as any)}
         />
       </View>

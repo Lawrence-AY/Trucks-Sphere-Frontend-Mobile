@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, FlatList } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../utils/router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
@@ -212,8 +213,12 @@ export default function PurchaseOrderScreen() {
         { text: 'OK', onPress: function () { router.back(); } },
       ]);
     }).catch(function (err: any) {
-      var msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || 'Failed to create purchase order';
-      Alert.alert('Duplicate Order', msg);
+      // Transport failures are already logged by the API client. Keep the
+      // form actionable rather than showing a raw "Network Error" alert.
+      var isDuplicate = err?.response?.status === 409;
+      setError(isDuplicate
+        ? (err?.response?.data?.error || err?.response?.data?.message || 'A matching purchase order already exists.')
+        : 'Unable to create the purchase order. Check your connection and try again.');
     })
       .finally(function () { setSaving(false); });
   }

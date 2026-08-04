@@ -157,13 +157,21 @@ async function requestWithETag(
     }
 
 
-    const response = await axios.get(url, {
+    const sendRequest = (accessToken: string | null) => axios.get(url, {
       baseURL: API_BASE_URL,
       params,
-      headers,
+      headers: accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers,
       timeout: 10000,
       validateStatus: (status: number) => status === 200 || status === 304,
     });
+
+    let response;
+    try {
+      response = await sendRequest(token);
+    } catch (error: any) {
+      if (error?.response?.status !== 401 || !token) throw error;
+      response = await sendRequest(await api.refreshAccessToken());
+    }
 
     // 304 Not Modified — data hasn't changed
     if (response.status === 304) {

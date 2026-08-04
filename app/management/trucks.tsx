@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { fetchVehicles, fetchVendors } from '../../services/api';
-import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../store/authStore';
 import { hasManagementPermission } from '../../utils/access';
 import {
   DataCard,
   DetailRow,
   EmptyState,
-  MetricTile,
   PageShell,
-  SearchField,
-  SectionTitle,
 } from '../../components/EnterpriseUI';
+import { ManagementSearchHeader } from '../../components/ManagementSearchHeader';
 
 export default function ManagementTrucksScreen() {
   const colors = useTheme();
@@ -68,35 +66,66 @@ export default function ManagementTrucksScreen() {
   }, [vehicles, search, vendors]);
 
   return (
-    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <SectionTitle
-        title="Trucks"
-        action={canWriteTrucks ? <Button title="Add truck" icon="add" size="sm" onPress={() => router.push('/management/vehicles/create' as any)} /> : undefined}
-      />
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search plate, model..." />
-      {loading ? (
-        <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading vehicles...</Text></DataCard>
-      ) : filtered.length ? (
-        filtered.map((item) => (
-          <DataCard key={item.id} onPress={() => router.push(`/management/vehicles/${item.id}` as any)}>
-            <View style={styles.cardHead}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.plateNumber}</Text>
-                <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.make} {item.model} ({item.year})</Text>
+    <View style={styles.container}>
+      <ManagementSearchHeader title="Trucks" search={search} onChangeSearch={setSearch} placeholder="Search plate, model..." />
+      <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
+        {loading ? (
+          <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading vehicles...</Text></DataCard>
+        ) : filtered.length ? (
+          <View style={styles.cardList}>
+          {filtered.map((item) => (
+            <DataCard key={item.id} onPress={() => router.push(`/management/vehicles/${item.id}` as any)}>
+              <View style={styles.cardHead}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.plateNumber}</Text>
+                  <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.make} {item.model} ({item.year})</Text>
+                </View>
               </View>
-            </View>
-            {item.driverName ? <DetailRow icon="person-outline" value={`Driver: ${item.driverName}`} /> : null}
-            {getVendorName(item) ? <DetailRow icon="business-outline" value={`Vendor: ${getVendorName(item)}`} /> : null}
-          </DataCard>
-        ))
-      ) : (
-        <EmptyState icon="car-outline" title="No vehicles found" subtitle="Try another search term." />
-      )}
-    </PageShell>
+              {item.driverName ? <DetailRow icon="person-outline" value={`Driver: ${item.driverName}`} /> : null}
+              {getVendorName(item) ? <DetailRow icon="business-outline" value={`Vendor: ${getVendorName(item)}`} /> : null}
+            </DataCard>
+          ))}
+          </View>
+        ) : (
+          <EmptyState icon="car-outline" title="No vehicles found" subtitle="Try another search term." />
+        )}
+      </PageShell>
+
+      {canWriteTrucks ? (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: colors.primary }]}
+          onPress={() => router.push('/management/vehicles/create' as any)}
+          activeOpacity={0.85}
+          accessibilityLabel="Add truck"
+        >
+          <Ionicons name="add" size={22} color="#FFFFFF" />
+          <Text style={styles.fabText}>Add Truck</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  metricRow: { flexDirection: 'row', gap: Spacing.md },
+  container: { flex: 1 },
+  cardList: { gap: 0.1 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md },
+  fab: {
+    position: 'absolute',
+    right: Spacing.lg,
+    bottom: Spacing.lg,
+    minHeight: 52,
+    paddingHorizontal: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    borderRadius: 26,
+    elevation: 5,
+    shadowColor: '#000000',
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  fabText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 });

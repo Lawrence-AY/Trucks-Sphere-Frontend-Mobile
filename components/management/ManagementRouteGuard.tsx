@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { canAccessRoute, isManagementRole, managementHomeRoute } from '../../utils/access';
 
 const PUBLIC_PREFIXES = ['/(auth)', '/login', '/forgot-password', '/track'];
-const MANAGEMENT_CONTROLLED_PREFIXES = ['/management', '/audit-log'];
+const MANAGEMENT_CONTROLLED_PREFIXES = ['/management', '/audit-log', '/warehouse'];
 
 function isPublicRoute(pathname: string) {
   return pathname === '/' || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));

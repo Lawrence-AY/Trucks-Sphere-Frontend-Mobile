@@ -192,6 +192,7 @@ export default function OperatorSiteReceiveScreen() {
         siteWeighOutAt: now,
         siteWeighOutByUid: user?.uid || '',
         siteNetWeight: siteNet,
+        quantityDelivered: siteNet,
         receivedByUid: user?.uid || '',
         status: 'delivered',
         updatedAt: now,
@@ -203,11 +204,12 @@ export default function OperatorSiteReceiveScreen() {
         siteWeighOutAt: now,
         siteWeighOutByUid: user?.uid || '',
         siteNetWeight: siteNet,
+        quantityDelivered: siteNet,
         receivedByUid: user?.uid || '',
         status: 'delivered',
         updatedAt: now,
       };
-      optimisticUpdate('deliveryOrders', mergedOut);
+      optimisticUpdate('deliveryOrders', { ...mergedOut, ...updated });
       closeReceiveForm();
       Alert.alert('Completed', `Site processing complete.\n\nArrival: ${siteInWeight.toFixed(1)}T · Offload: ${numericWeight.toFixed(1)}T · Net: ${siteNet.toFixed(1)}T`, [
         { text: 'OK' },

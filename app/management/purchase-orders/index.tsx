@@ -19,15 +19,11 @@ import {
   TouchableOpacity,
   TextInput,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from '../../../utils/router';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
-import { Badge } from '../../../components/ui/Badge';
-import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { purchaseOrderRepository } from '../../../services/repositories/PurchaseOrderRepository';
@@ -35,27 +31,19 @@ import { PurchaseOrder } from '../../../store/types';
 import { useAuthStore } from '../../../store/authStore';
 import { formatEAT, formatNumber } from '../../../utils/helpers';
 import { hasManagementPermission } from '../../../utils/access';
+import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 
-const STATUS_BADGE: Record<string, { variant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple'; label: string }> = {
-  draft: { variant: 'default', label: 'Draft' },
-  approved: { variant: 'info', label: 'Approved' },
-  in_progress: { variant: 'purple', label: 'In Progress' },
-  completed: { variant: 'success', label: 'Completed' },
-  cancelled: { variant: 'danger', label: 'Cancelled' },
-  archived: { variant: 'default', label: 'Archived' },
-};
+
 
 export default function PurchaseOrderListScreen() {
   const colors = useTheme();
   const user = useAuthStore((state) => state.user);
-  const insets = useSafeAreaInsets();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [filtered, setFiltered] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const canCreatePurchaseOrder = hasManagementPermission(user?.role, 'purchaseOrders.create');
-  const canEditPurchaseOrder = hasManagementPermission(user?.role, 'purchaseOrders.edit');
 
   useEffect(() => {
     loadOrders();
@@ -84,7 +72,7 @@ export default function PurchaseOrderListScreen() {
   }
 
   function filterOrders() {
-    let result = [...orders];
+    let result = orders.filter((po) => String(po.status || '').toLowerCase() !== 'cancelled');
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -99,8 +87,8 @@ export default function PurchaseOrderListScreen() {
   }
 
   function getStatusBadge(status?: string) {
-    const config = STATUS_BADGE[status || ''] || { variant: 'default' as const, label: status || 'Unknown' };
-    return <Badge label={config.label} variant={config.variant} size="sm" dot />;
+    
+    return <></>;
   }
 
   function getProgress(po: PurchaseOrder): number {
@@ -120,7 +108,7 @@ export default function PurchaseOrderListScreen() {
         <View style={styles.poHeader}>
           <View style={styles.poInfo}>
             <Text style={[styles.poNumber, { color: colors.text }]}>
-              {item.poNumber || item.id}
+              {String(item.poNumber || item.id || '').toUpperCase()}
             </Text>
             <Text style={[styles.poVendor, { color: colors.textMuted }]} numberOfLines={1}>
               {item.companyName || item.vendorName || 'Unknown Vendor'}
@@ -139,7 +127,7 @@ export default function PurchaseOrderListScreen() {
           <View style={styles.metaItem}>
             <Ionicons name="scale-outline" size={14} color={colors.textMuted} />
             <Text style={[styles.metaText, { color: colors.textMuted }]}>
-              {formatNumber(item.quantity || 0)} {item.unit || 'units'}
+              {formatNumber(item.quantity || 0)} {item.unit || 'units'} 
             </Text>
           </View>
         </View>
@@ -155,45 +143,6 @@ export default function PurchaseOrderListScreen() {
           )}
         </View>
 
-        {/* Action Buttons */}
-        {canEditPurchaseOrder && item.status !== 'completed' && item.status !== 'cancelled' && item.status !== 'archived' && (
-          <View style={styles.poActions}>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.primary + '15' }]}
-              onPress={() => router.push(`/management/purchase-orders/edit/${item.id}` as any)}
-            >
-              <Ionicons name="create-outline" size={16} color={colors.primary} />
-              <Text style={[styles.actionBtnText, { color: colors.primary }]}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: '#FEF2F2' }]}
-              onPress={async () => {
-                Alert.alert(
-                  'Cancel Order',
-                  `Are you sure you want to cancel PO ${item.poNumber || item.id}?`,
-                  [
-                    { text: 'No', style: 'cancel' },
-                    {
-                      text: 'Yes, Cancel',
-                      style: 'destructive',
-                      onPress: async () => {
-                        try {
-                          await purchaseOrderRepository.update(item.id, { status: 'cancelled' });
-                          loadOrders();
-                        } catch (err) {
-                          Alert.alert('Error', 'Failed to cancel purchase order');
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
-            >
-              <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
-              <Text style={[styles.actionBtnText, { color: '#EF4444' }]}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </TouchableOpacity>
     );
   }
@@ -201,9 +150,7 @@ export default function PurchaseOrderListScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Purchase Orders</Text>
-        </View>
+        <View style={styles.loadingContent} />
         <LoadingSkeleton lines={5} variant="card" />
       </View>
     );
@@ -211,46 +158,8 @@ export default function PurchaseOrderListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.backTitle}>Purchase Orders</Text>
-      </View>
+      <ManagementSearchHeader title="Purchase Orders" search={search} onChangeSearch={setSearch} placeholder="Search POs..." />
       <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.count, { color: colors.textMuted }]}>
-              {orders.length} PO{orders.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-          {canCreatePurchaseOrder && (
-            <Button
-              title="Create PO"
-              onPress={() => router.push('/management/purchase-orders/create' as any)}
-              icon="add-circle-outline"
-              size="sm"
-            />
-          )}
-        </View>
-
-        {/* Search */}
-        <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search POs..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
       </View>
 
       <FlatList
@@ -266,11 +175,20 @@ export default function PurchaseOrderListScreen() {
             icon="document-text-outline"
             title={search ? 'No POs found' : 'No purchase orders yet'}
             subtitle={search ? 'Try a different search term' : 'Create your first purchase order'}
-            actionLabel={!search && canCreatePurchaseOrder ? 'Create PO' : undefined}
-            onAction={!search && canCreatePurchaseOrder ? () => router.push('/management/purchase-orders/create' as any) : undefined}
           />
         }
       />
+      {canCreatePurchaseOrder && (
+        <TouchableOpacity
+          style={[styles.createFab, { backgroundColor: colors.primary }]}
+          onPress={() => router.push('/management/purchase-orders/create' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Create purchase order"
+        >
+          <Ionicons name="add" size={23} color="#FFFFFF" />
+          <Text style={styles.createFabText}>Create PO</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -279,27 +197,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  backBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginLeft: 4,
+  loadingContent: {
+    height: Spacing.sm,
   },
   header: {
     padding: Spacing.lg,
@@ -310,10 +209,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.md,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
   },
   count: {
     fontSize: 13,
@@ -327,7 +222,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    marginBottom: 0,
   },
   searchInput: {
     flex: 1,
@@ -336,13 +231,31 @@ const styles = StyleSheet.create({
   list: {
     padding: Spacing.md,
     paddingTop: 0,
-    paddingBottom: Spacing['4xl'],
+    paddingBottom: 104,
   },
+  createFab: {
+    position: 'absolute',
+    right: Spacing.lg,
+    bottom: Spacing.lg,
+    minHeight: 52,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    elevation: 5,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+  },
+  createFabText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
   poCard: {
-    borderRadius: Radius.lg,
+    borderRadius: 5,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    marginBottom: 0.1,
   },
   poHeader: {
     flexDirection: 'row',
@@ -363,8 +276,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   poMeta: {
-    flexDirection: 'row',
-    gap: Spacing.lg,
+    flexDirection: 'column',
+    gap: 5,
     marginBottom: Spacing.md,
   },
   metaItem: {
@@ -408,26 +321,5 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 11,
-  },
-  poActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    paddingTop: Spacing.sm,
-    marginTop: Spacing.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    borderRadius: Radius.md,
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
   },
 });

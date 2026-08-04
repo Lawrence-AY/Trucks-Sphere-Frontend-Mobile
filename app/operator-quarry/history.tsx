@@ -48,6 +48,32 @@ export default function OperatorQuarryHistoryScreen() {
     setRefreshing(false);
   };
 
+  function formatEAT(value: any): string {
+  if (!value) return '';
+  try {
+    const d = value instanceof Date
+      ? value
+      : typeof value?.toDate === 'function'
+        ? value.toDate()
+        : typeof value === 'object' && typeof value.seconds === 'number'
+          ? new Date(value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1e6))
+          : new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-KE', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Africa/Nairobi',
+      hour12: false,
+      timeZoneName: 'short',
+    });
+  } catch { 
+    return '';
+  } 
+}
+
   useEffect(() => {
     // The delivery-orders hook establishes the shared subscription.  Refresh
     // it once here so a history opened immediately after a weigh-out sees the
@@ -145,7 +171,6 @@ export default function OperatorQuarryHistoryScreen() {
     'Job ID',
     'PO Number',
     'Material',
-    'Size/Grade',
     'Qty Loaded (t)',
     'Truck Plate',
     'Driver',
@@ -167,12 +192,11 @@ export default function OperatorQuarryHistoryScreen() {
         r.jobId || '',
         r.poNumber || '',
         r.materialName || '',
-        r.materialSize || r.materialGrade || '—',
         quarryNet != null ? `${quarryNet.toFixed(1)}` : String(r.quantityOrdered ?? '—'),
-        r.plateNumber || '',
+        r.plateNumber || '', 
         r.driverName || '',
-        r.quarryInTime || (r.weighInTime ? new Date(r.weighInTime).toISOString() : '—'),
-        r.quarryOutTime || (r.weighOutTime ? new Date(r.weighOutTime).toISOString() : '—'),
+       formatEAT( r.quarryInTime || (r.createdAt|| '—')),
+       formatEAT( r.quarryOutTime || (r.updatedAt|| '—')),
         r.weighOutGeoLocation?.address || r.weighOutLocation || r.quarryName || '—',
         r.operatorUsername || r.quarryOperator || '—',
       ];
@@ -205,8 +229,8 @@ export default function OperatorQuarryHistoryScreen() {
     ['Net Weight', item.netWeight != null ? `${item.netWeight.toFixed(1)} t` : '—'],
     ['Weigh-Out Location', item.weighOutGeoLocation?.address || item.weighOutLocation || '—'],
     ['Status', (item.status || '').replace(/_/g, ' ').toUpperCase()],
-    ['Assigned At', item.createdAt || ''],
-    ['Completed At', item.updatedAt || ''],
+    ['Assigned At',  formatEAT(item.createdAt || '')],
+    ['Completed At', formatEAT(item.updatedAt || '')],
   ];
 
   const handleExportDeliveryNoteCSV = async (item: any) => {

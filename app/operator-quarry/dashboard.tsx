@@ -150,24 +150,24 @@ export default function OperatorQuarryDashboardScreen() {
     );
   }, [vehicles, selectedPo]);
 
-  // Check if the selected driver is on ANY active job
+  // Check if the selected driver is on ANY active job.
+  // Completed or terminal jobs should no longer block a new assignment.
   const driverActiveJob = useMemo(() => {
     if (!selectedDriver) return null;
     return deliveries.find(
-      (d) =>
-        d.driverId === selectedDriver.id &&
-        !['delivered', 'completed', 'cancelled'].includes(d.status),
+      (d) => d.driverId === selectedDriver.id && isActiveJob(d.status),
     );
   }, [deliveries, selectedDriver]);
 
-  // Check if the selected vehicle is on ANY active job
+  // Check if the selected vehicle is on ANY active job.
+  // Completed or terminal jobs should no longer block a new assignment.
   const vehicleActiveJob = useMemo(() => {
     if (!selectedVehicle) return null;
     return deliveries.find(
       (d) =>
         (d.vehicleId === selectedVehicle.id ||
           d.plateNumber === (selectedVehicle.plateNumber || selectedVehicle.plate)) &&
-        !['delivered', 'completed', 'cancelled'].includes(d.status),
+        isActiveJob(d.status),
     );
   }, [deliveries, selectedVehicle]);
 

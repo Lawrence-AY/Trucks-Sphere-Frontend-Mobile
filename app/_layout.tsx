@@ -1,24 +1,42 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { Stack, router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { StatusBar, StyleSheet } from 'react-native';
 import { useAuthStore } from '../store/authStore';
-import { Colors } from '../constants/theme';
+import { useTheme, useThemeMode } from '../hooks/useTheme';
+import { useThemeStore } from '../store/themeStore';
 import Toast from 'react-native-toast-message';
 import WebLayout from '../components/WebLayout';
 import { setOnAuthExpired } from '../services/api';
 import { ManagementRouteGuard } from '../components/management/ManagementRouteGuard';
+import { CLEAR_HIDDEN_STACK_SCREEN_OPTIONS } from '../components/ui/stackScreenOptions';
+import { PaperThemeProvider } from '../components/PaperThemeProvider';
 
 void ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const { restoreSession, logout } = useAuthStore();
+  const colors = useTheme();
+  const { isDark } = useThemeMode();
+  const hydrateTheme = useThemeStore((state) => state.hydrateTheme);
+  const statusBarStyle: 'light' | 'dark' = isDark ? 'light' : 'dark';
+  const systemStatusBarStyle: 'light-content' | 'dark-content' = statusBarStyle === 'light' ? 'light-content' : 'dark-content';
+  const rootStackOptions = useMemo(() => ({
+    ...CLEAR_HIDDEN_STACK_SCREEN_OPTIONS,
+    contentStyle: { backgroundColor: colors.background },
+    statusBarStyle,
+    statusBarColor: colors.surface,
+    statusBarTranslucent: false,
+  }), [colors.background, colors.surface, statusBarStyle]);
 
   useEffect(() => {
     void restoreSession();
   }, [restoreSession]);
+
+  useEffect(() => {
+    void hydrateTheme();
+  }, [hydrateTheme]);
 
   // Wire up auto-logout on token expiry
   useEffect(() => {
@@ -37,28 +55,31 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView
       onLayout={handleRootLayout}
-      style={[styles.container, { backgroundColor: Colors.light.background }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
-      <StatusBar style="dark" />
-      <ManagementRouteGuard>
-        <WebLayout>
-          <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="management" options={{ headerShown: false }} />
-          <Stack.Screen name="vendor" options={{ headerShown: false }} />
-          <Stack.Screen name="operator-site" options={{ headerShown: false }} />
-          <Stack.Screen name="operator-fuel" options={{ headerShown: false }} />
-          <Stack.Screen name="operator-quarry" options={{ headerShown: false }} />
-          <Stack.Screen name="quarry" options={{ headerShown: false }} />
-          <Stack.Screen name="site" options={{ headerShown: false }} />
-          <Stack.Screen name="screens" options={{ headerShown: false }} />
-          <Stack.Screen name="track" options={{ headerShown: false }} />
-          </Stack>
-        </WebLayout>
-      </ManagementRouteGuard>
-      <Toast />
+      <PaperThemeProvider>
+        <StatusBar barStyle={systemStatusBarStyle} backgroundColor={colors.surface} translucent={false} />
+        <ManagementRouteGuard>
+          <WebLayout>
+            <Stack screenOptions={rootStackOptions}>
+            <Stack.Screen name="index" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="(auth)" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="(tabs)" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="management" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="vendor" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="operator-site" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="operator-fuel" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="operator-quarry" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="warehouse" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="quarry" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="site" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="screens" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="track" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            </Stack>
+          </WebLayout>
+        </ManagementRouteGuard>
+        <Toast />
+      </PaperThemeProvider>
     </GestureHandlerRootView>
   );
 }

@@ -23,7 +23,8 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
@@ -176,7 +177,7 @@ export default function VendorDetailScreen() {
                 {vendor.vendorId || vendor.id} · {vendor.contactPerson || 'No contact'}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                {getStatusBadge(vendor.status)}
+                 
                 <Text style={[styles.vendorId, { color: colors.textMuted }]}>
                   {vendor.phone || ''}
                 </Text>
@@ -318,11 +319,7 @@ function DriversTab({ drivers, vendorId, colors, canWrite }: { drivers: Driver[]
                 <Text style={[styles.listCardTitle, { color: colors.text }]}>{driver.fullName}</Text>
                 <Text style={[styles.listCardSub, { color: colors.textMuted }]}>{driver.phone}</Text>
               </View>
-              <Badge
-                label={driver.status || 'unknown'}
-                variant={driver.status === 'active' ? 'success' : driver.status === 'on_trip' ? 'info' : 'default'}
-                size="sm"
-              />
+               
             </View>
           </TouchableOpacity>
         ))
@@ -363,11 +360,7 @@ function VehiclesTab({ vehicles, vendorId, colors, canWrite }: { vehicles: Vehic
                   {vehicle.make} {vehicle.model} ({vehicle.year})
                 </Text>
               </View>
-              <Badge
-                label={vehicle.status || 'unknown'}
-                variant={vehicle.status === 'active' ? 'success' : vehicle.status === 'on_trip' ? 'info' : 'default'}
-                size="sm"
-              />
+              
             </View>
           </TouchableOpacity>
         ))
@@ -442,8 +435,7 @@ function JobsTab({ vendorId, colors }: { vendorId: string; colors: any }) {
                 {job.materialName} - {job.quantityDispatched || job.quantityOrdered} {job.unit}
               </Text>
             </View>
-            <Badge label={job.status?.replace('_', ' ') || 'unknown'} variant="default" size="sm" />
-          </View>
+           </View>
         </TouchableOpacity>
       ))}
     </>
@@ -495,8 +487,7 @@ function PurchaseOrdersTab({ vendorId, colors }: { vendorId: string; colors: any
                 {po.materialName} - {po.quantity} {po.unit}
               </Text>
             </View>
-            <Badge label={po.status || 'unknown'} variant={po.status === 'completed' ? 'success' : po.status === 'cancelled' ? 'danger' : 'default'} size="sm" />
-          </View>
+           </View>
         </TouchableOpacity>
       ))}
     </>

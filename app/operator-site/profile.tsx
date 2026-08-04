@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { DataCard, DetailRow, PageShell, SectionTitle } from '../../components/EnterpriseUI';
 import { getRoleLabel } from '../../utils/helpers';
+import { getPasswordChangeError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
 import { changePassword, updateProfile } from '../../services/api';
 
 export default function OperatorSiteProfileScreen() {
@@ -53,16 +54,9 @@ export default function OperatorSiteProfileScreen() {
 
   const handleChangePassword = async () => {
     setPwError('');
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPwError('All fields are required.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPwError('New password and confirm password do not match.');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setPwError('New password must be at least 6 characters.');
+    const passwordError = getPasswordChangeError(currentPassword, newPassword, confirmPassword);
+    if (passwordError) {
+      setPwError(passwordError);
       return;
     }
     setSubmitting(true);
@@ -182,12 +176,13 @@ export default function OperatorSiteProfileScreen() {
               <Text style={[styles.inputLabel, { color: colors.textMuted }]}>New Password</Text>
               <TextInput
                 style={[styles.input, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
-                placeholder="Min 6 characters"
+                placeholder="Enter a strong new password"
                 placeholderTextColor={colors.textTertiary}
                 secureTextEntry
                 value={newPassword}
                 onChangeText={(v) => { setNewPassword(v); setPwError(''); }}
               />
+              <Text style={{ fontSize: 12, color: colors.textMuted }}>{PASSWORD_REQUIREMENTS}</Text>
               <Text style={[styles.inputLabel, { color: colors.textMuted }]}>Confirm New Password</Text>
               <TextInput
                 style={[styles.input, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}

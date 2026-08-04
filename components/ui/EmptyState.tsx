@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Surface, Text } from 'react-native-paper';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
 import { Button } from './Button';
@@ -23,26 +24,14 @@ export function EmptyState({
   const colors = useTheme();
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.iconWrap, { backgroundColor: colors.primary + '12' }]}>
+    <Surface style={[styles.container, { backgroundColor: colors.surface }]} elevation={0}>
+      <View style={[styles.iconWrap, { backgroundColor: `${colors.primary}14` }]}>
         <Ionicons name={icon} size={40} color={colors.primary} />
       </View>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      {subtitle && (
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          {subtitle}
-        </Text>
-      )}
-      {actionLabel && onAction && (
-        <Button
-          title={actionLabel}
-          onPress={onAction}
-          variant="primary"
-          icon="add-circle-outline"
-          style={styles.action}
-        />
-      )}
-    </View>
+      <Text variant="titleMedium" style={[styles.title, { color: colors.text }]}>{title}</Text>
+      {subtitle ? <Text variant="bodyMedium" style={[styles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text> : null}
+      {actionLabel && onAction ? <Button title={actionLabel} onPress={onAction} icon="add-circle-outline" style={styles.action} /> : null}
+    </Surface>
   );
 }
 
@@ -61,13 +50,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   subtitle: {
-    fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: Spacing.lg,

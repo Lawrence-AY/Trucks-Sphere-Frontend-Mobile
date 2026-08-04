@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { usePathname, useRouter } from 'expo-router';
+import { usePathname } from 'expo-router';
 import Sidebar from './Sidebar';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../hooks/useTheme';
@@ -32,7 +32,6 @@ interface WebLayoutProps {
 export default function WebLayout({ children }: WebLayoutProps) {
   const { width } = useWindowDimensions();
   const pathname = usePathname();
-  const router = useRouter();
   const colors = useTheme();
   const isLoading = useAuthStore((state) => state.isLoading);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -146,17 +145,6 @@ export default function WebLayout({ children }: WebLayoutProps) {
             <Ionicons name="menu-outline" size={26} color={colors.text} />
           </TouchableOpacity>
           <View style={styles.topBarSpacer} />
-          <TouchableOpacity
-            onPress={() => {
-              // @ts-ignore
-              router.push('/screens/notifications');
-            }}
-            style={[styles.topBarNotifBtn, { backgroundColor: colors.inputBg }]}
-            accessibilityLabel="Notifications"
-            accessibilityRole="button"
-          >
-            <Ionicons name="notifications-outline" size={23} color={colors.text} />
-          </TouchableOpacity>
         </View>
 
         {/* Page Content */}

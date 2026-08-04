@@ -474,10 +474,12 @@ export default function OperatorSiteWeightsScreen() {
         siteNetWeight: netWeight,
       };
       const persisted = await updateDeliveryOrder(activeJob.id, updatePayload);
-      optimisticUpdate('deliveryOrders', persisted || updatedJob);
+      const finalizedJob = persisted || updatedJob;
+      optimisticUpdate('deliveryOrders', finalizedJob);
 
       setGrnData({
         ...updatedJob,
+        ...finalizedJob,
         receiptNoteId,
         storageLot: lotNumber,
         siteWeighIn,
@@ -1055,6 +1057,7 @@ export default function OperatorSiteWeightsScreen() {
                       {(grnData.siteNetWeight || netWeight || 0).toFixed(1)} T
                     </Text>
                   </View>
+                  {/* Backorder creation notice hidden from users (internal only) */}
                 </View>
               )}
 
@@ -1483,6 +1486,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
     marginVertical: 4,
   },
+  backorderNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  backorderTitle: { fontSize: 13, fontWeight: '800' },
+  backorderText: { fontSize: 12, fontWeight: '600', marginTop: 2 },
   grnActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',

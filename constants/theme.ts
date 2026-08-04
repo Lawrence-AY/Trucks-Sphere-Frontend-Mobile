@@ -27,7 +27,7 @@ export const Colors = {
     gradientEnd: '#0D3150',
   },
   dark: {
-    primary: '#2b77b9',
+    primary: '#0D3150',
     primaryLight: '#0D3150',
     accent: '#31E7D0',
     success: '#22C55E',
@@ -67,10 +67,10 @@ export const Spacing = {
 };
 
 export const Radius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
+  sm: 5,
+  md: 5,
+  lg: 5,
+  xl: 5,
   full: 9999,
 };
 

@@ -29,6 +29,7 @@ import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { fetchQuarries, fetchSites, fetchDeliveryOrders } from '../../services/api';
 import { DetailRow } from '../../components/EnterpriseUI';
 import { formatEAT } from '../../utils/helpers';
+import { ManagementSearchHeader } from '../../components/ManagementSearchHeader';
 
 export default function QuarriesScreen() {
   const colors = useTheme();
@@ -82,6 +83,7 @@ export default function QuarriesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ManagementSearchHeader title="Quarries" search={search} onChangeSearch={setSearch} placeholder="Search quarries..." />
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <Text style={[styles.count, { color: colors.textMuted }]}>
@@ -89,21 +91,6 @@ export default function QuarriesScreen() {
           </Text>
         </View>
 
-        <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search quarries..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
       </View>
 
       <FlatList

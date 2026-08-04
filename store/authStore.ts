@@ -90,7 +90,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   logout: async () => {
     try {
-      await api.post('/api/auth/logout').catch(() => {});
+      const stored = await getAuthData();
+      await api.post('/api/auth/logout', { refreshToken: stored.refreshToken || '' }).catch(() => {});
     } catch {}
     await clearAuthData();
     useRealTimeSyncStore.getState().clearSession();
@@ -114,21 +115,19 @@ export const useAuthStore = create<AuthStore>((set) => ({
             setRealtimeSessionScope(user.uid);
             set({ user, isLoading: false, isAuthenticated: true });
             return;
-          } catch (profileErr: any) {
-            const status = profileErr?.response?.status;
+          } catch {
+            // Do not authenticate a real user from stale local profile data.
           }
         } else {
-        }
-
-        // Fallback to stored userData (works for both mock tokens and expired real tokens)
-        if (stored.userData) {
-          try {
-            const user: User = JSON.parse(stored.userData);
-            useRealTimeSyncStore.getState().clearSession();
-            setRealtimeSessionScope(user.uid);
-            set({ user, isLoading: false, isAuthenticated: true });
-            return;
-          } catch {}
+          if (stored.userData) {
+            try {
+              const user: User = JSON.parse(stored.userData);
+              useRealTimeSyncStore.getState().clearSession();
+              setRealtimeSessionScope(user.uid);
+              set({ user, isLoading: false, isAuthenticated: true });
+              return;
+            } catch {}
+          }
         }
       }
     } catch (error) {

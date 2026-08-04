@@ -13,13 +13,13 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
+  TextInput, 
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router } from '../utils/router';
 import { useTheme } from '../hooks/useTheme';
 import { Spacing, Radius } from '../constants/theme';
 import { Card } from '../components/ui/Card';

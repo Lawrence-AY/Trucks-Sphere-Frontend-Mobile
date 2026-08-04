@@ -16,9 +16,9 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -32,8 +32,10 @@ import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { Vendor } from '../../../store/types';
 import { fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../../services/api';
+import api from '../../../services/api';
 import { useAuthStore } from '../../../store/authStore';
 import { hasManagementPermission } from '../../../utils/access';
+import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 
 const STATUS_BADGE: Record<string, { variant: 'success' | 'warning' | 'danger'; label: string }> = {
   active: { variant: 'success', label: 'Active' },
@@ -50,6 +52,7 @@ export default function VendorListScreen() {
   const [filtered, setFiltered] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncingOdoo, setSyncingOdoo] = useState(false);
   const [search, setSearch] = useState('');
   const [vendorStats, setVendorStats] = useState<Record<string, { drivers: number; vehicles: number; jobs: number }>>({});
 
@@ -96,6 +99,37 @@ export default function VendorListScreen() {
     vendorRepository.invalidateCache();
     await loadVendors();
     setRefreshing(false);
+  }
+
+  async function syncOdooVendors() {
+    setSyncingOdoo(true);
+    try {
+      let job = (await api.post('/api/vendors/sync/odoo')).data;
+      const deadline = Date.now() + 60_000;
+
+      while (job?.status === 'running' && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        job = (await api.get('/api/vendors/sync/odoo')).data;
+      }
+
+      if (job?.status === 'completed') {
+        vendorRepository.invalidateCache();
+        await loadVendors();
+        const result = job.result || {};
+        Alert.alert(
+          'Odoo vendors synchronized',
+          `${result.imported || 0} added · ${result.updatedFromOdoo || 0} updated`,
+        );
+      } else if (job?.status === 'failed') {
+        Alert.alert('Odoo sync failed', `Error code: ${job?.result?.code || 'ODOO_VENDOR_SYNC_FAILED'}`);
+      } else {
+        Alert.alert('Odoo sync is still running', 'Pull down to refresh the vendor list in a moment.');
+      }
+    } catch {
+      Alert.alert('Odoo sync failed', 'Unable to synchronize Odoo vendors. Please try again.');
+    } finally {
+      setSyncingOdoo(false);
+    }
   }
 
   function filterVendors() {
@@ -200,6 +234,7 @@ export default function VendorListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ManagementSearchHeader title="Vendors" search={search} onChangeSearch={setSearch} placeholder="Search vendors..." />
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <View>
@@ -207,23 +242,7 @@ export default function VendorListScreen() {
               {vendors.length} vendor{vendors.length !== 1 ? 's' : ''}
             </Text>
           </View>
-        </View>
-
-        {/* Search */}
-        <View style={[styles.searchBar, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search vendors..."
-            placeholderTextColor={colors.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
+          
         </View>
 
       </View>
@@ -279,6 +298,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 7,
+  },
+  syncButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   title: {
     fontSize: 24,
     fontWeight: '800',
@@ -322,10 +354,10 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing['4xl'],
   },
   vendorCard: {
-    borderRadius: Radius.lg,
+    borderRadius: 5,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    marginBottom: 0.1,
   },
   vendorHeader: {
     flexDirection: 'row',

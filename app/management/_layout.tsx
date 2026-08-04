@@ -12,9 +12,10 @@ import { useTheme } from '../../hooks/useTheme';
 import { getRoleLabel } from '../../utils/helpers';
 import { canAccessManagementRoute, MANAGEMENT_ROLES, managementHomeRoute, normalizeRole } from '../../utils/access';
 import { getManagementNavigation } from '../../utils/managementNavigation';
+import { ThemeToggle } from '../../components/ThemeToggle';
 
 const DEFAULT_BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
-const LITE_BOTTOM_TABS = ['dashboard', 'vendors', 'trucks', 'drivers', 'orders', 'profile'];
+const LITE_BOTTOM_TABS = ['dashboard', 'vendors', 'trucks', 'drivers'];
 const BOTTOM_TABS = [...new Set([...DEFAULT_BOTTOM_TABS, ...LITE_BOTTOM_TABS])];
 const HIDDEN_TABS = [
   'super-admin',
@@ -28,6 +29,7 @@ const HIDDEN_TABS = [
   'dispatch',
   'quarries',
   'sites',
+  'profile',
   'fuel-records',
   'reports',
   'analytics',
@@ -255,7 +257,7 @@ export default function ManagementLayout() {
           style={[styles.floatingMenuButton, { top: insets.top + Spacing.sm, backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={toggleMenu}
         >
-          <Ionicons name="menu-outline" size={26} color={colors.primary} />
+          <Ionicons name="menu-outline" size={26} color={colors.text} />
         </TouchableOpacity>
       )}
 
@@ -267,15 +269,16 @@ export default function ManagementLayout() {
           </Animated.View>
           <Animated.View style={[styles.drawer, { paddingTop: insets.top + 16, backgroundColor: colors.surface, width: menuWidth, transform: [{ translateX: slideAnim }] }]}>
             <View style={[styles.drawerUser, { borderBottomColor: colors.border }]}>
-              <View style={[styles.drawerAvatar, { backgroundColor: colors.primaryLight }]}>
-                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.primary }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
+              <View style={[styles.drawerAvatar, { backgroundColor: `${colors.accent}18` }]}>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.accent }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
               </View>
               <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'User'}</Text>
-              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.primaryLight }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary }}>{getRoleLabel(user?.role || '')}</Text>
+              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>{getRoleLabel(user?.role || '')}</Text>
               </View>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
+              <ThemeToggle />
               {drawerSections.map((section) => (
                 <View key={section.title} style={styles.drawerSection}>
                   <View style={styles.drawerSectionHeader}>
@@ -308,19 +311,19 @@ export default function ManagementLayout() {
       {/* Logout Confirmation Modal */}
       <Modal visible={confirmLogout} transparent animationType="fade" onRequestClose={() => setConfirmLogout(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={styles.logoutDialog}>
-            <View style={styles.logoutIcon}>
-              <Ionicons name="log-out-outline" size={34} color="#EF4444" />
+          <View style={[styles.logoutDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.logoutIcon, { backgroundColor: `${colors.danger}18` }]}>
+              <Ionicons name="log-out-outline" size={34} color={colors.danger} />
             </View>
-            <Text style={styles.logoutTitle}>Logout</Text>
-            <Text style={styles.logoutMessage}>Are you sure you want to logout?</Text>
+            <Text style={[styles.logoutTitle, { color: colors.text }]}>Logout</Text>
+            <Text style={[styles.logoutMessage, { color: colors.textMuted }]}>Are you sure you want to logout?</Text>
             <View style={styles.logoutActions}>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, { backgroundColor: colors.inputBg }]}
                 onPress={() => setConfirmLogout(false)}
                 disabled={loggingOut}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmBtn, loggingOut && { opacity: 0.7 }]}
@@ -352,13 +355,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 5,
-    elevation: 5,
+   
+     
+     
     zIndex: 20,
   },
   drawer: {

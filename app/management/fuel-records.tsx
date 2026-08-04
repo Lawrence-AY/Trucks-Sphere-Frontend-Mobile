@@ -19,10 +19,10 @@ import {
   DetailRow,
   EmptyState,
   PageShell,
-  SearchField,
   SectionTitle,
   FilterRail,
 } from "../../components/EnterpriseUI";
+import { ManagementSearchHeader } from "../../components/ManagementSearchHeader";
 
 const TIME_FILTERS = [
   { key: "all", label: "All" },
@@ -125,7 +125,9 @@ export default function FuelRecordsScreen() {
   );
 
   return (
-    <PageShell
+    <>
+      <ManagementSearchHeader title="Fuel Records" search={search} onChangeSearch={setSearch} placeholder="Search job, driver, plate..." />
+      <PageShell
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -187,11 +189,6 @@ export default function FuelRecordsScreen() {
         </View>
       </View>
 
-      <SearchField
-        value={search}
-        onChangeText={setSearch}
-        placeholder="Search job, driver, plate..."
-      />
       <SectionTitle
         title={`Fuel Records (${filtered.length})`}
       />
@@ -203,11 +200,12 @@ export default function FuelRecordsScreen() {
           </Text>
         </DataCard>
       ) : filtered.length ? (
-        filtered.map((item) => {
+        <View style={styles.fuelList}>
+        {filtered.map((item) => {
           const type = item.type === "in" || item.direction === "in" ? "in" : "out";
           const qty = item.quantity || item.fuelAmount || 0;
           return (
-            <DataCard key={item.id}>
+            <DataCard key={item.id} style={styles.fuelCard}>
               <View
                 style={{
                   flexDirection: "row",
@@ -275,7 +273,8 @@ export default function FuelRecordsScreen() {
               </Text>
             </DataCard>
           );
-        })
+        })}
+        </View>
       ) : (
         <EmptyState
           icon="water-outline"
@@ -287,15 +286,18 @@ export default function FuelRecordsScreen() {
           }
         />
       )}
-    </PageShell>
+      </PageShell>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  statsRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.md },
+  fuelList: { gap: 0.1 },
+  fuelCard: { borderRadius: 5, marginBottom: 0.1 },
+  statsRow: { flexDirection: "row", gap: 0.1, marginBottom: 0.1 },
   statCard: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 5,
     borderWidth: 1,
     padding: Spacing.xs,
     alignItems: "center",

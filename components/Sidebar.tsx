@@ -13,12 +13,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme, useThemeMode } from '../hooks/useTheme';
 import { getRoleLabel } from '../utils/helpers';
 import { showConfirm } from '../utils/webAlert';
 import type { UserRole } from '../store/types';
 import { isManagementRole, managementHomeRoute, normalizeRole } from '../utils/access';
 import { getManagementNavigation } from '../utils/managementNavigation';
+import { ThemeToggle } from './ThemeToggle';
+import { useResolvedIssuesCount } from '../hooks/useResolvedIssuesCount';
 
 type NavItem = {
   label: string;
@@ -67,7 +69,6 @@ const ROLE_SECTIONS: NavSection[] = [
     items: [
       { label: 'Fuel Records', icon: 'water-outline', route: '/screens/fuel', roles: ['vendor'], activeRoutes: ['/screens/fuel'] },
       { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['operator_quarry', 'operator_site', 'vendor'], activeRoutes: ['/screens/issues'] },
-      { label: 'Notifications', icon: 'notifications-outline', route: '/screens/notifications', roles: ['operator_quarry', 'operator_site', 'vendor', 'operator_fuel'], activeRoutes: ['/screens/notifications'] },
     ],
   },
 ];
@@ -80,10 +81,12 @@ interface SidebarProps {
 export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps) {
   const { user, logout } = useAuthStore();
   const colors = useTheme();
+  const { isDark } = useThemeMode();
   const router = useRouter();
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const [loggingOut, setLoggingOut] = useState(false);
+  const resolvedIssuesCount = useResolvedIssuesCount();
 
   // In drawer mode on mobile web, the close button is handled by WebLayout;
   // we still need to save vertical space by omitting the main container border style
@@ -111,6 +114,13 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
     }
     return item.route ? pathname.startsWith(item.route) : false;
   };
+
+  // The dark palette's primary colour is intentionally deep for surfaces, so
+  // it is not legible as navigation text on an active primary-light item.
+  // Use the theme's high-contrast text colours for sidebar labels and icons.
+  const activeNavColor = isDark ? colors.text : colors.primary;
+  const inactiveNavColor = isDark ? colors.textSecondary : colors.textMuted;
+  const sectionLabelColor = isDark ? colors.textMuted : colors.textTertiary;
 
   const handleNav = (route?: string) => {
     if (!route) return;
@@ -197,8 +207,8 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
           <View key={section.title}>
             {sectionIndex > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
             <View style={styles.navSectionHeader}>
-              <Ionicons name={section.icon} size={13} color={colors.textTertiary} />
-              <Text style={[styles.navSectionTitle, { color: colors.textTertiary }]}>{section.title}</Text>
+              <Ionicons name={section.icon} size={13} color={sectionLabelColor} />
+              <Text style={[styles.navSectionTitle, { color: sectionLabelColor }]}>{section.title}</Text>
             </View>
             {section.items.map((item) => {
               const active = isActive(item);
@@ -217,25 +227,31 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
                 <Ionicons
                   name={item.icon}
                   size={20}
-                  color={active ? colors.primary : colors.textMuted}
+                  color={active ? activeNavColor : inactiveNavColor}
                 />
                 <Text
                   style={[
                     styles.navItemText,
                     active && styles.navItemTextActive,
-                    { color: active ? colors.primary : colors.textMuted },
+                    { color: active ? activeNavColor : inactiveNavColor },
                     disabled && [styles.navItemTextDisabled, { color: colors.textTertiary }],
                   ]}
                   numberOfLines={1}
                 >
                   {item.label}
                 </Text>
+                {item.label === 'Issues' && resolvedIssuesCount > 0 && (
+                  <View style={styles.resolvedIssueBadge}>
+                    <Text style={styles.resolvedIssueBadgeText}>{resolvedIssuesCount}</Text>
+                  </View>
+                )}
                 {disabled && <View style={[styles.plannedDot, { backgroundColor: colors.textTertiary }]} />}
               </TouchableOpacity>
               );
             })}
           </View>
         ))}
+        <ThemeToggle />
         {/* Keep logout in the scrollable navigation so it remains reachable on shorter screens. */}
         <TouchableOpacity
           style={[styles.logoutBtn, { backgroundColor: `${colors.danger}16`, borderColor: `${colors.danger}45` }, loggingOut && { opacity: 0.6 }]}
@@ -396,6 +412,20 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: '#CBD5E1',
+  },
+  resolvedIssueBadge: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    backgroundColor: '#10B981',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resolvedIssueBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
   divider: {
     height: 1,

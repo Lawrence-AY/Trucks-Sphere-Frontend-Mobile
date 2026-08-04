@@ -21,23 +21,20 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { Tabs } from '../../../components/ui/Tabs';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { jobRepository } from '../../../services/repositories/JobRepository';
 import { Job } from '../../../store/types';
-import { UserActionInfo } from '../../../components/UserActionInfo';
-import { JobDocuments } from '../../../components/JobDocuments';
-
-const JOB_TABS = [
-  { name: 'overview', label: 'Overview', icon: 'information-circle-outline' as const },
-];
+ import { JobDocuments } from '../../../components/JobDocuments';
+import { normalizeJobStatus } from '../../../utils/jobStatus';
+import { getSiteWeightFlagReason, isSiteWeightFlagged } from '../../../utils/siteFlags';
 
 // Valid status transitions
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -62,7 +59,6 @@ export default function JobDetailScreen() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
@@ -132,9 +128,10 @@ export default function JobDetailScreen() {
 
   function renderOverview() {
     if (!job) return null;
+    const siteFlagged = isSiteWeightFlagged(job);
     return (
       <View>
-        <Card>
+        <Card style={siteFlagged ? { borderColor: colors.danger, borderWidth: 1.5 } : undefined}>
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Job ID</Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>{job.jobId || job.id.slice(0, 8)}</Text>
@@ -157,10 +154,18 @@ export default function JobDetailScreen() {
               {job.quantityDispatched || job.quantityOrdered} {job.unit}
             </Text>
           </View>
+          {siteFlagged ? (
+            <View style={[styles.detailRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#FECACA', paddingTop: Spacing.sm }]}>
+              <Ionicons name="warning-outline" size={18} color={colors.danger} />
+              <Text style={[styles.detailValue, { color: colors.danger, flex: 1, marginLeft: Spacing.sm }]}>
+                {getSiteWeightFlagReason(job)}
+              </Text>
+            </View>
+          ) : null}
         
         </Card>
 
-        <Card style={{ marginTop: Spacing.md }}>
+        <Card style={{ marginTop:0}}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Assignment</Text>
           <View style={styles.detailRow}>
             <Ionicons name="person-outline" size={18} color={colors.textMuted} />
@@ -174,25 +179,13 @@ export default function JobDetailScreen() {
               {job.plateNumber || 'Unassigned'}
             </Text>
           </View>
-          {job.quarryName && (
-            <View style={styles.detailRow}>
-              <Ionicons name="flag-outline" size={18} color={colors.textMuted} />
-              <Text style={[styles.detailValue, { color: colors.text, marginLeft: Spacing.sm }]}>
-                {job.quarryName}
-              </Text>
-            </View>
-          )}
-          {job.siteName && (
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={18} color={colors.textMuted} />
-              <Text style={[styles.detailValue, { color: colors.text, marginLeft: Spacing.sm }]}>
-                {job.siteName}
-              </Text>
-            </View>
-          )}
+        
         </Card>
 
-        <JobDocuments job={job} />
+        <JobDocuments
+          job={job}
+          showReceiptNote={['SITE_WEIGHED_OUT', 'COMPLETED'].includes(normalizeJobStatus(job.status))}
+        />
 
        
 
@@ -233,40 +226,10 @@ export default function JobDetailScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={[styles.headerIcon, { backgroundColor: colors.primary + '15' }]}>
-            <Ionicons name="cube-outline" size={28} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>
-              {job.jobId || `Job ${job.id.slice(0, 8)}`}
-            </Text>
-            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              {job.materialName} - {job.vendorName}
-            </Text>
-          </View>
-         </View>
-        {job.isDelayed && (
-          <View style={[styles.delayedBanner, { backgroundColor: colors.danger + '15' }]}>
-            <Ionicons name="time-outline" size={16} color={colors.danger} />
-            <Text style={[styles.delayedText, { color: colors.danger }]}>Delayed Delivery</Text>
-          </View>
-        )}
-      </View>
+      
 
-      {/* Tabs */}
-      <Tabs
-        tabs={JOB_TABS}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-
-      {/* Tab Content */}
-      <View style={{ marginTop: Spacing.md }}>
-        {activeTab === 'overview' && renderOverview()}
-     
+      <View style={styles.detailsContent}>
+        {renderOverview()}
       </View>
 
      
@@ -290,8 +253,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
+         alignItems: 'center',
     justifyContent: 'center',
   },
   backTitle: {
@@ -302,15 +264,20 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.lg,
-    paddingBottom: Spacing['4xl'],
+    paddingTop:0,
+    paddingBottom: Spacing['xl'],
   },
   header: {
-    marginBottom: Spacing.lg,
+    marginVertical: 2.5,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: 2.5,
+  },
+  detailsContent: {
+    marginVertical: 2.5,
+    gap: 2.5,
   },
   headerIcon: {
     width: 56,

@@ -21,7 +21,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing } from '../../../constants/theme';
@@ -29,7 +29,9 @@ import { Card } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
+import { CsvImportPanel } from '../../../components/CsvImportPanel';
 import api from '../../../services/api';
+import { getStrongPasswordError, PASSWORD_REQUIREMENTS } from '../../../utils/passwordPolicy';
 
 const STATUS_OPTIONS = [
   { id: 'active', name: 'Active' },
@@ -123,7 +125,11 @@ export default function CreateVendorScreen() {
     if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
     if (!form.email.trim()) newErrors.email = 'Email address is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Invalid email address';
-    if (!form.password || form.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+    if (!form.password) newErrors.password = 'Password is required';
+    else {
+      const passwordError = getStrongPasswordError(form.password);
+      if (passwordError) newErrors.password = passwordError;
+    }
     if (form.password !== form.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -217,12 +223,13 @@ export default function CreateVendorScreen() {
         <Text style={styles.backTitle}>Create Vendor</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Create Vendor</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Add a new transport vendor to the system. Insurance & compliance set here become the source of truth for all drivers under this vendor.
-          </Text>
-        </View>
+        
+
+        <CsvImportPanel
+          type="vendors"
+          requiredColumns="company_name, contact_person, phone"
+          onCompleted={() => undefined}
+        />
 
         <Card>
           <Input
@@ -376,12 +383,13 @@ export default function CreateVendorScreen() {
             label="Password"
             value={form.password}
             onChangeText={(v) => updateField('password', v)}
-            placeholder="At least 6 characters"
+            placeholder="Enter a strong password"
             icon="lock-closed-outline"
             secureTextEntry
             required
             error={errors.password}
           />
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>{PASSWORD_REQUIREMENTS}</Text>
           <Input
             label="Confirm Password"
             value={form.confirmPassword}

@@ -6,7 +6,7 @@
  *   - Full driver details form
  *   - License information
  *   - Photo upload (after driver creation)
- *   - Emergency contact
+ *   - Driver status
  *
  * NOTE: Insurance & Compliance fields have been moved to the Vendor form.
  * Drivers inherit these from their linked vendor.
@@ -26,7 +26,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../../utils/router';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
@@ -35,6 +36,7 @@ import { Card } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
+import { CsvImportPanel } from '../../../components/CsvImportPanel';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import api from '../../../services/api';
@@ -58,6 +60,7 @@ export default function CreateDriverScreen() {
   const [loadingDriver, setLoadingDriver] = useState(isEditMode);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [form, setForm] = useState({
     vendorId: params.vendorId || '',
@@ -101,6 +104,8 @@ export default function CreateDriverScreen() {
         emergencyContact: driver.emergencyContact || '',
         status: driver.status || 'active',
       });
+      setPhotoUri(null);
+      setExistingPhotoUrl((driver as any).photoURL || (driver as any).photoUrl || null);
     } finally {
       setLoadingDriver(false);
     }
@@ -208,6 +213,7 @@ export default function CreateDriverScreen() {
       status: 'active',
     });
     setPhotoUri(null);
+    setExistingPhotoUrl(null);
     setErrors({});
   }
 
@@ -243,6 +249,8 @@ export default function CreateDriverScreen() {
             await collectionCache.updateInCollection('drivers', savedDriver.id, {
               photoURL: uploadResult.photoURL,
             } as any);
+            setExistingPhotoUrl(uploadResult.photoURL);
+            setPhotoUri(null);
           }
         } catch (err: any) {
           // Photo upload failed but driver was created successfully
@@ -273,6 +281,7 @@ export default function CreateDriverScreen() {
     id: v.id,
     name: v.companyName || (v as any).name || 'Unknown Vendor',
   }));
+  const displayPhotoUri = photoUri || existingPhotoUrl;
 
   return (
     <KeyboardAvoidingView
@@ -286,7 +295,16 @@ export default function CreateDriverScreen() {
         <Text style={styles.backTitle}>{isEditMode ? 'Edit Driver' : 'Onboard Driver'}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        
+        {!isEditMode ? (
+          <CsvImportPanel
+            type="drivers"
+            requiredColumns="vendor_id or vendor_name, full_name, phone, national_id, license_number"
+            onCompleted={async () => {
+              driverRepository.invalidateCache();
+              await loadVendors();
+            }}
+          />
+        ) : null}
 
         <Card>
           <Select
@@ -307,7 +325,7 @@ export default function CreateDriverScreen() {
                 <Ionicons name="camera-outline" size={20} color={colors.primary} />
               </View>
               <Text style={[styles.photoSectionTitle, { color: colors.text }]}>Driver Photo</Text>
-              {photoUri ? (
+              {displayPhotoUri ? (
                 <View style={[styles.photoStatusBadge, { backgroundColor: '#10B98115' }]}>
                   <Ionicons name="checkmark-circle" size={14} color="#10B981" />
                   <Text style={[styles.photoStatusText, { color: '#10B981' }]}>Ready</Text>
@@ -321,9 +339,9 @@ export default function CreateDriverScreen() {
             <Text style={[styles.photoSectionSub, { color: colors.textMuted }]}>
               Capture or select a photo of the driver for identification.
             </Text>
-            {photoUri ? (
+            {displayPhotoUri ? (
               <View style={styles.photoPreviewWrap}>
-                <Image source={{ uri: photoUri }} style={styles.photoPreviewLarge} resizeMode="cover" />
+                <Image source={{ uri: displayPhotoUri }} style={styles.photoPreviewLarge} resizeMode="cover" />
                 {uploadingPhoto && (
                   <View style={styles.photoPreviewOverlay}>
                     <ActivityIndicator size="large" color="#FFFFFF" />
@@ -343,9 +361,9 @@ export default function CreateDriverScreen() {
                 onPress={handleTakePhoto}
                 disabled={uploadingPhoto}
               >
-                <Ionicons name="camera-outline" size={20} color={photoUri ? '#10B981' : colors.primary} />
-                <Text style={[styles.photoBtnText, { color: photoUri ? '#10B981' : colors.primary }]}>
-                  {photoUri ? 'Retake Photo' : 'Take Photo'}
+                <Ionicons name="camera-outline" size={20} color={displayPhotoUri ? '#10B981' : colors.primary} />
+                <Text style={[styles.photoBtnText, { color: displayPhotoUri ? '#10B981' : colors.primary }]}>
+                  {displayPhotoUri ? 'Retake Photo' : 'Take Photo'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -430,18 +448,6 @@ export default function CreateDriverScreen() {
             placeholder="e.g. 2025-12-31"
             icon="calendar-outline"
           />
-        </Card>
-
-        {/* Emergency Contact */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Emergency Contact</Text>
-        <Card>
-          <Input
-            label="Emergency Contact"
-            value={form.emergencyContact}
-            onChangeText={(v) => updateField('emergencyContact', v)}
-            placeholder="e.g. 0712345679"
-            icon="alert-circle-outline"
-          />
           <Select
             label="Status"
             value={form.status}
@@ -499,12 +505,6 @@ const styles = StyleSheet.create({
   header: { marginBottom: Spacing.lg },
   title: { fontSize: 24, fontWeight: '800' },
   subtitle: { fontSize: 14, marginTop: 4 },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
-  },
   photoSectionCard: { marginBottom: Spacing.md, paddingTop: Spacing.sm },
   photoSectionHeader: {
     flexDirection: 'row',

@@ -9,7 +9,8 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../utils/router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import { useTheme } from '../../hooks/useTheme';
@@ -120,17 +121,17 @@ function buildReceiptNoteHtml(data: {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 32px; color: #1E293B; max-width: 600px; margin: auto; }
-    .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
-    .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+    body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 32px; padding-top:3px; color: #1E293B; max-width: 600px; margin: auto; }
+    .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 5px; margin-bottom: 10px; }
+    .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 2px; }
     .header .subtitle { color: #64748B; font-size: 13px; }
-    .section { margin-bottom: 20px; }
+    .section { margin-bottom: 14px; }
     .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; }
     .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
     .row .label { color: #64748B; }
     .row .value { font-weight: 700; color: #1E293B; }
-    .highlight-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
-    .highlight-box .net { font-size: 32px; font-weight: 900; color: #16A34A; }
+    .highlight-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 12px; text-align: center; margin: 10px 0; }
+    .highlight-box .net { font-size: 24px; font-weight: 900; color: #16A34A; }
     .highlight-box .calc { font-size: 11px; color: #64748B; margin-top: 4px; }
     table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
     table th { background: #1B2A4A; color: #FFF; padding: 8px 12px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
@@ -162,9 +163,8 @@ function buildReceiptNoteHtml(data: {
   <div class="section">
     <div class="section-title">Parties</div>
     <div class="row"><span class="label">Vendor</span><span class="value">${e(vendorName) || 'N/A'}</span></div>
-    <div class="row"><span class="label">Driver</span><span class="value">${e(driverName) || 'N/A'}</span></div>
-    <div class="row"><span class="label">Truck Plate</span><span class="value">${e(plateNumber) || 'N/A'}</span></div>
-  </div>
+    <div class="row"><span class="label">Driver : Truck Plate </span><span class="value">${e(driverName) || 'N/A'} : ${e(plateNumber) || 'N/A'}</span></div>
+   </div>
 
   <div class="section">
     <div class="section-title">Material</div>
@@ -174,17 +174,10 @@ function buildReceiptNoteHtml(data: {
   <div class="section">
     <div class="section-title">Route </div>
     <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${e(quarryOrigin) || e(quarryName) || 'N/A'}</span></div>
-    <div class="row"><span class="label">City / Town</span><span class="value">${e(quarryCityTown) || 'N/A'}</span></div>
     ${weighOutGeoAddress ? `<div class="row"><span class="label">Weigh-Out Location</span><span class="value">${e(weighOutGeoAddress)}</span></div>` : ''}
-    <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(siteName) || 'N/A'}</span></div>
   </div>
 
-  ${quarryPersonnel ? `
-  <div class="section">
-    <div class="section-title">Quarry Personnel</div>
-    <div class="row"><span class="label">Recorded By</span><span class="value">${e(quarryPersonnel)}</span></div>
-  </div>
-  ` : ''}
+   
 
   ${hasQuarryWeights ? `
   <div class="section">
@@ -192,7 +185,9 @@ function buildReceiptNoteHtml(data: {
     <table>
       <tr><td>Quarry Weigh-In (Gross)</td><td style="font-weight:700;">${e(quarryWeighIn) || '—'}</td></tr>
       <tr><td>Quarry Weigh-Out (Tare)</td><td style="font-weight:700;">${e(quarryWeighOut) || '—'}</td></tr>
-      ${quarryNetWeight ? `<tr><td>Quarry Net Weight</td><td style="font-weight:700; color:#16A34A;">${e(quarryNetWeight)}</td></tr>` : ''}
+      ${quarryNetWeight ? `<tr><td>Quarry Net Weight</td><td style="font-weight:700; color:#16A34A;">${e(quarryNetWeight)}</td></tr>
+     <tr><td>Recorded By </td><td style="font-weight:700;">${e(quarryPersonnel)}</td></tr>
+      ` : ''}
     </table>
   </div>
   ` : ''}
@@ -203,6 +198,7 @@ function buildReceiptNoteHtml(data: {
     <table>
       <tr><td>Site Arrival Weight (Gross)</td><td style="font-weight:700;">${e(siteWeighIn) || '—'}</td></tr>
       <tr><td>Post-Offload Weight (Tare)</td><td style="font-weight:700;">${e(siteWeighOut) || '—'}</td></tr>
+      <tr><td>Site Operator </td><td style="font-weight:700;">${e(operatorName)}</td></tr>
     </table>
     ${siteNetWeight ? `
     <div class="highlight-box">
@@ -213,28 +209,10 @@ function buildReceiptNoteHtml(data: {
   </div>
   ` : ''}
 
-  <div class="section">
-    <div class="section-title">Certification</div>
-    <div class="row"><span class="label">Operator</span><span class="value">${e(operatorName)}</span></div>
-    <div class="row"><span class="label">Location</span><span class="value">${e(siteName) || 'Site'}</span></div>
-  </div>
+  
 
-  <div class="signature-line">
-    <div class="sig-block">
-      <div class="line"></div>
-      <div class="name">${e(operatorName)}</div>
-      <div class="role">Site Operator</div>
-    </div>
-    <div class="sig-block">
-      <div class="line"></div>
-      <div class="name">${e(driverName) || 'Driver'}</div>
-      <div class="role">Driver</div>
-    </div>
-  </div>
-
-  <div class="footer">
-    <p>Generated by Trucks Sphere on ${new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })}</p>
-    <p>This is a computer-generated document.</p>
+ 
+ 
   </div>
 </body>
 </html>`;
@@ -345,10 +323,10 @@ const exportRows = [
   ['Vendor', vendorName],
   ['Material', materialName],
   ['Origin (Quarry)', quarryOrigin || quarryName],
-  ['City / Town', quarryCityTown || 'N/A'],
+
   ['Quarry Personnel', quarryPersonnel || 'N/A'],
   ['Weigh-Out Location', geoAddress || 'N/A'],
-  ['Destination', siteName],
+
   ['Quarry Weigh-In (Gross)', quarryWeighIn != null ? `${quarryWeighIn.toFixed(1)} T` : 'N/A'],
   ['Quarry Weigh-Out (Tare)', quarryWeighOut != null ? `${quarryWeighOut.toFixed(1)} T` : 'N/A'],
   ['Quarry Net Weight', quarryNet != null ? `${quarryNet.toFixed(1)} T` : 'N/A'],
@@ -382,7 +360,7 @@ const exportRows = [
         materialName,
         quarryName,
         quarryOrigin: quarryOrigin || undefined,
-        quarryCityTown: quarryCityTown || undefined,
+   
         quarryPersonnel: quarryPersonnel || undefined,
         quarryWeighIn: quarryWeighIn != null ? `${quarryWeighIn.toFixed(1)} T` : undefined,
         quarryWeighOut: quarryWeighOut != null ? `${quarryWeighOut.toFixed(1)} T` : undefined,
@@ -456,13 +434,11 @@ const exportRows = [
         {/* Route & Geolocation */}
         <SectionBlock title="ROUTE " colors={colors}>
           <RNRow label="Origin (Quarry)" value={quarryOrigin || quarryName} colors={colors} />
-          {quarryCityTown ? (
-            <RNRow label="City / Town" value={quarryCityTown} colors={colors} />
-          ) : null}
+        
           {geoAddress ? (
             <RNRow label="Weigh-Out Location" value={geoAddress} colors={colors} />
           ) : null}
-          <RNRow label="Destination" value={siteName} colors={colors} />
+    
           <RNRow label="Material" value={materialName} colors={colors} />
         </SectionBlock>
 

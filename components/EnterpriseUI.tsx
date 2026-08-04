@@ -2,14 +2,21 @@ import React from 'react';
 import {
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
+  StyleProp,
   View,
   ViewStyle,
   RefreshControlProps,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  Card,
+  Chip,
+  ProgressBar as PaperProgressBar,
+  Searchbar,
+  Surface,
+  Text,
+  TouchableRipple,
+} from 'react-native-paper';
 import { useTheme } from '../hooks/useTheme';
 import { Radius, Spacing } from '../constants/theme';
 import { formatStatus, getStatusColor } from '../utils/helpers';
@@ -25,11 +32,11 @@ export function PageShell({
   children: React.ReactNode;
   scroll?: boolean;
   refreshControl?: React.ReactElement<RefreshControlProps>;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
   const colors = useTheme();
   if (!scroll) {
-    return <View style={[styles.shell, { backgroundColor: colors.background }, style]}>{children}</View>;
+    return <Surface style={[styles.shell, { backgroundColor: colors.background }, style]} elevation={0}>{children}</Surface>;
   }
   return (
     <ScrollView
@@ -58,9 +65,9 @@ export function CommandHeader({
   return (
     <View style={styles.commandHeader}>
       <View style={styles.commandCopy}>
-        {eyebrow ? <Text style={[styles.eyebrow, { color: colors.accent }]}>{eyebrow}</Text> : null}
-        <Text style={[styles.commandTitle, { color: colors.text }]}>{title}</Text>
-        {subtitle ? <Text style={[styles.commandSubtitle, { color: colors.textSecondary }]}>{subtitle}</Text> : null}
+        {eyebrow ? <Text variant="labelMedium" style={[styles.eyebrow, { color: colors.accent }]}>{eyebrow}</Text> : null}
+        <Text variant="headlineSmall" style={[styles.commandTitle, { color: colors.text }]}>{title}</Text>
+        {subtitle ? <Text variant="bodyMedium" style={[styles.commandSubtitle, { color: colors.textSecondary }]}>{subtitle}</Text> : null}
       </View>
       {right}
     </View>
@@ -76,24 +83,15 @@ export function SearchField({
   onChangeText: (value: string) => void;
   placeholder: string;
 }) {
-  const colors = useTheme();
   return (
-    <View style={[styles.searchField, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
-      <Ionicons name="search" size={18} color={colors.textMuted} />
-      <TextInput
-        style={[styles.searchInput, { color: colors.text }]}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textTertiary}
-        value={value}
-        onChangeText={onChangeText}
-        autoCapitalize="none"
-      />
-      {value ? (
-        <TouchableOpacity onPress={() => onChangeText('')}>
-          <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-      ) : null}
-    </View>
+    <Searchbar
+      placeholder={placeholder}
+      value={value}
+      onChangeText={onChangeText}
+      autoCapitalize="none"
+      style={styles.searchField}
+      inputStyle={styles.searchInput}
+    />
   );
 }
 
@@ -106,29 +104,19 @@ export function FilterRail({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const colors = useTheme();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRail}>
-      {options.map((option) => {
-        const active = option.key === value;
-        return (
-          <TouchableOpacity
-            key={option.key}
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor: active ? colors.primary : colors.surface,
-                borderColor: active ? colors.primary : colors.border,
-              },
-            ]}
-            onPress={() => onChange(option.key)}
-          >
-            <Text style={[styles.filterText, { color: active ? '#FFFFFF' : colors.textSecondary }]}>
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      {options.map((option) => (
+        <Chip
+          key={option.key}
+          selected={option.key === value}
+          onPress={() => onChange(option.key)}
+          showSelectedOverlay
+          style={styles.filterChip}
+        >
+          {option.label}
+        </Chip>
+      ))}
     </ScrollView>
   );
 }
@@ -139,38 +127,57 @@ export function MetricTile({
   value,
   tone,
   onPress,
+  compact = false,
+  emphasized = false,
 }: {
   icon: IconName;
   label: string;
   value: string | number;
   tone: string;
   onPress?: () => void;
+  compact?: boolean;
+  emphasized?: boolean;
 }) {
   const colors = useTheme();
   return (
-    <TouchableOpacity
-      style={[styles.metricTile, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      onPress={onPress}
-      activeOpacity={onPress ? 0.82 : 1}
+    <Surface
+      style={[
+        styles.metricTile,
+        compact && styles.metricTileCompact,
+        emphasized && styles.metricTileEmphasized,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+      elevation={0}
     >
-      <View style={[styles.metricIcon, { backgroundColor: `${tone}18` }]}>
-        <Ionicons name={icon} size={20} color={tone} />
-      </View>
-      <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
-      <Text style={[styles.metricLabel, { color: colors.textMuted }]}>{label}</Text>
-    </TouchableOpacity>
+      <TouchableRipple onPress={onPress} disabled={!onPress} borderless style={styles.metricTouchable}>
+        <View style={[styles.metricContent, compact && styles.metricContentCompact, emphasized && styles.metricContentEmphasized]}>
+          <View style={[compact && styles.metricCompactTopRow, emphasized && styles.metricCompactTopRowEmphasized]}>
+            <View style={[styles.metricIcon, { backgroundColor: `${tone}18` }]}>
+              <Ionicons name={icon} size={20} color={tone} />
+            </View>
+            {compact ? <Text variant="titleMedium" style={[styles.metricCompactValue, emphasized && styles.metricCompactValueEmphasized, { color: colors.text }]}>{value}</Text> : null}
+          </View>
+          {!compact ? <Text variant="titleMedium" style={{ color: colors.text }}>{value}</Text> : null}
+          <Text variant="bodyMedium" style={[compact && styles.metricCompactLabel, emphasized && styles.metricCompactLabelEmphasized, { color: colors.textMuted }]}>{label}</Text>
+        </View>
+      </TouchableRipple>
+      {emphasized ? <View pointerEvents="none" style={[styles.metricAccent, { backgroundColor: tone }]} /> : null}
+    </Surface>
   );
 }
 
 export function StatusPill({ status, compact = false }: { status: string; compact?: boolean }) {
   const color = getStatusColor(status);
   return (
-    <View style={[styles.statusPill, { backgroundColor: `${color}18` }]}>
-      <View style={[styles.statusDot, ]} />
-      <Text style={[styles.statusPillText, ]}>
-        {formatStatus(status)}
-      </Text>
-    </View>
+    <Chip
+      compact={compact}
+      icon="circle"
+      style={[styles.statusPill, { backgroundColor: `${color}18` }]}
+      textStyle={[styles.statusPillText, { color }]}
+      theme={{ colors: { onSurfaceVariant: color } }}
+    >
+      {formatStatus(status)}
+    </Chip>
   );
 }
 
@@ -181,17 +188,12 @@ export function DataCard({
 }: {
   children: React.ReactNode;
   onPress?: () => void;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }) {
-  const colors = useTheme();
   return (
-    <TouchableOpacity
-      style={[styles.dataCard, { backgroundColor: colors.surface, borderColor: colors.border }, style]}
-      onPress={onPress}
-      activeOpacity={onPress ? 0.84 : 1}
-    >
+    <Card mode="outlined" onPress={onPress} disabled={!onPress} style={[styles.dataCard, style]} contentStyle={styles.dataCardContent}>
       {children}
-    </TouchableOpacity>
+    </Card>
   );
 }
 
@@ -199,18 +201,18 @@ export function SectionTitle({ title, action }: { title: string; action?: React.
   const colors = useTheme();
   return (
     <View style={styles.sectionTitleRow}>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+      <Text variant="titleMedium" style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
       {action}
     </View>
   );
 }
 
-export function DetailRow({ icon, label, value }: { icon: IconName; label?: string; value: string }) {
+export function DetailRow({ icon, label, value }: { icon?: IconName; label?: string; value: string }) {
   const colors = useTheme();
   return (
     <View style={styles.detailRow}>
-      <Ionicons name={icon} size={14} color={colors.textMuted} />
-      <Text style={[styles.detailText, { color: colors.textSecondary }]} numberOfLines={1}>
+      {icon ? <Ionicons name={icon} size={14} color={colors.textMuted} /> : null}
+      <Text variant="bodyMedium" style={[styles.detailText, { color: colors.textSecondary }]} numberOfLines={1}>
         {label ? `${label}: ` : ''}
         {value}
       </Text>
@@ -220,12 +222,7 @@ export function DetailRow({ icon, label, value }: { icon: IconName; label?: stri
 
 export function ProgressBar({ value, color }: { value: number; color: string }) {
   const colors = useTheme();
-  const clamped = Math.max(0, Math.min(value, 100));
-  return (
-    <View style={[styles.progressTrack, { backgroundColor: colors.inputBg }]}>
-      <View style={[styles.progressFill, { backgroundColor: color, width: `${clamped}%` }]} />
-    </View>
-  );
+  return <PaperProgressBar progress={Math.max(0, Math.min(value, 100)) / 100} color={color} style={[styles.progressBar, { backgroundColor: colors.inputBg }]} />;
 }
 
 export function EmptyState({
@@ -239,13 +236,13 @@ export function EmptyState({
 }) {
   const colors = useTheme();
   return (
-    <View style={styles.empty}>
+    <Surface style={[styles.empty, { backgroundColor: colors.surface }]} elevation={0}>
       <View style={[styles.emptyIcon, { backgroundColor: `${colors.primary}16` }]}>
         <Ionicons name={icon} size={34} color={colors.primary} />
       </View>
-      <Text style={[styles.emptyTitle, { color: colors.text }]}>{title}</Text>
-      {subtitle ? <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>{subtitle}</Text> : null}
-    </View>
+      <Text variant="titleMedium" style={{ color: colors.text }}>{title}</Text>
+      {subtitle ? <Text variant="bodyMedium" style={[styles.emptySubtitle, { color: colors.textMuted }]}>{subtitle}</Text> : null}
+    </Surface>
   );
 }
 
@@ -265,59 +262,84 @@ const styles = StyleSheet.create({
   },
   commandCopy: { flex: 1 },
   eyebrow: {
-    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0,
     marginBottom: 2,
   },
   commandTitle: {
-    fontSize: 20,
     fontWeight: '800',
     letterSpacing: 0,
   },
   commandSubtitle: {
-    fontSize: 13,
     lineHeight: 18,
     marginTop: 2,
   },
   searchField: {
-    height: 44,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
+    marginVertical: -Spacing.xs,
   },
   searchInput: {
-    flex: 1,
+    minHeight: 0,
     fontSize: 14,
-    height: '100%',
-    fontWeight: '400',
   },
   filterRail: {
     gap: 6,
     paddingRight: Spacing.md,
   },
   filterChip: {
-    borderWidth: 1,
     minHeight: 34,
-    borderRadius: Radius.full,
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-  },
-  filterText: {
-    fontSize: 12,
-    fontWeight: '700',
   },
   metricTile: {
     flex: 1,
     minHeight: 104,
     borderRadius: Radius.md,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  metricTileCompact: {
+    minHeight: 80,
+  },
+  metricTileEmphasized: {
+    borderRadius: Radius.md,
+  },
+  metricTouchable: {
+    flex: 1,
+  },
+  metricContent: {
+    flex: 1,
     padding: Spacing.md,
     justifyContent: 'space-between',
+  },
+  metricContentCompact: {
+    paddingVertical: Spacing.sm,
+  },
+  metricContentEmphasized: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+  },
+  metricCompactTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  metricCompactTopRowEmphasized: {
+    justifyContent: 'space-between',
+  },
+  metricCompactValue: {
+    fontWeight: '800',
+  },
+  metricCompactValueEmphasized: {
+    fontSize: 21,
+    letterSpacing: -0.3,
+  },
+  metricCompactLabel: {
+    fontSize: 13,
+  },
+  metricCompactLabelEmphasized: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.1,
   },
   metricIcon: {
     width: 38,
@@ -326,35 +348,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  metricLabel: {
-    fontSize: 14,
-    fontWeight: '400',
+  metricAccent: {
+    position: 'absolute',
+    right: Spacing.md,
+    bottom: 0,
+    left: Spacing.md,
+    height: 3,
+    borderTopLeftRadius: Radius.full,
+    borderTopRightRadius: Radius.full,
   },
   statusPill: {
     alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
-    borderRadius: Radius.full,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   statusPillText: {
-    fontWeight: '900',
+    fontSize: 11,
+    fontWeight: '800',
     textTransform: 'uppercase',
   },
   dataCard: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
+    borderRadius: 5,
+    marginBottom: 0.1,
+    overflow: 'hidden',
+  },
+  dataCardContent: {
     padding: Spacing.md,
     gap: Spacing.sm,
   },
@@ -364,7 +380,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontSize: 17,
     fontWeight: '700',
   },
   detailRow: {
@@ -374,16 +389,9 @@ const styles = StyleSheet.create({
   },
   detailText: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '400',
   },
-  progressTrack: {
+  progressBar: {
     height: 7,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
     borderRadius: Radius.full,
   },
   empty: {
@@ -399,12 +407,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.sm,
   },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
   emptySubtitle: {
-    fontSize: 14,
     textAlign: 'center',
     lineHeight: 18,
   },

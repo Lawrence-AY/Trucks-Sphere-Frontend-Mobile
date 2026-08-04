@@ -20,7 +20,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
@@ -132,8 +133,32 @@ export default function MaterialDetailScreen() {
           )}
           {material.unitPrice !== undefined && (
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Unit Price</Text>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Purchase Cost</Text>
               <Text style={[styles.detailValue, { color: colors.text }]}>KES {material.unitPrice.toLocaleString()}</Text>
+            </View>
+          )}
+          {material.salesPrice !== undefined && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Sales Price</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>KES {material.salesPrice.toLocaleString()}</Text>
+            </View>
+          )}
+          {material.barcode && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Barcode</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{material.barcode}</Text>
+            </View>
+          )}
+          {material.weight !== undefined && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Weight</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{material.weight} kg</Text>
+            </View>
+          )}
+          {material.volume !== undefined && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Volume</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{material.volume} m³</Text>
             </View>
           )}
         </Card>

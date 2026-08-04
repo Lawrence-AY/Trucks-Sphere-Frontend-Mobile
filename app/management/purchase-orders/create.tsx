@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing } from '../../../constants/theme';
@@ -15,7 +15,7 @@ import { purchaseOrderRepository } from '../../../services/repositories/Purchase
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { materialRepository } from '../../../services/repositories/MaterialRepository';
 import { Material, Vendor } from '../../../store/types';
-import { previewPurchaseOrderNumber } from '../../../services/api';
+import { fetchPurchaseOrders, previewPurchaseOrderNumber } from '../../../services/api';
 import { showAlert } from '../../../utils/webAlert';
 
 function displayNumber(value: unknown, prefix: string) {
@@ -125,12 +125,30 @@ export default function CreatePurchaseOrderScreen() {
       router.replace('/management/purchase-orders' as any);
     } catch (error: any) {
       const status = error?.response?.status;
+      // A mobile client can lose the response after the backend has already
+      // committed the order. Confirm the uniquely constrained vendor/material
+      // pair before showing a failure so users do not submit it twice.
+      if (!error?.response) {
+        const confirmedOrders = await fetchPurchaseOrders();
+        const confirmed = confirmedOrders.find((order: any) =>
+          order.vendorId === form.vendorId && order.materialId === form.materialId,
+        );
+        if (confirmed) {
+          await showAlert('Purchase order created', `Purchase order ${confirmed.poNumber || previewNumber} was created successfully.`);
+          setForm({ vendorId: '', materialId: '', quantity: '' });
+          setErrors({});
+          setPreviewNumber('');
+          setUnit('');
+          router.replace('/management/purchase-orders' as any);
+          return;
+        }
+      }
       const message = status === 409
         ? 'A matching purchase order already exists.'
         : status === 400
           ? 'Check the purchase-order fields and try again.'
           : !error?.response
-            ? 'Unable to connect to the server. Check your internet connection and try again.'
+            ? 'The order may have been created, but the response could not be confirmed. Check Purchase Orders before trying again.'
             : 'Unable to create the purchase order. Please try again.';
       await showAlert('Purchase order not created', message);
     } finally {
@@ -151,10 +169,7 @@ export default function CreatePurchaseOrderScreen() {
         <Text style={styles.backTitle}>Create Purchase Order</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Create Purchase Order</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>Create a new purchase order for materials</Text>
-        </View>
+         
 
         {(form.vendorId || form.materialId || form.quantity) ? (
           <View style={[styles.previewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

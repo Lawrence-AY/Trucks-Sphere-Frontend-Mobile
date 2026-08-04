@@ -1,27 +1,32 @@
 import { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router } from '../../utils/router';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing } from '../../constants/theme';
-import { useDeliveryOrders } from '../../store/realtimeData';
+import { useDeliveryOrders, useDrivers } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
-import { formatEAT } from '../../utils/helpers';
 import { isActiveJob, normalizeJobStatus } from '../../utils/jobStatus';
-import {
-  DataCard,
-  DetailRow,
-  EmptyState,
-  PageShell,
-  SearchField,
-  SectionTitle,
-} from '../../components/EnterpriseUI';
+import { EmptyState, PageShell, SectionTitle } from '../../components/EnterpriseUI';
+import { TripListCard } from '../../components/TripListCard';
+import { ManagementSearchHeader } from '../../components/ManagementSearchHeader';
 
 export default function ManagementTripsScreen() {
   const colors = useTheme();
   const deliveries = useDeliveryOrders();
+  const drivers = useDrivers();
   const refresh = useRealTimeSyncStore((state) => state.refresh);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+
+  const driverPhotos = useMemo(
+    () => new Map(
+      drivers.map((driver: any) => [
+        String(driver.id || '').trim(),
+        driver.photoURL || driver.photoUrl || '',
+      ]),
+    ),
+    [drivers],
+  );
 
   const trips = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -53,60 +58,70 @@ export default function ManagementTripsScreen() {
   }, [refresh]);
 
   return (
-    <PageShell
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
-      }
-    >
-      <SearchField
-        value={search}
-        onChangeText={setSearch}
-        placeholder="Search completed trips..."
-      />
-      <SectionTitle title={`${trips.length} completed trips`} />
+    <>
+      <ManagementSearchHeader title="Trips" search={search} onChangeSearch={setSearch} placeholder="Search completed trips..." />
 
-      {trips.length ? (
-        trips.map((item) => (
-          <DataCard
-            key={item.id}
-            onPress={() => router.push(`/operations/jobs/${item.id}` as any)}
-          >
-            <View style={styles.cardHeader}>
-              <View style={styles.cardHeading}>
-                <Text style={[styles.title, { color: colors.text }]}>{item.jobId || item.id}</Text>
-                <Text style={[styles.reference, { color: colors.textMuted }]}>PO: {item.poNumber || 'N/A'}</Text>
-              </View>
-            </View>
-            <DetailRow
-              icon="person-outline"
-              value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`}
-            />
-            <DetailRow icon="cube-outline" value={item.materialName || 'Material not specified'} />
-            <Text style={[styles.date, { color: colors.textTertiary }]}>
-              Completed {formatEAT(item.updatedAt || item.createdAt)}
-            </Text>
-          </DataCard>
-        ))
-      ) : (
-        <EmptyState
-          icon="checkmark-done-outline"
-          title="No completed trips"
-          subtitle="Completed delivery trips will appear here."
-        />
-      )}
-    </PageShell>
+      <PageShell
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+        }
+      >
+        <SectionTitle title={`${trips.length} completed trips`} />
+
+        {trips.length ? (
+          <View style={styles.tripList}>
+            {trips.map((item) => {
+              const receiptJobId = item.jobId || item.id;
+              const driverPhoto = driverPhotos.get(String(item.driverId || '').trim());
+              return (
+                <TripListCard
+                  key={item.id}
+                  trip={item}
+                  driverPhoto={driverPhoto}
+                  onPress={() => router.push(`/operations/jobs/${item.id}` as any)}
+                  bottomAction={
+                    <TouchableOpacity
+                      style={[styles.receiptAction, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        router.push(`/screens/receipt-note?id=${encodeURIComponent(receiptJobId)}` as any);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open receipt note for ${receiptJobId}`}
+                    >
+                      <Text style={styles.receiptActionText}>Receipt Note</Text>
+                      <Text style={styles.receiptNumber} numberOfLines={1}>
+                        {item.receiptNoteId || receiptJobId}
+                      </Text>
+                    </TouchableOpacity>
+                  }
+                />
+              );
+            })}
+          </View>
+        ) : (
+          <EmptyState
+            icon="checkmark-done-outline"
+            title="No completed trips"
+            subtitle="Completed delivery trips will appear here."
+          />
+        )}
+      </PageShell>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  cardHeader: {
+  tripList: { gap: 0.1 },
+  receiptAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
-  cardHeading: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontWeight: '800' },
-  reference: { fontSize: 12, fontWeight: '600' },
-  date: { fontSize: 12, marginTop: 2 },
+  receiptActionText: { color: '#047857', fontSize: 11, fontWeight: '800' },
+  receiptNumber: { color: '#059669', flex: 1, fontSize: 11, fontWeight: '700', textAlign: 'right' },
 });

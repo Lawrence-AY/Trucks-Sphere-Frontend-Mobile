@@ -12,19 +12,17 @@
       "bundleIdentifier": "com.truckapp.frontend",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to capture weigh-in and delivery locations.",
-        "NSCameraUsageDescription": "We need camera access to capture weighment photos and receipts."
+        "NSCameraUsageDescription": "We need camera access to capture weighment photos and receipts.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "backgroundColor": "#2563EB"
       },
       "package": "com.truckapp.frontend",
       "permissions": [
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.CAMERA",
