@@ -75,9 +75,16 @@ export default function CreatePurchaseOrderScreen() {
 
   function validate() {
     const nextErrors: Record<string, string> = {};
+    const selectedMaterial = materials.find((item) => item.id === form.materialId);
+    const isWarehouseMaterial = Boolean(selectedMaterial?.isWarehouseMaterial);
     if (!form.vendorId) nextErrors.vendorId = 'Vendor is required';
     if (!form.materialId) nextErrors.materialId = 'Material is required';
-    if (!form.quantity || Number.isNaN(Number(form.quantity)) || Number(form.quantity) <= 0) nextErrors.quantity = 'Valid quantity is required';
+    if (!isWarehouseMaterial && (!form.quantity || Number.isNaN(Number(form.quantity)) || Number(form.quantity) <= 0)) {
+      nextErrors.quantity = 'Valid quantity is required';
+    }
+    if (isWarehouseMaterial && form.quantity && (Number.isNaN(Number(form.quantity)) || Number(form.quantity) < 0)) {
+      nextErrors.quantity = 'Enter a valid quantity';
+    }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
@@ -113,7 +120,7 @@ export default function CreatePurchaseOrderScreen() {
         materialId: form.materialId,
         materialNumber: displayNumber(material?.id, 'MAT'),
         materialName: material?.name || 'Unknown',
-        quantity: Number(form.quantity),
+        quantity: form.quantity ? Number(form.quantity) : undefined,
         unit,
       });
 
@@ -161,6 +168,8 @@ export default function CreatePurchaseOrderScreen() {
     name: `${displayNumber(vendor.vendorId || vendor.id, 'V')} - ${vendor.companyName || (vendor as any)?.name || 'Unknown Vendor'}`,
   }));
   const materialOptions = materials.map((material) => ({ id: material.id, name: `${displayNumber(material.id, 'MAT')} - ${material.name}` }));
+  const selectedMaterial = materials.find((item) => item.id === form.materialId);
+  const isWarehouseMaterial = Boolean(selectedMaterial?.isWarehouseMaterial);
 
   return (
     <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -189,7 +198,7 @@ export default function CreatePurchaseOrderScreen() {
         <Card>
           <Select label="Vendor" value={form.vendorId} options={vendorOptions} onSelect={(value) => updateField('vendorId', value)} icon="business-outline" required error={errors.vendorId} placeholder="Select vendor..." />
           <Select label="Material" value={form.materialId} options={materialOptions} onSelect={(value) => updateField('materialId', value)} icon="cube-outline" required error={errors.materialId} placeholder="Select material..." />
-          <Input label="Quantity" value={form.quantity} onChangeText={(value) => updateField('quantity', value)} placeholder="e.g. 100" icon="scale-outline" keyboardType="numeric" required error={errors.quantity} suffix={unit} />
+          <Input label={isWarehouseMaterial ? 'Quantity (optional)' : 'Quantity'} value={form.quantity} onChangeText={(value) => updateField('quantity', value)} placeholder={isWarehouseMaterial ? 'Optional' : 'e.g. 100'} icon="scale-outline" keyboardType="numeric" required={!isWarehouseMaterial} error={errors.quantity} suffix={unit} />
         </Card>
         <View style={styles.actions}>
           <Button title="Cancel" onPress={() => router.back()} variant="secondary" style={styles.actionBtn} />

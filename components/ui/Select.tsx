@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Modal as NativeModal, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  Avatar,
   Divider,
   HelperText,
   IconButton,
@@ -20,6 +21,7 @@ interface SelectOption {
   id: string;
   name: string;
   subtitle?: string;
+  imageUrl?: string;
 }
 
 interface SelectProps {
@@ -89,6 +91,7 @@ export function Select({
             description={item.subtitle}
             titleNumberOfLines={2}
             descriptionNumberOfLines={1}
+            left={() => item.imageUrl ? <Avatar.Image size={34} source={{ uri: item.imageUrl }} /> : null}
             onPress={() => {
               onSelect(item.id);
               setVisible(false);

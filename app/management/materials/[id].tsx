@@ -163,7 +163,7 @@ export default function MaterialDetailScreen() {
           )}
         </Card>
 
-        <UserActionInfo record={material as any} />
+       
       </View>
     );
   }

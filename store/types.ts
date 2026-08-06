@@ -286,6 +286,7 @@ export interface WarehouseJob extends AuditTrail {
   jobId: string;
   warehouseReference: string;
   pomatReference: string;
+  poNumber?: string;
   vendorId: string;
   vendorName: string;
   driverId: string;
@@ -301,6 +302,8 @@ export interface WarehouseJob extends AuditTrail {
   packagingPhotoURL?: string;
   packagingPhotoCapturedAt?: string;
   packagingPhotoFileName?: string;
+  createdByUid?: string;
+  createdByName?: string;
 }
 
 // ─── Quarry ───
@@ -366,6 +369,7 @@ export interface PurchaseOrder extends AuditTrail {
   materialId: string;
   materialNumber?: string;
   materialName: string;
+  isWarehouseMaterial?: boolean;
   quantity: number;
   unit: string;
   unitPrice?: number;

@@ -19,56 +19,74 @@ import { Radius, Spacing } from '../../constants/theme';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { createWarehouseJob, fetchDrivers, fetchSites, fetchVehicles, fetchVendors, fetchWarehouseJobs } from '../../services/api';
+import { createWarehouseJob, fetchDeliveryOrders, fetchDrivers, fetchMaterials, fetchPurchaseOrders, fetchVehicles, fetchVendors, fetchWarehouseJobs } from '../../services/api';
 import { uploadWarehousePackagingPhoto, type UploadFile } from '../../services/uploadService';
-import { Driver, Site, Vehicle, Vendor, WarehouseJob } from '../../store/types';
+import { Driver, Material, PurchaseOrder, Vehicle, Vendor, WarehouseJob } from '../../store/types';
 import { useAuthStore } from '../../store/authStore';
+import { isActiveJob } from '../../utils/jobStatus';
+import { normalizeRole } from '../../utils/access';
 
 type DraftLine = { id: string; productName: string; quantity: string; unit: string };
 type PackagingPhoto = UploadFile & { displayName: string };
+const UNIT_OPTIONS = [
+  { id: 'tonnes', name: 'Tonnes' },
+  { id: 'kilograms', name: 'Kilograms' },
+  { id: 'bags', name: 'Bags' },
+  { id: 'pieces', name: 'Pieces' },
+  { id: 'litres', name: 'Litres' },
+  { id: 'metres', name: 'Metres' },
+];
 
 function makeLine(): DraftLine {
   return { id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, productName: '', quantity: '', unit: 'tonnes' };
 }
 
-function displayVendor(vendor: Vendor) {
-  return vendor.companyName || vendor.vendorId || vendor.id;
+function purchaseOrderReference(job: WarehouseJob) {
+  if (job.poNumber) return job.poNumber;
+  return String(job.warehouseReference || '').split('/').slice(0, 2).join('/');
 }
 
 export default function WarehouseQueueScreen() {
   const colors = useTheme();
   const user = useAuthStore((state) => state.user);
   const [jobs, setJobs] = useState<WarehouseJob[]>([]);
+  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [pomatReference, setPomatReference] = useState('');
+  const [purchaseOrderId, setPurchaseOrderId] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [driverId, setDriverId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
-  const [siteId, setSiteId] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([makeLine()]);
   const [packagingPhoto, setPackagingPhoto] = useState<PackagingPhoto | null>(null);
   const [uploadingPhotoJobId, setUploadingPhotoJobId] = useState<string | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [expandedProductJobIds, setExpandedProductJobIds] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
-    const [warehouseJobs, vendorData, driverData, vehicleData, siteData] = await Promise.all([
+    const [warehouseJobs, deliveryData, purchaseOrderData, materialData, vendorData, driverData, vehicleData] = await Promise.all([
       fetchWarehouseJobs(),
+      fetchDeliveryOrders(),
+      fetchPurchaseOrders(),
+      fetchMaterials(),
       fetchVendors(),
       fetchDrivers(),
       fetchVehicles(),
-      fetchSites(),
     ]);
     setJobs(warehouseJobs as WarehouseJob[]);
+    setDeliveries(deliveryData);
+    setPurchaseOrders(purchaseOrderData as PurchaseOrder[]);
+    setMaterials(materialData as Material[]);
     setVendors(vendorData as Vendor[]);
     setDrivers(driverData as Driver[]);
     setVehicles(vehicleData as Vehicle[]);
-    setSites(siteData as Site[]);
     setLoading(false);
   }, []);
 
@@ -77,6 +95,32 @@ export default function WarehouseQueueScreen() {
   }, [load]);
 
   const selectedVendor = vendors.find((vendor) => vendor.id === vendorId);
+  const visibleJobs = useMemo(
+    () => normalizeRole(user?.role) === 'operator_warehouse'
+      ? jobs.filter((job) => job.createdByUid === user?.uid)
+      : jobs,
+    [jobs, user?.role, user?.uid],
+  );
+  const todaysJobs = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    return visibleJobs.filter((job) => job.submittedAt && new Date(job.submittedAt) >= startOfToday);
+  }, [visibleJobs]);
+  const selectedPurchaseOrder = purchaseOrders.find((order) => order.id === purchaseOrderId);
+  const warehouseMaterialIds = useMemo(
+    () => new Set(materials
+      .filter((material) => material.isWarehouseMaterial)
+      .flatMap((material) => [material.id, (material as any).materialId])
+      .filter(Boolean)
+      .map((id) => String(id).trim().toLowerCase())),
+    [materials],
+  );
+  const warehousePurchaseOrders = useMemo(
+    () => purchaseOrders.filter((order) =>
+      order.status !== 'cancelled' && (order.isWarehouseMaterial || warehouseMaterialIds.has(String(order.materialId || '').trim().toLowerCase())),
+    ),
+    [purchaseOrders, warehouseMaterialIds],
+  );
   const availableDrivers = useMemo(
     () => drivers.filter((driver) => driver.vendorId === vendorId && driver.availability !== false),
     [drivers, vendorId],
@@ -85,13 +129,24 @@ export default function WarehouseQueueScreen() {
     () => vehicles.filter((vehicle) => vehicle.vendorId === vendorId && vehicle.status === 'active'),
     [vehicles, vendorId],
   );
+  const selectedDriverBusyJob = useMemo(
+    () => driverId ? deliveries.find((delivery) => delivery.driverId === driverId && isActiveJob(delivery.status)) : null,
+    [deliveries, driverId],
+  );
+  const selectedVehicleBusyJob = useMemo(
+    () => vehicleId ? deliveries.find((delivery) =>
+      (delivery.vehicleId === vehicleId || delivery.plateNumber === availableVehicles.find((vehicle) => vehicle.id === vehicleId)?.registrationNumber || delivery.plateNumber === availableVehicles.find((vehicle) => vehicle.id === vehicleId)?.plateNumber) &&
+      isActiveJob(delivery.status),
+    ) : null,
+    [availableVehicles, deliveries, vehicleId],
+  );
+  const assignmentBusy = Boolean(selectedDriverBusyJob || selectedVehicleBusyJob);
 
   const resetSheet = () => {
-    setPomatReference('');
+    setPurchaseOrderId('');
     setVendorId('');
     setDriverId('');
     setVehicleId('');
-    setSiteId('');
     setLines([makeLine()]);
     setPackagingPhoto(null);
   };
@@ -102,8 +157,10 @@ export default function WarehouseQueueScreen() {
     resetSheet();
   };
 
-  const selectVendor = (id: string) => {
-    setVendorId(id);
+  const selectPurchaseOrder = (id: string) => {
+    const order = purchaseOrders.find((entry) => entry.id === id);
+    setPurchaseOrderId(id);
+    setVendorId(order?.vendorId || '');
     setDriverId('');
     setVehicleId('');
   };
@@ -113,20 +170,28 @@ export default function WarehouseQueueScreen() {
   };
 
   const capturePackagingPhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Camera permission needed', 'Allow camera access to photograph the product packaging.');
-      return;
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Camera access is required to capture the packaging photo.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      setPackagingPhoto({
+        uri: asset.uri,
+        name: asset.fileName || `warehouse-packaging-${Date.now()}.jpg`,
+        mimeType: asset.mimeType || 'image/jpeg',
+        displayName: asset.fileName || 'Captured packaging photo',
+      });
+    } catch (error: any) {
+      Alert.alert('Capture failed', error?.message || 'Could not capture the packaging photo.');
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    setPackagingPhoto({
-      uri: asset.uri,
-      name: asset.fileName || `warehouse-packaging-${Date.now()}.jpg`,
-      mimeType: asset.mimeType || 'image/jpeg',
-      displayName: asset.fileName || 'Captured packaging photo',
-    });
   };
 
   const choosePackagingPhoto = async () => {
@@ -177,25 +242,32 @@ export default function WarehouseQueueScreen() {
   };
 
   const canSubmit = Boolean(
-    pomatReference && vendorId && driverId && vehicleId && siteId && packagingPhoto &&
+    purchaseOrderId && vendorId && driverId && vehicleId && !assignmentBusy && packagingPhoto &&
     lines.length > 0 &&
     lines.every((line) => line.productName.trim() && line.unit.trim() && Number.isFinite(Number(line.quantity)) && Number(line.quantity) > 0),
   );
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      Alert.alert('Complete the submission', 'Enter the POMAT reference and product, then choose the vendor, driver, truck, site, packaging photo, and quantity.');
+      if (assignmentBusy) {
+        Alert.alert('Assignment unavailable', selectedDriverBusyJob && selectedVehicleBusyJob
+          ? `The selected driver and truck are already on active trips (${selectedDriverBusyJob.jobId} and ${selectedVehicleBusyJob.jobId}).`
+          : selectedDriverBusyJob
+            ? `The selected driver is already on active trip ${selectedDriverBusyJob.jobId}.`
+            : `The selected truck is already on active trip ${selectedVehicleBusyJob?.jobId}.`);
+        return;
+      }
+      Alert.alert('Complete the submission', 'Choose the purchase order, driver, truck, packaging photo, and product quantities.');
       return;
     }
 
     setSaving(true);
     try {
       const job = await createWarehouseJob({
-        pomatReference,
+        purchaseOrderId,
         vendorId,
         driverId,
         vehicleId,
-        siteId,
         items: lines.map((line) => ({ productName: line.productName.trim(), quantity: Number(line.quantity), unit: line.unit.trim() })),
         createdByUid: user?.uid || '',
         createdByName: user?.displayName || user?.email || '',
@@ -243,7 +315,7 @@ export default function WarehouseQueueScreen() {
       <View style={styles.jobHeader}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
-          <Text style={[styles.reference, { color: colors.textMuted }]}>Reference: {item.warehouseReference}</Text>
+          <Text style={[styles.reference, { color: colors.textMuted }]}>Purchase order: {purchaseOrderReference(item)}</Text>
         </View>
        
       </View>
@@ -261,7 +333,13 @@ export default function WarehouseQueueScreen() {
       
 
       {item.packagingPhotoURL ? (
-        <Image source={{ uri: item.packagingPhotoURL }} style={styles.packagingPhoto} resizeMode="cover" />
+        <TouchableOpacity onPress={() => setPreviewImageUrl(item.packagingPhotoURL || null)} activeOpacity={0.9}>
+          <Image source={{ uri: item.packagingPhotoURL }} style={styles.cardPhoto} resizeMode="cover" />
+          <View style={styles.photoHint}>
+            <Ionicons name="expand-outline" size={14} color="#FFFFFF" />
+            <Text style={styles.photoHintText}>View photo</Text>
+          </View>
+        </TouchableOpacity>
       ) : (
         <TouchableOpacity
           style={[styles.missingPhotoButton, { borderColor: '#D97706', backgroundColor: '#FEF3C7' }]}
@@ -274,13 +352,28 @@ export default function WarehouseQueueScreen() {
       )}
 
       <View style={[styles.items, { borderTopColor: colors.border }]}>
-        {item.items.map((line) => (
-          <View key={`${item.id}-${line.materialId}`} style={styles.itemRow}>
+        {(expandedProductJobIds.has(item.id) ? item.items : item.items.slice(0, 1)).map((line, index) => (
+          <View key={`${item.id}-${line.materialId || line.materialName || 'item'}-${index}`} style={styles.itemRow}>
             <Ionicons name="cube-outline" size={15} color={colors.primary} />
             <Text style={[styles.itemName, { color: colors.text }]}>{line.materialName}</Text>
             <Text style={[styles.itemQuantity, { color: colors.textMuted }]}>{line.quantity} {line.unit}</Text>
           </View>
         ))}
+        {item.items.length > 1 ? (
+          <TouchableOpacity
+            style={styles.readMoreButton}
+            onPress={() => setExpandedProductJobIds((current) => {
+              const next = new Set(current);
+              if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+              return next;
+            })}
+          >
+            <Text style={[styles.readMoreText, { color: colors.primary }]}>
+              {expandedProductJobIds.has(item.id) ? 'Show less' : `Read more (${item.items.length - 1})`}
+            </Text>
+            <Ionicons name={expandedProductJobIds.has(item.id) ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   );
@@ -295,21 +388,17 @@ export default function WarehouseQueueScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Warehouse Deliveries</Text>
-       </View>
-
       <FlatList
-        data={jobs}
+        data={todaysJobs}
         keyExtractor={(item) => item.id}
         renderItem={renderJob}
-        contentContainerStyle={jobs.length ? styles.list : styles.emptyList}
+        contentContainerStyle={todaysJobs.length ? styles.list : styles.emptyList}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         ListEmptyComponent={
           <EmptyState
             icon="cube-outline"
-            title="No warehouse deliveries"
-            subtitle="Use the plus button to submit a warehouse truck to a site."
+            title="No shipments today"
+            subtitle="Use the plus button to submit a warehouse shipment."
           />
         }
       />
@@ -336,73 +425,76 @@ export default function WarehouseQueueScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
-              <Input
-                label="POMAT reference"
-                value={pomatReference}
-                onChangeText={(value) => setPomatReference(value.toUpperCase().replace(/\s/g, ''))}
-                icon="bookmark-outline"
+              <Select
+                nativeModal
+                label="Warehouse purchase order"
+                value={purchaseOrderId}
+                options={warehousePurchaseOrders
+                  .map((order) => ({
+                    id: order.id,
+                    name: order.poNumber || `${order.materialNumber || order.materialId} / ${order.vendorNumber || order.vendorId}`,
+                    subtitle: `${order.materialNumber || order.materialId || 'Material'} • ${order.materialName || 'Unnamed material'} • ${order.vendorName || 'Vendor'}`,
+                  }))}
+                onSelect={selectPurchaseOrder}
+                icon="document-text-outline"
                 required
-                placeholder="POMAT077"
+                placeholder="Select a warehouse-material order"
               />
 
               <Select
                 nativeModal
-                label="Vendor"
-                value={vendorId}
-                options={vendors.filter((vendor) => vendor.status !== 'inactive').map((vendor) => ({ id: vendor.id, name: displayVendor(vendor), subtitle: vendor.vendorId }))}
-                onSelect={selectVendor}
-                icon="business-outline"
+                label="Driver"
+                value={driverId}
+                options={availableDrivers.map((driver) => ({
+                  id: driver.id,
+                  name: driver.fullName,
+                  subtitle: `${driver.driverId || 'Driver'} • ${deliveries.find((delivery) => delivery.driverId === driver.id && isActiveJob(delivery.status)) ? `On trip: ${deliveries.find((delivery) => delivery.driverId === driver.id && isActiveJob(delivery.status))?.jobId}` : driver.licenseNumber || driver.phone || 'No licence recorded'}`,
+                  imageUrl: driver.photoURL,
+                }))}
+                onSelect={setDriverId}
+                icon="person-outline"
                 required
-                placeholder="Select vendor"
+                placeholder={selectedVendor ? 'Select driver' : 'Select purchase order first'}
               />
-
-              <View style={styles.assignmentGrid}>
-                <View style={styles.assignmentField}>
-                  <Select
-                    nativeModal
-                    label="Driver"
-                    value={driverId}
-                    options={availableDrivers.map((driver) => ({ id: driver.id, name: driver.fullName, subtitle: driver.licenseNumber }))}
-                    onSelect={setDriverId}
-                    icon="person-outline"
-                    required
-                    placeholder={selectedVendor ? 'Select driver' : 'Select vendor first'}
-                  />
-                </View>
-                <View style={styles.assignmentField}>
-                  <Select
-                    nativeModal
-                    label="Truck"
-                    value={vehicleId}
-                    options={availableVehicles.map((vehicle) => ({ id: vehicle.id, name: vehicle.registrationNumber || vehicle.plateNumber || vehicle.id, subtitle: `${vehicle.make || ''} ${vehicle.model || ''}`.trim() }))}
-                    onSelect={setVehicleId}
-                    icon="car-outline"
-                    required
-                    placeholder={selectedVendor ? 'Select truck' : 'Select vendor first'}
-                  />
-                </View>
-              </View>
+              {selectedDriverBusyJob ? <Text style={styles.busyAssignmentText}>Driver is on active trip {selectedDriverBusyJob.jobId}</Text> : null}
 
               <Select
                 nativeModal
-                label="Delivery site"
-                value={siteId}
-                options={sites.filter((site) => site.status !== 'inactive').map((site) => ({ id: site.id, name: site.name, subtitle: site.location?.address }))}
-                onSelect={setSiteId}
-                icon="location-outline"
+                label="Truck"
+                value={vehicleId}
+                options={availableVehicles.map((vehicle) => ({ id: vehicle.id, name: vehicle.registrationNumber || vehicle.plateNumber || vehicle.id, subtitle: `${vehicle.make || ''} ${vehicle.model || ''}`.trim() }))}
+                onSelect={setVehicleId}
+                icon="car-outline"
                 required
-                placeholder="Select the receiving site"
+                placeholder={selectedVendor ? 'Select truck' : 'Select purchase order first'}
               />
+              {selectedVehicleBusyJob ? <Text style={styles.busyAssignmentText}>Truck is on active trip {selectedVehicleBusyJob.jobId}</Text> : null}
 
               <View style={styles.productsHeader}>
                 <View>
-                  <Text style={[styles.productsTitle, { color: colors.text }]}>Custom product</Text>
-                  <Text style={[styles.productsSubtitle, { color: colors.textMuted }]}>Type the product being delivered in this truck.</Text>
+                  <Text style={[styles.productsTitle, { color: colors.text }]}>Products</Text>
+                  <Text style={[styles.productsSubtitle, { color: colors.textMuted }]}>Add every product being delivered in this truck.</Text>
                 </View>
+                <TouchableOpacity
+                  style={[styles.addProductButton, { borderColor: colors.primary }]}
+                  onPress={() => setLines((current) => [...current, makeLine()])}
+                >
+                  <Ionicons name="add" size={17} color={colors.primary} />
+                  <Text style={[styles.addProductText, { color: colors.primary }]}>Add product</Text>
+                </TouchableOpacity>
               </View>
 
               {lines.map((line) => (
                 <View key={line.id} style={[styles.lineCard, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
+                  {lines.length > 1 ? (
+                    <TouchableOpacity
+                      accessibilityLabel="Remove product"
+                      style={styles.removeProductButton}
+                      onPress={() => setLines((current) => current.filter((entry) => entry.id !== line.id))}
+                    >
+                      <Ionicons name="close-circle" size={21} color="#DC2626" />
+                    </TouchableOpacity>
+                  ) : null}
                   <Input
                     label="Product name"
                     value={line.productName}
@@ -424,45 +516,55 @@ export default function WarehouseQueueScreen() {
                       />
                     </View>
                     <View style={styles.assignmentField}>
-                      <Input
+                      <Select
+                        nativeModal
                         label="Unit"
                         value={line.unit}
-                        onChangeText={(unit) => updateLine(line.id, { unit })}
+                        options={UNIT_OPTIONS}
+                        onSelect={(unit) => updateLine(line.id, { unit })}
                         icon="resize-outline"
                         required
-                        placeholder="Tonnes"
+                        placeholder="Select unit"
                       />
                     </View>
                   </View>
                 </View>
               ))}
 
-              <View style={[styles.packagingSection, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
-                <View>
-                  <Text style={[styles.packagingTitle, { color: colors.text }]}>Packaging photo</Text>
-                  <Text style={[styles.packagingSubtitle, { color: colors.textMuted }]}>Required. Site personnel will see this before accepting the truck.</Text>
-                </View>
-                <View style={styles.packagingActions}>
-                  <TouchableOpacity style={[styles.packagingButton, { borderColor: colors.primary }]} onPress={capturePackagingPhoto}>
-                    <Ionicons name="camera-outline" size={17} color={colors.primary} />
-                    <Text style={[styles.packagingButtonText, { color: colors.primary }]}>Camera</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.packagingButton, { borderColor: colors.primary }]} onPress={choosePackagingPhoto}>
-                    <Ionicons name="images-outline" size={17} color={colors.primary} />
-                    <Text style={[styles.packagingButtonText, { color: colors.primary }]}>Gallery</Text>
-                  </TouchableOpacity>
-                </View>
-                {packagingPhoto ? (
-                  <View style={styles.packagingPreviewRow}>
-                    <Image source={{ uri: packagingPhoto.uri }} style={styles.packagingPhoto} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.packagingFileName, { color: colors.text }]} numberOfLines={2}>{packagingPhoto.displayName}</Text>
-                      <TouchableOpacity onPress={() => setPackagingPhoto(null)}>
-                        <Text style={[styles.packagingRemove, { color: '#DC2626' }]}>Remove photo</Text>
-                      </TouchableOpacity>
+              <View style={[styles.packagingSection, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                <View style={styles.packagingHeader}>
+                  <View style={styles.packagingTitleRow}>
+                    <View style={[styles.packagingIcon, { backgroundColor: `${colors.primary}15` }]}>
+                      <Ionicons name="camera-outline" size={21} color={colors.primary} />
                     </View>
+                    <Text style={[styles.packagingTitle, { color: colors.text }]}>Packaging photo</Text>
                   </View>
-                ) : null}
+                  <View style={[styles.photoStatusBadge, { backgroundColor: packagingPhoto ? '#10B98115' : '#EF444415' }]}>
+                    <Ionicons name={packagingPhoto ? 'checkmark-circle' : 'alert-circle'} size={14} color={packagingPhoto ? '#10B981' : '#EF4444'} />
+                    <Text style={[styles.photoStatusText, { color: packagingPhoto ? '#10B981' : '#EF4444' }]}>{packagingPhoto ? 'Captured' : 'Required'}</Text>
+                  </View>
+                </View>
+                <Text style={[styles.packagingSubtitle, { color: colors.textMuted }]}>Capture the product packaging before submitting the shipment.</Text>
+                {packagingPhoto ? (
+                  <Image source={{ uri: packagingPhoto.uri }} style={styles.packagingLargePreview} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.packagingLargePreview, styles.photoPlaceholder, { backgroundColor: colors.inputBg }]}>
+                    <Ionicons name="camera-outline" size={44} color={colors.textMuted} />
+                    <Text style={[styles.photoPlaceholderText, { color: colors.textMuted }]}>No photo captured</Text>
+                  </View>
+                )}
+                <View style={styles.packagingActions}>
+                  <TouchableOpacity style={[styles.packagingButton, { backgroundColor: packagingPhoto ? '#10B98115' : colors.inputBg, borderColor: packagingPhoto ? '#10B98133' : colors.border }]} onPress={capturePackagingPhoto}>
+                    <Ionicons name="camera-outline" size={20} color={packagingPhoto ? '#10B981' : colors.primary} />
+                    <Text style={[styles.packagingButtonText, { color: packagingPhoto ? '#10B981' : colors.primary }]}>{packagingPhoto ? 'Retake photo' : 'Take photo'}</Text>
+                  </TouchableOpacity>
+                  {packagingPhoto ? (
+                    <TouchableOpacity style={[styles.packagingRemoveButton, { backgroundColor: '#EF444415', borderColor: '#EF444433' }]} onPress={() => setPackagingPhoto(null)}>
+                      <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                      <Text style={[styles.packagingButtonText, { color: '#EF4444' }]}>Remove</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               </View>
 
               <TouchableOpacity
@@ -477,6 +579,15 @@ export default function WarehouseQueueScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={Boolean(previewImageUrl)} transparent animationType="fade" onRequestClose={() => setPreviewImageUrl(null)}>
+        <View style={styles.imagePreviewBackdrop}>
+          <TouchableOpacity style={styles.imagePreviewClose} onPress={() => setPreviewImageUrl(null)} accessibilityLabel="Close image preview">
+            <Ionicons name="close" size={27} color="#FFFFFF" />
+          </TouchableOpacity>
+          {previewImageUrl ? <Image source={{ uri: previewImageUrl }} style={styles.fullScreenImage} resizeMode="contain" /> : null}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -484,12 +595,10 @@ export default function WarehouseQueueScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { padding: Spacing.lg, paddingBottom: Spacing.sm },
-  title: { fontSize: 25, fontWeight: '800' },
   subtitle: { fontSize: 13, lineHeight: 19, marginTop: 4 },
   list: { padding: Spacing.md, paddingBottom: 110 },
   emptyList: { flexGrow: 1, justifyContent: 'center', padding: Spacing.lg, paddingBottom: 110 },
-  jobCard: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.md },
+  jobCard: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.sm },
   jobHeader: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' },
   jobId: { fontSize: 16, fontWeight: '800' },
   reference: { fontSize: 12, marginTop: 2 },
@@ -501,6 +610,8 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   itemName: { flex: 1, fontSize: 13, fontWeight: '600' },
   itemQuantity: { fontSize: 12, fontWeight: '700' },
+  readMoreButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 3, paddingVertical: 3 },
+  readMoreText: { fontSize: 12, fontWeight: '800' },
   fab: { position: 'absolute', right: 22, bottom: 26, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', elevation: 7, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 5 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.5)' },
   sheet: { maxHeight: '92%', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0 },
@@ -513,22 +624,38 @@ const styles = StyleSheet.create({
   noticeText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '600' },
   assignmentGrid: { flexDirection: 'row', gap: Spacing.sm },
   assignmentField: { flex: 1 },
+  busyAssignmentText: { color: '#B45309', fontSize: 12, fontWeight: '700', marginTop: -Spacing.sm, marginBottom: Spacing.sm },
   productsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, marginTop: Spacing.sm, marginBottom: Spacing.sm },
   productsTitle: { fontSize: 17, fontWeight: '800' },
   productsSubtitle: { fontSize: 12, marginTop: 2 },
-  lineCard: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm },
+  addProductButton: { minHeight: 36, paddingHorizontal: Spacing.sm, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  addProductText: { fontSize: 12, fontWeight: '800' },
+  lineCard: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, position: 'relative' },
+  removeProductButton: { position: 'absolute', top: 8, right: 8, zIndex: 1, padding: 2 },
   packagingSection: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, gap: Spacing.sm },
+  packagingHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+  packagingTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 },
+  packagingIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   packagingTitle: { fontSize: 15, fontWeight: '800' },
   packagingSubtitle: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  photoStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: Radius.full },
+  photoStatusText: { fontSize: 11, fontWeight: '800' },
+  packagingLargePreview: { width: '100%', height: 176, borderRadius: Radius.md, overflow: 'hidden' },
+  photoPlaceholder: { alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  photoPlaceholderText: { fontSize: 13, fontWeight: '600' },
   packagingActions: { flexDirection: 'row', gap: Spacing.sm },
-  packagingButton: { flex: 1, minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderRadius: Radius.md },
+  packagingButton: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: Radius.md },
+  packagingRemoveButton: { minHeight: 46, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: Radius.md },
   packagingButtonText: { fontSize: 13, fontWeight: '800' },
-  packagingPreviewRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   packagingPhoto: { width: 76, height: 58, borderRadius: Radius.sm, backgroundColor: '#E2E8F0' },
-  packagingFileName: { fontSize: 12, fontWeight: '700' },
-  packagingRemove: { fontSize: 12, fontWeight: '800', marginTop: 6 },
+  cardPhoto: { width: '100%', height: 164, borderRadius: Radius.md, marginTop: Spacing.md, backgroundColor: '#E2E8F0' },
+  photoHint: { position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(15,23,42,0.76)', borderRadius: Radius.full, paddingHorizontal: 9, paddingVertical: 5 },
+  photoHintText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   missingPhotoButton: { marginTop: Spacing.sm, minHeight: 40, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   missingPhotoText: { color: '#B45309', fontSize: 12, fontWeight: '800' },
   submitButton: { minHeight: 52, borderRadius: Radius.md, marginTop: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   submitText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  imagePreviewBackdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.96)', alignItems: 'center', justifyContent: 'center', padding: Spacing.md },
+  imagePreviewClose: { position: 'absolute', top: 52, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  fullScreenImage: { width: '100%', height: '82%' },
 });

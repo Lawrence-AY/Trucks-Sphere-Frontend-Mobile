@@ -12,7 +12,6 @@ import {
   ScrollView,
   Modal,
   ActivityIndicator,
-  ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -92,28 +91,6 @@ export default function OperatorQuarryLayout() {
     router.replace('/(auth)/login' as any);
   };
 
-  // ---------- FLOATING TAB BAR STYLE (native only) ----------
-  const floatingTabBarStyle: ViewStyle = Platform.select({
-    web: { display: 'none' as const },
-    default: {
-      position: 'absolute',
-      left: 20,
-      right: 20,
-      bottom: 20,
-      borderRadius: 25,
-      backgroundColor: colors.surface,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingTop: 7,
-      paddingHorizontal: 4,
-      paddingBottom: tabBottomInset + 4,
-      height: 72 + tabBottomInset,
-      shadowOpacity: 0.1,
-      shadowRadius: 10,
-      elevation: 5,
-    },
-  }) as ViewStyle;
-
   return (
     <>
       <Tabs
@@ -123,7 +100,16 @@ export default function OperatorQuarryLayout() {
           tabBarInactiveTintColor: colors.textMuted,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
-          tabBarStyle: floatingTabBarStyle, // <-- floating applied here
+          // Keep this tab bar in the normal layout flow. The dashboard FAB is
+          // then positioned above it instead of being covered by a floating bar.
+          tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+            borderTopWidth: 1,
+            paddingBottom: tabBottomInset + 4,
+            paddingTop: 6,
+            height: 68 + tabBottomInset,
+          },
           headerShown: Platform.OS !== 'web',
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.text,
@@ -184,7 +170,7 @@ export default function OperatorQuarryLayout() {
             <Pressable style={StyleSheet.absoluteFill} onPress={toggleMenu} />
           </Animated.View>
           <Animated.View
-            style={[
+            style={[ 
               styles.drawer,
               {
                 paddingTop: insets.top + 16,
