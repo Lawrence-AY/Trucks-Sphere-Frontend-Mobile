@@ -12,6 +12,8 @@ export const Colors = {
     textSecondary: '#3B4A54',
     textMuted: '#667781',
     textTertiary: '#8696A0',
+    tabActive: '#0D3150',
+    tabInactive: '#667781',
     border: '#D9E1E5',
     borderLight: '#F4F6F7',
     receiptBg: '#FFFDF7',
@@ -39,6 +41,10 @@ export const Colors = {
     textSecondary: '#B6C7D8',
     textMuted: '#7D92A7',
     textTertiary: '#5E7287',
+    // Bottom navigation is read against the dark surface, so use brighter
+    // semantic colors than the general-purpose brand/muted text colors.
+    tabActive: '#60A5FA',
+    tabInactive: '#C2D1E0',
     border: '#1F344A',
     borderLight: '#13283D',
     receiptBg: '#1C1917',

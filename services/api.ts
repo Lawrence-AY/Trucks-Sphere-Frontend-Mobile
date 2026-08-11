@@ -1,7 +1,7 @@
 /**
  * TruckSphere API Service
  * All data is fetched from the backend API (Firebase-backed).
- * No mock data — every function calls the backend.
+ * Every function calls the backend.
  * Gracefully returns empty arrays on network errors.
  */
 import axios from "axios";
@@ -32,9 +32,14 @@ export function getErrorCode(error: any): string {
   return 'NETWORK_UNAVAILABLE';
 }
 
+const PUBLIC_ERROR_MESSAGES: Record<string, string> = {
+  ACTIVE_JOB_RESOURCE_CONFLICT:
+    'This driver or truck already has an active delivery. Complete or cancel that delivery, or select another driver or truck.',
+};
+
 export function toPublicError(error: any): Error {
   const code = getErrorCode(error);
-  return Object.assign(new Error(`Error code: ${code}`), {
+  return Object.assign(new Error(PUBLIC_ERROR_MESSAGES[code] || `Error code: ${code}`), {
     code,
     statusCode: error?.response?.status || null,
     isPublicError: true,
@@ -115,14 +120,16 @@ async function backendRequest<T>(
         throw toPublicError(refreshError);
       }
     }
-    // Keep the complete URL in device logs. This makes APK configuration
-    // problems diagnosable without presenting raw transport errors to users.
-    const logRequestFailure = status && status < 500 ? console.warn : console.error;
-    logRequestFailure(`[API] ${method.toUpperCase()} ${requestUrl} failed`, {
-      status: status || null,
-      code: errorCode || null,
-      message: error?.response?.data?.message || error?.response?.data?.error || error?.message || 'Request failed',
-    });
+    // Keep transport diagnostics out of production device logs. Callers
+    // receive a stable, non-sensitive error code via `toPublicError` below.
+    if (__DEV__) {
+      const logRequestFailure = status && status < 500 ? console.warn : console.error;
+      logRequestFailure(`[API] ${method.toUpperCase()} ${requestUrl} failed`, {
+        status: status || null,
+        code: errorCode || null,
+        message: error?.response?.data?.message || error?.response?.data?.error || error?.message || 'Request failed',
+      });
+    }
     throw toPublicError(error);
   }
 }
@@ -390,9 +397,13 @@ export async function fetchAuditLogs(_params?: {
   search?: string;
   severity?: string;
 }): Promise<any[]> {
-  // Audit-log retrieval is disabled to avoid an unbounded Firestore read
-  // stream. Keep the API surface for existing screens, but make no request.
-  return [];
+  // The API enforces Super Admin access and limits the response server-side.
+  // Never substitute fabricated entries when this request is unavailable.
+  return safeFetch("audit-logs", () =>
+    backendRequest<any>("get", "/api/audit-logs", undefined, _params).then(
+      (data) => normalizeCollection(data),
+    ),
+  );
 }
 
 export async function fetchWarehouseJobs(params?: {
@@ -458,7 +469,7 @@ export async function fetchNextCounter(entityType: string): Promise<string> {
     );
     return result.id;
   } catch (error: any) {
-    console.log(`[API] fetchNextCounter(${entityType}) failed:`, error?.message || error);
+    if (__DEV__) console.log(`[API] fetchNextCounter(${entityType}) failed:`, error?.message || error);
     // Fallback: generate a local timestamp-based ID
     const fallback = Math.floor(Date.now() / 1000)
       .toString(36)
@@ -489,7 +500,7 @@ export async function requestFuelAuthorization(payload: any): Promise<any> {
     );
     return result;
   } catch (error: any) {
-    console.log("[API] requestFuelAuthorization failed:", error?.message || error);
+    if (__DEV__) console.log("[API] requestFuelAuthorization failed:", error?.message || error);
     return payload;
   }
 }
@@ -510,7 +521,7 @@ export async function verifyFuelAuthorization(
     );
     return result;
   } catch (error: any) {
-    console.log("[API] verifyFuelAuthorization failed:", error?.message || error);
+    if (__DEV__) console.log("[API] verifyFuelAuthorization failed:", error?.message || error);
     throw error;
   }
 }
@@ -523,7 +534,7 @@ export async function getFuelAuthorizationStatus(authId: string): Promise<any> {
     );
     return result;
   } catch (error: any) {
-    console.log("[API] getFuelAuthorizationStatus failed:", error?.message || error);
+    if (__DEV__) console.log("[API] getFuelAuthorizationStatus failed:", error?.message || error);
     return { status: "error" };
   }
 }
@@ -538,7 +549,7 @@ export async function getPendingAuthorizations(
     );
     return result as any[];
   } catch (error: any) {
-    console.log("[API] getPendingAuthorizations failed:", error?.message || error);
+    if (__DEV__) console.log("[API] getPendingAuthorizations failed:", error?.message || error);
     return [];
   }
 }
@@ -646,7 +657,7 @@ const api: ApiClient = {
       const msg = error?.response?.status
         ? `${error.response.status} ${error.response.statusText || ""}`
         : error?.message || "Network Error";
-      if (isAuthProfile) {
+      if (__DEV__ && isAuthProfile) {
         console.log(`[API] GET ${url} @ ${API_BASE_URL} failed (${msg}) — handled by authStore`);
       } else {
       }
@@ -664,7 +675,7 @@ const api: ApiClient = {
       const msg = error?.response?.status
         ? `${error.response.status} ${error.response.statusText || ""}`
         : error?.message || "Network Error";
-      if (isAuthEndpoint) {
+      if (__DEV__ && isAuthEndpoint) {
         console.log(`[API] POST ${url} @ ${API_BASE_URL} failed (${msg}) — handled by caller`);
       } else {
       }
@@ -717,7 +728,7 @@ export async function fetchPublicTracking(trackingId: string): Promise<any> {
       const netMsg = error?.code === "ERR_NETWORK" || error?.code === "ERR_CANCELED"
         ? "Unable to reach the tracking server. Please check your internet connection."
         : error?.message || "A network error occurred. Please try again.";
-      console.log(`[API] Public tracking ${trackingId} failed: network error`, error?.code);
+      if (__DEV__) console.log(`[API] Public tracking ${trackingId} failed: network error`, error?.code);
       throw Object.assign(new Error(`Error code: ${getErrorCode(error)}`), {
         code: getErrorCode(error),
         isNetworkError: true,
@@ -725,7 +736,7 @@ export async function fetchPublicTracking(trackingId: string): Promise<any> {
     }
 
     // Server returned a structured error
-    console.log(`[API] Public tracking ${trackingId} failed:`, status, serverCode, serverMessage);
+    if (__DEV__) console.log(`[API] Public tracking ${trackingId} failed:`, status, serverCode, serverMessage);
     throw Object.assign(new Error(`Error code: ${getErrorCode(error)}`), {
       statusCode: status,
       errorCode: getErrorCode(error),
@@ -758,7 +769,7 @@ export async function fetchPublicTrackingByPlate(plateNumber: string): Promise<a
       const netMsg = error?.code === "ERR_NETWORK" || error?.code === "ERR_CANCELED"
         ? "Unable to reach the tracking server. Please check your internet connection."
         : error?.message || "A network error occurred. Please try again.";
-      console.log(`[API] Public tracking by plate ${plateNumber} failed: network error`, error?.code);
+      if (__DEV__) console.log(`[API] Public tracking by plate ${plateNumber} failed: network error`, error?.code);
       throw Object.assign(new Error(`Error code: ${getErrorCode(error)}`), {
         code: getErrorCode(error),
         isNetworkError: true,
@@ -766,7 +777,7 @@ export async function fetchPublicTrackingByPlate(plateNumber: string): Promise<a
     }
 
     // Server returned a structured error
-    console.log(`[API] Public tracking by plate ${plateNumber} failed:`, status, serverCode, serverMessage);
+    if (__DEV__) console.log(`[API] Public tracking by plate ${plateNumber} failed:`, status, serverCode, serverMessage);
     throw Object.assign(new Error(`Error code: ${getErrorCode(error)}`), {
       statusCode: status,
       errorCode: getErrorCode(error),
@@ -1085,6 +1096,16 @@ export async function changePassword(payload: {
     return result;
   } catch (error: any) {
     const msg = error?.response?.data?.error || error?.message || 'Failed to change password.';
+    throw new Error(msg);
+  }
+}
+
+/** Starts (or restarts) the server-enforced 21-day account deletion period. */
+export async function requestAccountDeletion(): Promise<{ scheduledFor: string }> {
+  try {
+    return await backendRequest<{ scheduledFor: string }>('post', '/api/auth/account-deletion', { confirm: true });
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || error?.message || 'Failed to schedule account deletion.';
     throw new Error(msg);
   }
 }

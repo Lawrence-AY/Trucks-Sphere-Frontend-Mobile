@@ -415,8 +415,7 @@ export default function OperatorQuarryDashboardScreen() {
                 onChangeText={(value) => { setPoSearch(value); setSelectedPo(null); setSelectedDriver(null); setSelectedVehicle(null); }}
               />
             </View>
-            <Text style={[styles.searchHint, { color: colors.textMuted }]}>Start typing to search purchase orders, or choose one from the list below.</Text>
-
+ 
             {!selectedPo ? (
               <ScrollView style={styles.poScrollView} showsVerticalScrollIndicator={true} nestedScrollEnabled>
                 <View style={styles.optionList}>

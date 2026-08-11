@@ -12,6 +12,7 @@ import { setOnAuthExpired } from '../services/api';
 import { ManagementRouteGuard } from '../components/management/ManagementRouteGuard';
 import { CLEAR_HIDDEN_STACK_SCREEN_OPTIONS } from '../components/ui/stackScreenOptions';
 import { PaperThemeProvider } from '../components/PaperThemeProvider';
+import { canControlStatusBarAppearance } from '../utils/statusBar';
 
 void ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -25,9 +26,11 @@ export default function RootLayout() {
   const rootStackOptions = useMemo(() => ({
     ...CLEAR_HIDDEN_STACK_SCREEN_OPTIONS,
     contentStyle: { backgroundColor: colors.background },
-    statusBarStyle,
-    statusBarColor: colors.surface,
-    statusBarTranslucent: false,
+    ...(canControlStatusBarAppearance ? {
+      statusBarStyle,
+      statusBarColor: colors.surface,
+      statusBarTranslucent: false,
+    } : {}),
   }), [colors.background, colors.surface, statusBarStyle]);
 
   useEffect(() => {
@@ -58,21 +61,20 @@ export default function RootLayout() {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <PaperThemeProvider>
-        <StatusBar barStyle={systemStatusBarStyle} backgroundColor={colors.surface} translucent={false} />
+        {canControlStatusBarAppearance ? (
+          <StatusBar barStyle={systemStatusBarStyle} backgroundColor={colors.surface} translucent={false} />
+        ) : null}
         <ManagementRouteGuard>
           <WebLayout>
             <Stack screenOptions={rootStackOptions}>
             <Stack.Screen name="index" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="(auth)" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
-            <Stack.Screen name="(tabs)" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="management" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="vendor" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="operator-site" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="operator-fuel" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="operator-quarry" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="warehouse" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
-            <Stack.Screen name="quarry" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
-            <Stack.Screen name="site" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="screens" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="track" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             </Stack>

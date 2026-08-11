@@ -17,6 +17,9 @@ export function getBaseUrl(): string {
 export const API_BASE_URL = getBaseUrl();
 
 export function logApiConfiguration(): void {
+  // API endpoints and deployment details are useful while developing, but
+  // must not be written to production device logs.
+  if (!__DEV__) return;
   console.log(
     [
       '[API]',

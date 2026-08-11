@@ -23,7 +23,8 @@ import { ThemeToggle } from '../../components/ThemeToggle';
 import { useResolvedIssuesCount } from '../../hooks/useResolvedIssuesCount';
 
 const BOTTOM_TABS = ['dashboard', 'weigh-in', 'weigh-out', 'history'];
-const HIDDEN_TABS = ['profile', 'settings', 'materials'];
+// These routes are opened from visible screens but are not primary tab destinations.
+const SECONDARY_ROUTES = ['profile', 'settings', 'materials'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   dashboard: { icon: 'clipboard-outline', label: 'Queue' },
@@ -96,8 +97,8 @@ export default function OperatorQuarryLayout() {
       <Tabs
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
+          tabBarActiveTintColor: colors.tabActive,
+          tabBarInactiveTintColor: colors.tabInactive,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           // Keep this tab bar in the normal layout flow. The dashboard FAB is
@@ -153,7 +154,7 @@ export default function OperatorQuarryLayout() {
             />
           );
         })}
-        {HIDDEN_TABS.map((tabName) => (
+        {SECONDARY_ROUTES.map((tabName) => (
           <Tabs.Screen key={tabName} name={tabName} options={{ href: null }} />
         ))}
       </Tabs>

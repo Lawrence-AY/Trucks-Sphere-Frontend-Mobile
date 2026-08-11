@@ -35,7 +35,6 @@ export const SuperAdminSidebar: ManagementNavigationSection[] = [
   { title: 'Intelligence', icon: 'bar-chart-outline', items: [
     { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
     { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports' },
-    { label: 'Audit Logs', icon: 'document-text-outline', route: '/management/audit-logs' },
   ] },
   { title: 'Administration', icon: 'settings-outline', items: [
     { label: 'Users', icon: 'people-outline', route: '/management/users' },

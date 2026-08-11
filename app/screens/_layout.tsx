@@ -1,13 +1,11 @@
 import { Stack } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
-import HamburgerMenu from '../../components/HamburgerMenu';
 import { CLEAR_HIDDEN_STACK_SCREEN_OPTIONS, useClearStackScreenOptions } from '../../components/ui/stackScreenOptions';
 
 export default function ScreensLayout() {
-  const screenOptions = useClearStackScreenOptions(
-    Platform.OS === 'web' ? undefined : () => <HamburgerMenu />,
-  );
+  // These are detail and document screens. Native stack navigation supplies a
+  // correctly positioned back control, so do not add a separate menu button.
+  const screenOptions = useClearStackScreenOptions();
 
   return (
     <Stack screenOptions={screenOptions}>

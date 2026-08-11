@@ -28,7 +28,8 @@ import {
 } from '../../services/api';
 
 const BOTTOM_TABS = ['dashboard', 'trips', 'orders', 'materials'];
-const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings', 'fuel', 'reports'];
+// These routes are opened from visible screens but are not primary tab destinations.
+const SECONDARY_ROUTES = ['drivers', 'trucks', 'profile', 'settings', 'fuel', 'reports'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   dashboard: { icon: 'home-outline', label: 'Home' },
@@ -195,8 +196,8 @@ export default function VendorLayout() {
       <Tabs
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
+          tabBarActiveTintColor: colors.tabActive,
+          tabBarInactiveTintColor: colors.tabInactive,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
@@ -257,7 +258,7 @@ export default function VendorLayout() {
             />
           );
         })}
-        {HIDDEN_TABS.map((tabName) => (
+        {SECONDARY_ROUTES.map((tabName) => (
           <Tabs.Screen key={tabName} name={tabName} options={{ href: null }} />
         ))}
       </Tabs>

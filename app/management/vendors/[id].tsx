@@ -186,7 +186,7 @@ export default function VendorDetailScreen() {
         </View>
 
         {/* Action Buttons */}
-        {(canWriteVendors || canWriteDrivers || canWriteTrucks) && <View style={styles.headerActions}>
+        {(canWriteVendors || canWriteDrivers || canWriteTrucks) && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.headerActions}>
           {canWriteVendors && <Button
             title="Edit"
             onPress={() => router.push(`/management/vendors/edit/${vendor.id}` as any)}
@@ -215,7 +215,7 @@ export default function VendorDetailScreen() {
             size="sm"
             icon="trash-outline"
           />}
-        </View>}
+        </ScrollView>}
       </View>
 
       {/* Tabs */}
@@ -555,8 +555,9 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
+    flexWrap: 'nowrap',
+    gap: Spacing.xs,
+    paddingBottom: 2,
   },
   tabContent: {
     padding: Spacing.md,

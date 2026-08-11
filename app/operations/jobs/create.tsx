@@ -148,11 +148,11 @@ export default function CreateJobScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+      <View style={[styles.backBar, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.inputBg }]}>
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Create Job</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Create Job</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
@@ -265,20 +265,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
-    backgroundColor: '#fff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   backTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
     marginLeft: Spacing.sm,
   },
   content: {

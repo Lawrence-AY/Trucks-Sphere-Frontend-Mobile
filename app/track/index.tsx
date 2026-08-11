@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Spacing, Radius } from '../../constants/theme';
+import { canControlStatusBarAppearance } from '../../utils/statusBar';
 
 export default function TrackIndexScreen() {
   const [plateNumber, setPlateNumber] = useState('');
@@ -50,7 +51,7 @@ export default function TrackIndexScreen() {
       style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar style="dark" />
+      {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
       <View style={styles.content}>

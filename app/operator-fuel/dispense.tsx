@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -23,7 +25,6 @@ import {
   fetchFuelRecords,
   requestFuelAuthorization,
   verifyFuelAuthorization,
-  markJobAsFueled,
   checkJobFuelStatus,
 } from "../../services/api";
 import { normalizeJobStatus } from "../../utils/jobStatus";
@@ -73,6 +74,7 @@ export default function FuelDispenseScreen() {
   const [pumpPhotoUri, setPumpPhotoUri] = useState<string | null>(null);
   const [pumpPhotoUploading, setPumpPhotoUploading] = useState(false);
   const [pumpPhotoURL, setPumpPhotoURL] = useState<string | null>(null);
+  const otpInputRef = useRef<TextInput>(null);
 
   // ---- Zustand store ----
   const store = useFuelDispenseStore();
@@ -150,6 +152,14 @@ export default function FuelDispenseScreen() {
     store.authStatus,
     store.otpModalVisible,
   ]);
+
+  // Keep the PIN prompt inside the fuel-flow modal. Android does not reliably
+  // deliver keyboard events to a native Modal opened on top of another Modal.
+  useEffect(() => {
+    if (store.otpModalVisible) {
+      requestAnimationFrame(() => otpInputRef.current?.focus());
+    }
+  }, [store.otpModalVisible]);
 
   // ========================= Derived Lists ================================
 
@@ -477,10 +487,9 @@ export default function FuelDispenseScreen() {
         pumpPhotoURL,
       });
 
-      // Mark job as fueled on the backend
-      await markJobAsFueled(jobId, fuelId);
-
-      // Mark job as completed locally (prevents re-appearance in list)
+      // A fuel record is the source of truth for completed dispensing. The
+      // legacy delivery-order `/fueled` endpoint is not available to the fuel
+      // operator and would report a false 403 after a successful fuel record.
       store.markJobCompleted(jobId);
 
       const authCodeRef = store.authCode || "N/A";
@@ -589,7 +598,11 @@ export default function FuelDispenseScreen() {
         visible={store.flowVisible}
         transparent
         animationType="slide"
-        onRequestClose={closeFlow}
+        onRequestClose={() =>
+          store.otpModalVisible
+            ? store.setOtpModalVisible(false)
+            : closeFlow()
+        }
       >
         <View style={styles.modalBackdrop}>
           <View
@@ -1567,23 +1580,19 @@ export default function FuelDispenseScreen() {
               )}
             </ScrollView>
           </View>
-        </View>
-      </Modal>
 
-      {/* OTP Modal */}
-      <Modal
-        visible={store.otpModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => store.setOtpModalVisible(false)}
-      >
-        <View style={styles.otpBackdrop}>
-          <View
-            style={[
-              styles.otpSheet,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
+            {store.otpModalVisible && (
+              <KeyboardAvoidingView
+                style={styles.otpKeyboardAvoider}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+              >
+                <View style={styles.otpBackdrop}>
+                  <View
+                    style={[
+                      styles.otpSheet,
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                    ]}
+                  >
             <View style={styles.otpHead}>
               <Text style={[styles.otpTitle, { color: colors.text }]}>
                 Enter Authorization PIN
@@ -1607,7 +1616,9 @@ export default function FuelDispenseScreen() {
               Enter the Authorization PIN sent to the vendor's phone.
             </Text>
 
-            <View
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => otpInputRef.current?.focus()}
               style={[
                 styles.otpInputWrap,
                 {
@@ -1617,16 +1628,19 @@ export default function FuelDispenseScreen() {
               ]}
             >
               <TextInput
+                ref={otpInputRef}
                 style={[styles.otpInput, { color: colors.text }]}
                 placeholder="Enter PIN"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="number-pad"
                 value={store.otpInput}
-                onChangeText={store.setOtpInput}
+                onChangeText={(value) =>
+                  store.setOtpInput(value.replace(/\D/g, "").slice(0, 8))
+                }
                 maxLength={8}
                 autoFocus
               />
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.otpActions}>
               <TouchableOpacity
@@ -1659,7 +1673,10 @@ export default function FuelDispenseScreen() {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            )}
         </View>
       </Modal>
     </View>
@@ -1968,6 +1985,16 @@ const styles = StyleSheet.create({
   },
 
   // OTP Modal
+  otpKeyboardAvoider: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 10,
+    elevation: 10,
+  },
+
   otpBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

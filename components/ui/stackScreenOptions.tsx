@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTheme, useThemeMode } from '../../hooks/useTheme';
+import { canControlStatusBarAppearance } from '../../utils/statusBar';
 
 type StackHeaderRight = () => React.ReactNode;
 type ClearStackScreenOptions = {
@@ -36,9 +37,11 @@ export function useClearStackScreenOptions(headerRight?: StackHeaderRight): Clea
     headerBackTitleVisible: false,
     headerShadowVisible: false,
     contentStyle: { backgroundColor: colors.background },
-    statusBarStyle,
-    statusBarColor: colors.surface,
-    statusBarTranslucent: false,
+    ...(canControlStatusBarAppearance ? {
+      statusBarStyle,
+      statusBarColor: colors.surface,
+      statusBarTranslucent: false,
+    } : {}),
     animation: 'slide_from_right' as const,
     headerRight,
   }), [colors.background, colors.surface, colors.text, headerRight, statusBarStyle]);

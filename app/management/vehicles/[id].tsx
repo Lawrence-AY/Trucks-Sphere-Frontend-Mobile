@@ -3,10 +3,8 @@
  *
  * Features:
  *   - Vehicle overview with compliance status
- *   - Edit vehicle details
  *   - View assigned driver
  *   - Compliance alerts
- *   - Document management placeholder
  */
 
 import React, { useEffect, useState } from 'react';
@@ -27,28 +25,21 @@ import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
-import { Button } from '../../../components/ui/Button';
 import { Tabs } from '../../../components/ui/Tabs';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
 import { Vehicle } from '../../../store/types';
-import { formatEAT } from '../../../utils/helpers';
 import { UserActionInfo } from '../../../components/UserActionInfo';
-import { useAuthStore } from '../../../store/authStore';
-import { hasManagementPermission } from '../../../utils/access';
 
 const VEHICLE_TABS = [
   { name: 'details', label: 'Details', icon: 'car-outline' as const },
   { name: 'compliance', label: 'Compliance', icon: 'shield-checkmark-outline' as const },
-  { name: 'documents', label: 'Documents', icon: 'folder-outline' as const },
 ];
 
 export default function VehicleDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
-  const user = useAuthStore((state) => state.user);
-  const canWriteTrucks = hasManagementPermission(user?.role, 'trucks.write');
   const insets = useSafeAreaInsets();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,16 +132,6 @@ export default function VehicleDetailScreen() {
     );
   }
 
-  function renderDocuments() {
-    return (
-      <EmptyState
-        icon="folder-outline"
-        title="No Documents"
-        subtitle="Vehicle documents will appear here"
-      />
-    );
-  }
-
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -201,15 +182,6 @@ export default function VehicleDetailScreen() {
             />
           </View>
 
-          {canWriteTrucks && <View style={styles.actionsRow}>
-            <Button
-              title="Edit"
-              onPress={() => Alert.alert('Coming Soon', 'Edit functionality coming soon')}
-              variant="secondary"
-              size="sm"
-              icon="create-outline"
-            />
-          </View>}
         </View>
 
         <Tabs
@@ -221,7 +193,6 @@ export default function VehicleDetailScreen() {
         <View style={{ marginTop: Spacing.md }}>
           {activeTab === 'details' && renderDetails()}
           {activeTab === 'compliance' && renderCompliance()}
-          {activeTab === 'documents' && renderDocuments()}
         </View>
       </ScrollView>
     </View>

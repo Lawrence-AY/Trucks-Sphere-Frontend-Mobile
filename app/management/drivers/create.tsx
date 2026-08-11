@@ -391,7 +391,7 @@ export default function CreateDriverScreen() {
             label="Full Name"
             value={form.fullName}
             onChangeText={(v) => updateField('fullName', v)}
-            placeholder="e.g. John Doe"
+            placeholder="Enter driver name"
             icon="person-outline"
             required
             error={errors.fullName}

@@ -20,6 +20,7 @@ import {
   PageShell,
   SectionTitle,
 } from '../../components/EnterpriseUI';
+import { AccountDeletionRequest } from '../../components/AccountDeletionRequest';
 import { getRoleLabel } from '../../utils/helpers';
 import { getPasswordChangeError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
 import { updateProfile, changePassword } from '../../services/api';
@@ -281,6 +282,7 @@ export default function VendorProfileScreen() {
         )}
       </DataCard>
 
+      <AccountDeletionRequest />
       <View style={{ height: Spacing['4xl'] }} />
     </PageShell>
   );

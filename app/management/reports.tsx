@@ -40,6 +40,7 @@ const CATEGORIES = [
   { key: 'materials', label: 'Materials', icon: 'layers-outline', color: '#6366F1' },
   { key: 'purchaseOrders', label: 'POs', icon: 'document-text-outline', color: '#0EA5E9' },
   { key: 'quarryOps', label: 'Quarry Ops', icon: 'hammer-outline', color: '#D97706' },
+  { key: 'warehouse', label: 'Warehouse', icon: 'cube-outline', color: '#7C3AED' },
   { key: 'siteOps', label: 'Site Ops', icon: 'business-outline', color: '#059669' },
 ];
 
@@ -171,6 +172,20 @@ export default function ReportsScreen() {
           .reduce((s: number, d: any) => s + (Number(d.weighInWeight) || 0), 0),
         preview: deliveries.filter((d: any) => d.weighInAt).slice(0, 5),
       },
+      warehouse: {
+        total: fDel.filter((d: any) => d.isWarehouseDelivery || String(d.deliveryOrigin || '').toLowerCase() === 'warehouse').length,
+        active: fDel.filter((d: any) =>
+          (d.isWarehouseDelivery || String(d.deliveryOrigin || '').toLowerCase() === 'warehouse') &&
+          !['SITE_WEIGHED_OUT', 'COMPLETED', 'CANCELLED', 'completed', 'cancelled'].includes(d.status)
+        ).length,
+        completed: fDel.filter((d: any) =>
+          (d.isWarehouseDelivery || String(d.deliveryOrigin || '').toLowerCase() === 'warehouse') &&
+          ['SITE_WEIGHED_OUT', 'COMPLETED', 'completed', 'delivered'].includes(d.status)
+        ).length,
+        totalQuantity: fDel
+          .filter((d: any) => d.isWarehouseDelivery || String(d.deliveryOrigin || '').toLowerCase() === 'warehouse')
+          .reduce((s: number, d: any) => s + (Number(d.quantityDelivered) || Number(d.quantityOrdered) || 0), 0),
+      },
       siteOps: {
         total: deliveries.filter((d: any) => d.siteWeighInAt).length,
         active: deliveries.filter((d: any) => d.siteWeighInAt && !d.siteWeighOutAt).length,
@@ -207,6 +222,7 @@ export default function ReportsScreen() {
         purchaseOrders: 'purchase-orders',
         quarryOps: 'quarry-ops',
         siteOps: 'site-ops',
+        warehouse: 'warehouse',
       };
       const catKey = categoryMap[activeTab] || activeTab;
       await downloadCategoryCSV(catKey, { filter: filter !== 'all' ? filter : undefined });
@@ -366,8 +382,6 @@ function renderCategoryCards(tab: string, d: any, colors: any, m: any) {
         <>
           <MetricCard icon="cube-outline" label="Deliveries" value={d.total ?? 0} color="#2563EB" />
           <MetricCard icon="scale-outline" label="Tonnage" value={`${(d.totalTonnage ?? 0).toFixed(1)}T`} color="#2563EB" />
-          <MetricCard icon="checkmark-circle-outline" label="Completed" value={d.completed ?? 0} color="#10B981" />
-          <MetricCard icon="pulse-outline" label="In Transit" value={d.inTransit ?? 0} color="#F59E0B" />
         </>
       );
     case 'fuel':
@@ -409,26 +423,24 @@ function renderCategoryCards(tab: string, d: any, colors: any, m: any) {
       return (
         <>
           <MetricCard icon="document-text-outline" label="Total POs" value={d.total ?? 0} color="#0EA5E9" />
-          <MetricCard icon="time-outline" label="Open" value={d.open ?? 0} color="#F59E0B" />
-          <MetricCard icon="checkmark-circle-outline" label="Fulfilled" value={d.fulfilled ?? 0} color="#10B981" />
         </>
       );
     case 'quarryOps':
       return (
         <>
-          <MetricCard icon="hammer-outline" label="Quarry Visits" value={d.total ?? 0} color="#D97706" />
-          <MetricCard icon="time-outline" label="Active (In)" value={d.active ?? 0} color="#F59E0B" />
           <MetricCard icon="checkmark-circle-outline" label="Dispatched" value={d.completed ?? 0} color="#10B981" />
-          <MetricCard icon="scale-outline" label="Gross W.In" value={`${(d.totalTonnage ?? 0).toFixed(1)}T`} color="#D97706" />
         </>
       );
     case 'siteOps':
       return (
         <>
-          <MetricCard icon="business-outline" label="Site Arrivals" value={d.total ?? 0} color="#059669" />
-          <MetricCard icon="time-outline" label="Active (In)" value={d.active ?? 0} color="#F59E0B" />
-          <MetricCard icon="checkmark-circle-outline" label="Completed" value={d.completed ?? 0} color="#10B981" />
-          <MetricCard icon="scale-outline" label="Net Weight" value={`${(d.totalNet ?? 0).toFixed(1)}T`} color="#059669" />
+          <MetricCard icon="business-outline" label="Arrivals" value={d.total ?? 0} color="#059669" />
+        </>
+      );
+    case 'warehouse':
+      return (
+        <>
+          <MetricCard icon="cube-outline" label="Shipments" value={d.total ?? 0} color="#7C3AED" />
         </>
       );
     default:

@@ -10,10 +10,12 @@ import {
   View,
   ActivityIndicator,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { router, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Searchbar } from 'react-native-paper';
+import { ManagementHeaderMenuButton } from '../../components/management/ManagementMenuContext';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { useDeliveryOrders, useDrivers, useMaterials } from '../../store/realtimeData';
@@ -59,6 +61,8 @@ function formatCsv(headers: string[], rows: string[][]): string {
 
 export default function ManagementActiveScreen() {
   const colors = useTheme();
+  const { width } = useWindowDimensions();
+  const headerSearchWidth = width < 430 ? 160 : 220;
   const refresh = useRealTimeSyncStore((s) => s.refresh);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -224,23 +228,21 @@ export default function ManagementActiveScreen() {
       <Tabs.Screen
         options={{
           title: 'Active Trips',
-          headerTitleAlign: 'left',
-          headerTitleContainerStyle: { left: 6, right: 174 },
-          headerTitle: () => (
-            <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
-              Active
-            </Text>
-          ),
-          headerRight: () => (
+          headerLeft: () => (
+            <View style={styles.headerLeftGroup}>
+              <Text numberOfLines={1} style={[styles.headerTitle, { color: colors.text }]}>Active Trips</Text>
             <Searchbar
-              placeholder="Search..."
+              placeholder="Search"
               value={search}
               onChangeText={setSearch}
               autoCapitalize="none"
-              style={[styles.headerSearch, { backgroundColor: colors.inputBg }]}
+              style={[styles.headerSearch, { width: headerSearchWidth, backgroundColor: colors.inputBg }]}
               inputStyle={[styles.headerSearchInput, { color: colors.text }]}
             />
+            </View>
           ),
+          headerTitle: () => null,
+          headerRight: () => <ManagementHeaderMenuButton />,
         }}
       />
 
@@ -395,11 +397,11 @@ export default function ManagementActiveScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerTitle: { fontSize: 16, fontWeight: '700' },
+  headerLeftGroup: { marginLeft: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerTitle: { width: 92, fontSize: 14, fontWeight: '700' },
   headerSearch: {
-    width: 250,
     height: 38,
-    marginRight: '20%',
+    marginRight: 0,
     borderRadius: Radius.md,
     elevation: 0,
   },

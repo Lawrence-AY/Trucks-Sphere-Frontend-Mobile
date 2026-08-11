@@ -88,6 +88,16 @@ export default function MaterialsListScreen() {
     loadMaterials();
   }, []);
 
+  // Repository writes are optimistic. Reflect them in the existing list so a
+  // return from a detail screen never requires a pull-to-refresh.
+  useEffect(() => materialRepository.onChange((action, item) => {
+    setMaterials((current) => {
+      if (action === 'delete') return current.filter((material) => material.id !== item.id);
+      if (action === 'update') return current.map((material) => material.id === item.id ? { ...material, ...item } : material);
+      return current.some((material) => material.id === item.id) ? current : [item, ...current];
+    });
+  }), []);
+
   async function loadMaterials() {
     try {
       const data = await materialRepository.getAll();

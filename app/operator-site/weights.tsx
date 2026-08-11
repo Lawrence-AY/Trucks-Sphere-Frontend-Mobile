@@ -336,15 +336,17 @@ export default function OperatorSiteWeightsScreen() {
       else if (operatorSiteId && job.siteId && job.siteId !== operatorSiteId) reason = `different site: ${job.siteId}`;
       return { documentId: job.id, included: !reason, reason: reason || undefined };
     });
-    console.debug('[SiteWeights] weights query filters', {
-      excludedStatuses: ['cancelled', 'completed', 'delivered'],
-      requires: 'site arrival weight or legacy site_in/weighed_in status',
-      siteId: operatorSiteId || 'unscoped',
-    });
-    console.debug('[SiteWeights] weights query result', {
-      documentIds: eligibleJobs.map((job: any) => job.id),
-      evaluatedDocuments,
-    });
+    if (__DEV__) {
+      console.debug('[SiteWeights] weights query filters', {
+        excludedStatuses: ['cancelled', 'completed', 'delivered'],
+        requires: 'site arrival weight or legacy site_in/weighed_in status',
+        siteId: operatorSiteId || 'unscoped',
+      });
+      console.debug('[SiteWeights] weights query result', {
+        documentIds: eligibleJobs.map((job: any) => job.id),
+        evaluatedDocuments,
+      });
+    }
   }, [deliveries, eligibleJobs, operatorSiteId]);
 
   const filtered = useMemo(() => {
@@ -630,7 +632,7 @@ export default function OperatorSiteWeightsScreen() {
             />
             <DetailRow
               icon="location-outline"
-              value={`From: ${activeJob.materialSource || activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`}
+              value={`From: ${activeJob.isWarehouseDelivery || activeJob.deliveryOrigin === 'warehouse' ? 'Warehouse' : activeJob.materialSource || activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`}
             />
 
             <View style={styles.divider} />

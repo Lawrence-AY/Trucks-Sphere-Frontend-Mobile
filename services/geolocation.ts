@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 export interface GeoLocation {
   latitude: number;
@@ -37,7 +37,39 @@ export function formatCapturedGeoLocation(
   return city || address || '';
 }
 
+function confirmLocationUse(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Location for delivery verification',
+      'Truck Sphere uses your location only while you capture a weigh-in, weigh-out, or delivery record. The location is saved with that operational record so your organisation can verify where it was completed. We do not request background location access.',
+      [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Continue', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
+function confirmIpLocationUse(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Use approximate location?',
+      'GPS is unavailable. If you continue, Truck Sphere will ask ipapi.co for an approximate city or region based on your IP address. This approximate location will be saved with the operational record. You can choose not to use this fallback.',
+      [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Use approximate location', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
 export async function requestLocationPermissions(): Promise<boolean> {
+  const current = await Location.getForegroundPermissionsAsync();
+  if (current.granted) return true;
+
+  if (!await confirmLocationUse()) return false;
   const { status } = await Location.requestForegroundPermissionsAsync();
   return status === 'granted';
 }
@@ -48,7 +80,7 @@ export async function requestLocationPermissions(): Promise<boolean> {
  * so we use a best-effort approach:
  *   1. Try high-accuracy position (3s timeout)
  *   2. Fall back to last known position
- *   3. Fall back to IP-based geolocation
+ *   3. Let the calling workflow offer an opt-in IP-based location fallback
  */
 export async function getCurrentLocation(): Promise<GeoLocation> {
   const hasPermission = await requestLocationPermissions();
@@ -188,6 +220,9 @@ export async function getLocationFromIP(): Promise<{
   longitude: number;
   address: string;
 }> {
+  if (!await confirmIpLocationUse()) {
+    throw new Error('Approximate location was not selected');
+  }
   try {
     const response = await fetch('https://ipapi.co/json/');
     const data = await response.json();

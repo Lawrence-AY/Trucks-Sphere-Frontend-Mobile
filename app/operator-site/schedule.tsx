@@ -28,6 +28,7 @@ import {
 } from '../../services/api';
 import { uploadDeliveryNote, type UploadFile } from '../../services/uploadService';
 import { useAuthStore } from '../../store/authStore';
+import { canControlStatusBarAppearance } from '../../utils/statusBar';
 import { useDeliveryOrders } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT, generateId, generateJobKey } from '../../utils/helpers';
@@ -346,16 +347,20 @@ export default function OperatorSiteDashboardScreen() {
         createdByUid: job.createdByUid || user?.uid || '',
         siteOperatorUid: user?.uid || '',
       };
-      console.debug('[SiteWeights] schedule save started', {
-        documentId: job.id,
-        documentBeforeUpdate: job,
-        payload: transitionPayload,
-      });
+      if (__DEV__) {
+        console.debug('[SiteWeights] schedule save started', {
+          documentId: job.id,
+          documentBeforeUpdate: job,
+          payload: transitionPayload,
+        });
+      }
       const persistedJob = await updateDeliveryOrder(job.id, transitionPayload);
-      console.debug('[SiteWeights] schedule save succeeded', {
-        documentId: job.id,
-        documentAfterUpdate: persistedJob,
-      });
+      if (__DEV__) {
+        console.debug('[SiteWeights] schedule save succeeded', {
+          documentId: job.id,
+          documentAfterUpdate: persistedJob,
+        });
+      }
 
       // Persist storage lot assignment if provided
       if (lotValue) {
@@ -1530,7 +1535,7 @@ export default function OperatorSiteDashboardScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setPhotoViewerVisible(false)}
-        statusBarTranslucent
+        statusBarTranslucent={canControlStatusBarAppearance}
       >
         <View style={styles.photoViewerBackdrop}>
           <TouchableOpacity

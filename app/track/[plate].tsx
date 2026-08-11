@@ -28,6 +28,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { fetchPublicTrackingByPlate } from '../../services/api';
 import { Colors, Spacing, Radius } from '../../constants/theme';
+import { canControlStatusBarAppearance } from '../../utils/statusBar';
 
 function formatEAT(isoString?: string): string {
   if (!isoString) return '—';
@@ -192,7 +193,7 @@ export default function PublicTrackingScreen() {
   if (state.kind === 'error') {
     return (
       <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <StatusBar style="dark" />
+        {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {renderHeader('Enter plate number')}
           <View style={styles.centerContent}>
@@ -222,7 +223,7 @@ export default function PublicTrackingScreen() {
   if (state.kind === 'expired') {
     return (
       <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <StatusBar style="dark" />
+        {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {renderHeader('Enter plate number')}
           <View style={styles.centerContent}>
@@ -249,7 +250,7 @@ export default function PublicTrackingScreen() {
   if (state.kind === 'loading') {
     return (
       <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <StatusBar style="dark" />
+        {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {renderHeader('Loading...')}
           <View style={styles.centerContent}>
@@ -274,7 +275,7 @@ export default function PublicTrackingScreen() {
 
   return (
     <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <StatusBar style="dark" />
+      {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {renderHeader(d.plateNumber || '—', true)}
 

@@ -50,11 +50,42 @@ export function managementHomeRoute(role?: string): string {
   return '/management/dashboard';
 }
 
-/** Screens that are not a management route but are part of management access. */
+/** The safe landing page used when a direct URL is not allowed for a role. */
+export function homeRouteForRole(role?: string): string {
+  if (isManagementRole(role)) return managementHomeRoute(role);
+  switch (normalizeRole(role)) {
+    case 'vendor': return '/vendor/dashboard';
+    case 'operator_site': return '/operator-site/schedule';
+    case 'operator_quarry': return '/operator-quarry/dashboard';
+    case 'operator_fuel': return '/operator-fuel/dispense';
+    case 'operator_warehouse': return '/warehouse';
+    default: return '/(auth)/login';
+  }
+}
+
+const ALL_AUTHENTICATED_ROLES = [
+  MANAGEMENT_ROLES.SUPER_ADMIN,
+  MANAGEMENT_ROLES.ADMIN,
+  MANAGEMENT_ROLES.ADMIN_LITE,
+  'vendor',
+  'operator_site',
+  'operator_quarry',
+  'operator_fuel',
+  'operator_warehouse',
+];
+
+/** Routes outside /management with an explicit role policy. */
 const SPECIAL_ROUTE_ACCESS: Array<{ prefix: string; roles: string[] }> = [
-  { prefix: '/audit-log', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/operations/jobs', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
+  { prefix: '/operations', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/warehouse', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, 'operator_warehouse'] },
+  { prefix: '/vendor', roles: ['vendor'] },
+  { prefix: '/operator-site', roles: ['operator_site'] },
+  { prefix: '/operator-quarry', roles: ['operator_quarry'] },
+  { prefix: '/operator-fuel', roles: ['operator_fuel'] },
+  // Document, receipt, and issue screens are shared by the authenticated
+  // workflows above; data access is still enforced by the API.
+  { prefix: '/screens', roles: ALL_AUTHENTICATED_ROLES },
 ];
 
 /**
@@ -70,7 +101,6 @@ const MANAGEMENT_ROUTE_ACCESS: Array<{ prefix: string; roles: ManagementRole[] }
   { prefix: '/management/roles', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/management/settings', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/management/master-data', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
-  { prefix: '/management/audit-logs', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/management/quarries', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/management/sites', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/management/analytics', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
@@ -113,13 +143,8 @@ export function canAccessRoute(role: string | undefined, route: string): boolean
   if (routeMatches(route, '/track')) return true;
   if (route.startsWith('/management')) return canAccessManagementRoute(role, route);
   const normalizedRole = normalizeRole(role);
-  if (normalizedRole === MANAGEMENT_ROLES.SUPER_ADMIN) return true;
   const policy = SPECIAL_ROUTE_ACCESS.find((entry) => routeMatches(route, entry.prefix));
-  if (isManagementRole(normalizedRole)) {
-    return Boolean(policy?.roles.includes(normalizedRole));
-  }
-  if (normalizedRole === 'operator_warehouse') return Boolean(policy?.roles.includes(normalizedRole));
-  return !policy;
+  return Boolean(policy?.roles.includes(normalizedRole));
 }
 
 export type ManagementPermission =

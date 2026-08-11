@@ -245,7 +245,7 @@ export default function CreateVendorScreen() {
             label="Contact Person"
             value={form.contactPerson}
             onChangeText={(v) => updateField('contactPerson', v)}
-            placeholder="e.g. John Doe"
+            placeholder="Enter contact name"
             icon="person-outline"
             required
             error={errors.contactPerson}

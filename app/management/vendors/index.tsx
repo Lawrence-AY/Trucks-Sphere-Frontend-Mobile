@@ -235,17 +235,6 @@ export default function VendorListScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ManagementSearchHeader title="Vendors" search={search} onChangeSearch={setSearch} placeholder="Search vendors..." />
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.count, { color: colors.textMuted }]}>
-              {vendors.length} vendor{vendors.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-          
-        </View>
-
-      </View>
 
       <FlatList
         data={filtered}
@@ -388,8 +377,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   vendorMeta: {
-    flexDirection: 'row',
-    gap: Spacing.lg,
+    gap: Spacing.xs,
     marginBottom: Spacing.md,
   },
   metaItem: {

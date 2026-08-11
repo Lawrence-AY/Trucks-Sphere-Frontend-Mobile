@@ -23,7 +23,8 @@ import { ThemeToggle } from '../../components/ThemeToggle';
 import { useResolvedIssuesCount } from '../../hooks/useResolvedIssuesCount';
 
 const BOTTOM_TABS = ['schedule', 'weights', 'history'];
-const HIDDEN_TABS = ['dashboard', 'profile', 'settings', 'receive', 'materials', 'downloads'];
+// These routes are opened from visible screens but are not primary tab destinations.
+const SECONDARY_ROUTES = ['dashboard', 'profile', 'settings', 'receive', 'materials', 'downloads'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   schedule: { icon: 'calendar-outline', label: 'Schedule' },
@@ -95,8 +96,8 @@ export default function OperatorSiteLayout() {
       <Tabs
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
+          tabBarActiveTintColor: colors.tabActive,
+          tabBarInactiveTintColor: colors.tabInactive,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
@@ -146,7 +147,7 @@ export default function OperatorSiteLayout() {
             />
           );
         })}
-        {HIDDEN_TABS.map((tabName) => (
+        {SECONDARY_ROUTES.map((tabName) => (
           <Tabs.Screen key={tabName} name={tabName} options={{ href: null }} />
         ))}
       </Tabs>

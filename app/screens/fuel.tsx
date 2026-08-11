@@ -59,14 +59,16 @@ export default function FuelScreen() {
 
   const vendorId = user?.vendorId;
   const normalizedUserVendorId = normalizeVendorId(vendorId);
-  console.log(
-    "[FuelScreen] user.role:",
-    user?.role,
-    "user.vendorId:",
-    vendorId,
-    "normalized:",
-    normalizedUserVendorId,
-  );
+  if (__DEV__) {
+    console.log(
+      "[FuelScreen] user.role:",
+      user?.role,
+      "user.vendorId:",
+      vendorId,
+      "normalized:",
+      normalizedUserVendorId,
+    );
+  }
 
   const loadData = useCallback(async () => {
     setRefreshing(true);
@@ -86,9 +88,11 @@ export default function FuelScreen() {
           });
         } else {
           // Vendor role without vendorId — cannot determine which records belong to them
-          console.log(
-            "[FuelScreen] Vendor role detected but no vendorId. Showing empty to prevent data leakage.",
-          );
+          if (__DEV__) {
+            console.log(
+              "[FuelScreen] Vendor role detected but no vendorId. Showing empty to prevent data leakage.",
+            );
+          }
           data = [];
         }
       }

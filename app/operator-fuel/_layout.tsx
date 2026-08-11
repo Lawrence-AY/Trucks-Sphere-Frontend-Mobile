@@ -94,7 +94,7 @@ export default function OperatorFuelLayout() {
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
           tabBarActiveTintColor: colors.warning,
-          tabBarInactiveTintColor: colors.textMuted,
+          tabBarInactiveTintColor: colors.tabInactive,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {

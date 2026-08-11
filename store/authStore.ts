@@ -104,30 +104,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const stored = await withTimeout(getAuthData(), RESTORE_TIMEOUT_MS, 'Auth storage');
       if (stored.token) {
-        // Skip backend profile call for mock tokens — they will fail Firebase verifyIdToken
-        const isMockToken = stored.token.startsWith('mock_');
-
-        if (!isMockToken) {
-          try {
-            const res = await withTimeout(api.get('/api/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile');
-            const user: User = res.data.user;
-            useRealTimeSyncStore.getState().clearSession();
-            setRealtimeSessionScope(user.uid);
-            set({ user, isLoading: false, isAuthenticated: true });
-            return;
-          } catch {
-            // Do not authenticate a real user from stale local profile data.
-          }
-        } else {
-          if (stored.userData) {
-            try {
-              const user: User = JSON.parse(stored.userData);
-              useRealTimeSyncStore.getState().clearSession();
-              setRealtimeSessionScope(user.uid);
-              set({ user, isLoading: false, isAuthenticated: true });
-              return;
-            } catch {}
-          }
+        try {
+          const res = await withTimeout(api.get('/api/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile');
+          const user: User = res.data.user;
+          useRealTimeSyncStore.getState().clearSession();
+          setRealtimeSessionScope(user.uid);
+          set({ user, isLoading: false, isAuthenticated: true });
+          return;
+        } catch {
+          // Do not authenticate a user from stale local profile data.
         }
       }
     } catch (error) {

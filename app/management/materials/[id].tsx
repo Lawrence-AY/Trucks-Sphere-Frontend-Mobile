@@ -61,6 +61,14 @@ export default function MaterialDetailScreen() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const goBackToMaterials = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/management/materials' as any);
+  };
+
   useEffect(() => {
     if (id) loadMaterial();
   }, [id]);
@@ -71,7 +79,7 @@ export default function MaterialDetailScreen() {
       setMaterial(m);
     } catch {
       Alert.alert('Error', 'Failed to load material');
-      router.back();
+      goBackToMaterials();
     } finally {
       setLoading(false);
     }
@@ -89,7 +97,9 @@ export default function MaterialDetailScreen() {
     try {
       await materialRepository.delete(id!);
       Alert.alert('Deleted', 'Material has been deleted', [
-        { text: 'OK', onPress: () => router.back() },
+        // Replace the deleted detail route so the user cannot return to a
+        // record that no longer exists.
+        { text: 'OK', onPress: () => router.replace('/management/materials' as any) },
       ]);
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to delete material');
@@ -257,8 +267,13 @@ export default function MaterialDetailScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
       <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Back to materials"
+          onPress={goBackToMaterials}
+          style={[styles.backBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.backTitle}>Material Details</Text>
       </View>

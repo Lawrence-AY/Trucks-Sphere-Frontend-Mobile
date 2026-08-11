@@ -9,6 +9,7 @@ import { useTheme, useThemeMode } from '../../hooks/useTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { getRoleLabel } from '../../utils/helpers';
+import { canControlStatusBarAppearance } from '../../utils/statusBar';
 
 export default function WarehouseLayout() {
   const colors = useTheme();
@@ -21,7 +22,7 @@ export default function WarehouseLayout() {
   const showManagementBackButton = isManagementRole(user?.role) && router.canGoBack();
   const isWarehouseOperator = normalizeRole(user?.role) === 'operator_warehouse';
   const closeMenu = () => setMenuVisible(false);
-  const goTo = (route: '/warehouse' | '/warehouse/history' | '/warehouse/reports') => {
+  const goTo = (route: '/warehouse' | '/warehouse/history' | '/warehouse/reports' | '/warehouse/profile') => {
     closeMenu();
     router.push(route as any);
   };
@@ -41,8 +42,8 @@ export default function WarehouseLayout() {
         headerTitleStyle: { fontWeight: '700', fontSize: 17, color: colors.text },
         headerTitleAlign: 'center',
         headerShadowVisible: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
@@ -96,13 +97,16 @@ export default function WarehouseLayout() {
           ) : undefined,
         }}
       />
+      <Tabs.Screen name="profile" options={{ href: null, title: 'Profile' }} />
     </Tabs>
-      <StatusBar
-        animated
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={colors.surface}
-        translucent={false}
-      />
+      {canControlStatusBarAppearance ? (
+        <StatusBar
+          animated
+          barStyle={isDark ? 'light-content' : 'dark-content'}
+          backgroundColor={colors.surface}
+          translucent={false}
+        />
+      ) : null}
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={closeMenu}>
         <View style={styles.drawerBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeMenu} />
@@ -119,6 +123,7 @@ export default function WarehouseLayout() {
               <MenuItem icon="cube-outline" label="My shipments" onPress={() => goTo('/warehouse')} />
               <MenuItem icon="time-outline" label="History" onPress={() => goTo('/warehouse/history')} />
               <MenuItem icon="bar-chart-outline" label="Reports" onPress={() => goTo('/warehouse/reports')} />
+              <MenuItem icon="person-outline" label="Profile" onPress={() => goTo('/warehouse/profile')} />
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <MenuItem icon="log-out-outline" label="Logout" danger onPress={handleLogout} loading={loggingOut} />
             </ScrollView>

@@ -207,15 +207,6 @@ export default function DriverListScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ManagementSearchHeader title="Drivers" search={search} onChangeSearch={setSearch} placeholder="Search drivers..." />
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Text style={[styles.count, { color: colors.textMuted }]}>
-            {drivers.length} driver{drivers.length !== 1 ? 's' : ''}
-          </Text>
-          
-        </View>
-      </View>
-
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}

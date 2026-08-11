@@ -16,6 +16,7 @@ import { DataCard, DetailRow, PageShell, SectionTitle } from '../../components/E
 import { getRoleLabel } from '../../utils/helpers';
 import { getPasswordChangeError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
 import { changePassword, updateProfile } from '../../services/api';
+import { AccountDeletionRequest } from '../../components/AccountDeletionRequest';
 
 export default function ManagementProfileScreen() {
   const colors = useTheme();
@@ -286,6 +287,7 @@ export default function ManagementProfileScreen() {
           </View>
         )}
       </DataCard>
+      <AccountDeletionRequest />
     </PageShell>
   );
 }

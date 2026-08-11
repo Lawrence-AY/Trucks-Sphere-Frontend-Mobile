@@ -22,7 +22,6 @@ import {
   EmptyState,
   PageShell,
   SearchField,
-  SectionTitle,
   FilterRail,
 } from "../../components/EnterpriseUI";
 
@@ -388,18 +387,17 @@ export default function FuelHistoryScreen() {
         onChangeText={setSearch}
         placeholder="Search job, driver, plate..."
       />
-      <SectionTitle title={`Fuel Records (${filtered.length})`} />
-
       {loading ? (
         <DataCard>
           <Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text>
         </DataCard>
       ) : filtered.length ? (
-        filtered.map((item) => {
+        <View style={styles.historyList}>
+          {filtered.map((item) => {
           const isComplete = item.completed === true;
           const authCode = item.authorizationCode || item.authorizationId || "";
           return (
-            <DataCard key={item.id}>
+            <DataCard key={item.id} contentStyle={styles.historyCardContent}>
               <View
                 style={{
                   flexDirection: "row",
@@ -487,7 +485,8 @@ export default function FuelHistoryScreen() {
               </Text>
             </DataCard>
           );
-        })
+          })}
+        </View>
       ) : (
         <EmptyState
           icon="water-outline"
@@ -520,6 +519,8 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 16, fontWeight: "800" },
   statLabel: { fontSize: 11, fontWeight: "600" },
   fuelBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
+  historyCardContent: { gap: 4 },
+  historyList: { gap: 2 },
   exportRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.md },
   exportBtn: {
     flex: 1,

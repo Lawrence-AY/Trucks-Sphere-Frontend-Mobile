@@ -49,11 +49,11 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
       <View style={styles.row}>
         {driverPhoto ? (
           <Image source={{ uri: driverPhoto }} style={styles.driverPhoto} />
-        ) : (
+        ) : !trip.driverId ? (
           <View style={[styles.driverPhoto, styles.driverPhotoFallback, { backgroundColor: colors.primaryLight }]}>
             <Ionicons name="person-outline" size={20} color={colors.primary} />
           </View>
-        )}
+        ) : null}
         <View style={styles.driverDetails}>
           <Text style={[styles.driverName, { color: colors.text }]} numberOfLines={1}>
             {trip.driverName || 'Unassigned driver'}

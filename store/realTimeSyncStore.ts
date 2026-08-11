@@ -61,7 +61,9 @@ const CACHE_PREFIX = 'sync_cache_';
 // requests (and their CORS preflights) while a vendor screen is open.
 const POLL_INTERVAL_MS = 30000;
 const UNSUBSCRIBE_GRACE_PERIOD_MS = 15000;
-const REALTIME_DEBUG = __DEV__ || process.env.EXPO_PUBLIC_API_DEBUG === 'true';
+// Public environment values ship with the app, so they must never enable
+// verbose production logging.
+const REALTIME_DEBUG = __DEV__;
 
 // ─── Collection-to-fetcher mapping ───
 const fetchers: Record<string, (p?: any) => Promise<any[]>> = {

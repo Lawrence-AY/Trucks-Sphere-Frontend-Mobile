@@ -185,13 +185,15 @@ export function DataCard({
   children,
   onPress,
   style,
+  contentStyle,
 }: {
   children: React.ReactNode;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Card mode="outlined" onPress={onPress} disabled={!onPress} style={[styles.dataCard, style]} contentStyle={styles.dataCardContent}>
+    <Card mode="outlined" onPress={onPress} disabled={!onPress} style={[styles.dataCard, style]} contentStyle={[styles.dataCardContent, contentStyle]}>
       {children}
     </Card>
   );

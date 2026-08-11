@@ -13,11 +13,13 @@ import { getRoleLabel } from '../../utils/helpers';
 import { canAccessManagementRoute, MANAGEMENT_ROLES, managementHomeRoute, normalizeRole } from '../../utils/access';
 import { getManagementNavigation } from '../../utils/managementNavigation';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { ManagementHeaderMenuButton, ManagementMenuProvider } from '../../components/management/ManagementMenuContext';
 
 const DEFAULT_BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
 const LITE_BOTTOM_TABS = ['dashboard', 'vendors', 'trucks', 'drivers'];
 const BOTTOM_TABS = [...new Set([...DEFAULT_BOTTOM_TABS, ...LITE_BOTTOM_TABS])];
-const HIDDEN_TABS = [
+// These routes are opened from visible navigation and are not primary tab destinations.
+const SECONDARY_ROUTES = [
   'super-admin',
   'edit',
   'lite',
@@ -64,8 +66,8 @@ const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = 
 };
 
 const getManagementScreenOptions = (colors: any, bottomInset: number) => ({
-  tabBarActiveTintColor: colors.primary,
-  tabBarInactiveTintColor: colors.textMuted,
+  tabBarActiveTintColor: colors.tabActive,
+  tabBarInactiveTintColor: colors.tabInactive,
   tabBarShowLabel: Platform.OS !== 'web',
   tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' as const } : { fontSize: 11, fontWeight: '600' as const },
   tabBarStyle: Platform.OS === 'web'
@@ -82,7 +84,10 @@ const getManagementScreenOptions = (colors: any, bottomInset: number) => ({
   headerStyle: { backgroundColor: colors.surface },
   headerTintColor: colors.text,
   headerTitleStyle: { fontWeight: '700' as const, fontSize: 16 },
+  headerTitleAlign: 'left' as const,
+  headerTitleContainerStyle: { left: 8, right: 52 },
   headerShadowVisible: false,
+  headerRight: Platform.OS === 'web' ? undefined : () => <ManagementHeaderMenuButton />,
 });
 
 const getTabIcon = (name: string, color: ColorValue) => {
@@ -197,6 +202,7 @@ export default function ManagementLayout() {
 
   return (
     <View style={{ flex: 1 }}>
+      <ManagementMenuProvider openMenu={toggleMenu}>
       <Tabs
         tabBar={Platform.OS === 'web' ? NoopTabBar : undefined}
         screenOptions={getManagementScreenOptions(colors, tabBottomInset)}
@@ -214,7 +220,7 @@ export default function ManagementLayout() {
             />
           );
         })}
-        {HIDDEN_TABS.map((tabName) => {
+        {SECONDARY_ROUTES.map((tabName) => {
           const titleOverrides: Record<string, string> = {
             'drivers': 'Drivers',
             'drivers/create': 'Onboard Driver',
@@ -249,17 +255,7 @@ export default function ManagementLayout() {
           );
         })}
       </Tabs>
-
-      {Platform.OS !== 'web' && !menuOpen && (
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Open menu"
-          style={[styles.floatingMenuButton, { top: insets.top + Spacing.sm, backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={toggleMenu}
-        >
-          <Ionicons name="menu-outline" size={26} color={colors.text} />
-        </TouchableOpacity>
-      )}
+      </ManagementMenuProvider>
 
       {/* Hamburger Drawer */}
       {menuOpen && (
@@ -346,20 +342,6 @@ export default function ManagementLayout() {
 
 const styles = StyleSheet.create({
   tabIcon: { width: 38, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  floatingMenuButton: {
-    position: 'absolute',
-    right: Spacing.md,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-   
-     
-     
-    zIndex: 20,
-  },
   drawer: {
     position: 'absolute', top: 0, right: 0, bottom: 0,
     shadowColor: '#000', shadowOffset: { width: -2, height: 0 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 8,

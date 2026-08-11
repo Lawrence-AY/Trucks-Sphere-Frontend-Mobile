@@ -495,7 +495,7 @@ export default function UsersScreen() {
                 label="Full Name"
                 value={form.displayName}
                 onChangeText={(v) => updateForm('displayName', v)}
-                placeholder="John Doe"
+                placeholder="Enter full name"
                 icon="person-outline"
                 required
                 error={formErrors.displayName}
@@ -593,7 +593,7 @@ export default function UsersScreen() {
                 label="Full Name"
                 value={editForm.displayName}
                 onChangeText={(v) => updateEditForm('displayName', v)}
-                placeholder="John Doe"
+                placeholder="Enter full name"
                 icon="person-outline"
                 required
                 error={editFormErrors.displayName}

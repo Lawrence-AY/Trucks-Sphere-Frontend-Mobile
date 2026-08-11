@@ -242,7 +242,7 @@ export default function OperatorSiteReceiveScreen() {
           <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
           <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
           <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
-          <DetailRow icon="location-outline" value={`Origin: ${activeJob.materialSource || activeJob.weighOutGeoLocation?.city || activeJob.weighOutGeoLocation?.town || activeJob.weighOutGeoLocation?.district || activeJob.weighOutGeoLocation?.name || activeJob.weighOutLocation || resolveQuarryName(activeJob)} → Dest: ${activeJob.siteName || '—'}`} />
+          <DetailRow icon="location-outline" value={`Origin: ${activeJob.isWarehouseDelivery || activeJob.deliveryOrigin === 'warehouse' ? 'Warehouse' : activeJob.materialSource || activeJob.weighOutGeoLocation?.city || activeJob.weighOutGeoLocation?.town || activeJob.weighOutGeoLocation?.district || activeJob.weighOutGeoLocation?.name || activeJob.weighOutLocation || resolveQuarryName(activeJob)} → Dest: ${activeJob.siteName || '—'}`} />
           {/* Lot Number Input */}
           <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.inputHeader}>

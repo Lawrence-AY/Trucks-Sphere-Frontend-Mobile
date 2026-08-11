@@ -7,7 +7,7 @@
  *   - Status transition buttons (context-aware)
  *   - Weight information
  *   - Driver & vehicle info
- *   - Receipt upload placeholder
+ *   - Delivery and receipt document access when records are available
  */
 
 import React, { useEffect, useState } from 'react';
@@ -213,11 +213,11 @@ export default function JobDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Job Details</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Job Details</Text>
       </View>
       <ScrollView
         style={{ flex: 1 }}
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
-    backgroundColor: '#fff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backBtn: {
     width: 36,
@@ -259,7 +259,6 @@ const styles = StyleSheet.create({
   backTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1E293B',
     marginLeft: Spacing.sm,
   },
   content: {
