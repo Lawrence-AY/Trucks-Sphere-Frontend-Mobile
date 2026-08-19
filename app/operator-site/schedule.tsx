@@ -57,6 +57,7 @@ const MATERIAL_SOURCE_OPTIONS = [
   'Local Borrow pit',
   'Witu',
   'Baragoni',
+  'Warehouse'
 ];
 
 type CapturedDeliveryNote = UploadFile & {

@@ -62,8 +62,9 @@
       }
     },
     "owner": "larryrong",
-    "updates": {
-      "enabled": false
+     "updates": {
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/26780c71-fb1c-4a27-a60b-b4bbd2d84151"
     },
     "runtimeVersion": {
       "policy": "appVersion"
