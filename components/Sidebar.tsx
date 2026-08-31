@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, useThemeMode } from '../hooks/useTheme';
+import { Spacing } from '../constants/theme';
 import { getRoleLabel } from '../utils/helpers';
 import { showConfirm } from '../utils/webAlert';
 import type { UserRole } from '../store/types';
@@ -28,6 +29,7 @@ type NavItem = {
   route?: string;
   roles?: UserRole[];
   activeRoutes?: string[];
+  exactActive?: boolean;
 };
 
 type NavSection = {
@@ -58,6 +60,8 @@ const ROLE_SECTIONS: NavSection[] = [
       { label: 'Weights', icon: 'scale-outline', route: '/operator-site/weights', roles: ['operator_site'], activeRoutes: ['/operator-site/weights'] },
       { label: 'History', icon: 'time-outline', route: '/operator-site/history', roles: ['operator_site'], activeRoutes: ['/operator-site/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-site/profile', roles: ['operator_site'], activeRoutes: ['/operator-site/profile'] },
+      { label: 'Inspections', icon: 'clipboard-outline', route: '/inspector', roles: ['inspector'], activeRoutes: ['/inspector'], exactActive: true },
+      { label: 'History', icon: 'time-outline', route: '/inspector/history', roles: ['inspector'], activeRoutes: ['/inspector/history'] },
       { label: 'Dispense Fuel', icon: 'water-outline', route: '/operator-fuel/dispense', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/dispense'] },
       { label: 'History', icon: 'time-outline', route: '/operator-fuel/history', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-fuel/profile', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/profile'] },
@@ -68,7 +72,7 @@ const ROLE_SECTIONS: NavSection[] = [
     icon: 'compass-outline',
     items: [
       { label: 'Fuel Records', icon: 'water-outline', route: '/screens/fuel', roles: ['vendor'], activeRoutes: ['/screens/fuel'] },
-      { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['operator_quarry', 'operator_site', 'vendor'], activeRoutes: ['/screens/issues'] },
+      { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues', roles: ['operator_quarry', 'operator_site', 'vendor', 'inspector'], activeRoutes: ['/screens/issues'] },
     ],
   },
 ];
@@ -110,7 +114,7 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
 
   const isActive = (item: NavItem): boolean => {
     if (item.activeRoutes) {
-      return item.activeRoutes.some((r) => pathname === r || pathname.startsWith(r + '/'));
+      return item.activeRoutes.some((r) => item.exactActive ? pathname === r : pathname === r || pathname.startsWith(r + '/'));
     }
     return item.route ? pathname.startsWith(item.route) : false;
   };
@@ -169,6 +173,9 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
               break;
             case 'operator_fuel':
               handleNav('/operator-fuel/dispense');
+              break;
+            case 'inspector':
+              handleNav('/inspector');
               break;
             default:
               handleNav('/(auth)/login');
@@ -348,8 +355,7 @@ const styles = StyleSheet.create({
   roleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    gap: 4, marginTop: Spacing.xs,
   },
   roleText: {
     fontSize: 10,
@@ -369,8 +375,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 20,
-    paddingTop: 8,
-    marginBottom: 6,
+    paddingTop: 8, marginBottom: Spacing.xs,
   },
   navSectionTitle: {
     fontSize: 10,
@@ -385,8 +390,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 11,
     borderRadius: 8,
-    marginHorizontal: 8,
-    marginBottom: 2,
+    marginHorizontal: 8, marginBottom: Spacing.xs,
   },
   navItemActive: {
     backgroundColor: '#1B2A4A12',
@@ -430,8 +434,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#E2E8F0',
-    marginHorizontal: 16,
-    marginVertical: 8,
+    marginHorizontal: 16, marginVertical: Spacing.xs,
   },
   logoutBtn: {
     flexDirection: 'row',
@@ -439,8 +442,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    marginHorizontal: 16, marginBottom: Spacing.xs,
     borderRadius: 8,
     backgroundColor: '#FEF2F2',
     borderWidth: 1,

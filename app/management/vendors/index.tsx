@@ -21,7 +21,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
@@ -56,9 +56,12 @@ export default function VendorListScreen() {
   const [search, setSearch] = useState('');
   const [vendorStats, setVendorStats] = useState<Record<string, { drivers: number; vehicles: number; jobs: number }>>({});
 
-  useEffect(() => {
-    loadVendors();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      vendorRepository.invalidateCache();
+      void loadVendors();
+    }, []),
+  );
 
   useEffect(() => {
     filterVendors();
@@ -284,8 +287,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   syncButton: {
     flexDirection: 'row',
@@ -305,8 +307,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   count: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   searchBar: {
     flexDirection: 'row',
@@ -315,8 +316,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   searchInput: {
     flex: 1,
@@ -324,8 +324,7 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   filterChip: {
     paddingHorizontal: Spacing.md,
@@ -345,14 +344,12 @@ const styles = StyleSheet.create({
   vendorCard: {
     borderRadius: 5,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: 0.1,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   vendorHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+    gap: Spacing.md, marginBottom: Spacing.xs,
   },
   avatar: {
     width: 44,
@@ -373,12 +370,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   vendorId: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   vendorMeta: {
-    gap: Spacing.xs,
-    marginBottom: Spacing.md,
+    gap: Spacing.xs, marginBottom: Spacing.xs,
   },
   metaItem: {
     flexDirection: 'row',
@@ -403,8 +398,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   statLabel: {
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: 11, marginTop: Spacing.xs,
   },
   fab: {
     position: 'absolute',

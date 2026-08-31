@@ -201,8 +201,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   grid: {
     flexDirection: 'row',

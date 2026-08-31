@@ -2,6 +2,10 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  InputAccessoryView,
+  Keyboard,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,7 +19,7 @@ import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { updateDeliveryOrder } from '../../services/api';
-import { useDeliveryOrders } from '../../store/realtimeData';
+import { useDeliveryOrders, useDrivers } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatEAT } from '../../utils/helpers';
@@ -40,6 +44,7 @@ export default function OperatorQuarryWeighInScreen() {
   const [saving, setSaving] = useState(false);
 
   const allDeliveries = useDeliveryOrders();
+  const drivers = useDrivers();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
   const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
 
@@ -86,6 +91,9 @@ export default function OperatorQuarryWeighInScreen() {
     return deliveries.filter((d) => !q || [d.jobId, d.driverName, d.plateNumber].some((v) => String(v || '').toLowerCase().includes(q)));
   }, [deliveries, search]);
 
+  const getDriverPhoto = (job: any) =>
+    job.driverPhotoURL || job.driverPhotoUrl || drivers.find((driver: any) => driver.id === job.driverId)?.photoURL;
+
   const openWeighInForm = (job: any) => {
     if (isGrayedOut(job)) {
       Alert.alert('Unavailable', 'This truck or driver is currently assigned to another active job.');
@@ -131,13 +139,25 @@ export default function OperatorQuarryWeighInScreen() {
   /* ─── Weigh-In Form View ─── */
   if (activeJob) {
     return (
+      <>
       <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
         <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.jobCardHeader}>
             <Text style={[styles.jobCardTitle, { color: colors.text }]}>{activeJob.jobId}</Text>
           </View>
           <DetailRow icon="document-outline" value={`PO: ${activeJob.poNumber || 'N/A'}`} />
-          <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
+          <View style={styles.driverRow}>
+            {getDriverPhoto(activeJob) ? (
+              <Image source={{ uri: getDriverPhoto(activeJob) }} style={styles.driverPhoto} />
+            ) : (
+              <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
+                <Text style={[styles.driverInitial, { color: colors.primary }]}>
+                  {(activeJob.driverName || 'D').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <DetailRow value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
+          </View>
           <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
           <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
           <DetailRow icon="location-outline" value={`${activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`} />
@@ -153,7 +173,18 @@ export default function OperatorQuarryWeighInScreen() {
           </View>
           <Text style={[styles.inputSub, { color: colors.textMuted }]}>Enter the empty weight (tare) of the truck before loading.</Text>
           <View style={[styles.weightInputWrap, { borderColor: '#2563EB', backgroundColor: colors.inputBg }]}>
-            <TextInput style={[styles.weightInput, { color: colors.text }]} placeholder="0.0" placeholderTextColor={colors.textTertiary} keyboardType="decimal-pad" value={weightIn} onChangeText={setWeightIn} autoFocus />
+            <TextInput
+              style={[styles.weightInput, { color: colors.text }]}
+              placeholder="0.0"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="decimal-pad"
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+              inputAccessoryViewID={Platform.OS === 'ios' ? 'weigh-in-keyboard-accessory' : undefined}
+              value={weightIn}
+              onChangeText={setWeightIn}
+              autoFocus
+            />
             <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>
           </View>
         </View>
@@ -166,6 +197,16 @@ export default function OperatorQuarryWeighInScreen() {
           <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
         </TouchableOpacity>
       </ScrollView>
+      {Platform.OS === 'ios' ? (
+        <InputAccessoryView nativeID="weigh-in-keyboard-accessory">
+          <View style={[styles.keyboardAccessory, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+            <TouchableOpacity onPress={Keyboard.dismiss} style={styles.keyboardDoneButton}>
+              <Text style={[styles.keyboardDoneText, { color: colors.primary }]}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      ) : null}
+      </>
     );
   }
 
@@ -194,7 +235,18 @@ export default function OperatorQuarryWeighInScreen() {
                   </View>
                 )}
               </View>
-              <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+              <View style={styles.driverRow}>
+                {getDriverPhoto(item) ? (
+                  <Image source={{ uri: getDriverPhoto(item) }} style={styles.driverPhoto} />
+                ) : (
+                  <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
+                    <Text style={[styles.driverInitial, { color: colors.primary }]}>
+                      {(item.driverName || 'D').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <DetailRow value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+              </View>
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
               {!grayed && (
                 <View style={[styles.tapHint, { backgroundColor: `${colors.primary}08` }]}>
@@ -207,7 +259,14 @@ export default function OperatorQuarryWeighInScreen() {
           );
         })
       ) : (
-        <EmptyState icon="download-outline" title="No weigh-ins pending" subtitle="All trucks have been weighed in." />
+        <EmptyState
+          icon="download-outline"
+          title="No pending weigh-ins"
+          subtitle="All trucks have been weighed in."
+          singleLineTitle
+          actionLabel={refreshing ? 'Refreshing…' : 'Refresh queue'}
+          onAction={() => { void handleRefresh(); }}
+        />
       )}
     </PageShell>
   );
@@ -215,24 +274,30 @@ export default function OperatorQuarryWeighInScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  jobCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  jobCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  formContent: { padding: Spacing.md,paddingTop:0, paddingBottom: Spacing['4xl'] },
+  jobCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  jobCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs},
   jobCardTitle: { fontSize: 18, fontWeight: '800' },
-  jobTimestamp: { fontSize: 12, marginTop: Spacing.sm },
-  inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  jobTimestamp: { fontSize: 12, marginTop: Spacing.xs},
+  inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs},
   inputIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   inputTitle: { fontSize: 18, fontWeight: '700' },
-  inputSub: { fontSize: 13, marginBottom: Spacing.md },
+  inputSub: { fontSize: 13, marginBottom: Spacing.xs},
   weightInputWrap: { borderRadius: Radius.md, borderWidth: 2, paddingHorizontal: Spacing.md, height: 64, flexDirection: 'row', alignItems: 'center' },
   weightInput: { flex: 1, fontSize: 28, fontWeight: '800' },
   weightSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm, minHeight: 50, marginTop: Spacing.sm },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm, minHeight: 50, marginTop: Spacing.xs},
   saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.sm },
+  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.xs},
   cancelText: { fontSize: 14, fontWeight: '600' },
-  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: Spacing.sm },
+  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: Spacing.xs},
   tapHintText: { fontSize: 11, fontWeight: '700' },
   grayedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1 },
+  keyboardAccessory: { alignItems: 'flex-end', borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs },
+  keyboardDoneButton: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs },
+  keyboardDoneText: { fontSize: 16, fontWeight: '700' },
+  driverRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  driverPhoto: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  driverInitial: { fontSize: 12, fontWeight: '800' },
 });

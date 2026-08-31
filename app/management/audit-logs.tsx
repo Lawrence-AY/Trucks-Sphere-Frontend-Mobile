@@ -549,9 +549,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 2,
-    marginBottom: Spacing.md,
+    fontSize: 14, marginTop: Spacing.xs, marginBottom: Spacing.xs,
   },
   searchBar: {
     flexDirection: 'row',
@@ -560,15 +558,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
   },
-  filterRow: {
-    marginBottom: Spacing.sm,
+  filterRow: { marginBottom: Spacing.xs,
   },
   filterChip: {
     paddingHorizontal: Spacing.md,
@@ -589,8 +585,7 @@ const styles = StyleSheet.create({
   logCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   logHeader: {
     flexDirection: 'row',
@@ -615,14 +610,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logMeta: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 11, marginTop: Spacing.xs,
   },
   logFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: Spacing.sm,
+    gap: 4, marginTop: Spacing.xs,
     paddingLeft: 52,
     flexWrap: 'wrap',
   },
@@ -633,8 +626,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginHorizontal: 2,
   },
-  expandedSection: {
-    marginTop: Spacing.sm,
+  expandedSection: { marginTop: Spacing.xs,
     paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingLeft: 52,
@@ -642,8 +634,7 @@ const styles = StyleSheet.create({
   expandedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
+    gap: 6, marginTop: Spacing.xs,
   },
   expandedLabel: {
     fontSize: 11,
@@ -655,21 +646,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
   },
-  changesSection: {
-    marginTop: Spacing.sm,
+  changesSection: { marginTop: Spacing.xs,
     paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   changesTitle: {
     fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontWeight: '700', marginBottom: Spacing.xs,
   },
   changeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    gap: 4, marginTop: Spacing.xs,
   },
   changeField: {
     fontSize: 11,
@@ -683,8 +671,7 @@ const styles = StyleSheet.create({
   viewMoreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: Spacing.sm,
+    gap: 4, marginTop: Spacing.xs,
   },
   viewMoreText: {
     fontSize: 12,
@@ -732,15 +719,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   detailSubtitle: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   sectionLabel: {
     fontSize: 13,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: Spacing.sm,
+    letterSpacing: 0.5, marginTop: Spacing.xs,
   },
   detailRow: {
     flexDirection: 'row',
@@ -761,13 +746,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: Spacing.md,
   },
-  changeDetailRow: {
-    marginTop: Spacing.sm,
+  changeDetailRow: { marginTop: Spacing.xs,
   },
   changeFieldLabel: {
     fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontWeight: '700', marginBottom: Spacing.xs,
   },
   changeValuesRow: {
     flexDirection: 'row',
@@ -789,7 +772,6 @@ const styles = StyleSheet.create({
   },
   changeBoxValue: {
     fontSize: 13,
-    fontWeight: '700',
-    marginTop: 2,
+    fontWeight: '700', marginTop: Spacing.xs,
   },
 });

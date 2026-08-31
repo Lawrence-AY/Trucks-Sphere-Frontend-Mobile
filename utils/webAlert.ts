@@ -1,5 +1,18 @@
 import { Platform } from 'react-native';
 
+function dispatchWebAlert(title: string, message: string, type: AlertPayload['type'] = 'info'): void {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+  const payload: AlertPayload = {
+    id: `alert_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+    title,
+    message,
+    type,
+    timestamp: new Date().toISOString(),
+    source: 'web',
+  };
+  window.dispatchEvent(new CustomEvent('trucksphere:alert', { detail: payload }));
+}
+
 export const showConfirm = (title: string, message: string): Promise<boolean> => {
   if (Platform.OS === 'web') {
     const result = window.confirm(`${title}\n\n${message}`);
@@ -16,7 +29,7 @@ export const showConfirm = (title: string, message: string): Promise<boolean> =>
 
 export const showAlert = (title: string, message: string): Promise<void> => {
   if (Platform.OS === 'web') {
-    window.alert(`${title}\n\n${message}`);
+    dispatchWebAlert(title, message, title.toLowerCase().includes('error') ? 'critical' : 'info');
     return Promise.resolve();
   }
   const { Alert } = require('react-native');
@@ -35,7 +48,7 @@ export const showAlertWithCallback = (
   onDismiss: () => void
 ): Promise<void> => {
   if (Platform.OS === 'web') {
-    window.alert(`${title}\n\n${message}`);
+    dispatchWebAlert(title, message, title.toLowerCase().includes('error') ? 'critical' : 'info');
     onDismiss();
     return Promise.resolve();
   }
@@ -102,10 +115,7 @@ export function showSyncedAlert(
 
   // Also show native alert on the current device
   if (Platform.OS === 'web') {
-    // Web: dispatch a custom event so any dashboard UI can pick it up
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('trucksphere:alert', { detail: payload }));
-    }
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trucksphere:alert', { detail: payload }));
   } else {
     const { Alert } = require('react-native');
     const icon = type === 'critical' ? '🚨' : type === 'warning' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';

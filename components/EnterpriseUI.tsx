@@ -231,19 +231,44 @@ export function EmptyState({
   icon,
   title,
   subtitle,
+  transparent = true,
+  actionLabel,
+  onAction,
+  singleLineTitle = false,
 }: {
   icon: IconName;
   title: string;
   subtitle?: string;
+  transparent?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
+  singleLineTitle?: boolean;
 }) {
   const colors = useTheme();
   return (
-    <Surface style={[styles.empty, { backgroundColor: colors.surface }]} elevation={0}>
+    <Surface style={[styles.empty, { backgroundColor: transparent ? 'transparent' : colors.surface }]} elevation={0}>
       <View style={[styles.emptyIcon, { backgroundColor: `${colors.primary}16` }]}>
         <Ionicons name={icon} size={34} color={colors.primary} />
       </View>
-      <Text variant="titleMedium" style={{ color: colors.text }}>{title}</Text>
+      <Text
+        variant="titleMedium"
+        style={{ color: colors.text }}
+        numberOfLines={singleLineTitle ? 1 : undefined}
+        adjustsFontSizeToFit={singleLineTitle}
+        minimumFontScale={0.8}
+      >
+        {title}
+      </Text>
       {subtitle ? <Text variant="bodyMedium" style={[styles.emptySubtitle, { color: colors.textMuted }]}>{subtitle}</Text> : null}
+      {actionLabel && onAction ? (
+        <TouchableRipple
+          onPress={onAction}
+          borderless
+          style={[styles.emptyAction, { backgroundColor: `${colors.primary}14` }]}
+        >
+          <Text variant="labelLarge" style={{ color: colors.primary }}>{actionLabel}</Text>
+        </TouchableRipple>
+      ) : null}
     </Surface>
   );
 }
@@ -266,20 +291,17 @@ const styles = StyleSheet.create({
   eyebrow: {
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0,
-    marginBottom: 2,
+    letterSpacing: 0, marginBottom: Spacing.xs,
   },
   commandTitle: {
     fontWeight: '800',
     letterSpacing: 0,
   },
   commandSubtitle: {
-    lineHeight: 18,
-    marginTop: 2,
+    lineHeight: 18, marginTop: Spacing.xs,
   },
   searchField: {
-    borderRadius: Radius.md,
-    marginVertical: -Spacing.xs,
+    borderRadius: Radius.md, marginVertical: Spacing.xs,
   },
   searchInput: {
     minHeight: 0,
@@ -368,8 +390,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   dataCard: {
-    borderRadius: 5,
-    marginBottom: 0.1,
+    borderRadius: 5, marginBottom: Spacing.sm,
     overflow: 'hidden',
   },
   dataCardContent: {
@@ -406,11 +427,16 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 22,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.sm,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   emptySubtitle: {
     textAlign: 'center',
     lineHeight: 18,
+  },
+  emptyAction: {
+    borderRadius: Radius.md,
+    marginVertical: Spacing.xs,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
   },
 });

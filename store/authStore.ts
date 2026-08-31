@@ -21,6 +21,10 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   }
 }
 
+function isTransientNetworkError(error: any): boolean {
+  return !error?.statusCode && !error?.response?.status;
+}
+
 interface AuthStore {
   user: User | null;
   isLoading: boolean;
@@ -105,7 +109,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const stored = await withTimeout(getAuthData(), RESTORE_TIMEOUT_MS, 'Auth storage');
       if (stored.token) {
         try {
-          const res = await withTimeout(api.get('/api/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile');
+          let res;
+          try {
+            res = await withTimeout(api.get('/api/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile');
+          } catch (error) {
+            // A device resuming onto Wi-Fi can make the first request before
+            // the network path is ready. Retry only transport failures; a
+            // rejected/expired token must still sign out immediately.
+            if (!isTransientNetworkError(error)) throw error;
+            await new Promise<void>((resolve) => setTimeout(resolve, 750));
+            res = await withTimeout(api.get('/api/auth/profile'), RESTORE_TIMEOUT_MS, 'Auth profile retry');
+          }
           const user: User = res.data.user;
           useRealTimeSyncStore.getState().clearSession();
           setRealtimeSessionScope(user.uid);

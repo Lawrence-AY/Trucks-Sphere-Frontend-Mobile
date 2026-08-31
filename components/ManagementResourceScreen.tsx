@@ -108,7 +108,7 @@ export default function ManagementResourceScreen({
           const status = getStatus?.(item) || item.status;
 
           return (
-            <DataCard key={item.id || getTitle(item)}>
+            <DataCard key={item.id || getTitle(item)} style={item.securityFlag?.status === 'cleared' ? { borderColor: '#A78BFA', borderWidth: 1.5 } : undefined}>
               <View style={styles.cardHead}>
                 <View style={styles.cardCopy}>
                   <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{getTitle(item)}</Text>
@@ -119,6 +119,7 @@ export default function ManagementResourceScreen({
               {details.map((detail, index) => (
                 <DetailRow key={`${detail.value}-${index}`} icon={detail.icon} label={detail.label} value={detail.value} />
               ))}
+              {item.securityFlag?.status === 'cleared' ? <Text style={styles.clearedLabel}>Unsuspended after security clearance</Text> : null}
             </DataCard>
           );
         })
@@ -136,5 +137,6 @@ const styles = StyleSheet.create({
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md },
   cardCopy: { flex: 1 },
   title: { fontSize: 17, fontWeight: '900' },
-  subtle: { fontSize: 12, fontWeight: '700', marginTop: 3, lineHeight: 17 },
+  subtle: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs, lineHeight: 17 },
+  clearedLabel: { color: '#6D28D9', fontSize: 12, fontWeight: '700', marginTop: Spacing.xs },
 });

@@ -51,7 +51,7 @@ export default function OperatorSiteMaterialsScreen() {
       <SearchField value={search} onChangeText={setSearch} placeholder="Search material..." />
 
       {/* Category Dropdown */}
-      <View style={{ marginBottom: Spacing.md, position: 'relative', zIndex: 10 }}>
+      <View style={{ marginBottom: Spacing.xs, position: 'relative', zIndex: 10 }}>
         <TouchableOpacity
           style={[styles.dropdownTrigger, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => setDropdownVisible(true)}

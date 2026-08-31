@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Linking,
   Modal,
@@ -11,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
@@ -18,10 +18,8 @@ import { Radius, Spacing } from '../constants/theme';
 import { fetchDeliveryOrders, fetchDrivers, fetchVehicles } from '../services/api';
 import { formatEAT } from '../utils/helpers';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const GALLERY_COLS = 3;
 const GALLERY_GAP = 6;
-const GALLERY_ITEM_SIZE = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.xl * 2 - GALLERY_GAP * (GALLERY_COLS - 1)) / GALLERY_COLS;
 
 // Build storage URLs for quarry verification images
 const STORAGE_BASE = 'https://storage.googleapis.com/trucksphere.firebasestorage.app';
@@ -42,6 +40,8 @@ interface DriverProfileModalProps {
 
 export default function DriverProfileModal({ visible, driverId, driverData, jobId: filterJobId, onClose }: DriverProfileModalProps) {
   const colors = useTheme();
+  const { width } = useWindowDimensions();
+  const galleryItemSize = Math.max(72, (width - Spacing.lg * 2 - Spacing.xl * 2 - GALLERY_GAP * (GALLERY_COLS - 1)) / GALLERY_COLS);
   const [loading, setLoading] = useState(true);
   const [driver, setDriver] = useState<any>(driverData || null);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
@@ -240,7 +240,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
                   </Text>
                   <View style={styles.galleryGrid}>
                     {verificationImages.map((img, idx) => (
-                      <View key={idx} style={styles.galleryItem}>
+                      <View key={idx} style={[styles.galleryItem, { width: galleryItemSize, height: galleryItemSize }]}>
                         {imageErrors[img.jobId] ? (
                           <View style={[styles.galleryFallback, { backgroundColor: `${colors.primary}08`, borderColor: colors.border }]}>
                             <Ionicons name="image-outline" size={20} color={colors.textTertiary} />
@@ -362,21 +362,18 @@ const styles = StyleSheet.create({
   avatar: {
     width: 88,
     height: 88,
-    borderRadius: 44,
-    marginBottom: Spacing.md,
+    borderRadius: 44, marginBottom: Spacing.xs,
   },
   avatarPlaceholder: {
     width: 88,
     height: 88,
     borderRadius: 44,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   driverName: {
     fontSize: 20,
-    fontWeight: '900',
-    marginBottom: Spacing.sm,
+    fontWeight: '900', marginBottom: Spacing.xs,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -398,8 +395,7 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   actionBtn: {
     flex: 1,
@@ -418,15 +414,13 @@ const styles = StyleSheet.create({
   detailCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
+    letterSpacing: 0.5, marginBottom: Spacing.xs,
   },
   detailRow: {
     flexDirection: 'row',
@@ -457,8 +451,7 @@ const styles = StyleSheet.create({
   },
   jobMetaText: {
     fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
+    fontWeight: '600', marginTop: Spacing.xs,
   },
   jobStatusBadge: {
     paddingHorizontal: 8,
@@ -474,9 +467,7 @@ const styles = StyleSheet.create({
   // Verification Gallery
   gallerySubtitle: {
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: -4,
-    marginBottom: Spacing.sm,
+    fontWeight: '600', marginTop: Spacing.xs, marginBottom: Spacing.xs,
   },
   galleryGrid: {
     flexDirection: 'row',
@@ -484,8 +475,6 @@ const styles = StyleSheet.create({
     gap: GALLERY_GAP,
   },
   galleryItem: {
-    width: GALLERY_ITEM_SIZE,
-    height: GALLERY_ITEM_SIZE,
     borderRadius: Radius.sm,
     overflow: 'hidden',
     position: 'relative',

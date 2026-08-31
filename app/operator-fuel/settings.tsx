@@ -67,12 +67,12 @@ export default function OperatorFuelSettingsScreen() {
       <Modal visible={pwModal} transparent animationType="fade" onRequestClose={() => setPwModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: Spacing.lg }}>Update Password</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: Spacing.xs}}>Update Password</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Current password" placeholderTextColor={colors.textMuted} value={currentPw} onChangeText={setCurrentPw} secureTextEntry />
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Enter a strong new password" placeholderTextColor={colors.textMuted} value={newPw} onChangeText={setNewPw} secureTextEntry />
-            <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: Spacing.sm }}>{PASSWORD_REQUIREMENTS}</Text>
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: Spacing.xs}}>{PASSWORD_REQUIREMENTS}</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Confirm new password" placeholderTextColor={colors.textMuted} value={confirmPw} onChangeText={setConfirmPw} secureTextEntry />
-            <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md }}>
+            <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs}}>
               <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E2E8F0' }]} onPress={() => { setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw(''); }} disabled={updating}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: '#1E293B' }}>Cancel</Text>
               </TouchableOpacity>
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg },
   avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: Radius.md },
-  input: { height: 48, borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, fontSize: 14, marginBottom: Spacing.sm },
+  input: { height: 48, borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, fontSize: 14, marginBottom: Spacing.xs},
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: Spacing.xl },
   modalCard: { borderRadius: Radius.xl, padding: Spacing.xl, gap: Spacing.xs },
   modalBtn: { flex: 1, height: 44, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },

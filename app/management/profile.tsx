@@ -116,7 +116,7 @@ export default function ManagementProfileScreen() {
         {/* Edit Profile Button */}
         {!editingProfile ? (
           <TouchableOpacity
-            style={[styles.editBtn, { backgroundColor: colors.primary, marginTop: Spacing.md }]}
+            style={[styles.editBtn, { backgroundColor: colors.primary, marginTop: Spacing.xs}]}
             onPress={() => { setEditingProfile(true); setEditDisplayName(user?.displayName || ''); setEditPhone(user?.phone || ''); setEditEmail(user?.email || ''); setProfileError(''); }}
             activeOpacity={0.7}
           >
@@ -124,7 +124,7 @@ export default function ManagementProfileScreen() {
             <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Edit Profile</Text>
           </TouchableOpacity>
         ) : (
-          <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
+          <View style={{ gap: Spacing.sm, marginTop: Spacing.xs}}>
             {profileError ? <Text style={[styles.errorText, { color: colors.danger }]}>{profileError}</Text> : null}
             <Text style={[styles.inputLabel, { color: colors.textMuted }]}>Display Name</Text>
             <TextInput
@@ -331,8 +331,7 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 15,
-    fontWeight: '800',
-    marginBottom: Spacing.xs,
+    fontWeight: '800', marginBottom: Spacing.xs,
   },
   errorText: {
     fontSize: 12,
@@ -340,8 +339,7 @@ const styles = StyleSheet.create({
   },
   formActions: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
+    gap: Spacing.sm, marginTop: Spacing.xs,
   },
   cancelBtn: {
     flex: 1,

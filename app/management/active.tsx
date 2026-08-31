@@ -102,10 +102,10 @@ export default function ManagementActiveScreen() {
       useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', updated);
       useRealTimeSyncStore.getState().invalidateETag('deliveryOrders');
       if (updated?.odooReceiptSyncStatus === 'failed') {
-        Alert.alert('Odoo sync failed', 'Odoo did not accept the receipt yet. Check the receipt and try again.');
+        Alert.alert('Odoo confirmation pending', 'TruckSphere saved the delivery successfully, but Odoo has not confirmed the receipt yet. The receipt can be retried safely after checking the Odoo connection.');
       }
     } catch {
-      Alert.alert('Odoo sync failed', 'The receipt could not be synchronized. Please try again.');
+      Alert.alert('Odoo confirmation pending', 'TruckSphere saved the delivery successfully, but the Odoo confirmation took too long or was unavailable. Retry the receipt sync when Odoo is reachable.');
     } finally {
       setSyncingOdooIds((current) => current.filter((id) => id !== deliveryId));
     }
@@ -255,7 +255,7 @@ export default function ManagementActiveScreen() {
         <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
 
         {/* Material Filter */}
-        <View style={{ marginBottom: Spacing.xs, marginTop: Spacing.xs }}>
+        <View style={{ marginBottom: Spacing.xs, marginTop: Spacing.xs}}>
           <TouchableOpacity
             style={{
               flexDirection: 'row',

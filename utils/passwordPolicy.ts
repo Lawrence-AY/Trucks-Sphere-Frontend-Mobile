@@ -11,6 +11,42 @@ const PREDICTABLE_PASSWORD_PATTERNS = [
   'abcdef',
 ];
 
+const PASSWORD_CHARACTER_SETS = [
+  'ABCDEFGHJKLMNPQRSTUVWXYZ',
+  'abcdefghijkmnopqrstuvwxyz',
+  '23456789',
+  '!@#$%*+=?',
+];
+
+function randomIndex(limit: number): number {
+  const cryptoApi = (globalThis as any).crypto;
+  if (cryptoApi?.getRandomValues) {
+    const value = new Uint32Array(1);
+    cryptoApi.getRandomValues(value);
+    return value[0] % limit;
+  }
+  return Math.floor(Math.random() * limit);
+}
+
+/** Generates a password that satisfies the app's password policy. */
+export function generateStrongPassword(length = 16): string {
+  const safeLength = Math.max(12, length);
+  const allCharacters = PASSWORD_CHARACTER_SETS.join('');
+
+  // Generate again only if a rare random combination triggers a predictable
+  // sequence rule. This keeps the suggested value valid by construction.
+  for (;;) {
+    const characters = PASSWORD_CHARACTER_SETS.map((set) => set[randomIndex(set.length)]);
+    while (characters.length < safeLength) characters.push(allCharacters[randomIndex(allCharacters.length)]);
+    for (let index = characters.length - 1; index > 0; index -= 1) {
+      const swapIndex = randomIndex(index + 1);
+      [characters[index], characters[swapIndex]] = [characters[swapIndex], characters[index]];
+    }
+    const password = characters.join('');
+    if (!getStrongPasswordError(password)) return password;
+  }
+}
+
 function hasPredictableSequence(value: string): boolean {
   const normalized = value.toLowerCase();
   return /(?:0123|1234|2345|3456|4567|5678|6789|abcd|bcde|cdef|defg|qwer|wert|erty|rtyu|tyui|yuio|uiop)/.test(normalized);

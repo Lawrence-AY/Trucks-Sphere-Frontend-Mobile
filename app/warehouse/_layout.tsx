@@ -44,6 +44,7 @@ export default function WarehouseLayout() {
         headerShadowVisible: false,
         tabBarActiveTintColor: colors.tabActive,
         tabBarInactiveTintColor: colors.tabInactive,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
@@ -147,13 +148,13 @@ const styles = StyleSheet.create({
   drawerBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.35)', alignItems: 'flex-end' },
   drawer: { width: '80%', maxWidth: 320, height: '100%', shadowColor: '#000', shadowOffset: { width: -2, height: 0 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 },
   drawerUser: { alignItems: 'center', paddingTop: 54, paddingBottom: Spacing.lg, borderBottomWidth: 1 },
-  drawerAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+  drawerAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
   drawerAvatarText: { fontSize: 20, fontWeight: '800' },
   drawerName: { fontSize: 16, fontWeight: '800' },
-  drawerRole: { fontSize: 13, fontWeight: '600', marginTop: 3 },
+  drawerRole: { fontSize: 13, fontWeight: '600', marginTop: Spacing.xs},
   drawerContent: { paddingVertical: Spacing.sm },
   menuItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md },
   menuItemText: { fontSize: 15, fontWeight: '700' },
-  divider: { height: StyleSheet.hairlineWidth, marginVertical: Spacing.xs },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: Spacing.xs},
 });
  

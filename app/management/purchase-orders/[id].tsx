@@ -236,11 +236,10 @@ export default function PurchaseOrderDetailScreen() {
 
 // ─── Details Tab ───
 function DetailsTab({ po, colors }: { po: PurchaseOrder; colors: any }) {
+  const materialLines = po.materials?.length ? po.materials : [{ materialId: po.materialId, materialNumber: po.materialNumber, materialName: po.materialName, quantity: po.quantity, unit: po.unit }];
   const fields = [
     { label: 'PO Number', value: po.poNumber || po.id, icon: 'finger-print-outline' },
     { label: 'Vendor', value: `${po.vendorNumber || String(po.vendorId || '').replace(/^V/i, '')} - ${po.companyName || po.vendorName || '-'}`, icon: 'business-outline' },
-    { label: 'Material', value: `${po.materialNumber || String(po.materialId || '').replace(/^MAT/i, '')} - ${po.materialName || '-'}`, icon: 'cube-outline' },
-    { label: 'Quantity', value: `${formatNumber(po.quantity || 0)} ${po.unit || 'units'}`, icon: 'scale-outline' },
    { label: 'Created At', value: po.createdAt ? formatEAT(po.createdAt) : '-', icon: 'time-outline' },
   ];
 
@@ -256,6 +255,13 @@ function DetailsTab({ po, colors }: { po: PurchaseOrder; colors: any }) {
             <Text style={[styles.fieldValue, { color: colors.text }]}>{field.value || '-'}</Text>
           </View>
         ))}
+      </Card>
+      <Card>
+        <Text style={[styles.materialsTitle, { color: colors.text }]}>Materials</Text>
+        {materialLines.map((line, index) => <View key={`${line.materialId}-${index}`} style={styles.fieldRow}>
+          <View style={styles.fieldLabel}><Ionicons name="cube-outline" size={16} color={colors.textMuted} /><Text style={[styles.fieldLabelText, { color: colors.text }]}>{`${line.materialNumber || String(line.materialId || '').replace(/^MAT/i, '')} - ${line.materialName || '-'}`}</Text></View>
+          <Text style={[styles.fieldValue, { color: colors.text }]}>{formatNumber(line.quantity || 0)} {line.unit || 'units'}</Text>
+        </View>)}
       </Card>
     </>
   );
@@ -354,30 +360,25 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.md,
+  header: { marginBottom: Spacing.xs,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.md,
+    alignItems: 'flex-start', marginBottom: Spacing.xs,
   },
   poNumber: {
     fontSize: 20,
     fontWeight: '800',
   },
   poVendor: {
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: 14, marginTop: Spacing.xs,
   },
-  progressSection: {
-    marginBottom: Spacing.md,
+  progressSection: { marginBottom: Spacing.xs,
   },
   progressRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    justifyContent: 'space-between', marginBottom: Spacing.xs,
   },
   progressLabel: {
     fontSize: 12,
@@ -400,9 +401,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.sm,
   },
-  tabActions: {
-    marginTop: -Spacing.xs,
-    marginBottom: Spacing.md,
+  tabActions: { marginTop: Spacing.xs, marginBottom: Spacing.xs,
   },
   fieldRow: {
     flexDirection: 'row',
@@ -427,6 +426,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     flex: 1,
   },
+  materialsTitle: { fontSize: 15, fontWeight: '800', marginBottom: Spacing.xs },
   timelineItem: {
     flexDirection: 'row',
     paddingLeft: 4,
@@ -436,8 +436,7 @@ const styles = StyleSheet.create({
   timelineDot: {
     width: 12,
     height: 12,
-    borderRadius: 6,
-    marginTop: 4,
+    borderRadius: 6, marginTop: Spacing.xs,
     marginRight: Spacing.md,
   },
   timelineLine: {
@@ -455,14 +454,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   timelineTime: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   listCard: {
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   listCardHeader: {
     flexDirection: 'row',
@@ -485,7 +482,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listCardSub: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
 });

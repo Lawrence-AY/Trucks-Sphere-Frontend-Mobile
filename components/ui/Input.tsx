@@ -86,8 +86,8 @@ export function Input({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: Spacing.md,
+  container: { marginBottom: Spacing.xs,
+    minWidth: 0,
   },
   input: {
     backgroundColor: 'transparent',

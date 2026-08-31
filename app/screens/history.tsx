@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: Spacing.lg, marginTop: Spacing.md,
+    marginHorizontal: Spacing.lg, marginTop: Spacing.xs,
     borderRadius: Radius.md, borderWidth: 1,
     paddingHorizontal: Spacing.md, height: 44, gap: Spacing.sm,
   },
@@ -132,11 +132,11 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['4xl'] },
   card: {
     borderRadius: Radius.lg, borderWidth: 1,
-    padding: Spacing.md, marginBottom: Spacing.sm,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   cardTop: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: Spacing.sm,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   typeBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -149,6 +149,6 @@ const styles = StyleSheet.create({
   jobId: { fontSize: 14, fontWeight: '600' },
   location: { fontSize: 12 },
   operator: { fontSize: 11 },
-  empty: { alignItems: 'center', marginTop: 80 },
-  emptyText: { fontSize: 15, marginTop: Spacing.md },
+  empty: { alignItems: 'center', marginTop: Spacing.xs},
+  emptyText: { fontSize: 15, marginTop: Spacing.xs},
 });

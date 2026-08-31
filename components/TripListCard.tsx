@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Spacing } from '../constants/theme';
 import { formatEAT } from '../utils/helpers';
-import { getSiteWeightFlagReason, isSiteWeightFlagged } from '../utils/siteFlags';
+import { getDeliveryFlagReason, isDeliveryFlagged, isSecurityCleared, isSecurityFlagged, isSiteWeightFlagged } from '../utils/siteFlags';
 import { DataCard } from './EnterpriseUI';
 
 type TripListCardProps = {
@@ -19,8 +19,11 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
   const colors = useTheme();
   const jobCardNumber = trip.jobCardNumber || trip.jobId || (trip.isBackorder ? 'Awaiting assignment' : '—');
 
-  const siteFlagged = isSiteWeightFlagged(trip);
-  const siteFlagReason = siteFlagged ? getSiteWeightFlagReason(trip) : null;
+  const siteFlagged = isDeliveryFlagged(trip);
+  const securityFlagged = isSecurityFlagged(trip);
+  const weightFlagged = isSiteWeightFlagged(trip);
+  const securityCleared = isSecurityCleared(trip);
+  const siteFlagReason = siteFlagged ? getDeliveryFlagReason(trip) : null;
   const isBackorder = Boolean(trip.isBackorder);
   const hasLinkedBackorder = isBackorder || Boolean(trip.backorderDeliveryOrderId);
   const backorderQuantity = isBackorder
@@ -42,7 +45,9 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
     <DataCard
       style={[
         styles.card,
-        siteFlagged && { borderColor: colors.danger, borderWidth: 1.5 },
+        securityFlagged && { borderColor: '#B45309', borderWidth: 1.5, backgroundColor: '#FFFBEB' },
+        !securityFlagged && weightFlagged && { borderColor: '#DC2626', borderWidth: 1.5 },
+        !siteFlagged && securityCleared && { borderColor: '#A78BFA', borderWidth: 1.5 },
       ]}
       onPress={onPress}
     >
@@ -86,10 +91,11 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
       </View>
       {siteFlagReason ? (
         <View style={styles.flagReason}>
-          <Ionicons name="warning-outline" size={14} color="#B91C1C" />
+          <Ionicons name="warning-outline" size={14} color="#B45309" />
           <Text style={styles.flagReasonText}>{siteFlagReason}</Text>
         </View>
       ) : null}
+      {!siteFlagged && securityCleared ? <Text style={styles.clearedLabel}>Unflagged — fleet unsuspended</Text> : null}
       
       {bottomAction}
     </DataCard>
@@ -98,9 +104,9 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 5,
-    marginBottom: 0.1,
+    borderRadius: 5, marginBottom: Spacing.xs,
   },
+  clearedLabel: { color: '#6D28D9', fontSize: 12, fontWeight: '700', marginTop: Spacing.xs },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -124,8 +130,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   truckName: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   materialDetails: {
     flex: 1,
@@ -138,8 +143,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   poReference: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 11, marginTop: Spacing.xs,
     textAlign: 'right',
   },
   footer: {
@@ -161,8 +165,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   timestamp: {
-    fontSize: 10,
-    marginTop: 1,
+    fontSize: 10, marginTop: Spacing.xs,
   },
   flagReason: {
     flexDirection: 'row',
@@ -170,10 +173,10 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingTop: Spacing.xs,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#FECACA',
+    borderTopColor: '#FCD34D',
   },
-  flagReasonText: { color: '#B91C1C', flex: 1, fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  flagReasonText: { color: '#92400E', flex: 1, fontSize: 11, lineHeight: 16, fontWeight: '700' },
   backorderStatus: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingTop: Spacing.xs, borderTopWidth: StyleSheet.hairlineWidth },
   backorderStatusTitle: { fontSize: 11, fontWeight: '900', letterSpacing: 0.2 },
-  backorderStatusMeta: { fontSize: 10, marginTop: 1, fontWeight: '600' },
+  backorderStatusMeta: { fontSize: 10, marginTop: Spacing.xs, fontWeight: '600' },
 });

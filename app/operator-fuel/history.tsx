@@ -402,8 +402,7 @@ export default function FuelHistoryScreen() {
                 style={{
                   flexDirection: "row",
                   justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 2,
+                  alignItems: "center", marginBottom: Spacing.xs,
                 }}
               >
                 <View style={{ flex: 1 }}>
@@ -421,8 +420,7 @@ export default function FuelHistoryScreen() {
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 4,
-                        marginTop: 2,
+                        gap: 4, marginTop: Spacing.xs,
                       }}
                     >
                       <Ionicons name="key-outline" size={11} color="#8B5CF6" />
@@ -477,8 +475,7 @@ export default function FuelHistoryScreen() {
               <Text
                 style={{
                   fontSize: 12,
-                  color: colors.textTertiary,
-                  marginTop: Spacing.sm,
+                  color: colors.textTertiary, marginTop: Spacing.xs,
                 }}
               >
                 Dispensed: {formatEAT(item.dispensedAt || item.createdAt)}
@@ -505,8 +502,7 @@ export default function FuelHistoryScreen() {
 const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   statCard: {
     flex: 1,
@@ -521,7 +517,7 @@ const styles = StyleSheet.create({
   fuelBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
   historyCardContent: { gap: 4 },
   historyList: { gap: 2 },
-  exportRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.md },
+  exportRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.xs},
   exportBtn: {
     flex: 1,
     flexDirection: "row",

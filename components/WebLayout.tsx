@@ -16,7 +16,7 @@ import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../hooks/useTheme';
 
 const AUTH_ROUTES = ['/(auth)', '/login', '/auth'];
-const HIDE_SIDEBAR_ROUTES = ['/track'];
+const HIDE_SIDEBAR_ROUTES = ['/track', '/session', '/security'];
 
 interface WebLayoutProps {
   children: React.ReactNode;
@@ -39,8 +39,10 @@ export default function WebLayout({ children }: WebLayoutProps) {
   const overlayAnim = useRef(new Animated.Value(0)).current;
 
   const isWeb = Platform.OS === 'web';
-  const isDesktopWeb = isWeb && width >= 768;
-  const isMobileWeb = isWeb && width < 768;
+  // A sidebar at tablet widths leaves too little room for operational forms
+  // and data cards, so tablet web uses the compact drawer layout.
+  const isDesktopWeb = isWeb && width >= 1024;
+  const isMobileWeb = isWeb && width < 1024;
 
   const isAuthScreen = pathname && AUTH_ROUTES.some((route) => pathname.startsWith(route));
   const isSplashScreen = !pathname || pathname === '/';
@@ -167,6 +169,7 @@ const styles = StyleSheet.create({
   } as any,
   desktopContent: {
     flex: 1,
+    minWidth: 0,
     overflow: 'hidden' as const,
     position: 'relative' as const,
   } as any,
@@ -226,6 +229,8 @@ const styles = StyleSheet.create({
   },
   mobileContent: {
     flex: 1,
+    minWidth: 0,
+    width: '100%',
     overflow: 'hidden' as const,
   },
 

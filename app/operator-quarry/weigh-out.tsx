@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  InputAccessoryView,
+  Keyboard,
   Modal,
   RefreshControl,
   ScrollView,
@@ -22,7 +24,7 @@ import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { updateDeliveryOrder, fetchQuarries } from '../../services/api';
-import { useDeliveryOrders } from '../../store/realtimeData';
+import { useDeliveryOrders, useDrivers } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatEAT } from '../../utils/helpers';
@@ -134,6 +136,7 @@ export default function OperatorQuarryWeighOutScreen() {
   const [selectedQuarryId, setSelectedQuarryId] = useState('');
 
   const allDeliveries = useDeliveryOrders();
+  const drivers = useDrivers();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
   const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
 
@@ -168,6 +171,9 @@ export default function OperatorQuarryWeighOutScreen() {
     const q = search.toLowerCase();
     return deliveries.filter((d) => !q || [d.jobId, d.driverName, d.plateNumber].some((v) => String(v || '').toLowerCase().includes(q)));
   }, [deliveries, search]);
+
+  const getDriverPhoto = (job: any) =>
+    job.driverPhotoURL || job.driverPhotoUrl || drivers.find((driver: any) => driver.id === job.driverId)?.photoURL;
 
   const openWeighOutForm = async (job: any) => {
     setActiveJob(job);
@@ -542,7 +548,18 @@ export default function OperatorQuarryWeighOutScreen() {
               <Text style={[styles.jobCardTitle, { color: colors.text }]}>{activeJob.jobId}</Text>
             </View>
             <DetailRow icon="document-outline" value={`PO: ${activeJob.poNumber || 'N/A'}`} />
-            <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
+            <View style={styles.driverRow}>
+              {getDriverPhoto(activeJob) ? (
+                <Image source={{ uri: getDriverPhoto(activeJob) }} style={styles.driverPhoto} />
+              ) : (
+                <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
+                  <Text style={[styles.driverInitial, { color: colors.primary }]}>
+                    {(activeJob.driverName || 'D').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <DetailRow value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
+            </View>
             <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
             <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
             <DetailRow icon="location-outline" value={`Origin: ${(geoLocation as any)?.city || (geoLocation as any)?.town || (geoLocation as any)?.district || geoLocation?.address || activeJob.quarryName || 'Quarry'}`} />
@@ -705,6 +722,9 @@ export default function OperatorQuarryWeighOutScreen() {
                 placeholder="0.0"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="decimal-pad"
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+                inputAccessoryViewID={Platform.OS === 'ios' ? 'weigh-out-keyboard-accessory' : undefined}
                 value={weightOut}
                 onChangeText={setWeightOut}
                 autoFocus
@@ -795,7 +815,7 @@ export default function OperatorQuarryWeighOutScreen() {
                   <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Loaded (Gross)</Text>
                   <Text style={[styles.confirmValue, { color: '#7C3AED', fontWeight: '800' }]}>{parseFloat(weightOut).toFixed(1)} T</Text>
                 </View>
-                <View style={[styles.confirmDivider, { marginTop: 6 }]} />
+                <View style={[styles.confirmDivider, { marginTop: Spacing.xs}]} />
                 <View style={styles.confirmRow}>
                   <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
                   <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
@@ -874,7 +894,7 @@ export default function OperatorQuarryWeighOutScreen() {
                       {deliveryNoteData.weighOut?.toFixed(1) || '0.0'} T
                     </Text>
                   </View>
-                  <View style={[styles.confirmDivider, { marginTop: 6 }]} />
+                  <View style={[styles.confirmDivider, { marginTop: Spacing.xs}]} />
                   <View style={styles.confirmRow}>
                     <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
                     <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
@@ -918,6 +938,15 @@ export default function OperatorQuarryWeighOutScreen() {
             </View>
           </View>
         </Modal>
+        {Platform.OS === 'ios' ? (
+          <InputAccessoryView nativeID="weigh-out-keyboard-accessory">
+            <View style={[styles.keyboardAccessory, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+              <TouchableOpacity onPress={Keyboard.dismiss} style={styles.keyboardDoneButton}>
+                <Text style={[styles.keyboardDoneText, { color: colors.primary }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </InputAccessoryView>
+        ) : null}
       </>
     );
   }
@@ -937,7 +966,18 @@ export default function OperatorQuarryWeighOutScreen() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
               </View>
-              <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+              <View style={styles.driverRow}>
+                {getDriverPhoto(item) ? (
+                  <Image source={{ uri: getDriverPhoto(item) }} style={styles.driverPhoto} />
+                ) : (
+                  <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
+                    <Text style={[styles.driverInitial, { color: colors.primary }]}>
+                      {(item.driverName || 'D').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <DetailRow value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+              </View>
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
               <View style={styles.listWeighInBadge}>
                 <Ionicons name="download-outline" size={12} color="#2563EB" />
@@ -961,79 +1001,85 @@ export default function OperatorQuarryWeighOutScreen() {
 /* ─── Styles (unchanged) ─────────────────────────────────────────── */
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  jobCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  jobCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  formContent: { padding: Spacing.md,paddingTop:0, paddingBottom: Spacing['4xl'] },
+  jobCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  jobCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs},
   jobCardTitle: { fontSize: 18, fontWeight: '800' },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.sm },
+  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.xs},
   draftWeightRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   draftLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  draftValue: { fontSize: 18, fontWeight: '800', marginTop: 2 },
+  draftValue: { fontSize: 18, fontWeight: '800', marginTop: Spacing.xs},
   draftBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.full },
   draftBadgeText: { fontSize: 11, fontWeight: '700' },
-  sectionCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  sectionCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs},
   sectionIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   sectionTitleStyle: { fontSize: 16, fontWeight: '700', flex: 1 },
-  quarryOption: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', marginTop: Spacing.sm },
-  sectionSub: { fontSize: 13, marginBottom: Spacing.md },
+  quarryOption: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', marginTop: Spacing.xs},
+  sectionSub: { fontSize: 13, marginBottom: Spacing.xs},
   photoStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full },
   photoStatusText: { fontSize: 11, fontWeight: '700' },
-  photoPreviewWrap: { width: '100%', height: 220, borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.md, backgroundColor: '#F1F5F9' },
+  photoPreviewWrap: { width: '100%', height: 220, borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.xs, backgroundColor: '#F1F5F9' },
   photoPreview: { width: '100%', height: '100%' },
   photoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  photoPlaceholderText: { fontSize: 13, color: '#94A3B8', fontWeight: '600', marginTop: 8 },
+  photoPlaceholderText: { fontSize: 13, color: '#94A3B8', fontWeight: '600', marginTop: Spacing.xs},
   photoOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
-  photoOverlayText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: 8 },
+  photoOverlayText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: Spacing.xs},
   photoActions: { flexDirection: 'row', gap: Spacing.sm },
   photoBtnFull: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.sm, borderRadius: Radius.md, borderWidth: 1 },
   photoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.sm, paddingHorizontal: 16, borderRadius: Radius.md, borderWidth: 1 },
   photoBtnText: { fontSize: 13, fontWeight: '700' },
-  locationBox: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.xs },
+  locationBox: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.xs},
   locationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   locationText: { fontSize: 13, fontWeight: '600', flex: 1, lineHeight: 18 },
-  locationCoords: { marginTop: Spacing.sm, paddingLeft: 28 },
+  locationCoords: { marginTop: Spacing.xs, paddingLeft: 28 },
   coordText: { fontSize: 11, fontFamily: 'monospace' },
-  retryLocationBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1, marginTop: Spacing.sm },
+  retryLocationBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1, marginTop: Spacing.xs},
   retryLocationText: { fontSize: 12, fontWeight: '700' },
-  inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs},
   inputIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   inputTitle: { fontSize: 18, fontWeight: '700' },
-  inputSub: { fontSize: 13, marginBottom: Spacing.md },
+  inputSub: { fontSize: 13, marginBottom: Spacing.xs},
   weightInputWrap: { borderRadius: Radius.md, borderWidth: 2, paddingHorizontal: Spacing.md, height: 64, flexDirection: 'row', alignItems: 'center' },
   weightInput: { flex: 1, fontSize: 28, fontWeight: '800' },
   weightSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
-  netPreview: { marginTop: Spacing.md, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, alignItems: 'center' },
+  netPreview: { marginTop: Spacing.xs, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, alignItems: 'center' },
   netLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
-  netValue: { fontSize: 28, fontWeight: '900', marginTop: 4 },
-  netCalc: { fontSize: 12, marginTop: 4 },
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm, minHeight: 50, marginTop: Spacing.sm },
+  netValue: { fontSize: 28, fontWeight: '900', marginTop: Spacing.xs},
+  netCalc: { fontSize: 12, marginTop: Spacing.xs},
+  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm, minHeight: 50, marginTop: Spacing.xs},
   submitBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.sm },
+  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.xs},
   cancelText: { fontSize: 14, fontWeight: '600' },
-  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: Spacing.sm },
+  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: Spacing.xs},
   tapHintText: { fontSize: 11, fontWeight: '700' },
-  listWeighInBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.sm },
+  listWeighInBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.xs},
+  keyboardAccessory: { alignItems: 'flex-end', borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs },
+  keyboardDoneButton: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs },
+  keyboardDoneText: { fontSize: 16, fontWeight: '700' },
+  driverRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  driverPhoto: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  driverInitial: { fontSize: 12, fontWeight: '800' },
   // Modal styles
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'center', padding: Spacing.lg },
   confirmDialog: { borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg },
-  confirmIcon: { width: 56, height: 56, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md },
+  confirmIcon: { width: 56, height: 56, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
   confirmTitle: { fontSize: 18, fontWeight: '800' },
-  confirmSub: { fontSize: 13, marginTop: 4, marginBottom: Spacing.md },
-  confirmSummary: { borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.md },
+  confirmSub: { fontSize: 13, marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  confirmSummary: { borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs},
   confirmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
   confirmLabel: { fontSize: 12, fontWeight: '600' },
   confirmValue: { fontSize: 13, fontWeight: '700' },
-  confirmDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 4 },
-  confirmActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  confirmDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.xs},
+  confirmActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs},
   confirmCancelBtn: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
   confirmCancelText: { fontSize: 14, fontWeight: '700' },
   confirmProceedBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm },
   confirmProceedText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   // Export section
-  grnExportSection: { marginTop: Spacing.sm, marginBottom: Spacing.md },
-  grnExportTitle: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.sm },
+  grnExportSection: { marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  grnExportTitle: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.xs},
   grnDownloadRow: { flexDirection: 'row', gap: Spacing.sm },
   grnDownloadBtn: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: 2 },
   grnDownloadBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },

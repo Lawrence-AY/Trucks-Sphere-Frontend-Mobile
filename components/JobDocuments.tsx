@@ -7,7 +7,7 @@ import { useTheme } from '../hooks/useTheme';
 import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../utils/exportData';
 import { generateReceiptNoteId } from '../utils/helpers';
 
-type DocumentKind = 'delivery' | 'receipt' | 'purchaseOrder';
+type DocumentKind = 'delivery' | 'receipt' | 'purchaseOrder' | 'inspection';
 
 type DocumentDefinition = {
   kind: DocumentKind;
@@ -34,6 +34,8 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
   const receiptAvailable = Boolean(jobId);
   const receiptNoteId = String(job?.receiptNoteId || (jobId ? generateReceiptNoteId(jobId) : 'Pending'));
   const externalDeliveryNoteUrl = String(job?.deliveryNoteURL || job?.photoURL || '').trim();
+  const materialsLabel = (Array.isArray(job?.materials) && job.materials.length ? job.materials : [{ materialName: job?.materialName, quantity: job?.quantityOrdered, unit: job?.unit }])
+    .map((item: any) => `${item?.materialName || 'Material'}${item?.quantity != null ? ` (${item.quantity} ${item.unit || ''})` : ''}`).join('\n');
 
   const baseRows = [
     ['Job ID', jobId || '—'],
@@ -41,13 +43,27 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
     ['Vendor', String(job?.vendorName || job?.companyName || '—')],
     ['Driver', String(job?.driverName || '—')],
     ['Truck', String(job?.plateNumber || '—')],
-    ['Material', String(job?.materialName || '—')],
-    ['Quantity', `${job?.quantityDispatched || job?.quantityOrdered || '—'} ${job?.unit || ''}`.trim()],
+    ['Materials on PO', materialsLabel || '—'],
     ['Quarry / Source', String(job?.quarryName || '—')],
     ['Delivery Destination', String(job?.siteName || '—')],
   ];
 
   const documents: DocumentDefinition[] = [
+    {
+      kind: 'inspection',
+      title: 'Material Inspection & Receipt Form',
+      identifier: String(job?.materialInspection?.mrfNumber || 'Pending inspection'),
+      icon: 'clipboard-outline',
+      color: '#0F766E',
+      rows: [
+        ['MIF #', String(job?.materialInspection?.mrfNumber || 'Pending')],
+        ['Materials on PO', materialsLabel || '—'],
+        ['Inspector', String(job?.materialInspection?.inspectorName || '—')],
+        ['Material Inspection Details', (job?.materialInspection?.materialReceipts || []).map((line: any) => `${line.materialName || 'Material'}: ${line.receivedQuantity ?? ''} ${line.unit || ''} — ${line.initialVisualInspection || 'Pending'}${line.failureReason ? ` (${line.failureReason})` : ''}${line.deficiency ? `; deficiency: ${line.deficiency}` : ''}`).join('; ') || '—'],
+      ],
+      available: Boolean(job?.materialInspection?.mrfNumber),
+      unavailableMessage: 'The material inspection must be completed before site weigh-out.',
+    },
     {
       kind: 'delivery',
       title: 'Delivery Note',
@@ -82,8 +98,7 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
       rows: [
         ['Purchase Order #', String(job?.poNumber || poId || '—')],
         ['Vendor', String(job?.vendorName || job?.companyName || '—')],
-        ['Material', String(job?.materialName || '—')],
-        ['Quantity', `${job?.quantityOrdered || job?.quantityDispatched || '—'} ${job?.unit || ''}`.trim()],
+        ['Materials on PO', materialsLabel || '—'],
         ['Job ID', jobId || '—'],
         ['Status', String(job?.status || 'Pending')],
       ],
@@ -100,6 +115,10 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
     }
     if (document.kind === 'receipt') {
       router.push(`/screens/receipt-note?id=${encodeURIComponent(jobId)}` as any);
+      return;
+    }
+    if (document.kind === 'inspection') {
+      router.push(`/screens/material-inspection-report?id=${encodeURIComponent(jobId)}` as any);
       return;
     }
     router.push(`/screens/purchase-order?id=${encodeURIComponent(poId)}` as any);
@@ -144,7 +163,12 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
           <Ionicons name="open-outline" size={18} color="#1D4ED8" />
         </TouchableOpacity>
       ) : null}
-       {documents.filter((document) => document.kind !== 'receipt' || showReceiptNote).map((document) => {
+       {documents.filter((document) =>
+         // The inspection form is a submitted inspector record, not a blank
+         // template for other roles. Show it only after its MIF number exists.
+         (document.kind !== 'receipt' || showReceiptNote)
+         && (document.kind !== 'inspection' || document.available)
+       ).map((document) => {
         const isExporting = exporting?.startsWith(`${document.kind}-`);
         return (
           <TouchableOpacity
@@ -179,19 +203,19 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
 }
 
 const styles = StyleSheet.create({
-  section: { marginTop: 0, gap: 2.5 },
+  section: { marginTop: Spacing.xs, gap: 2.5 },
   sectionTitle: { fontSize: 17, fontWeight: '800' },
-  sectionSubtitle: { fontSize: 13, marginBottom: Spacing.xs },
+  sectionSubtitle: { fontSize: 13, marginBottom: Spacing.xs},
   externalNote: { minHeight: 58, borderWidth: 1, borderRadius: Radius.lg, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   externalNoteTitle: { color: '#1E3A8A', fontSize: 13, fontWeight: '800' },
-  externalNoteMeta: { color: '#2563EB', fontSize: 11, fontWeight: '600', marginTop: 1 },
+  externalNoteMeta: { color: '#2563EB', fontSize: 11, fontWeight: '600', marginTop: Spacing.xs},
   card: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md, gap: Spacing.md },
   cardDisabled: { opacity: 0.65 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   iconWrap: { width: 42, height: 42, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   cardCopy: { flex: 1, minWidth: 0 },
   cardTitle: { fontSize: 15, fontWeight: '800' },
-  cardIdentifier: { fontSize: 12, fontWeight: '700', marginTop: 1 },
+  cardIdentifier: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs},
   unavailable: { fontSize: 12, lineHeight: 17 },
   actions: { alignItems: 'flex-end' },
 });

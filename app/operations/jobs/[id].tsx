@@ -145,14 +145,8 @@ export default function JobDetailScreen() {
             <Text style={[styles.detailValue, { color: colors.text }]}>{job.vendorName}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Material</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>{job.materialName}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Quantity</Text>
-            <Text style={[styles.detailValue, { color: colors.text }]}>
-              {job.quantityDispatched || job.quantityOrdered} {job.unit}
-            </Text>
+            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Materials on PO</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{(Array.isArray((job as any).materials) && (job as any).materials.length ? (job as any).materials : [{ materialName: job.materialName, quantity: job.quantityDispatched || job.quantityOrdered, unit: job.unit }]).map((item: any) => `${item.materialName || 'Material'}${item.quantity != null ? ` (${item.quantity} ${item.unit || ''})` : ''}`).join('\n')}</Text>
           </View>
           {siteFlagged ? (
             <View style={[styles.detailRow, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#FECACA', paddingTop: Spacing.sm }]}>
@@ -165,7 +159,7 @@ export default function JobDetailScreen() {
         
         </Card>
 
-        <Card style={{ marginTop:0}}>
+        <Card style={{ marginTop: Spacing.xs}}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Assignment</Text>
           <View style={styles.detailRow}>
             <Ionicons name="person-outline" size={18} color={colors.textMuted} />
@@ -266,16 +260,14 @@ const styles = StyleSheet.create({
     paddingTop:0,
     paddingBottom: Spacing['xl'],
   },
-  header: {
-    marginVertical: 2.5,
+  header: { marginVertical: Spacing.xs,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2.5,
   },
-  detailsContent: {
-    marginVertical: 2.5,
+  detailsContent: { marginVertical: Spacing.xs,
     gap: 2.5,
   },
   headerIcon: {
@@ -290,16 +282,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   headerSubtitle: {
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   delayedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     padding: Spacing.sm,
-    borderRadius: Radius.md,
-    marginTop: Spacing.sm,
+    borderRadius: Radius.md, marginTop: Spacing.xs,
   },
   delayedText: {
     fontSize: 13,
@@ -307,8 +297,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: Spacing.md,
+    fontWeight: '700', marginBottom: Spacing.xs,
   },
   detailRow: {
     flexDirection: 'row',
@@ -333,8 +322,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     padding: Spacing.md,
-    borderRadius: Radius.md,
-    marginTop: Spacing.sm,
+    borderRadius: Radius.md, marginTop: Spacing.xs,
   },
   alertText: {
     fontSize: 13,
@@ -349,8 +337,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   timelineItem: {
-    flexDirection: 'row',
-    marginBottom: 4,
+    flexDirection: 'row', marginBottom: Spacing.xs,
   },
   timelineLeft: {
     alignItems: 'center',
@@ -365,8 +352,7 @@ const styles = StyleSheet.create({
   },
   timelineLine: {
     width: 2,
-    flex: 1,
-    marginVertical: 2,
+    flex: 1, marginVertical: Spacing.xs,
   },
   timelineContent: {
     flex: 1,
@@ -378,12 +364,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   timelineTime: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   actions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Spacing.md, marginTop: Spacing.xs,
   },
 });

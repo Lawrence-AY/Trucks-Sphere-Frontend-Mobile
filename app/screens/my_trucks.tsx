@@ -38,7 +38,7 @@ export default function MyTrucksScreen() {
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1 }, searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, height: 44, gap: 8 },
-  searchInput: { flex: 1, fontSize: 14 }, card: { borderRadius: 12, borderWidth: 1, padding: 16, marginBottom: 8 },
-  plate: { fontSize: 15, fontWeight: '700' }, text: { fontSize: 13, marginTop: 2 },
+  container: { flex: 1 }, searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: Spacing.xs, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, height: 44, gap: 8 },
+  searchInput: { flex: 1, fontSize: 14 }, card: { borderRadius: 12, borderWidth: 1, padding: 16, marginBottom: Spacing.xs},
+  plate: { fontSize: 15, fontWeight: '700' }, text: { fontSize: 13, marginTop: Spacing.xs},
 });

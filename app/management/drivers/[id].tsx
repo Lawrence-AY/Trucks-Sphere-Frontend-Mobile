@@ -171,7 +171,7 @@ export default function DriverDetailScreen() {
 
         {/* Vendor Info Card */}
         {vendor && (
-          <Card style={{ marginTop: Spacing.md }}>
+          <Card style={{ marginTop: Spacing.xs}}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Vendor Information</Text>
             <View style={styles.detailRow}>
               <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Company</Text>
@@ -229,8 +229,8 @@ export default function DriverDetailScreen() {
     return (
       <View>
         {trips.map((trip: any) => (
-          <Card key={trip.id} style={{ marginBottom: Spacing.sm }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <Card key={trip.id} style={{ marginBottom: Spacing.xs}}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs}}>
               <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }} numberOfLines={1}>
                 {trip.jobId || trip.id}
               </Text>
@@ -255,7 +255,7 @@ export default function DriverDetailScreen() {
                 value={`Net: ${trip.netWeight} ${trip.unit || 'tonnes'}`}
               />
             )}
-            <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 4 }}>
+            <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: Spacing.xs}}>
               {trip.createdAt ? formatEAT(trip.createdAt) : ''}
             </Text>
           </Card>
@@ -337,7 +337,7 @@ export default function DriverDetailScreen() {
           onTabChange={setActiveTab}
         />
 
-        <View style={{ marginTop: Spacing.md }}>
+        <View style={{ marginTop: Spacing.xs}}>
           {activeTab === 'details' && renderDetails()}
           {activeTab === 'license' && renderLicense()}
           {activeTab === 'trips' && renderTrips()}
@@ -377,14 +377,12 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+    gap: Spacing.md, marginBottom: Spacing.xs,
   },
   avatar: {
     width: 60,
@@ -404,8 +402,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   headerSubtitle: {
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   actions: {
     flexDirection: 'row',
@@ -413,8 +410,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: Spacing.md,
+    fontWeight: '700', marginBottom: Spacing.xs,
   },
   detailRow: {
     flexDirection: 'row',

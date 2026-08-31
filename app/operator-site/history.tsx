@@ -947,7 +947,7 @@ export default function OperatorSiteHistoryScreen() {
                   style={[styles.rnBadge, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
                   onPress={(e) => { e.stopPropagation(); router.push(`/screens/receipt-note?id=${item.jobId}` as any); }}
                 >
-                  <Ionicons name="receipt-outline" size={12} color="#10B981" style={{ marginTop: 1 }} />
+                  <Ionicons name="receipt-outline" size={12} color="#10B981" style={{ marginTop: Spacing.xs}} />
                   <Text style={[styles.rnBadgeText, { color: '#10B981' }]} numberOfLines={2}>{item.receiptNoteId}</Text>
                 </TouchableOpacity>
               </View>
@@ -1054,7 +1054,7 @@ export default function OperatorSiteHistoryScreen() {
 
               {/* Received By */}
               {item.receivedBy ? (
-                <View style={{ marginTop: Spacing.sm, flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                <View style={{ marginTop: Spacing.xs, flexDirection: 'row', gap: 4, alignItems: 'center' }}>
                   <Ionicons name="person-outline" size={12} color={colors.textTertiary} />
                   <Text style={{ fontSize: 12, color: colors.textTertiary, fontWeight: '600' }}>
                     Received by: {item.receivedBy}
@@ -1091,28 +1091,23 @@ export default function OperatorSiteHistoryScreen() {
 
 const styles = StyleSheet.create({
   // Analytics
-  analyticsHeader: {
-    marginBottom: Spacing.md,
+  analyticsHeader: { marginBottom: Spacing.xs,
   },
   analyticsTitle: {
     fontSize: 18,
     fontWeight: "900",
   },
   analyticsSub: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   kpiRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   // Filters
   filterRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm, marginTop: 0, marginBottom: Spacing.xs,
   },
   filterPill: {
     flexDirection: "row",
@@ -1127,8 +1122,7 @@ const styles = StyleSheet.create({
   // Export
   exportRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.sm, marginBottom:0,
   },
   exportBtn: {
     flex: 1,
@@ -1145,8 +1139,7 @@ const styles = StyleSheet.create({
   materialBreakdownGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   materialCard: {
     flex: 1,
@@ -1158,42 +1151,37 @@ const styles = StyleSheet.create({
   },
   materialName: {
     fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 4,
+    fontWeight: "700", marginBottom: Spacing.xs,
     maxWidth: "100%",
   },
-  materialCount: { fontSize: 11, marginBottom: 2 },
+  materialCount: { fontSize: 11, marginBottom: Spacing.xs},
   materialNet: { fontSize: 15, fontWeight: "900" },
   // Table rows
   tableHeaderRow: {
     flexDirection: "column",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: Spacing.sm,
+    alignItems: "flex-start", marginBottom: Spacing.xs,
   },
   tableJobId: { fontSize: 15, fontWeight: "700" },
-  tablePo: { fontSize: 11, fontWeight: "600", marginTop: 2 },
+  tablePo: { fontSize: 11, fontWeight: "600", marginTop: Spacing.xs},
   tableRow: {
     flexDirection: "row",
-    gap: Spacing.md,
-    marginBottom: 4,
+    gap: Spacing.md, marginBottom: Spacing.xs,
   },
   tableCell: { flex: 1 },
   tableLabel: {
     fontSize: 10,
     fontWeight: "700",
-    textTransform: "uppercase",
-    marginBottom: 2,
+    textTransform: "uppercase", marginBottom: Spacing.xs,
   },
   tableValue: { fontSize: 13, fontWeight: "600" },
-  tableTimestamp: { fontSize: 12, marginTop: Spacing.sm },
+  tableTimestamp: { fontSize: 12, marginTop: Spacing.xs},
   // Weight Summary
   weightSummary: {
     flexDirection: "row",
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.sm,
-    marginTop: Spacing.sm,
+    padding: Spacing.sm, marginTop: Spacing.xs,
     gap: Spacing.xs,
   },
   weightCell: {
@@ -1207,7 +1195,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  wValue: { fontSize: 14, fontWeight: "800", marginTop: 2 },
+  wValue: { fontSize: 14, fontWeight: "800", marginTop: Spacing.xs},
   // RN Badge
   rnBadge: {
     flexDirection: "row",
@@ -1240,7 +1228,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   detailJobId: { fontSize: 18, fontWeight: "900" },
-  detailPo: { fontSize: 12, fontWeight: "600", marginTop: 1 },
+  detailPo: { fontSize: 12, fontWeight: "600", marginTop: Spacing.xs},
   detailCloseBtn: {
     width: 36,
     height: 36,
@@ -1258,8 +1246,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1,
-    textTransform: "uppercase",
-    marginBottom: 2,
+    textTransform: "uppercase", marginBottom: Spacing.xs,
   },
   detailRow: {
     flexDirection: "row",
@@ -1274,11 +1261,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    letterSpacing: 0.5, marginBottom: Spacing.xs,
   },
-  detailWeightSubsection: {
-    marginTop: 6,
+  detailWeightSubsection: { marginTop: Spacing.xs,
   },
   detailWeightGrid: {
     flexDirection: "row",
@@ -1296,12 +1281,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
   },
-  dwValue: { fontSize: 14, fontWeight: "800", marginTop: 2 },
+  dwValue: { fontSize: 14, fontWeight: "800", marginTop: Spacing.xs},
   detailDiffRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 6,
+    alignItems: "center", marginTop: Spacing.xs,
     paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",

@@ -47,6 +47,7 @@ const ROLE_OPTIONS = [
   { id: 'operator_site', name: 'Operator Site' },
   { id: 'operator_fuel', name: 'Fuel Operator' },
   { id: 'operator_warehouse', name: 'Warehouse Personnel' },
+  { id: 'inspector', name: 'Material Inspector' },
 ];
 
 // Vendor accounts are created from their vendor profile, which supplies the
@@ -365,6 +366,7 @@ export default function UsersScreen() {
       operator_site: { variant: 'warning', label: 'Site Op' },
       operator_fuel: { variant: 'success', label: 'Fuel Op' },
       operator_warehouse: { variant: 'purple', label: 'Warehouse' },
+      inspector: { variant: 'success', label: 'Inspector' },
     };
     const c = config[role] || { variant: 'default' as any, label: role };
     return <Badge label={c.label} variant={c.variant} size="sm" />;
@@ -771,18 +773,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   userId: {
-    fontSize: 10,
-    marginTop: 1,
+    fontSize: 10, marginTop: Spacing.xs,
   },
   userEmail: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   userMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginTop: 4,
+    gap: Spacing.sm, marginTop: Spacing.xs,
   },
   userUsername: {
     fontSize: 13,
@@ -811,8 +810,7 @@ const styles = StyleSheet.create({
   },
   editHint: {
     fontSize: 12,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
+    textAlign: 'center', marginTop: Spacing.xs,
     fontStyle: 'italic',
   },
   // Modal

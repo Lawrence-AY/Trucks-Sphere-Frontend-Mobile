@@ -190,7 +190,7 @@ export default function VehicleDetailScreen() {
           onTabChange={setActiveTab}
         />
 
-        <View style={{ marginTop: Spacing.md }}>
+        <View style={{ marginTop: Spacing.xs}}>
           {activeTab === 'details' && renderDetails()}
           {activeTab === 'compliance' && renderCompliance()}
         </View>
@@ -229,14 +229,12 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+    gap: Spacing.md, marginBottom: Spacing.xs,
   },
   headerIcon: {
     width: 56,
@@ -250,8 +248,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   headerSubtitle: {
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -259,8 +256,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: Spacing.md,
+    fontWeight: '700', marginBottom: Spacing.xs,
   },
   detailRow: {
     flexDirection: 'row',

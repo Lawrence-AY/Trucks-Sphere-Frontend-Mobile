@@ -183,6 +183,44 @@ export default function JobDetailsScreen() {
         </View>
       </DataCard>
 
+      {job.securityFlag?.status === 'cleared' ? (
+        <DataCard style={styles.clearanceCard}>
+          <View style={styles.clearanceHeader}>
+            <Ionicons name="checkmark-circle-outline" size={22} color="#7C3AED" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.clearanceTitle}>Security flag cleared</Text>
+              <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Fleet unsuspended and eligible for site processing.</Text>
+            </View>
+          </View>
+          <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Flagged by: {job.securityFlag.flaggedBy || 'Security'}</Text>
+          <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Flagged at: {formatMaybeDate(job.securityFlag.flaggedAt)}</Text>
+          <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Unsuspended by: {job.securityFlag.clearedBy || 'Administrator'}</Text>
+          <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Unsuspended at: {formatMaybeDate(job.securityFlag.clearedAt)}</Text>
+          {job.securityFlag.resolutionReason ? <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Clearance reason: {job.securityFlag.resolutionReason}</Text> : null}
+        </DataCard>
+      ) : null}
+
+      {job.materialInspection?.mrfNumber ? (
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={() => router.push(`/screens/material-inspection-report?id=${encodeURIComponent(job.jobId || job.id)}` as any)}
+        >
+          <DataCard style={styles.inspectionCard}>
+            <View style={styles.clearanceHeader}>
+              <Ionicons name="clipboard-outline" size={22} color="#0F766E" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inspectionTitle}>Material inspection submitted</Text>
+                <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>MIF #: {job.materialInspection.mrfNumber}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#0F766E" />
+            </View>
+            <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Inspector: {job.materialInspection.inspectorName || 'Inspector'}</Text>
+            <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Submitted: {formatMaybeDate(job.materialInspection.inspectedAt)}</Text>
+            <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Result: {job.materialInspection.initialVisualInspection || 'Recorded'}</Text>
+          </DataCard>
+        </TouchableOpacity>
+      ) : null}
+
       <JobDocuments job={job} showReceiptNote={isReceiptReady} />
 
       <SectionTitle title="Journey Timeline" />
@@ -254,7 +292,7 @@ const styles = StyleSheet.create({
   mutedStrong: { fontSize: 13, fontWeight: '800' },
   summaryHead: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.md, alignItems: 'flex-start' },
   summaryCopy: { flex: 1 },
-  summarySub: { fontSize: 12, fontWeight: '700', marginTop: 4 },
+  summarySub: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs},
   priorityBadge: { borderRadius: 20, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
   priorityText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   actionRow: { flexDirection: 'row', gap: Spacing.md },
@@ -285,19 +323,24 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     borderRadius: 8,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
+    padding: Spacing.md, marginTop: Spacing.xs,
   },
-  rnLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  rnLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.xs},
   rnValue: { fontSize: 15, fontWeight: '900' },
   timelineItem: { flexDirection: 'row', gap: Spacing.md, alignItems: 'flex-start' },
   timelineIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   timelineCopy: { flex: 1 },
   timelineTitle: { fontSize: 14, fontWeight: '900' },
-  timelineMeta: { fontSize: 12, fontWeight: '700', marginTop: 3, lineHeight: 17 },
+  timelineMeta: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs, lineHeight: 17 },
   // Dispatch photo section
-  photoSection: { marginBottom: Spacing.md },
-  photoHeader: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.xs },
+  photoSection: { marginBottom: Spacing.xs},
+  photoHeader: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.xs},
   photoLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   photoImage: { width: '100%', height: 200, borderRadius: 8, backgroundColor: '#F1F5F9' },
+  clearanceCard: { borderColor: '#A78BFA', borderWidth: 1.5 },
+  clearanceHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  clearanceTitle: { color: '#6D28D9', fontSize: 16, fontWeight: '800' },
+  clearanceText: { fontSize: 12, lineHeight: 18 },
+  inspectionCard: { borderColor: '#5EEAD4', borderWidth: 1.5 },
+  inspectionTitle: { color: '#0F766E', fontSize: 16, fontWeight: '800' },
 });

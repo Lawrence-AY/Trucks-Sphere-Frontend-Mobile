@@ -6,7 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
@@ -40,7 +40,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const [searchText, setSearchText] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const animatedWidth = useRef(new Animated.Value(40)).current;
-  const screenWidth = Dimensions.get('window').width;
+  const { width: screenWidth } = useWindowDimensions();
 
   const debouncedSearch = useCallback(
     debounce((text: string) => {
@@ -54,8 +54,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
     debouncedSearch(text);
   };
 
+  useEffect(() => {
+    if (isExpanded) {
+      animatedWidth.setValue(Math.max(40, screenWidth - Spacing.lg * 2));
+    }
+  }, [animatedWidth, isExpanded, screenWidth]);
+
   const toggleExpand = () => {
-    const toValue = isExpanded ? 40 : screenWidth - Spacing['2xl'] * 2;
+    const toValue = isExpanded ? 40 : Math.max(40, screenWidth - Spacing.lg * 2);
     Animated.spring(animatedWidth, {
       toValue,
       useNativeDriver: false,
@@ -191,8 +197,7 @@ const styles = StyleSheet.create({
   },
   filtersContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: Spacing.sm,
+    flexWrap: 'wrap', marginTop: Spacing.xs,
     gap: 6,
   },
   filterChip: {

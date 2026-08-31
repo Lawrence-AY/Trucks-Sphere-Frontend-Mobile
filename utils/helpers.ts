@@ -126,6 +126,7 @@ export function getRoleLabel(role: string): string {
     operator_quarry: 'Quarry Operator',
     operator_site: 'Site Operator',
     operator_fuel: 'Fuel Operator',
+    inspector: 'Material Inspector',
     quarry_operator: 'Quarry Operator',
     site_operator: 'Site Operator',
     fuel_operator: 'Fuel Operator',

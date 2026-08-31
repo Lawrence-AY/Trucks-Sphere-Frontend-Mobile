@@ -249,8 +249,7 @@ export default function FuelScreen() {
               <View
                 style={{
                   flexDirection: "row",
-                  justifyContent: "space-between",
-                  marginBottom: 0.1,
+                  justifyContent: "space-between", marginBottom: Spacing.xs,
                 }}
               >
                 <View style={{ flex: 1 }}>
@@ -268,8 +267,7 @@ export default function FuelScreen() {
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 4,
-                        marginTop: 0.1,
+                        gap: 4, marginTop: Spacing.xs,
                       }}
                     >
                       <Ionicons name="key-outline" size={11} color="#8B5CF6" />
@@ -325,8 +323,7 @@ export default function FuelScreen() {
               <Text
                 style={{
                   fontSize: 12,
-                  color: colors.textTertiary,
-                  marginTop:0.1,
+                  color: colors.textTertiary, marginTop: Spacing.xs,
                 }}
               >
                 Dispensed: {formatEAT(item.dispensedAt || item.createdAt)}
@@ -352,7 +349,7 @@ export default function FuelScreen() {
 }
 
 const styles = StyleSheet.create({
-  statsRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.md },
+  statsRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.xs},
   statCard: {
     flex: 1,
     borderRadius: 12,

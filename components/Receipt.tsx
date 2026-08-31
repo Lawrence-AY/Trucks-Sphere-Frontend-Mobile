@@ -349,12 +349,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderStyle: 'dashed',
-    paddingBottom: Spacing.lg,
-    marginBottom: Spacing.md,
+    paddingBottom: Spacing.lg, marginBottom: Spacing.xs,
   },
   stationIcon: {
-    fontSize: 32,
-    marginBottom: Spacing.xs,
+    fontSize: 32, marginBottom: Spacing.xs,
   },
   stationName: {
     fontSize: 18,
@@ -364,20 +362,17 @@ const styles = StyleSheet.create({
   },
   stationAddress: {
     fontSize: 11,
-    textAlign: 'center',
-    marginTop: 2,
+    textAlign: 'center', marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   receiptTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: Spacing.xs,
+    fontWeight: 'bold', marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   dashLine: {
     fontSize: 13,
-    textAlign: 'center',
-    marginVertical: Spacing.xs,
+    textAlign: 'center', marginVertical: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     letterSpacing: -1,
   },
@@ -413,8 +408,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderStyle: 'dashed',
-    marginVertical: Spacing.xs,
+    borderStyle: 'dashed', marginVertical: Spacing.xs,
   },
   netLabel: {
     fontSize: 14,
@@ -436,8 +430,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   barcodeText: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 11, marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   signatureArea: {
@@ -450,8 +443,7 @@ const styles = StyleSheet.create({
   },
   signatureName: {
     fontSize: 13,
-    fontWeight: 'bold',
-    marginTop: 4,
+    fontWeight: 'bold', marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   thankYouArea: {
@@ -464,8 +456,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   footerText: {
-    fontSize: 9,
-    marginTop: 4,
+    fontSize: 9, marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   perforation: {

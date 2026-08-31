@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   initial: { fontSize: 16, fontWeight: '800' },
   actorCopy: { flex: 1, minWidth: 0 },
   label: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: .4 },
-  name: { fontSize: 14, fontWeight: '800', marginTop: 1 },
-  meta: { fontSize: 12, marginTop: 1 },
-  time: { fontSize: 11, marginTop: 2 },
+  name: { fontSize: 14, fontWeight: '800', marginTop: Spacing.xs},
+  meta: { fontSize: 12, marginTop: Spacing.xs},
+  time: { fontSize: 11, marginTop: Spacing.xs},
 });

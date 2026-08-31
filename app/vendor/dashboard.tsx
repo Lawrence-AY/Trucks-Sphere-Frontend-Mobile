@@ -236,8 +236,7 @@ export default function VendorDashboardScreen() {
                   <Text
                     style={{
                       fontSize: 12,
-                      color: colors.textMuted,
-                      marginTop: 2,
+                      color: colors.textMuted, marginTop: Spacing.xs,
                     }}
                   >
                     PO: {item.poNumber || "N/A"}
@@ -317,8 +316,7 @@ export default function VendorDashboardScreen() {
                   style={{
                     flexDirection: "row",
                     justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 2,
+                    alignItems: "center", marginBottom: Spacing.xs,
                   }}
                 >
                   <View style={{ flex: 1 }}>
@@ -336,8 +334,7 @@ export default function VendorDashboardScreen() {
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
-                          gap: 4,
-                          marginTop: 2,
+                          gap: 4, marginTop: Spacing.xs,
                         }}
                       >
                         <Ionicons
@@ -390,8 +387,7 @@ export default function VendorDashboardScreen() {
                 <Text
                   style={{
                     fontSize: 12,
-                    color: colors.textTertiary,
-                    marginTop: Spacing.sm,
+                    color: colors.textTertiary, marginTop: Spacing.xs,
                   }}
                 >
                   Dispensed: {formatEAT(item.dispensedAt || item.createdAt)}

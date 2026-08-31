@@ -120,6 +120,11 @@ export async function uploadReceiptNote(weighRecordId: string, fileUri: string):
   );
 }
 
+export async function uploadInspectionPhoto(deliveryOrderId: string, file: string | UploadFile, materialId?: string): Promise<UploadResult> {
+  const materialQuery = materialId ? `?materialId=${encodeURIComponent(materialId)}` : '';
+  return uploadFile(`inspection-photo/${deliveryOrderId}${materialQuery}`, file, 'file', `inspection-${deliveryOrderId}`);
+}
+
 /**
  * Upload a driver photo captured at weigh-out.
  * Storage folder: "Deliveries/"

@@ -169,7 +169,7 @@ export default function IssuesScreen() {
       
 
       {/* Filter + New Issue */}
-      <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm, flexWrap: 'wrap' }}>
+      <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xs, flexWrap: 'wrap' }}>
         <View style={{ flexDirection: 'row', gap: Spacing.xs, flex: 1 }}>
           {(['all', 'resolved'] as const).map((f) => (
             <TouchableOpacity
@@ -224,7 +224,7 @@ export default function IssuesScreen() {
             textAlignVertical="top"
           />
            
-          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md }}>
+          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs}}>
             <TouchableOpacity style={[styles.cancelBtn, { borderColor: colors.border }]} onPress={() => setShowForm(false)}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>Cancel</Text>
             </TouchableOpacity>
@@ -256,10 +256,10 @@ export default function IssuesScreen() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View style={{ flex: 1, marginRight: Spacing.sm }}>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{issue.title}</Text>
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 4, lineHeight: 18 }}>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: Spacing.xs, lineHeight: 18 }}>
                   {issue.description}
                 </Text>
-                <View style={{ flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.sm, flexWrap: 'wrap', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.xs, flexWrap: 'wrap', alignItems: 'center' }}>
                   <View style={[styles.statusBadge, { backgroundColor: (STATUS_COLORS[getIssueStatus(issue)] || '#94A3B8') + '20' }]}>
                     <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[getIssueStatus(issue)] || '#94A3B8' }]} />
                     <Text style={{ fontSize: 11, fontWeight: '700', color: STATUS_COLORS[getIssueStatus(issue)] || '#94A3B8' }}>
@@ -271,11 +271,11 @@ export default function IssuesScreen() {
                     <Text style={{ fontSize: 11, color: colors.textTertiary }}>· {issue.category}</Text>
                   )}
                 </View>
-                <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: 4 }}>
+                <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: Spacing.xs}}>
                   {issue.submittedByName || 'Unknown'} · {issue.createdAt ? new Date(issue.createdAt).toLocaleDateString('en-KE', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
                 </Text>
                 {issue.resolvedAt && (
-                  <Text style={{ fontSize: 11, color: '#10B981', marginTop: 2 }}>
+                  <Text style={{ fontSize: 11, color: '#10B981', marginTop: Spacing.xs}}>
                     ✓ Resolved by {issue.resolvedByName || '—'} on {new Date(issue.resolvedAt).toLocaleDateString('en-KE', { month: 'short', day: 'numeric' })}
                   </Text>
                 )}
@@ -414,14 +414,11 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 16,
-    fontWeight: '800',
-    marginBottom: Spacing.sm,
+    fontWeight: '800', marginBottom: Spacing.xs,
   },
   label: {
     fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-    marginTop: Spacing.sm,
+    fontWeight: '600', marginBottom: Spacing.xs, marginTop: Spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
@@ -482,8 +479,7 @@ const styles = StyleSheet.create({
     minWidth: 70,
     justifyContent: 'center',
   },
-  resolutionCard: {
-    marginTop: Spacing.md,
+  resolutionCard: { marginTop: Spacing.xs,
     padding: Spacing.md,
     borderWidth: 1,
     borderRadius: Radius.md,
@@ -499,12 +495,10 @@ const styles = StyleSheet.create({
   },
   resolutionText: {
     fontSize: 13,
-    lineHeight: 19,
-    marginTop: Spacing.xs,
+    lineHeight: 19, marginTop: Spacing.xs,
   },
   resolutionMeta: {
-    fontSize: 11,
-    marginTop: Spacing.sm,
+    fontSize: 11, marginTop: Spacing.xs,
   },
   modalBackdrop: {
     flex: 1,
@@ -523,8 +517,7 @@ const styles = StyleSheet.create({
   dialogHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+    gap: Spacing.md, marginBottom: Spacing.xs,
   },
   dialogTitle: {
     fontSize: 18,
@@ -532,8 +525,7 @@ const styles = StyleSheet.create({
   },
   dialogSubtitle: {
     fontSize: 13,
-    lineHeight: 18,
-    marginTop: 3,
+    lineHeight: 18, marginTop: Spacing.xs,
   },
   closeButton: {
     width: 36,
@@ -548,7 +540,6 @@ const styles = StyleSheet.create({
   },
   dialogActions: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.lg,
+    gap: Spacing.sm, marginTop: Spacing.xs,
   },
 });

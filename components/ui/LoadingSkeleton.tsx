@@ -76,8 +76,7 @@ export function LoadingSkeleton({
               height: lineHeight,
               opacity,
               backgroundColor: colors.inputBg,
-              width: i === lines - 1 ? '40%' : '100%',
-              marginBottom: Spacing.sm,
+              width: i === lines - 1 ? '40%' : '100%', marginBottom: Spacing.xs,
             },
           ]}
         />
@@ -93,8 +92,7 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderRadius: Radius.md,
-    overflow: 'hidden',
-    marginBottom: Spacing.md,
+    overflow: 'hidden', marginBottom: Spacing.xs,
   },
   cardBody: {
     padding: Spacing.lg,

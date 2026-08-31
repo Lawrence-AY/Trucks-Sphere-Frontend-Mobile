@@ -34,6 +34,7 @@ const SECONDARY_ROUTES = [
   'profile',
   'fuel-records',
   'reports',
+  'flagged',
   'analytics',
   'audit-logs',
   'users',
@@ -68,6 +69,7 @@ const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = 
 const getManagementScreenOptions = (colors: any, bottomInset: number) => ({
   tabBarActiveTintColor: colors.tabActive,
   tabBarInactiveTintColor: colors.tabInactive,
+  tabBarHideOnKeyboard: true,
   tabBarShowLabel: Platform.OS !== 'web',
   tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' as const } : { fontSize: 11, fontWeight: '600' as const },
   tabBarStyle: Platform.OS === 'web'
@@ -269,7 +271,7 @@ export default function ManagementLayout() {
                 <Text style={{ fontSize: 20, fontWeight: '700', color: colors.accent }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
               </View>
               <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'User'}</Text>
-              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
+              <View style={{ marginTop: Spacing.xs, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>{getRoleLabel(user?.role || '')}</Text>
               </View>
             </View>
@@ -347,7 +349,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: -2, height: 0 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 8,
   },
   drawerUser: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  drawerAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  drawerAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
   drawerSection: { paddingVertical: 4 },
   drawerSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4 },
   drawerSectionTitle: { fontSize: 10, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.2, textTransform: 'uppercase' },
@@ -379,8 +381,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#FEF2F2',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   logoutTitle: {
     color: '#1E293B',
@@ -389,9 +390,7 @@ const styles = StyleSheet.create({
   },
   logoutMessage: {
     color: '#64748B',
-    fontSize: 14,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xl,
+    fontSize: 14, marginTop: Spacing.xs, marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   logoutActions: {

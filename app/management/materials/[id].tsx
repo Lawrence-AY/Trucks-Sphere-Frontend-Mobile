@@ -335,7 +335,7 @@ export default function MaterialDetailScreen() {
         />
 
         {/* Tab Content */}
-        <View style={{ marginTop: Spacing.md   }}>
+        <View style={{ marginTop: Spacing.xs}}>
           {activeTab === 'details' && renderDetails()}
         </View>
       </ScrollView>
@@ -384,14 +384,12 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+    gap: Spacing.md, marginBottom: Spacing.xs,
   },
   headerIcon: {
     width: 56,
@@ -406,8 +404,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   headerSubtitle: {
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: 14, marginTop: Spacing.xs,
     flexShrink: 1,
   },
   actionsRow: {
@@ -416,8 +413,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: Spacing.md,
+    fontWeight: '700', marginBottom: Spacing.xs,
   },
   detailRow: {
     flexDirection: 'row',
@@ -430,8 +426,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 14,
-    flexShrink: 1,
-    marginTop: 1,
+    flexShrink: 1, marginTop: Spacing.xs,
   },
   detailValue: {
     fontSize: 14,
@@ -468,8 +463,7 @@ const styles = StyleSheet.create({
   propertyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: 4,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   propertyName: {
     fontSize: 15,
@@ -483,8 +477,7 @@ const styles = StyleSheet.create({
   optionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
-    marginTop: Spacing.sm,
+    gap: 4, marginTop: Spacing.xs,
     marginLeft: 24,
   },
   optionChip: {

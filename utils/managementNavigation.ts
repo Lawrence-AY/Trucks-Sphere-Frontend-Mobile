@@ -24,6 +24,7 @@ export const SuperAdminSidebar: ManagementNavigationSection[] = [
     { label: 'Warehouse', icon: 'cube-outline', route: '/warehouse' },
     { label: 'Completed Trips', icon: 'checkmark-done-outline', route: '/management/trips' },
     { label: 'Tracking', icon: 'navigate-outline', route: '/track' },
+    { label: 'Flagged', icon: 'flag-outline', route: '/management/flagged' },
   ] },
   { title: 'Fleet', icon: 'car-outline', items: [
     { label: 'Vendors', icon: 'business-outline', route: '/management/vendors' },
@@ -38,7 +39,6 @@ export const SuperAdminSidebar: ManagementNavigationSection[] = [
   ] },
   { title: 'Administration', icon: 'settings-outline', items: [
     { label: 'Users', icon: 'people-outline', route: '/management/users' },
-    { label: 'Role Management', icon: 'shield-checkmark-outline', route: '/management/roles' },
     { label: 'Master Data', icon: 'server-outline', route: '/management/master-data' },
     { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
   ] },
@@ -53,6 +53,7 @@ export const AdminSidebar: ManagementNavigationSection[] = [
     { label: 'Purchase Orders', icon: 'document-text-outline', route: '/management/purchase-orders' },
     { label: 'Warehouse', icon: 'cube-outline', route: '/warehouse' },
     { label: 'Tracking', icon: 'navigate-outline', route: '/track' },
+    { label: 'Flagged', icon: 'flag-outline', route: '/management/flagged' },
   ] },
   { title: 'Fleet', icon: 'car-outline', items: [
     { label: 'Vendors', icon: 'business-outline', route: '/management/vendors' },

@@ -69,7 +69,7 @@ export default function ManagementOrdersScreen() {
         }
       >
         {/* Material Dropdown Filter */}
-        <View style={{ marginBottom: Spacing.sm }}>
+        <View style={{ marginBottom: Spacing.xs}}>
           <TouchableOpacity
             style={[styles.matBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
             onPress={() => { setMatDropdownOpen(!matDropdownOpen); setMatSearch(''); }}
@@ -139,7 +139,7 @@ export default function ManagementOrdersScreen() {
 const styles = StyleSheet.create({
   shell: { flex: 1 },
   orderList: { gap: 0.1 },
-  orderCard: { borderRadius: 5, marginBottom: 0.1 },
+  orderCard: { borderRadius: 5, marginBottom: Spacing.xs},
   fab: { position: 'absolute', bottom: 28, right: 20, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6 },
   matBtn: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: 6 },
   matBtnText: { flex: 1, fontSize: 14 },

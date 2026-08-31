@@ -17,6 +17,7 @@ export type UserRole =
   | 'operator_site'
   | 'operator_fuel'
   | 'operator_warehouse'
+  | 'inspector'
   | 'vendor';
 
 // ─── Status Enums ───
@@ -145,6 +146,8 @@ export interface Driver extends AuditTrail {
   id: string;
   driverId: string; // Auto-generated: D001, D002...
   fullName: string;
+  firstName?: string;
+  surname?: string;
   phone: string;
   email?: string;
   nationalId?: string;
@@ -359,7 +362,7 @@ export interface FuelStation extends AuditTrail {
 // ─── Purchase Order ───
 export interface PurchaseOrder extends AuditTrail {
   id: string;
-  poNumber: string; // Auto-generated: POMAT###/V###
+  poNumber: string; // Auto-generated: PO#####/V###
   customerId?: string;
   customerName?: string;
   vendorId: string;
@@ -386,6 +389,18 @@ export interface PurchaseOrder extends AuditTrail {
   deliveredQuantity?: number;
   quantityDelivered?: number; // Alias for deliveredQuantity
   remainingQuantity?: number;
+  materials?: PurchaseOrderMaterialLine[];
+  /** Stable per-form key used to make a retry safe after a network timeout. */
+  clientRequestId?: string;
+}
+
+export interface PurchaseOrderMaterialLine {
+  materialId: string;
+  materialNumber?: string;
+  materialName: string;
+  quantity: number;
+  unit: string;
+  isWarehouseMaterial?: boolean;
 }
 
 // ─── Job (Delivery Order) ───
@@ -406,6 +421,8 @@ export interface Job extends AuditTrail {
   materialId: string;
   materialName: string;
   materialSource?: string;
+  /** Required at site arrival for non-warehouse materials. */
+  banker?: string;
   quantityOrdered: number;
   quantityDispatched?: number;
   quantityDelivered?: number;

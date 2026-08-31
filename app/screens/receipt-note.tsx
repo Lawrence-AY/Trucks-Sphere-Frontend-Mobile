@@ -270,7 +270,7 @@ export default function ReceiptNoteScreen() {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ color: colors.textMuted, marginTop: 12 }}>Loading receipt note...</Text>
+        <Text style={{ color: colors.textMuted, marginTop: Spacing.xs}}>Loading receipt note...</Text>
       </View>
     );
   }
@@ -279,7 +279,7 @@ export default function ReceiptNoteScreen() {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <Ionicons name="document-outline" size={48} color={colors.textTertiary} />
-        <Text style={{ color: colors.textMuted, marginTop: 12, fontSize: 16 }}>Receipt note not found</Text>
+        <Text style={{ color: colors.textMuted, marginTop: Spacing.xs, fontSize: 16 }}>Receipt note not found</Text>
         <TouchableOpacity
           style={[styles.backBtn, { backgroundColor: colors.primary }]}
           onPress={() => router.back()}
@@ -296,7 +296,9 @@ export default function ReceiptNoteScreen() {
   const driverName = delivery.driverName || 'N/A';
   const plateNumber = delivery.plateNumber || 'N/A';
   const vendorName = delivery.vendorName || 'N/A';
-  const materialName = delivery.materialName || 'N/A';
+  const materialName = (Array.isArray(delivery.materials) && delivery.materials.length
+    ? delivery.materials.map((item: any) => `${item.materialName || 'Material'}${item.quantity != null ? ` (${item.quantity} ${item.unit || ''})` : ''}`).join('\n')
+    : delivery.materialName) || 'N/A';
   const quarryName = resolvedQuarryName || delivery.quarryName || 'N/A';
   const quarryOrigin = formatCapturedGeoLocation(
     delivery?.weighOutGeoLocation,
@@ -572,7 +574,6 @@ const RNRow = ({
             styles.rnValue,
             { color: valueColor || colors.primary, fontWeight: bold ? '800' : '600', textDecorationLine: 'underline' },
           ]}
-          numberOfLines={3}
         >
           {value}
         </Text>
@@ -583,7 +584,6 @@ const RNRow = ({
           styles.rnValue,
           { color: valueColor || colors.text, fontWeight: bold ? '800' : '600' },
         ]}
-        numberOfLines={3}
       >
         {value}
       </Text>
@@ -595,13 +595,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  backBtn: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Radius.md },
+  backBtn: { marginTop: Spacing.xs, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Radius.md },
   card: { borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: Spacing.md, marginBottom: Spacing.xs,
   },
   rnIconWrap: {
     width: 56,
@@ -611,19 +610,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rnTitle: { fontSize: 16, fontWeight: '900', textTransform: 'uppercase' },
-  rnSubtitle: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  rnSubtitle: { fontSize: 11, fontWeight: '700', marginTop: Spacing.xs},
   section: {
     borderTopWidth: 1,
-    paddingTop: Spacing.md,
-    marginBottom: Spacing.md,
+    paddingTop: Spacing.md, marginBottom: Spacing.xs,
     gap: 4,
   },
   sectionTitle: {
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 4,
+    textTransform: 'uppercase', marginBottom: Spacing.xs,
   },
   rnRow: {
     flexDirection: 'row',
@@ -632,10 +629,10 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     gap: Spacing.sm,
   },
-  rnLabel: { fontSize: 13, flexShrink: 0, marginTop: 1 },
+  rnLabel: { fontSize: 13, flexShrink: 0, marginTop: Spacing.xs},
   rnValue: { fontSize: 13, flex: 1, textAlign: 'right', flexWrap: 'wrap' },
-  netDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 4 },
-  actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  netDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.xs},
+  actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs},
   actionBtn: {
     flex: 1,
     flexDirection: 'row',

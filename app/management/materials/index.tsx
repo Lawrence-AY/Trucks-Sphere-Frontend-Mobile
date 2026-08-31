@@ -300,16 +300,14 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   count: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   searchBar: {
     flexDirection: 'row',
@@ -318,8 +316,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   searchInput: {
     flex: 1,
@@ -366,8 +363,7 @@ const styles = StyleSheet.create({
   materialCard: {
     borderRadius: 5,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: 0.1,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   materialHeader: {
     flexDirection: 'row',
@@ -386,14 +382,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   materialCategory: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   propertiesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
-    marginTop: Spacing.sm,
+    gap: 4, marginTop: Spacing.xs,
     paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E5E7EB',

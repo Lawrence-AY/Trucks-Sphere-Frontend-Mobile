@@ -28,7 +28,6 @@ import { Card } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
-import { CsvImportPanel } from '../../../components/CsvImportPanel';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { Vendor } from '../../../store/types';
@@ -40,12 +39,6 @@ const VEHICLE_TYPES = [
   { id: 'trailer', name: 'Trailer' },
   { id: 'mixer', name: 'Concrete Mixer' },
   { id: 'other', name: 'Other' },
-];
-
-const STATUS_OPTIONS = [
-  { id: 'active', name: 'Active' },
-  { id: 'inactive', name: 'Inactive' },
-  { id: 'maintenance', name: 'Under Maintenance' },
 ];
 
 export default function CreateVehicleScreen() {
@@ -77,6 +70,12 @@ export default function CreateVehicleScreen() {
     }
   }, []);
 
+  useEffect(() => vendorRepository.onChange(() => {
+    // Keep the selector current when a vendor is added without remounting
+    // this form.
+    void loadVendors();
+  }), []);
+
   async function loadVendors() {
     try {
       const v = await vendorRepository.getAll();
@@ -101,9 +100,6 @@ export default function CreateVehicleScreen() {
     const newErrors: Record<string, string> = {};
     if (!form.vendorId) newErrors.vendorId = 'Vendor is required';
     if (!form.registrationNumber.trim()) newErrors.registrationNumber = 'Registration number is required';
-    if (!form.make.trim()) newErrors.make = 'Make is required';
-    if (!form.model.trim()) newErrors.model = 'Model is required';
-    if (!form.year.trim()) newErrors.year = 'Year is required';
     if (!form.type) newErrors.type = 'Vehicle type is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -137,7 +133,7 @@ export default function CreateVehicleScreen() {
         plateNumber: form.registrationNumber.trim(),
         make: form.make.trim(),
         model: form.model.trim(),
-        year: Number(form.year.trim()),
+        year: form.year.trim() ? Number(form.year.trim()) : undefined,
         type: form.type,
         color: form.color.trim() || undefined,
         insuranceExpiry: form.insuranceExpiry.trim() || undefined,
@@ -173,15 +169,6 @@ export default function CreateVehicleScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         
 
-        <CsvImportPanel
-          type="vehicles"
-          requiredColumns="vendor_id or vendor_name, registration_number, type"
-          onCompleted={async () => {
-            vehicleRepository.invalidateCache();
-            await loadVendors();
-          }}
-        />
-
         <Card>
           <Select
             label="Vendor"
@@ -189,7 +176,6 @@ export default function CreateVehicleScreen() {
             options={vendorOptions}
             onSelect={(v) => updateField('vendorId', v)}
             icon="business-outline"
-            required
             error={errors.vendorId}
             placeholder="Select vendor..."
           />
@@ -210,7 +196,6 @@ export default function CreateVehicleScreen() {
             onChangeText={(v) => updateField('make', v)}
             placeholder="e.g. Scania"
             icon="build-outline"
-            required
             error={errors.make}
           />
 
@@ -220,7 +205,6 @@ export default function CreateVehicleScreen() {
             onChangeText={(v) => updateField('model', v)}
             placeholder="e.g. G460"
             icon="options-outline"
-            required
             error={errors.model}
           />
 
@@ -231,7 +215,6 @@ export default function CreateVehicleScreen() {
             placeholder="e.g. 2022"
             icon="calendar-outline"
             keyboardType="numeric"
-            required
             error={errors.year}
           />
 
@@ -278,13 +261,6 @@ export default function CreateVehicleScreen() {
             icon="time-outline"
           />
 
-          <Select
-            label="Status"
-            value={form.status}
-            options={STATUS_OPTIONS}
-            onSelect={(v) => updateField('status', v)}
-            icon="checkmark-circle-outline"
-          />
         </Card>
 
         <View style={styles.actions}>
@@ -337,21 +313,18 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   actions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.md,
+    gap: Spacing.md, marginTop: Spacing.xs,
   },
   actionBtn: {
     flex: 1,

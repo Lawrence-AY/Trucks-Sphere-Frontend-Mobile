@@ -5,7 +5,7 @@
  * URL format: /track?plate=KAA123B → /track/KAA123B
  */
 
-import { useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -22,28 +22,35 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Colors, Spacing, Radius } from '../../constants/theme';
 import { canControlStatusBarAppearance } from '../../utils/statusBar';
+import { selectSecurityTrackingVehicle, startSecurityTrackingSession } from '../../services/api';
+import { getItem, setItem } from '../../services/database';
 
-export default function TrackIndexScreen() {
-  const [plateNumber, setPlateNumber] = useState('');
+const TRACK_SESSION_KEY = 'user_track';
+const LEGACY_TRACK_SESSION_KEY = 'track_session';
+
+export function TrackingSessionScreen() {
   const [error, setError] = useState('');
-  const inputRef = useRef<TextInput>(null);
+  const [securityCode, setSecurityCode] = useState('');
+  const [starting, setStarting] = useState(false);
 
   const colors = Colors.light;
   const isWeb = Platform.OS === 'web';
 
-  const handleLookup = () => {
-    const plate = plateNumber.trim().toUpperCase();
-    if (!plate) {
-      setError('Please enter a vehicle registration number.');
-      return;
-    }
-    if (plate.length < 3) {
-      setError('Invalid plate number. Please enter a valid registration number.');
+  const handleLookup = async () => {
+    if (!/^[A-Z0-9]{5}$/.test(securityCode.trim())) {
+      setError('Enter the 5-character security code to continue.');
       return;
     }
     setError('');
     Keyboard.dismiss();
-    router.push(`/track/${encodeURIComponent(plate)}`);
+    setStarting(true);
+    try {
+      const session = await startSecurityTrackingSession(securityCode.trim());
+      const storedSession = JSON.stringify({ id: session.id, token: session.token, personnelName: session.personnelName });
+      await Promise.all([setItem(TRACK_SESSION_KEY, storedSession), setItem(LEGACY_TRACK_SESSION_KEY, storedSession)]);
+      router.replace('/track' as any);
+    } catch (err: any) { setError(err?.response?.data?.error || 'The security code could not be verified.'); }
+    finally { setStarting(false); }
   };
 
   return (
@@ -64,77 +71,32 @@ export default function TrackIndexScreen() {
             TruckSphere Track
           </Text>
           <Text style={[styles.brandSub, { color: colors.textMuted }]}>
-            Enter a vehicle registration number to track a delivery in real time.
+            Enter your security code to begin a tracking session.
           </Text>
         </View>
 
         {/* Input Section */}
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, { color: colors.text }]}>
-            Vehicle Registration Number
-          </Text>
-          <View
-            style={[
-              styles.inputWrap,
-              {
-                backgroundColor: colors.surface,
-                borderColor: error ? '#EF4444' : colors.border,
-              },
-            ]}
-          >
-            <Ionicons
-              name="car-outline"
-              size={20}
-              color={error ? '#EF4444' : colors.textMuted}
-            />
-            <TextInput
-              ref={inputRef}
-              style={[
-                styles.input,
-                {
-                  color: colors.text,
-                },
-              ]}
-              placeholder="e.g. KAA 123B"
-              placeholderTextColor={colors.textTertiary}
-              value={plateNumber}
-              onChangeText={(text) => {
-                setPlateNumber(text.toUpperCase());
-                if (error) setError('');
-              }}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              maxLength={15}
-              returnKeyType="go"
-              onSubmitEditing={handleLookup}
-              autoFocus={isWeb}
-            />
-            {plateNumber.length > 0 && (
-              <TouchableOpacity
-                onPress={() => { setPlateNumber(''); setError(''); }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-              </TouchableOpacity>
-            )}
+          <Text style={[styles.inputLabel, { color: colors.text }]}>Security Code</Text>
+          <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: error ? '#EF4444' : colors.border }]}>
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.textMuted} />
+            <TextInput style={[styles.input, { color: colors.text }]} placeholder="ABCDE" placeholderTextColor={colors.textTertiary} value={securityCode} onChangeText={(text) => { setSecurityCode(text.toUpperCase().replace(/[^A-Z0-9]/g, '')); if (error) setError(''); }} autoCapitalize="characters" maxLength={5} autoFocus={isWeb} />
           </View>
-          {error ? (
-            <Text style={[styles.errorText, { color: '#EF4444' }]}>{error}</Text>
-          ) : null}
+          {error ? <Text style={[styles.errorText, { color: '#EF4444' }]}>{error}</Text> : null}
 
           <TouchableOpacity
             style={[
               styles.lookupBtn,
               {
-                backgroundColor: plateNumber.trim() ? colors.primary : colors.border,
+                backgroundColor: securityCode.length === 5 ? colors.primary : colors.border,
               },
             ]}
             onPress={handleLookup}
             activeOpacity={0.8}
-            disabled={!plateNumber.trim()}
+            disabled={securityCode.length !== 5 || starting}
           >
             <Ionicons name="radio-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.lookupBtnText}>Track Delivery</Text>
+            <Text style={styles.lookupBtnText}>{starting ? 'Verifying...' : 'Continue'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -173,8 +135,7 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xs,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   brandTitle: {
     fontSize: 24,
@@ -222,8 +183,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
+    fontWeight: '600', marginTop: Spacing.xs,
   },
   lookupBtn: {
     flexDirection: 'row',
@@ -231,8 +191,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     height: 52,
-    borderRadius: Radius.lg,
-    marginTop: Spacing.xs,
+    borderRadius: Radius.lg, marginTop: Spacing.xs,
   },
   lookupBtnText: {
     color: '#FFFFFF',
@@ -257,3 +216,74 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+/** `/track` accepts a vehicle registration only after security verification. */
+export default function TrackIndexRedirect() {
+  const [session, setSession] = useState<{ id: string; token: string } | null>(null);
+  const [plateNumber, setPlateNumber] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const colors = Colors.light;
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const raw = await getItem(TRACK_SESSION_KEY) || await getItem(LEGACY_TRACK_SESSION_KEY);
+        const stored = raw ? JSON.parse(raw) : null;
+        if (stored?.id && stored?.token) return setSession(stored);
+      } catch {
+        // Invalid persisted data is equivalent to no session.
+      }
+      router.replace('/session' as any);
+    })();
+  }, []);
+
+  const continueToTracking = async () => {
+    const plate = plateNumber.trim().toUpperCase();
+    if (plate.length < 3) {
+      setError('Enter a valid vehicle registration number.');
+      return;
+    }
+    if (!session) return router.replace('/session' as any);
+    setSubmitting(true);
+    setError('');
+    try {
+      await selectSecurityTrackingVehicle(session.id, session.token, plate);
+      const storedSession = JSON.stringify({ ...session, plate });
+      await Promise.all([setItem(TRACK_SESSION_KEY, storedSession), setItem(LEGACY_TRACK_SESSION_KEY, storedSession)]);
+      router.replace(`/track/${encodeURIComponent(plate)}` as any);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Unable to start tracking for this vehicle.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!session) return <View style={styles.root} />;
+  return (
+    <KeyboardAvoidingView style={[styles.root, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.content}>
+          <View style={styles.branding}>
+            <View style={[styles.brandIconCircle, { backgroundColor: colors.primary + '14' }]}><Ionicons name="car-outline" size={40} color={colors.primary} /></View>
+            <Text style={[styles.brandTitle, { color: colors.text }]}>TruckSphere Track</Text>
+            <Text style={[styles.brandSub, { color: colors.textMuted }]}>Enter the vehicle registration number to track its active delivery.</Text>
+          </View>
+          <View style={styles.inputSection}>
+            <Text style={[styles.inputLabel, { color: colors.text }]}>Vehicle Registration Number</Text>
+            <View style={[styles.inputWrap, { backgroundColor: colors.surface, borderColor: error ? '#EF4444' : colors.border }]}>
+              <Ionicons name="car-outline" size={20} color={colors.textMuted} />
+              <TextInput style={[styles.input, { color: colors.text }]} placeholder="e.g. KAA 123B" placeholderTextColor={colors.textTertiary} value={plateNumber} onChangeText={(value) => { setPlateNumber(value.toUpperCase()); setError(''); }} autoCapitalize="characters" autoCorrect={false} maxLength={15} returnKeyType="go" onSubmitEditing={continueToTracking} autoFocus />
+            </View>
+            {error ? <Text style={[styles.errorText, { color: '#EF4444' }]}>{error}</Text> : null}
+            <TouchableOpacity style={[styles.lookupBtn, { backgroundColor: plateNumber.trim() ? colors.primary : colors.border }]} onPress={continueToTracking} activeOpacity={0.8} disabled={!plateNumber.trim() || submitting}>
+              <Ionicons name="radio-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.lookupBtnText}>{submitting ? 'Starting...' : 'Track Delivery'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}

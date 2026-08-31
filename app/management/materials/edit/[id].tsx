@@ -296,21 +296,18 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   actions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Spacing.md, marginTop: Spacing.xs,
   },
   actionBtn: {
     flex: 1,

@@ -209,8 +209,7 @@ export default function FuelRecordsScreen() {
               <View
                 style={{
                   flexDirection: "row",
-                  justifyContent: "space-between",
-                  marginBottom: 0.1,
+                  justifyContent: "space-between", marginBottom: Spacing.xs,
                 }}
               >
                 <View style={{ flex: 1 }}>
@@ -265,8 +264,7 @@ export default function FuelRecordsScreen() {
               <Text
                 style={{
                   fontSize: 12,
-                  color: colors.textTertiary,
-                  marginTop: 0.1,
+                  color: colors.textTertiary, marginTop: Spacing.xs,
                 }}
               >
                 Dispensed: {formatEAT(item.dispensedAt || item.createdAt || item.date)}
@@ -293,8 +291,8 @@ export default function FuelRecordsScreen() {
 
 const styles = StyleSheet.create({
   fuelList: { gap: 0.1 },
-  fuelCard: { borderRadius: 5, marginBottom: 0.1 },
-  statsRow: { flexDirection: "row", gap: 0.1, marginBottom: 0.1 },
+  fuelCard: { borderRadius: 5, marginBottom: Spacing.xs},
+  statsRow: { flexDirection: "row", gap: 0.1, marginBottom: Spacing.xs},
   statCard: {
     flex: 1,
     borderRadius: 5,

@@ -173,6 +173,10 @@ export default function OperatorSiteReceiveScreen() {
   };
 
   const handleSiteWeighOut = async () => {
+    if (!activeJob?.materialInspection?.mrfNumber) {
+      Alert.alert('Inspection required', 'A Material Inspection & Receipt Form must be completed before site weigh-out.');
+      return;
+    }
     const numericWeight = parseFloat(weightOut);
     if (isNaN(numericWeight) || numericWeight <= 0) {
       Alert.alert('Invalid Weight', 'Please enter a valid offload weight.');
@@ -232,6 +236,8 @@ export default function OperatorSiteReceiveScreen() {
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.formContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
       >
         {/* Job Info Card */}
         <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -268,9 +274,9 @@ export default function OperatorSiteReceiveScreen() {
             <DetailRow icon="scale-outline" value={`Quarry Net: ${Number(activeJob.netWeight).toFixed(1)} tonnes`} />
           )}
           {(activeJob.driverPhotoURL || activeJob.weighOutPhotoURL) ? (
-            <View style={[styles.photoSection, { marginTop: Spacing.md }]}>
+            <View style={[styles.photoSection, { marginTop: Spacing.xs}]}>
               {activeJob.driverPhotoURL ? (
-                <View style={{ marginBottom: Spacing.sm }}>
+                <View style={{ marginBottom: Spacing.xs}}>
                   <View style={styles.dispatchPhotoHeader}>
                     <Ionicons name="person-outline" size={14} color={colors.textMuted} />
                     <Text style={[styles.dispatchPhotoLabel, { color: colors.textMuted }]}>Driver Photo (Weigh-Out)</Text>
@@ -436,31 +442,31 @@ export default function OperatorSiteReceiveScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  jobCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  jobCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  jobCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  jobCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs},
   jobCardTitle: { fontSize: 18, fontWeight: '800' },
-  inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs},
   inputIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   inputTitle: { fontSize: 18, fontWeight: '700', flex: 1 },
-  inputSub: { fontSize: 13, marginBottom: Spacing.md },
+  inputSub: { fontSize: 13, marginBottom: Spacing.xs},
   weightInputWrap: { borderRadius: Radius.md, borderWidth: 2, paddingHorizontal: Spacing.md, height: 64, flexDirection: 'row', alignItems: 'center' },
   lotInputWrap: { borderRadius: Radius.md, borderWidth: 2, paddingHorizontal: Spacing.md, height: 52, flexDirection: 'row', alignItems: 'center' },
   weightInput: { flex: 1, fontSize: 28, fontWeight: '800' },
   weightSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
-  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm, minHeight: 50, marginTop: Spacing.sm },
+  saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm, minHeight: 50, marginTop: Spacing.xs},
   saveBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.sm },
+  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.xs},
   cancelText: { fontSize: 14, fontWeight: '600' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full },
-  recordedValue: { marginTop: Spacing.md, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, alignItems: 'center' },
+  recordedValue: { marginTop: Spacing.xs, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, alignItems: 'center' },
   recordedLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
-  recordedWeight: { fontSize: 28, fontWeight: '900', marginTop: 4 },
-  netPreview: { marginTop: Spacing.md, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, alignItems: 'center' },
+  recordedWeight: { fontSize: 28, fontWeight: '900', marginTop: Spacing.xs},
+  netPreview: { marginTop: Spacing.xs, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, alignItems: 'center' },
   netLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
-  netValue: { fontSize: 28, fontWeight: '900', marginTop: 4 },
-  netCalc: { fontSize: 12, marginTop: 4 },
-  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: Spacing.sm },
+  netValue: { fontSize: 28, fontWeight: '900', marginTop: Spacing.xs},
+  netCalc: { fontSize: 12, marginTop: Spacing.xs},
+  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: Spacing.xs},
   tapHintText: { fontSize: 11, fontWeight: '700' },
   // Dispatch photo section (driver/weigh-out photos from quarry)
   photoSection: { gap: Spacing.xs },

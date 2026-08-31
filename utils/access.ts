@@ -59,6 +59,7 @@ export function homeRouteForRole(role?: string): string {
     case 'operator_quarry': return '/operator-quarry/dashboard';
     case 'operator_fuel': return '/operator-fuel/dispense';
     case 'operator_warehouse': return '/warehouse';
+    case 'inspector': return '/inspector';
     default: return '/(auth)/login';
   }
 }
@@ -72,6 +73,7 @@ const ALL_AUTHENTICATED_ROLES = [
   'operator_quarry',
   'operator_fuel',
   'operator_warehouse',
+  'inspector',
 ];
 
 /** Routes outside /management with an explicit role policy. */
@@ -83,6 +85,7 @@ const SPECIAL_ROUTE_ACCESS: Array<{ prefix: string; roles: string[] }> = [
   { prefix: '/operator-site', roles: ['operator_site'] },
   { prefix: '/operator-quarry', roles: ['operator_quarry'] },
   { prefix: '/operator-fuel', roles: ['operator_fuel'] },
+  { prefix: '/inspector', roles: ALL_AUTHENTICATED_ROLES },
   // Document, receipt, and issue screens are shared by the authenticated
   // workflows above; data access is still enforced by the API.
   { prefix: '/screens', roles: ALL_AUTHENTICATED_ROLES },
@@ -105,6 +108,7 @@ const MANAGEMENT_ROUTE_ACCESS: Array<{ prefix: string; roles: ManagementRole[] }
   { prefix: '/management/sites', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/management/analytics', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/reports', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
+  { prefix: '/management/flagged', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/dispatch', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/management/fuel-records', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/fuel', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },

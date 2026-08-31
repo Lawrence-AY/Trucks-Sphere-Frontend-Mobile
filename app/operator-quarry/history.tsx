@@ -432,14 +432,12 @@ export default function OperatorQuarryHistoryScreen() {
 const styles = StyleSheet.create({
   metricRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   // Filters
   filterRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
+    gap: Spacing.xs, marginTop: 0, marginBottom:0,
   },
   filterPill: {
     flexDirection: 'row',
@@ -454,8 +452,7 @@ const styles = StyleSheet.create({
   // Export
   exportRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap:0, marginBottom:0,
   },
   exportBtn: {
     flexDirection: 'row',
@@ -472,27 +469,24 @@ const styles = StyleSheet.create({
   tableHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
+    alignItems: 'flex-start', marginBottom: 0,
   },
   tableJobId: { fontSize: 15, fontWeight: '700' },
-  tablePo: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  tablePo: { fontSize: 11, fontWeight: '600', marginTop: Spacing.xs},
   tableRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: 4,
+    gap: Spacing.md, marginBottom: 0,
   },
   tableCell: { flex: 1 },
-  tableLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 },
+  tableLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: Spacing.xs},
   tableValue: { fontSize: 13, fontWeight: '600' },
-  tableTimestamp: { fontSize: 12, marginTop: Spacing.sm },
+  tableTimestamp: { fontSize: 12, marginTop: 0},
   // Weight summary for completed
   weightSummary: {
     flexDirection: 'row',
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.sm,
-    marginTop: Spacing.sm,
+    padding: Spacing.sm, marginTop: Spacing.xs,
     gap: Spacing.xs,
   },
   weightCell: {
@@ -501,13 +495,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   wLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-  wValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
+  wValue: { fontSize: 14, fontWeight: '800', marginTop: Spacing.xs},
   // Location tag
   locationTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: Spacing.sm,
+    gap: 4, marginTop: Spacing.xs,
   },
   locationTagText: {
     fontSize: 11,
@@ -517,8 +510,7 @@ const styles = StyleSheet.create({
   // Per-delivery export
   deliveryExportRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
+    gap: Spacing.sm, marginTop: Spacing.xs,
   },
   deliveryExportBtn: {
     flexDirection: 'row',

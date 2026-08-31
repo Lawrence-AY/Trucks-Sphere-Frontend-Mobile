@@ -189,8 +189,8 @@ export default function EditPurchaseOrderScreen() {
               placeholder={form.vendorId ? 'Select material...' : 'Select vendor first...'}
             />
           ) : (
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>
+            <View style={{ marginBottom: Spacing.xs}}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: Spacing.xs}}>
                 Material *
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 16, gap: 8, borderColor: colors.border, backgroundColor: colors.surface }}>
@@ -261,21 +261,18 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   actions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Spacing.md, marginTop: Spacing.xs,
   },
   actionBtn: {
     flex: 1,

@@ -64,6 +64,8 @@ export function Button({
 const styles = StyleSheet.create({
   button: {
     borderRadius: 5,
+    minWidth: 0,
+    flexShrink: 1,
   },
   content: {
     paddingHorizontal: Spacing.sm,

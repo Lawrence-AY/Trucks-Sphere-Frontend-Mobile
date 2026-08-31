@@ -133,8 +133,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 16,
@@ -148,12 +147,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   subtitle: {
-    fontSize: 14,
-    marginBottom: Spacing.lg,
+    fontSize: 14, marginBottom: Spacing.xs,
     lineHeight: 20,
   },
-  list: {
-    marginBottom: Spacing.lg,
+  list: { marginBottom: Spacing.xs,
   },
   entityRow: {
     borderBottomWidth: 1,
@@ -171,13 +168,11 @@ const styles = StyleSheet.create({
   },
   interlinked: {
     fontSize: 14,
-    fontWeight: '400',
-    marginTop: 3,
+    fontWeight: '400', marginTop: Spacing.xs,
   },
   actionBtns: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
+    gap: Spacing.sm, marginTop: Spacing.xs,
   },
   formatBtn: {
     flexDirection: 'row',

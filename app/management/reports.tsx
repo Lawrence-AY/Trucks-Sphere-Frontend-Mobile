@@ -42,6 +42,7 @@ const CATEGORIES = [
   { key: 'quarryOps', label: 'Quarry Ops', icon: 'hammer-outline', color: '#D97706' },
   { key: 'warehouse', label: 'Warehouse', icon: 'cube-outline', color: '#7C3AED' },
   { key: 'siteOps', label: 'Site Ops', icon: 'business-outline', color: '#059669' },
+  { key: 'inspections', label: 'Inspections', icon: 'clipboard-outline', color: '#0F766E' },
 ];
 
 function withinTimeframe(dateStr: string, flt: string): boolean {
@@ -194,6 +195,12 @@ export default function ReportsScreen() {
           .filter((d: any) => d.siteWeighInAt)
           .reduce((s: number, d: any) => s + (Number(d.siteNetWeight || d.netWeight) || 0), 0),
         preview: deliveries.filter((d: any) => d.siteWeighInAt).slice(0, 5),
+      },
+      inspections: {
+        total: fDel.filter((d: any) => d.materialInspection?.mrfNumber).length,
+        failed: fDel.filter((d: any) => (d.materialInspection?.materialReceipts || []).some((line: any) => line.initialVisualInspection === 'Failed')).length,
+        pending: fDel.filter((d: any) => (d.materialInspection?.materialReceipts || []).some((line: any) => (line.initialVisualInspection || 'Pending') === 'Pending')).length,
+        preview: fDel.filter((d: any) => d.materialInspection?.mrfNumber).slice(0, 5),
       },
       fuelByJob,
     };
@@ -363,7 +370,7 @@ export default function ReportsScreen() {
       </TouchableOpacity>
 
       {isLoading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: Spacing.xs}} />
       ) : (
         <View style={styles.metricsGrid}>{renderCategoryCards(activeTab, d, colors, metrics)}</View>
       )}
@@ -443,6 +450,14 @@ function renderCategoryCards(tab: string, d: any, colors: any, m: any) {
           <MetricCard icon="cube-outline" label="Shipments" value={d.total ?? 0} color="#7C3AED" />
         </>
       );
+    case 'inspections':
+      return (
+        <>
+          <MetricCard icon="clipboard-outline" label="MIFs" value={d.total ?? 0} color="#0F766E" />
+          <MetricCard icon="close-circle-outline" label="Failed" value={d.failed ?? 0} color="#B91C1C" />
+          <MetricCard icon="time-outline" label="Pending" value={d.pending ?? 0} color="#D97706" />
+        </>
+      );
     default:
       return null;
   }
@@ -477,7 +492,7 @@ function MetricCard({
 }
 
 const styles = StyleSheet.create({
-  filterScroll: { marginBottom: Spacing.sm },
+  filterScroll: { marginBottom: Spacing.xs},
   filterRow: { gap: Spacing.sm, paddingVertical: Spacing.xs },
   filterChip: {
     paddingHorizontal: 14,
@@ -492,11 +507,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     minHeight: 50,
-    borderRadius: Radius.md,
-    marginBottom: Spacing.md,
+    borderRadius: Radius.md, marginBottom: Spacing.xs,
   },
   exportBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
-  tabScroll: { marginBottom: Spacing.md },
+  tabScroll: { marginBottom: Spacing.xs},
   tabRow: { gap: Spacing.xs },
   tab: {
     flexDirection: 'row',
@@ -515,15 +529,13 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: 44,
     borderRadius: Radius.md,
-    borderWidth: 1.5,
-    marginBottom: Spacing.sm,
+    borderWidth: 1.5, marginBottom: Spacing.xs,
   },
   csvBtnText: { fontSize: 13, fontWeight: '800' },
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   metricCard: {
     width: '30%',
@@ -541,7 +553,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  metricValue: { fontSize: 20, fontWeight: '900', marginTop: 2 },
+  metricValue: { fontSize: 20, fontWeight: '900', marginTop: Spacing.xs},
   metricLabel: {
     fontSize: 10,
     fontWeight: '700',

@@ -105,6 +105,7 @@ export default function DownloadsScreen() {
           <td>${order.driverName || '-'}</td>
           <td>${order.plateNumber || '-'}</td>
           <td>${order.materialName || '-'}</td>
+          <td>${order.isWarehouseDelivery || String(order.deliveryOrigin || '').toLowerCase() === 'warehouse' || String(order.materialSource || '').toLowerCase() === 'warehouse' ? 'Warehouse-banker' : order.banker || '-'}</td>
           <td>${order.quarryName || '-'}</td>
           <td>${order.weighOutGeoLocation?.city || order.weighOutGeoLocation?.town || order.weighOutGeoLocation?.address || order.weighOutLocation || '-'}</td>
           <td>${order.operatorUsername || '-'}</td>
@@ -146,7 +147,7 @@ export default function DownloadsScreen() {
             <thead>
               <tr>
                 <th>#</th><th>Job ID</th><th>PO</th><th>Vendor</th>
-                <th>Driver</th><th>Plate</th><th>Material</th>
+                <th>Driver</th><th>Plate</th><th>Material</th><th>Banker</th>
                 <th>Quarry</th><th>Quarry Geo</th>
                 <th>Quarry Op</th><th>Qty Ordered</th>
                 <th>Delivered</th><th>Receipt Note</th><th>Status</th><th>Date</th>
@@ -456,20 +457,17 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   operatorInfo: {
-    fontSize: 12,
-    marginTop: 8,
+    fontSize: 12, marginTop: Spacing.xs,
     fontStyle: 'italic',
   },
   optionCard: {
@@ -477,8 +475,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.lg,
     borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
+    borderWidth: 1, marginBottom: Spacing.xs,
     gap: Spacing.md,
   },
   optionIcon: {
@@ -496,8 +493,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   optionDesc: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   uploadSection: {
     flexDirection: 'row',
@@ -509,8 +505,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   uploadDesc: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   uploadBtn: {
     paddingHorizontal: Spacing.lg,

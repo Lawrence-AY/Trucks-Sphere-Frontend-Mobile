@@ -126,11 +126,10 @@ export default function VendorReportsScreen() {
 
 const styles = StyleSheet.create({
   subtitle: {
-    fontSize: 14,
-    marginBottom: Spacing.md,
+    fontSize: 14, marginBottom: Spacing.xs,
     paddingHorizontal: Spacing.lg,
   },
-  filterScroll: { marginBottom: Spacing.md },
+  filterScroll: { marginBottom: Spacing.xs},
   filterRow: { gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs },
   filterChip: {
     paddingHorizontal: 14,
@@ -143,8 +142,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: Spacing.md,
-    gap: Spacing.md,
-    marginTop: Spacing.sm,
+    gap: Spacing.md, marginTop: Spacing.xs,
   },
   categoryCard: {
     width: '47%',
@@ -172,8 +170,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: Radius.full,
-    marginTop: 2,
+    borderRadius: Radius.full, marginTop: Spacing.xs,
   },
   downloadBadgeText: {
     fontSize: 11,

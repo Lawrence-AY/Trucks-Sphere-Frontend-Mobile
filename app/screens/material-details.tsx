@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   muted: { fontSize: 13, fontWeight: '800' },
   metricRow: { flexDirection: 'row', gap: Spacing.md },
-  summarySub: { fontSize: 12, fontWeight: '700', marginTop: 3 },
+  summarySub: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs},
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md },
   cardCopy: { flex: 1 },
   poNumber: { fontSize: 17, fontWeight: '900' },

@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -184,6 +187,7 @@ export default function OperatorQuarryDashboardScreen() {
     : '';
 
   const closeAddForm = () => {
+    Keyboard.dismiss();
     setAddVisible(false);
     setPoSearch('');
     setSelectedPo(null);
@@ -195,6 +199,7 @@ export default function OperatorQuarryDashboardScreen() {
 
   const createQueueJob = async () => {
     if (!selectedPo || !selectedDriver || !selectedVehicle) return;
+    Keyboard.dismiss();
     const now = new Date().toISOString();
     setSubmitting(true);
     setSubmitError('');
@@ -309,7 +314,7 @@ export default function OperatorQuarryDashboardScreen() {
                           </Text>
                         </View>
                       )}
-                      <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+                      <DetailRow value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
                       {!d?.photoURL && (
                         <Ionicons name="information-circle-outline" size={16} color={colors.textTertiary} />
                       )}
@@ -329,7 +334,12 @@ export default function OperatorQuarryDashboardScreen() {
             );
           })
         ) : (
-          <EmptyState icon="clipboard-outline" title="Queue Empty" subtitle="No active jobs in the quarry queue." />
+          <EmptyState
+            icon="clipboard-outline"
+            title="Queue Empty"
+            subtitle="No active jobs in the quarry queue."
+            transparent
+          />
         )}
 
         {/* Weighed-Out Snapshot */}
@@ -391,7 +401,10 @@ export default function OperatorQuarryDashboardScreen() {
 
       {/* Create Job Card Modal */}
       <Modal visible={addVisible} transparent animationType="slide" onRequestClose={closeAddForm}>
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={[styles.addSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.sheetHead}>
               <View style={{ flex: 1 }}>
@@ -413,18 +426,33 @@ export default function OperatorQuarryDashboardScreen() {
                 placeholderTextColor={colors.textTertiary}
                 value={selectedPo ? selectedPo.poNumber : poSearch}
                 onChangeText={(value) => { setPoSearch(value); setSelectedPo(null); setSelectedDriver(null); setSelectedVehicle(null); }}
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+                blurOnSubmit
               />
             </View>
  
             {!selectedPo ? (
-              <ScrollView style={styles.poScrollView} showsVerticalScrollIndicator={true} nestedScrollEnabled>
+              <ScrollView
+                style={styles.poScrollView}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled
+                keyboardDismissMode="interactive"
+                keyboardShouldPersistTaps="handled"
+              >
                 <View style={styles.optionList}>
                   {matchingPurchaseOrders.length ? (
                     matchingPurchaseOrders.map((order) => (
                       <TouchableOpacity
                         key={order.id}
                         style={[styles.optionRow, { borderColor: colors.border }]}
-                        onPress={() => { setSelectedPo(order); setPoSearch(order.poNumber); setSelectedDriver(null); setSelectedVehicle(null); }}
+                        onPress={() => {
+                          Keyboard.dismiss();
+                          setSelectedPo(order);
+                          setPoSearch(order.poNumber);
+                          setSelectedDriver(null);
+                          setSelectedVehicle(null);
+                        }}
                       >
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.optionTitle, { color: colors.text }]}>{order.poNumber}</Text>
@@ -455,7 +483,7 @@ export default function OperatorQuarryDashboardScreen() {
             {selectedPo && (
               <>
                 <Text style={[styles.driverLabel, { color: colors.text }]}>Select Driver</Text>
-                <ScrollView style={styles.selectScrollView} showsVerticalScrollIndicator={true} nestedScrollEnabled>
+                <ScrollView style={styles.selectScrollView} showsVerticalScrollIndicator={true} nestedScrollEnabled keyboardShouldPersistTaps="handled">
                   <View style={styles.optionList}>
                     {vendorDrivers.length ? (
                       vendorDrivers.map((driver) => {
@@ -464,7 +492,10 @@ export default function OperatorQuarryDashboardScreen() {
                           <TouchableOpacity
                             key={driver.id}
                             style={[styles.driverRow, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}10` : colors.surface }]}
-                            onPress={() => setSelectedDriver(driver)}
+                            onPress={() => {
+                              Keyboard.dismiss();
+                              setSelectedDriver(driver);
+                            }}
                           >
                             <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={18} color={active ? colors.primary : colors.textMuted} />
                             {driver.photoURL ? (
@@ -494,7 +525,7 @@ export default function OperatorQuarryDashboardScreen() {
             {selectedPo && (
               <>
                 <Text style={[styles.driverLabel, { color: colors.text }]}>Select Vehicle (Number Plate)</Text>
-                <ScrollView style={styles.selectScrollView} showsVerticalScrollIndicator={true} nestedScrollEnabled>
+                <ScrollView style={styles.selectScrollView} showsVerticalScrollIndicator={true} nestedScrollEnabled keyboardShouldPersistTaps="handled">
                   <View style={styles.optionList}>
                     {vendorVehicles.length ? (
                       vendorVehicles.map((vehicle) => {
@@ -503,7 +534,10 @@ export default function OperatorQuarryDashboardScreen() {
                           <TouchableOpacity
                             key={vehicle.id}
                             style={[styles.driverRow, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? `${colors.primary}10` : colors.surface }]}
-                            onPress={() => setSelectedVehicle(vehicle)}
+                            onPress={() => {
+                              Keyboard.dismiss();
+                              setSelectedVehicle(vehicle);
+                            }}
                           >
                             <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={18} color={active ? colors.primary : colors.textMuted} />
                             <View style={{ flex: 1 }}>
@@ -542,7 +576,7 @@ export default function OperatorQuarryDashboardScreen() {
               <Text style={styles.createBtnText}>{submitting ? 'Creating...' : 'Create Job Card'}</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Driver Profile Modal */}
@@ -562,21 +596,21 @@ export default function OperatorQuarryDashboardScreen() {
 
 const styles = StyleSheet.create({
   metricRow: { flexDirection: 'row', gap: Spacing.md },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.sm },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.xs},
   jobId: { fontSize: 15, fontWeight: '700' },
-  jobMeta: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  stageBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1, marginTop: Spacing.sm },
+  jobMeta: { fontSize: 12, fontWeight: '600', marginTop: Spacing.xs},
+  stageBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, borderWidth: 1, marginTop: Spacing.xs},
   stageText: { fontSize: 11, fontWeight: '700' },
-  timestamp: { fontSize: 14, marginTop: Spacing.sm },
+  timestamp: { fontSize: 14, marginTop: Spacing.xs},
   queueDriverPhoto: { width: 24, height: 24, borderRadius: 12 },
-  searchHint: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs },
+  searchHint: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs},
   modalDriverPhoto: { width: 32, height: 32, borderRadius: 16 },
   fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
   addSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%', gap: Spacing.md },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md },
   sheetTitle: { fontSize: 18, fontWeight: '900' },
-  sheetSub: { fontSize: 13, lineHeight: 18, marginTop: 4 },
+  sheetSub: { fontSize: 13, lineHeight: 18, marginTop: Spacing.xs},
   iconButton: { width: 38, height: 38, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   inputWrap: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md },
   poInput: { flex: 1, height: 46, fontSize: 14, fontWeight: '700' },
@@ -585,10 +619,10 @@ const styles = StyleSheet.create({
   optionList: { gap: Spacing.sm },
   optionRow: { minHeight: 58, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   optionTitle: { fontSize: 14, fontWeight: '900' },
-  optionMeta: { fontSize: 12, fontWeight: '700', marginTop: 3 },
+  optionMeta: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs},
   prefillTitle: { fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
   selectedBlock: { gap: Spacing.sm },
-  driverLabel: { fontSize: 14, fontWeight: '900', marginTop: Spacing.xs },
+  driverLabel: { fontSize: 14, fontWeight: '900', marginTop: Spacing.xs},
   driverRow: { minHeight: 58, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   emptyDrivers: { fontSize: 13, fontWeight: '700', paddingVertical: Spacing.md },
   submitError: { fontSize: 13, fontWeight: '800', lineHeight: 18 },
@@ -598,8 +632,8 @@ const styles = StyleSheet.create({
   busyWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
   busyWarningText: { fontSize: 12, fontWeight: '700', flex: 1, lineHeight: 17 },
   // Snapshot weighed-out weight row
-  snapshotWeightRow: { flexDirection: 'row', borderRadius: Radius.md, borderWidth: 1, padding: Spacing.sm, marginTop: Spacing.sm, gap: Spacing.xs },
+  snapshotWeightRow: { flexDirection: 'row', borderRadius: Radius.md, borderWidth: 1, padding: Spacing.sm, marginTop: Spacing.xs, gap: Spacing.xs },
   weightCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
   wLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-  wValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
+  wValue: { fontSize: 14, fontWeight: '800', marginTop: Spacing.xs},
 });

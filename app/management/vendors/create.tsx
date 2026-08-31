@@ -29,9 +29,10 @@ import { Card } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
-import { CsvImportPanel } from '../../../components/CsvImportPanel';
 import api from '../../../services/api';
-import { getStrongPasswordError, PASSWORD_REQUIREMENTS } from '../../../utils/passwordPolicy';
+import { vendorRepository } from '../../../services/repositories/VendorRepository';
+import { Vendor } from '../../../store/types';
+import { generateStrongPassword, getStrongPasswordError, PASSWORD_REQUIREMENTS } from '../../../utils/passwordPolicy';
 
 const STATUS_OPTIONS = [
   { id: 'active', name: 'Active' },
@@ -118,19 +119,30 @@ export default function CreateVendorScreen() {
     }
   }
 
+  function suggestStrongPassword() {
+    const password = generateStrongPassword();
+    setForm((prev) => ({ ...prev, password, confirmPassword: password }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.password;
+      delete next.confirmPassword;
+      return next;
+    });
+  }
+
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!form.companyName.trim()) newErrors.companyName = 'Company name is required';
     if (!form.contactPerson.trim()) newErrors.contactPerson = 'Contact person is required';
     if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!form.email.trim()) newErrors.email = 'Email address is required';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Invalid email address';
-    if (!form.password) newErrors.password = 'Password is required';
-    else {
+    const createAccount = Boolean(form.email.trim());
+    if (createAccount && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Invalid email address';
+    if (createAccount && !form.password) newErrors.password = 'Password is required when creating a login account';
+    else if (createAccount) {
       const passwordError = getStrongPasswordError(form.password);
       if (passwordError) newErrors.password = passwordError;
     }
-    if (form.password !== form.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    if (createAccount && form.password !== form.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -140,8 +152,7 @@ export default function CreateVendorScreen() {
 
     setSaving(true);
     try {
-      const result = await api.post<{ username: string }>('/api/vendors/with-account', {
-        vendor: {
+      const vendor: Partial<Vendor> = {
           companyName: form.companyName.trim(),
           contactPerson: form.contactPerson.trim(),
           phone: form.phone.trim(),
@@ -163,14 +174,18 @@ export default function CreateVendorScreen() {
           wibaProvider: form.wibaProvider.trim() || undefined,
           wibaStartDate: form.wibaStartDate.trim() || undefined,
           wibaEndDate: form.wibaEndDate.trim() || undefined,
-          status: form.status,
-        },
-        account: {
-          email: form.email.trim(),
-          password: form.password,
-          isActive: form.accountStatus === 'active',
-        },
-      });
+          status: form.status as Vendor['status'],
+        };
+      const result = form.email.trim()
+        ? await vendorRepository.createWithAccount({
+            vendor,
+            account: {
+              email: form.email.trim(),
+              password: form.password,
+              isActive: form.accountStatus === 'active',
+            },
+          })
+        : { vendor: await vendorRepository.create(vendor) };
 
       setForm({
         companyName: '',
@@ -200,7 +215,10 @@ export default function CreateVendorScreen() {
         accountStatus: 'active',
       });
       setGeneratedUsername('');
-      Alert.alert('Success', `Vendor created. Login username: ${result.data.username}`, [
+      const confirmation = 'username' in result
+        ? `Vendor created. Login username: ${result.username}`
+        : 'Vendor created without a login account.';
+      Alert.alert('Success', confirmation, [
         { text: 'View Vendors', onPress: () => router.back() },
       ]);
     } catch (err: any) {
@@ -224,12 +242,6 @@ export default function CreateVendorScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         
-
-        <CsvImportPanel
-          type="vendors"
-          requiredColumns="company_name, contact_person, phone"
-          onCompleted={() => undefined}
-        />
 
         <Card>
           <Input
@@ -368,10 +380,9 @@ export default function CreateVendorScreen() {
             placeholder="e.g. info@swiftlogistics.com"
             icon="mail-outline"
             keyboardType="email-address"
-            required
             error={errors.email}
           />
-          <Input
+           <Input
             label="Generated Username"
             value={generatedUsername}
             placeholder="Enter a contact person to generate"
@@ -386,8 +397,15 @@ export default function CreateVendorScreen() {
             placeholder="Enter a strong password"
             icon="lock-closed-outline"
             secureTextEntry
-            required
             error={errors.password}
+          />
+          <Button
+            title="Suggest strong password"
+            onPress={suggestStrongPassword}
+            variant="secondary"
+            size="sm"
+            icon="refresh-outline"
+            style={styles.passwordSuggestion}
           />
           <Text style={{ fontSize: 12, color: colors.textMuted }}>{PASSWORD_REQUIREMENTS}</Text>
           <Input
@@ -397,24 +415,15 @@ export default function CreateVendorScreen() {
             placeholder="Re-enter password"
             icon="lock-closed-outline"
             secureTextEntry
-            required
             error={errors.confirmPassword}
           />
-          <Select
-            label="Account Status"
-            value={form.accountStatus}
-            options={ACCOUNT_STATUS_OPTIONS}
-            onSelect={(v) => updateField('accountStatus', v)}
-            icon="checkmark-circle-outline"
-          />
-          <Input label="Role" value="Vendor" icon="shield-outline" onChangeText={() => undefined} editable={false} />
-        </Card>
+         </Card>
 
         {/* Compliance Details */}
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Compliance</Text>
         <Card>
           <Input
-            label="NTSE Inspection Expiry"
+            label="NTSA Inspection Expiry"
             value={form.ntsaInspectionExpiry}
             onChangeText={(v) => updateField('ntsaInspectionExpiry', v)}
             placeholder="e.g. 2025-06-30"
@@ -443,15 +452,7 @@ export default function CreateVendorScreen() {
           />
         </Card>
 
-        <Card>
-          <Select
-            label="Status"
-            value={form.status}
-            options={STATUS_OPTIONS}
-            onSelect={(v) => updateField('status', v)}
-            icon="checkmark-circle-outline"
-          />
-        </Card>
+        
 
         <View style={styles.actions}>
           <Button
@@ -498,15 +499,16 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  header: { marginBottom: Spacing.lg },
+  header: { marginBottom: Spacing.xs},
   title: { fontSize: 24, fontWeight: '800' },
-  subtitle: { fontSize: 14, marginTop: 4 },
+  subtitle: { fontSize: 14, marginTop: Spacing.xs},
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.md,
+    fontWeight: '700', marginTop: Spacing.xs, marginBottom: Spacing.xs,
   },
-  actions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },
+  passwordSuggestion: {
+    alignSelf: 'flex-start', marginTop: Spacing.xs,
+  },
+  actions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
   actionBtn: { flex: 1 },
 });

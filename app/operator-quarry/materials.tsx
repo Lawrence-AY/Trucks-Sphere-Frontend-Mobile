@@ -54,7 +54,7 @@ export default function OperatorQuarryMaterialsScreen() {
       <SearchField value={search} onChangeText={setSearch} placeholder="Search..." />
 
       {/* Category Dropdown Filter */}
-      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.sm, marginBottom: Spacing.sm }}>
+      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.xs, marginBottom: Spacing.xs}}>
         <TouchableOpacity
           style={[styles.dropdownBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
           onPress={() => { setDropdownOpen(!dropdownOpen); setCatSearch(''); }}

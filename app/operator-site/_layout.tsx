@@ -21,10 +21,11 @@ import { useTheme } from '../../hooks/useTheme';
 import { getRoleLabel } from '../../utils/helpers';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { useResolvedIssuesCount } from '../../hooks/useResolvedIssuesCount';
+import { useDeliveryOrders } from '../../store/realtimeData';
 
 const BOTTOM_TABS = ['schedule', 'weights', 'history'];
 // These routes are opened from visible screens but are not primary tab destinations.
-const SECONDARY_ROUTES = ['dashboard', 'profile', 'settings', 'receive', 'materials', 'downloads'];
+const SECONDARY_ROUTES = ['dashboard', 'profile', 'settings', 'receive', 'materials', 'downloads', 'flagged'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   schedule: { icon: 'calendar-outline', label: 'Schedule' },
@@ -42,6 +43,8 @@ const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: 
 export default function OperatorSiteLayout() {
   const colors = useTheme();
   const resolvedIssuesCount = useResolvedIssuesCount();
+  const deliveries = useDeliveryOrders();
+  const flaggedDeliveriesCount = deliveries.filter((item: any) => item.securityFlag?.status === 'flagged' || item.isFlagged === true || item.siteArrivalWeightVarianceFlagged === true || item.hasWeightDiscrepancy === true).length;
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -98,6 +101,7 @@ export default function OperatorSiteLayout() {
         screenOptions={{
           tabBarActiveTintColor: colors.tabActive,
           tabBarInactiveTintColor: colors.tabInactive,
+          tabBarHideOnKeyboard: true,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
@@ -115,6 +119,13 @@ export default function OperatorSiteLayout() {
           headerShadowVisible: false,
           headerRight: Platform.OS === 'web' ? undefined : () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => router.push('/operator-site/flagged' as any)}
+                style={{ paddingHorizontal: 6, paddingVertical: 8, position: 'relative' }}
+              >
+                <Ionicons name={flaggedDeliveriesCount > 0 ? 'flag' : 'flag-outline'} size={21} color={flaggedDeliveriesCount > 0 ? '#B45309' : colors.danger} />
+                {flaggedDeliveriesCount > 0 ? <View style={styles.flagBadge}><Text style={styles.flagBadgeText}>{flaggedDeliveriesCount > 99 ? '99+' : flaggedDeliveriesCount}</Text></View> : null}
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push('/screens/issues' as any)}
                 style={{ paddingHorizontal: 6, paddingVertical: 8, position: 'relative' }}
@@ -183,7 +194,7 @@ export default function OperatorSiteLayout() {
               <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                 {user?.displayName || 'User'}
               </Text>
-              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
+              <View style={{ marginTop: Spacing.xs, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>
                   {getRoleLabel(user?.role || '')}
                 </Text>
@@ -284,8 +295,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   drawerItem: {
     flexDirection: 'row',
@@ -322,8 +332,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#FEF2F2',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   logoutTitle: {
     color: '#1E293B',
@@ -332,9 +341,7 @@ const styles = StyleSheet.create({
   },
   logoutMessage: {
     color: '#64748B',
-    fontSize: 14,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xl,
+    fontSize: 14, marginTop: Spacing.xs, marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   logoutActions: {
@@ -370,4 +377,6 @@ const styles = StyleSheet.create({
   },
   resolvedIssueBadge: { position: 'absolute', top: 3, right: 0, minWidth: 15, height: 15, paddingHorizontal: 3, borderRadius: 8, backgroundColor: '#10B981', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FFFFFF' },
   resolvedIssueBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800' },
+  flagBadge: { position: 'absolute', top: 2, right: -2, minWidth: 16, height: 16, paddingHorizontal: 3, borderRadius: 8, backgroundColor: '#B45309', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FFFFFF' },
+  flagBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800' },
 });

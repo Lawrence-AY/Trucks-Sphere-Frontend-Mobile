@@ -106,8 +106,7 @@ export default function DriverHistoryScreen() {
                     styles.messageBubble,
                     {
                       backgroundColor: colors.surface,
-                      borderColor: colors.borderLight,
-                      marginBottom: isLast ? 8 : 4,
+                      borderColor: colors.borderLight, marginBottom: Spacing.xs,
                     },
                   ]}
                   onPress={() => router.push(`/screens/job-details?id=${trip.jobId}`)}
@@ -189,16 +188,15 @@ const styles = StyleSheet.create({
   chatAvatarText: { fontSize: 14, fontWeight: '700' },
   chatHeaderInfo: { flex: 1 },
   chatName: { fontSize: 16, fontWeight: '700' },
-  chatStatus: { fontSize: 12, marginTop: 1 },
+  chatStatus: { fontSize: 12, marginTop: Spacing.xs},
   chatContainer: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     paddingBottom: 80,
   },
-  dateGroup: { marginBottom: Spacing.xs },
+  dateGroup: { marginBottom: Spacing.xs},
   dateSeparator: {
-    alignItems: 'center',
-    marginVertical: Spacing.sm,
+    alignItems: 'center', marginVertical: Spacing.xs,
   },
   dateBadge: {
     paddingHorizontal: Spacing.md,
@@ -217,18 +215,16 @@ const styles = StyleSheet.create({
   bubbleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   tripId: { fontSize: 13, fontWeight: '700' },
   tripWeight: { fontSize: 14, fontWeight: '700' },
-  tripMaterial: { fontSize: 14, marginBottom: 2 },
-  tripRoute: { fontSize: 11, marginBottom: 4 },
+  tripMaterial: { fontSize: 14, marginBottom: Spacing.xs},
+  tripRoute: { fontSize: 11, marginBottom: Spacing.xs},
   bubbleFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
+    alignItems: 'center', marginTop: Spacing.xs,
   },
   tripTime: { fontSize: 11 },
   statusIcons: { flexDirection: 'row', alignItems: 'center' },
@@ -240,6 +236,6 @@ const styles = StyleSheet.create({
   footerInfo: { alignItems: 'center', gap: 2 },
   footerLabel: { fontSize: 12 },
   footerCompany: { fontSize: 11 },
-  empty: { alignItems: 'center', marginTop: 80 },
-  emptyText: { fontSize: 15, marginTop: Spacing.md, textAlign: 'center' },
+  empty: { alignItems: 'center', marginTop: Spacing.xs},
+  emptyText: { fontSize: 15, marginTop: Spacing.xs, textAlign: 'center' },
 });

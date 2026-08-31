@@ -29,7 +29,7 @@ import {
 import { uploadDeliveryNote, type UploadFile } from '../../services/uploadService';
 import { useAuthStore } from '../../store/authStore';
 import { canControlStatusBarAppearance } from '../../utils/statusBar';
-import { useDeliveryOrders } from '../../store/realtimeData';
+import { useDeliveryOrders, useMaterials } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { formatEAT, generateId, generateJobKey } from '../../utils/helpers';
 import { normalizeJobStatus } from '../../utils/jobStatus';
@@ -60,6 +60,11 @@ const MATERIAL_SOURCE_OPTIONS = [
   'Warehouse'
 ];
 
+const isWarehouseMaterial = (job: any, materialSource = '') =>
+  Boolean(job?.isWarehouseDelivery) ||
+  String(job?.deliveryOrigin || '').trim().toLowerCase() === 'warehouse' ||
+  String(materialSource || job?.materialSource || '').trim().toLowerCase() === 'warehouse';
+
 type CapturedDeliveryNote = UploadFile & {
   displayName: string;
 };
@@ -70,6 +75,7 @@ export default function OperatorSiteDashboardScreen() {
   
   // Use realtime store for delivery orders — instant cache-first loading
   const rawDeliveries = useDeliveryOrders();
+  const materials = useMaterials();
   const refresh = useRealTimeSyncStore((s) => s.refresh);
   const storeLoading = useRealTimeSyncStore((s) => s.isLoading);
   
@@ -90,6 +96,8 @@ export default function OperatorSiteDashboardScreen() {
   const [materialSourceInputs, setMaterialSourceInputs] = useState<Record<string, string>>({});
   const [materialSourceSearchInputs, setMaterialSourceSearchInputs] = useState<Record<string, string>>({});
   const [materialSourceOpenInputs, setMaterialSourceOpenInputs] = useState<Record<string, boolean>>({});
+  const [bankerInputs, setBankerInputs] = useState<Record<string, string>>({});
+  const [bankerOpenInputs, setBankerOpenInputs] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
   const [submitErrors, setSubmitErrors] = useState<Record<string, string>>({});
 
@@ -119,6 +127,8 @@ export default function OperatorSiteDashboardScreen() {
   const [fabMaterialSource, setFabMaterialSource] = useState('');
   const [fabMaterialSourceSearch, setFabMaterialSourceSearch] = useState('');
   const [fabMaterialSourceOpen, setFabMaterialSourceOpen] = useState(false);
+  const [fabBanker, setFabBanker] = useState('');
+  const [fabBankerOpen, setFabBankerOpen] = useState(false);
   const [fabWeightIn, setFabWeightIn] = useState('');
   const [fabLotNumber, setFabLotNumber] = useState('');
   const [fabDeliveryNote, setFabDeliveryNote] = useState<CapturedDeliveryNote | null>(null);
@@ -194,6 +204,10 @@ export default function OperatorSiteDashboardScreen() {
     () => deliveries.filter((d) => {
       const status = normalizeJobStatus(d.status);
       if (['CANCELLED', 'COMPLETED', 'SITE_WEIGHED_OUT'].includes(status)) return false;
+      // Security-stopped deliveries are reviewed only in Flagged Deliveries.
+      // The clear action changes this state, so they reappear here immediately
+      // after unsuspension without a separate client-side transition.
+      if (d.securityFlag?.status === 'flagged' || d.isFlagged === true) return false;
       if (d.siteWeighOutWeight != null) return false;
       // Exclude jobs that already have site arrival recorded — they belong on Weights tab
       if (d.siteWeighInWeight != null || d.siteArrivalWeight != null || status === 'SITE_WEIGHED_IN') return false;
@@ -329,6 +343,10 @@ export default function OperatorSiteDashboardScreen() {
   };
 
   const submitWeightIn = async (job: any, weightInNum: number) => {
+    if (job.securityFlag?.status === 'flagged' || job.isFlagged === true) {
+      setSubmitErrors((prev) => ({ ...prev, [job.id]: 'This delivery is security-flagged. It cannot be weighed in until it is cleared and the fleet is unsuspended.' }));
+      return;
+    }
     setSubmitting((prev) => ({ ...prev, [job.id]: true }));
     setSubmitErrors((prev) => {
       const next = { ...prev };
@@ -340,10 +358,20 @@ export default function OperatorSiteDashboardScreen() {
       const now = new Date().toISOString();
       const lotValue = getLotInput(job.id).trim();
       const materialSourceValue = (materialSourceInputs[job.id] || '').trim();
+      const warehouseMaterial = isWarehouseMaterial(job, materialSourceValue);
+      const bankerValue = warehouseMaterial
+        ? 'Warehouse-banker'
+        : (bankerInputs[job.id] ?? job.banker ?? '').trim();
+      if (!bankerValue) {
+        setSubmitErrors((prev) => ({ ...prev, [job.id]: 'Enter the banker for this material.' }));
+        setSubmitting((prev) => ({ ...prev, [job.id]: false }));
+        return;
+      }
       const transitionPayload = {
         siteWeighInWeight: weightInNum,
         siteWeighInAt: now,
         materialSource: materialSourceValue || undefined,
+        banker: bankerValue,
         siteWeighInByUid: user?.uid || '',
         createdByUid: job.createdByUid || user?.uid || '',
         siteOperatorUid: user?.uid || '',
@@ -405,6 +433,7 @@ export default function OperatorSiteDashboardScreen() {
         arrivalCompleted: true,
         updatedAt: now,
         materialSource: materialSourceValue || job.materialSource,
+        banker: bankerValue,
         siteWeighInByUid: user?.uid || '',
         createdByUid: job.createdByUid || user?.uid || '',
         siteOperatorUid: user?.uid || '',
@@ -479,11 +508,44 @@ export default function OperatorSiteDashboardScreen() {
     );
   }, [allVehicles, fabSelectedPo]);
 
+  // New site-created jobs must retain every line on a multi-material PO.
+  // Keep the legacy top-level material fields below for older consumers.
+  const fabPoMaterials = useMemo(() => {
+    if (!fabSelectedPo) return [];
+    const lines = Array.isArray(fabSelectedPo.materials) && fabSelectedPo.materials.length
+      ? fabSelectedPo.materials
+      : [{
+        materialId: fabSelectedPo.materialId,
+        materialName: fabSelectedPo.materialName,
+        quantity: fabSelectedPo.quantity,
+        unit: fabSelectedPo.unit,
+        isWarehouseMaterial: fabSelectedPo.isWarehouseMaterial,
+      }];
+    return lines.filter((line: any) => line?.materialId || line?.materialName);
+  }, [fabSelectedPo]);
+
   const fabMaterialSourceMatches = useMemo(() => {
     const term = fabMaterialSourceSearch.trim().toLowerCase();
     if (!term) return MATERIAL_SOURCE_OPTIONS;
     return MATERIAL_SOURCE_OPTIONS.filter((source) => source.toLowerCase().includes(term));
   }, [fabMaterialSourceSearch]);
+
+  // Banker selection uses only the top-level category of a non-warehouse
+  // material; individual material names are intentionally not selectable.
+  const bankerMaterialGroups = useMemo(() => {
+    const groups = new Map<string, string[]>();
+    (materials || [])
+      .filter((material: any) => !material.isWarehouseMaterial)
+      .forEach((material: any) => {
+        const group = String(material.category || 'Other').trim() || 'Other';
+        const name = String(material.name || '').trim();
+        if (!name) return;
+        groups.set(group, [...(groups.get(group) || []), name]);
+      });
+    return [...groups.entries()]
+      .map(([name, items]) => ({ name, items: [...new Set(items)].sort((a, b) => a.localeCompare(b)) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [materials]);
 
   const closeFab = () => {
     setFabVisible(false);
@@ -494,6 +556,8 @@ export default function OperatorSiteDashboardScreen() {
     setFabMaterialSource('');
     setFabMaterialSourceSearch('');
     setFabMaterialSourceOpen(false);
+    setFabBanker('');
+    setFabBankerOpen(false);
     setFabWeightIn('');
     setFabLotNumber('');
     setFabDeliveryNote(null);
@@ -564,6 +628,8 @@ export default function OperatorSiteDashboardScreen() {
     if (isNaN(weightInNum) || weightInNum <= 0) return;
     if (!fabLotNumber.trim()) return;
     if (!fabMaterialSource.trim()) return;
+    const fabIsWarehouseMaterial = isWarehouseMaterial(null, fabMaterialSource);
+    if (!fabIsWarehouseMaterial && !fabBanker.trim()) return;
     const hasValidDriver =  fabSelectedDriver;
     const hasValidVehicle = fabSelectedVehicle;
     if (!hasValidDriver || !hasValidVehicle) return;
@@ -595,6 +661,8 @@ export default function OperatorSiteDashboardScreen() {
       materialId: fabSelectedPo.materialId,
       materialName: fabSelectedPo.materialName,
       quantityOrdered: Number(fabSelectedPo.quantity || 0),
+      unit: fabSelectedPo.unit || '',
+      materials: fabPoMaterials,
       quantityDelivered: 0,
       quarryId: fabSelectedPo.quarryId || user?.quarryId || '',
       quarryName: fabSelectedPo.quarryName || 'Quarry',
@@ -602,6 +670,7 @@ export default function OperatorSiteDashboardScreen() {
       siteName: fabSelectedPo.siteName || 'Site',
       destinationLot: fabLotNumber.trim(),
       materialSource: fabMaterialSource.trim(),
+      banker: fabIsWarehouseMaterial ? 'Warehouse-banker' : fabBanker.trim(),
       isUnscheduled: true,
       isScheduled: false,
       
@@ -699,14 +768,23 @@ export default function OperatorSiteDashboardScreen() {
               ? enteredSiteWeighIn - quarryWeighOut
               : null;
             const isArrivalVarianceFlagged = arrivalVariance != null && Math.abs(arrivalVariance) > 5;
+            const isSecurityFlagged = item.securityFlag?.status === 'flagged' || item.isFlagged === true;
+            const isWeightFlagged = item.siteArrivalWeightVarianceFlagged === true || item.hasWeightDiscrepancy === true;
+            const isDeliveryFlagged = isSecurityFlagged || isWeightFlagged;
+            const isSecurityCleared = item.securityFlag?.status === 'cleared';
+            const deliveryFlagReason = item.securityFlag?.status === 'flagged'
+              ? item.securityFlag.reason || 'Security review is required.'
+              : item.siteArrivalWeightVarianceReason || item.siteFlagReason || item.flagReason || item.differenceNote || 'Weight variance requires review.';
 
             return (
-              <DataCard key={item.id}>
+              <DataCard key={item.id} style={isSecurityFlagged ? { borderColor: '#B45309', borderWidth: 1.5, backgroundColor: '#FFFBEB' } : isWeightFlagged ? { borderColor: '#DC2626', borderWidth: 1.5 } : isSecurityCleared ? { borderColor: '#A78BFA', borderWidth: 1.5 } : undefined}>
                 {/* Card Header — entire card tappable for weigh-in */}
                 <TouchableOpacity
                   onPress={() => {
                     if (hasSiteWeighIn) {
                       router.push('/operator-site/weights' as any);
+                    } else if (isSecurityFlagged) {
+                      setSubmitErrors((prev) => ({ ...prev, [item.id]: 'This delivery is security-flagged. It cannot be weighed in until it is cleared and the fleet is unsuspended.' }));
                     } else {
                       toggleExpand(item.id);
                     }
@@ -806,7 +884,7 @@ export default function OperatorSiteDashboardScreen() {
                     >
                       <View style={styles.dispatchPhotoHeader}>
                         <Ionicons name="archive-outline" size={14} color={colors.textMuted} />
-                        <Text style={[styles.dispatchPhotoLabel, { color: colors.textMuted }]}>Packaging Photo</Text>
+                        <Text style={[styles.dispatchPhotoLabel, { color: colors.textMuted }]}>Receipt Photo</Text>
                       </View>
                       <Image
                         source={{ uri: item.packagingPhotoURL }}
@@ -821,6 +899,15 @@ export default function OperatorSiteDashboardScreen() {
                   >
                     {`${item.isWarehouseDelivery ? 'Submitted' : 'Dispatched'}: ${formatEAT(item.weighOutAt || item.submittedAt || item.updatedAt || item.createdAt)}`}
                   </Text>
+
+                  {isSecurityCleared && !isDeliveryFlagged ? <View style={[styles.tapHint, { borderWidth: 1, borderColor: '#C4B5FD' }]}><Ionicons name="checkmark-circle-outline" size={12} color="#7C3AED" /><Text style={[styles.tapHintText, { color: '#6D28D9' }]}>Unflagged — fleet unsuspended</Text></View> : null}
+
+                  {isDeliveryFlagged ? (
+                    <View style={[styles.tapHint, { backgroundColor: isSecurityFlagged ? '#FFFBEB' : '#FEF2F2', borderWidth: 1, borderColor: isSecurityFlagged ? '#FCD34D' : '#FCA5A5' }]}>
+                      <Ionicons name="flag" size={12} color={isSecurityFlagged ? '#B45309' : '#DC2626'} />
+                      <Text style={[styles.tapHintText, { color: isSecurityFlagged ? '#92400E' : '#B91C1C' }]}>Flagged: {deliveryFlagReason}</Text>
+                    </View>
+                  ) : null}
 
                   {hasSiteWeighIn && (
                     <View style={[styles.tapHint, { backgroundColor: '#10B98112' }]}>
@@ -862,7 +949,7 @@ export default function OperatorSiteDashboardScreen() {
 
                 {/* Driver row — separate touchable to open driver profile */}
                 <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xs}}
                   activeOpacity={0.6}
                   onPress={() => {
                     const d = driverMap[item.driverId];
@@ -975,8 +1062,7 @@ export default function OperatorSiteDashboardScreen() {
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
-                          gap: 6,
-                          marginTop: Spacing.sm,
+                          gap: 6, marginTop: Spacing.xs,
                           padding: Spacing.sm,
                           borderRadius: Radius.md,
                           backgroundColor: isArrivalVarianceFlagged ? '#FEF2F2' : '#ECFDF5',
@@ -1010,7 +1096,7 @@ export default function OperatorSiteDashboardScreen() {
 
                      {/* Material Source Selector — hidden when job is from quarry (has quarry weights) */}
                      {!hasQuarryWeights && (
-                       <View style={[styles.fabSourceBlock, { marginBottom: Spacing.sm }]}>
+                       <View style={[styles.fabSourceBlock, { marginBottom: Spacing.xs}]}>
                          <TouchableOpacity
                            style={[styles.fabInputWrap, { borderColor: (materialSourceInputs[item.id] || '').trim() ? colors.primary : colors.border, backgroundColor: colors.inputBg }]}
                            activeOpacity={0.8}
@@ -1068,6 +1154,36 @@ export default function OperatorSiteDashboardScreen() {
                          )}
                        </View>
                      )}
+
+                    {!isWarehouseMaterial(item, materialSourceInputs[item.id]) && (
+                      <View style={styles.bankerPickerBlock}>
+                        <TouchableOpacity
+                          style={[styles.fabInputWrap, { borderColor: (bankerInputs[item.id] ?? item.banker ?? '').trim() ? colors.primary : colors.border, backgroundColor: colors.inputBg }]}
+                          activeOpacity={0.8}
+                          onPress={() => setBankerOpenInputs((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
+                        >
+                          <Ionicons name="archive-outline" size={18} color={colors.textMuted} />
+                          <Text style={[styles.fabInput, styles.bankerPickerText, (bankerInputs[item.id] ?? item.banker ?? '') ? styles.bankerPickerSelected : null, { color: (bankerInputs[item.id] ?? item.banker ?? '') ? colors.text : colors.textTertiary }]}>
+                            {bankerInputs[item.id] ?? item.banker ?? 'Select banker'}
+                          </Text>
+                          <Ionicons name={bankerOpenInputs[item.id] ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+                        </TouchableOpacity>
+                        {bankerOpenInputs[item.id] && (
+                          <View style={[styles.fabDropdown, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                            {bankerMaterialGroups.length === 0 ? <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No non-warehouse material categories are available.</Text> : bankerMaterialGroups.map((group) => {
+                              const active = (bankerInputs[item.id] ?? item.banker ?? '') === group.name;
+                              return <TouchableOpacity key={group.name} style={[styles.fabDropdownItem, active && { backgroundColor: `${colors.primary}10` }]} onPress={() => {
+                                setBankerInputs((prev) => ({ ...prev, [item.id]: group.name }));
+                                setBankerOpenInputs((prev) => ({ ...prev, [item.id]: false }));
+                              }}>
+                              <Text style={[styles.fabDropdownText, { color: colors.text }]}>{group.name}</Text>
+                              {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                            </TouchableOpacity>;
+                            })}
+                          </View>
+                        )}
+                      </View>
+                    )}
 
                     {error ? (
                       <Text style={styles.errorText}>{error}</Text>
@@ -1197,7 +1313,16 @@ export default function OperatorSiteDashboardScreen() {
                   <Text style={[styles.fabPrefillTitle, { color: colors.text }]}>Order Details</Text>
                   <DetailRow icon="document-outline" value={`Order: ${fabSelectedPo.poNumber}`} />
                   <DetailRow icon="business-outline" value={`Vendor: ${fabSelectedPo.vendorName}`} />
-                  <DetailRow icon="cube-outline" value={`Material: ${fabSelectedPo.materialName}`} />
+                  <View style={styles.fabPoMaterials}>
+                    <Text style={[styles.fabLabel, { color: colors.text }]}>Materials on PO</Text>
+                    {fabPoMaterials.map((line: any, index: number) => (
+                      <DetailRow
+                        key={`${line.materialId || line.materialName || 'material'}-${index}`}
+                        icon="cube-outline"
+                        value={`${line.materialName || 'Material'}${line.quantity != null ? ` · ${line.quantity} ${line.unit || ''}` : ''}`}
+                      />
+                    ))}
+                  </View>
                 </View>
               )}
 
@@ -1209,7 +1334,8 @@ export default function OperatorSiteDashboardScreen() {
                     
                   </View>
 
-                 
+                  
+                    <ScrollView style={styles.fabSelectionList} nestedScrollEnabled showsVerticalScrollIndicator>
                     <View style={styles.fabOptionList}>
                       {fabVendorDrivers.length ? (
                         fabVendorDrivers.map((driver) => {
@@ -1241,6 +1367,7 @@ export default function OperatorSiteDashboardScreen() {
                         <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No active drivers for this vendor.</Text>
                       )}
                     </View>
+                    </ScrollView>
                   
                 </>
               )}
@@ -1253,6 +1380,7 @@ export default function OperatorSiteDashboardScreen() {
                     
                   </View>
  
+                    <ScrollView style={styles.fabSelectionList} nestedScrollEnabled showsVerticalScrollIndicator>
                     <View style={styles.fabOptionList}>
                       {fabVendorVehicles.length ? (
                         fabVendorVehicles.map((vehicle) => {
@@ -1275,6 +1403,7 @@ export default function OperatorSiteDashboardScreen() {
                         <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No active vehicles for this vendor.</Text>
                       )}
                     </View>
+                    </ScrollView>
                 
                 </>
               )}
@@ -1347,6 +1476,31 @@ export default function OperatorSiteDashboardScreen() {
                     />
                     <Text style={[styles.weightInputSuffix, { color: colors.textMuted }]}>Tonnes</Text>
                   </View>
+
+                  {!isWarehouseMaterial(null, fabMaterialSource) && (
+                    <View style={styles.bankerPickerBlock}>
+                      <TouchableOpacity
+                        style={[styles.fabInputWrap, { borderColor: fabBanker ? colors.primary : colors.border, backgroundColor: colors.inputBg }]}
+                        activeOpacity={0.8}
+                        onPress={() => setFabBankerOpen((open) => !open)}
+                      >
+                        <Ionicons name="archive-outline" size={18} color={colors.textMuted} />
+                        <Text style={[styles.fabInput, styles.bankerPickerText, fabBanker ? styles.bankerPickerSelected : null, { color: fabBanker ? colors.text : colors.textTertiary }]}>{fabBanker || 'Select banker'}</Text>
+                        <Ionicons name={fabBankerOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+                      </TouchableOpacity>
+                      {fabBankerOpen && (
+                        <View style={[styles.fabDropdown, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                          {bankerMaterialGroups.length === 0 ? <Text style={[styles.fabEmpty, { color: colors.textMuted }]}>No non-warehouse material categories are available.</Text> : bankerMaterialGroups.map((group) => {
+                            const active = fabBanker === group.name;
+                            return <TouchableOpacity key={group.name} style={[styles.fabDropdownItem, active && { backgroundColor: `${colors.primary}10` }]} onPress={() => { setFabBanker(group.name); setFabBankerOpen(false); }}>
+                            <Text style={[styles.fabDropdownText, { color: colors.text }]}>{group.name}</Text>
+                            {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                          </TouchableOpacity>;
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  )}
                 </>
               )}
 
@@ -1369,7 +1523,7 @@ export default function OperatorSiteDashboardScreen() {
                   <View style={styles.fabDeliveryNoteHeader}>
                     <Ionicons name="document-attach-outline" size={19} color={colors.primary} />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.fabLabel, { color: colors.text, marginTop: 0 }]}>External Delivery Note</Text>
+                      <Text style={[styles.fabLabel, { color: colors.text, marginTop: Spacing.xs}]}>External Delivery Note</Text>
                       <Text style={[styles.fabNoteHelp, { color: colors.textMuted }]}>Optional — photograph a paper note or attach an image/PDF issued elsewhere.</Text>
                     </View>
                   </View>
@@ -1427,7 +1581,8 @@ export default function OperatorSiteDashboardScreen() {
                   const hasValidWeight = !isNaN(weightInNum) && weightInNum > 0;
                   const hasValidDriver =  fabSelectedDriver;
                   const hasValidVehicle =  fabSelectedVehicle;
-                  return fabSelectedPo && hasValidWeight && hasValidDriver && hasValidVehicle && fabMaterialSource.trim() && fabLotNumber.trim() && !fabSubmitting ? colors.primary : colors.border;
+                  const bankerRequired = !isWarehouseMaterial(null, fabMaterialSource);
+                  return fabSelectedPo && hasValidWeight && hasValidDriver && hasValidVehicle && fabMaterialSource.trim() && fabLotNumber.trim() && (!bankerRequired || fabBanker.trim()) && !fabSubmitting ? colors.primary : colors.border;
                 })() }]}
                 onPress={handleFabSubmit}
                 disabled={(() => {
@@ -1435,7 +1590,8 @@ export default function OperatorSiteDashboardScreen() {
                   const hasValidWeight = !isNaN(weightInNum) && weightInNum > 0;
                   const hasValidDriver =  fabSelectedDriver;
                   const hasValidVehicle = fabSelectedVehicle;
-                  return !fabSelectedPo || !hasValidWeight || !hasValidDriver || !hasValidVehicle || !fabMaterialSource.trim() || !fabLotNumber.trim() || fabSubmitting;
+                  const bankerRequired = !isWarehouseMaterial(null, fabMaterialSource);
+                  return !fabSelectedPo || !hasValidWeight || !hasValidDriver || !hasValidVehicle || !fabMaterialSource.trim() || !fabLotNumber.trim() || (bankerRequired && !fabBanker.trim()) || fabSubmitting;
                 })()}
               >
                 {fabSubmitting ? <ActivityIndicator color="#FFFFFF" size="small" /> : <Ionicons name="checkmark-circle-outline" size={19} color="#FFFFFF" />}
@@ -1559,15 +1715,16 @@ export default function OperatorSiteDashboardScreen() {
 /* ─── Styles ─── */
 
 const styles = StyleSheet.create({
-  metricRow: { flexDirection: 'row', gap: Spacing.sm },
+  metricRow: { flexDirection: 'row', gap: Spacing.sm,
+    padding: Spacing.md,paddingTop:0,
+  },
   driverAvatarSmall: { width: 24, height: 24, borderRadius: 12 },
   // Card
   cardHeaderTouchable: {},
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
+    alignItems: 'flex-start', marginBottom: Spacing.xs,
   },
   cardHeaderRight: {
     flexDirection: 'row',
@@ -1575,7 +1732,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   jobId: { fontSize: 16, fontWeight: '700' },
-  poText: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  poText: { fontSize: 12, fontWeight: '600', marginTop: Spacing.xs},
   quarryNetBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1583,11 +1740,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.full,
-    borderWidth: 1,
-    marginTop: Spacing.sm,
+    borderWidth: 1, marginTop: Spacing.xs,
   },
   quarryNetLabel: { fontSize: 12, fontWeight: '700' },
-  quarryWeightsRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.sm, flexWrap: 'wrap' },
+  quarryWeightsRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.xs, flexWrap: 'wrap' },
   quarryWeightBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1598,7 +1754,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   quarryWeightLabel: { fontSize: 12, fontWeight: '700' },
-  timestamp: { fontSize: 12, marginTop: Spacing.sm },
+  timestamp: { fontSize: 12, marginTop: Spacing.xs},
   tapHint: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1606,17 +1762,14 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.full,
-    marginTop: 8,
+    borderRadius: Radius.full, marginTop: Spacing.xs,
   },
   tapHintText: { fontSize: 11, fontWeight: '700' },
   // Weight In Form (expanded)
-  weightInSection: {
-    marginTop: Spacing.md,
+  weightInSection: { marginTop: Spacing.xs,
   },
   weightInDivider: {
-    height: 1,
-    marginBottom: Spacing.md,
+    height: 1, marginBottom: Spacing.xs,
   },
   weightInHeader: {
     flexDirection: 'row',
@@ -1624,8 +1777,7 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
+    borderWidth: 1, marginBottom: Spacing.xs,
   },
   weightInStageBadge: {
     width: 36,
@@ -1637,8 +1789,7 @@ const styles = StyleSheet.create({
   },
   weightInTitle: {
     fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 2,
+    fontWeight: '800', marginBottom: Spacing.xs,
   },
   weightInSubtitle: {
     fontSize: 11,
@@ -1650,8 +1801,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     height: 60,
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   weightInputField: {
     flex: 1,
@@ -1666,13 +1816,11 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#EF4444',
-    marginBottom: Spacing.sm,
+    color: '#EF4444', marginBottom: Spacing.xs,
   },
   weightInActions: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
+    gap: Spacing.sm, marginTop: Spacing.xs,
   },
   cancelWeightInBtn: {
     flex: 1,
@@ -1721,26 +1869,22 @@ const styles = StyleSheet.create({
     height: 76,
     borderRadius: 24,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   successTitle: {
     fontSize: 20,
     fontWeight: '900',
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
+    textAlign: 'center', marginBottom: Spacing.xs,
   },
   successSub: {
     fontSize: 13,
     textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: Spacing.sm,
+    lineHeight: 18, marginBottom: Spacing.xs,
   },
   successHint: {
     fontSize: 12,
     textAlign: 'center',
-    lineHeight: 16,
-    marginBottom: Spacing.lg,
+    lineHeight: 16, marginBottom: Spacing.xs,
     fontStyle: 'italic',
   },
   successActions: {
@@ -1775,7 +1919,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   // Lot Input (scheduled weigh-in form)
-  lotInputWrap: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.sm },
+  lotInputWrap: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.xs},
   lotInputField: { flex: 1, height: 46, fontSize: 14, fontWeight: '700' },
   // FAB Button
   fabBtn: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
@@ -1784,18 +1928,21 @@ const styles = StyleSheet.create({
   fabSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%' },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md },
   sheetTitle: { fontSize: 18, fontWeight: '900' },
-  sheetSub: { fontSize: 13, lineHeight: 18, marginTop: 4 },
+  sheetSub: { fontSize: 13, lineHeight: 18, marginTop: Spacing.xs},
   iconButton: { width: 38, height: 38, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   fabInputWrap: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md },
   fabInput: { flex: 1, height: 46, fontSize: 14, fontWeight: '700' },
   fabOptionList: { gap: Spacing.sm },
+  // Five 58px rows are visible; larger vendor fleets remain available by scrolling.
+  fabSelectionList: { maxHeight: 322 },
   fabOptionRow: { minHeight: 58, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   fabOptionTitle: { fontSize: 14, fontWeight: '900' },
-  fabOptionMeta: { fontSize: 12, fontWeight: '700', marginTop: 3 },
+  fabOptionMeta: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs},
   fabSelectedBlock: { gap: Spacing.sm },
   fabPrefillTitle: { fontSize: 13, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
-  fabLabel: { fontSize: 14, fontWeight: '900', marginTop: Spacing.xs },
-  fabSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xs },
+  fabPoMaterials: { gap: 2 },
+  fabLabel: { fontSize: 14, fontWeight: '900', marginTop: Spacing.xs},
+  fabSectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xs},
   fabToggleBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1 },
   fabToggleText: { fontSize: 11, fontWeight: '800' },
   fabDriverRow: { minHeight: 58, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
@@ -1804,10 +1951,15 @@ const styles = StyleSheet.create({
   fabDropdown: { borderWidth: 1, borderRadius: Radius.md, overflow: 'hidden' },
   fabDropdownItem: { minHeight: 42, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   fabDropdownText: { fontSize: 14, fontWeight: '800' },
+  bankerPickerBlock: { gap: 0, marginTop: Spacing.xs},
+  bankerPickerText: { textAlign: 'left', transform: [{ translateY: 16 }] },
+  bankerPickerSelected: { fontSize: 17, fontWeight: '900' },
+  dropdownMeta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  dropdownMetaText: { fontSize: 12, fontWeight: '700' },
   fabEmpty: { fontSize: 13, fontWeight: '700', paddingVertical: Spacing.md },
   fabDeliveryNote: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, gap: Spacing.sm },
   fabDeliveryNoteHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  fabNoteHelp: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  fabNoteHelp: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs},
   fabNoteActions: { flexDirection: 'row', gap: Spacing.xs },
   fabNoteAction: { flex: 1, minHeight: 38, borderWidth: 1, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4, paddingHorizontal: 4 },
   fabNoteActionText: { fontSize: 11, fontWeight: '800' },
@@ -1820,7 +1972,7 @@ const styles = StyleSheet.create({
   fabCreateBtn: { minHeight: 50, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   fabCreateBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   // Dispatch photo section (driver verification photo from quarry weigh-out)
-  dispatchPhotoSection: { marginTop: Spacing.sm, gap: Spacing.xs },
+  dispatchPhotoSection: { marginTop: Spacing.xs, gap: Spacing.xs },
   dispatchPhotoHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dispatchPhotoLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   dispatchPhotoThumb: { width: '100%', height: 160, borderRadius: Radius.md, borderWidth: 1, backgroundColor: '#F1F5F9' },

@@ -24,7 +24,7 @@ export function EmptyState({
   const colors = useTheme();
 
   return (
-    <Surface style={[styles.container, { backgroundColor: colors.surface }]} elevation={0}>
+    <Surface style={[styles.container, { backgroundColor: 'transparent' }]} elevation={0}>
       <View style={[styles.iconWrap, { backgroundColor: `${colors.primary}14` }]}>
         <Ionicons name={icon} size={40} color={colors.primary} />
       </View>
@@ -46,19 +46,15 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   title: {
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
+    textAlign: 'center', marginBottom: Spacing.xs,
   },
   subtitle: {
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
+    lineHeight: 20, marginBottom: Spacing.xs,
   },
-  action: {
-    marginTop: Spacing.md,
+  action: { marginTop: Spacing.xs,
   },
 });

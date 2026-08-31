@@ -264,6 +264,11 @@ export default function DeliveryNoteScreen() {
   );
   const quarryCityTown = delivery?.weighOutGeoLocation?.city || delivery?.weighOutGeoLocation?.town || geoCity || geoTown || null;
   const quarryPersonnel = delivery?.operatorUsername || delivery?.weighOutByName || delivery?.quarryOperatorName || delivery?.weighOutBy || delivery?.weighOutOperator || null;
+  const materialsLabel = (Array.isArray(delivery?.materials) && delivery.materials.length
+    ? delivery.materials
+    : [{ materialName: delivery?.materialName, quantity: delivery?.quantityOrdered || delivery?.quantityDispatched, unit: delivery?.unit }])
+    .map((item: any) => `${item?.materialName || 'Material'}${item?.quantity != null ? ` (${item.quantity} ${item.unit || ''})` : ''}`)
+    .join('\n') || 'N/A';
 
   const exportHeaders = ['Field', 'Value'];
   const getExportRows = () => {
@@ -274,7 +279,7 @@ export default function DeliveryNoteScreen() {
       ['Vendor', delivery.vendorName || 'N/A'],
       ['Driver', delivery.driverName || 'N/A'],
       ['Truck', delivery.plateNumber || 'N/A'],
-      ['Material', delivery.materialName || 'N/A'],
+      ['Materials on PO', materialsLabel],
       ['Weigh-Out (Location)', capturedQuarrySource || 'N/A'],
       ['Recorded By', quarryPersonnel || 'N/A'],
       ['City / Town', quarryCityTown || 'N/A'],
@@ -309,7 +314,7 @@ export default function DeliveryNoteScreen() {
         driverName: delivery.driverName || '',
         plateNumber: delivery.plateNumber || '',
         vendorName: delivery.vendorName || '',
-        materialName: delivery.materialName || '',
+        materialName: materialsLabel,
         quarryName: delivery.quarryName || '',
         quarrySource: capturedQuarrySource || '',
         quarryCityTown: quarryCityTown || '',
@@ -395,7 +400,7 @@ export default function DeliveryNoteScreen() {
               <DNRow label="Truck" value={delivery.plateNumber} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>MATERIAL</Text>
-              <DNRow label="Material" value={delivery.materialName} />
+              <DNRow label="Materials on PO" value={materialsLabel} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>ROUTE </Text>
               <DNRow label="Weight out location" value={capturedQuarrySource || 'N/A'} />
@@ -465,13 +470,13 @@ export default function DeliveryNoteScreen() {
 const DNRow = ({ label, value, bold }: { label: string; value: string | number; bold?: boolean }) => (
   <View style={dnStyles.row}>
     <Text style={dnStyles.label}>{label}</Text>
-    <Text style={[dnStyles.value, bold && { fontWeight: '700' }]} numberOfLines={3}>{value}</Text>
+    <Text style={[dnStyles.value, bold && { fontWeight: '700' }]}>{value}</Text>
   </View>
 );
 
 const dnStyles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 3, gap: 8 },
-  label: { fontSize: 14, color: '#666', flexShrink: 0, marginTop: 1 },
+  label: { fontSize: 14, color: '#666', flexShrink: 0, marginTop: Spacing.xs},
   value: { fontSize: 14, color: '#333', flex: 1, textAlign: 'right', flexWrap: 'wrap' },
 });
 
@@ -484,17 +489,17 @@ const styles = StyleSheet.create({
   loadingText: { fontSize: 14 },
   errorText: { fontSize: 14, textAlign: 'center' },
   receipt: { borderWidth: 1.5, borderRadius: Radius.md, padding: Spacing.lg },
-  receiptHeader: { alignItems: 'center', marginBottom: Spacing.md },
-  receiptTitle: { fontSize: 16, fontWeight: '700', color: '#333', letterSpacing: 1, marginTop: 4 },
-  receiptSubtitle: { fontSize: 14, color: '#999', marginTop: 2 },
-  line: { width: '80%', height: 1, marginTop: Spacing.sm },
+  receiptHeader: { alignItems: 'center', marginBottom: Spacing.xs},
+  receiptTitle: { fontSize: 16, fontWeight: '700', color: '#333', letterSpacing: 1, marginTop: Spacing.xs},
+  receiptSubtitle: { fontSize: 14, color: '#999', marginTop: Spacing.xs},
+  line: { width: '80%', height: 1, marginTop: Spacing.xs},
   rHead: { fontSize: 14, fontWeight: '700', color: '#333', textAlign: 'center' },
-  rDash: { textAlign: 'center', color: '#CCC', marginVertical: 4, fontSize: 11 },
-  rSection: { fontSize: 14, fontWeight: '700', color: '#999', letterSpacing: 1, marginTop: 4, marginBottom: 2 },
-  rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: 8 },
-  rFooter: { textAlign: 'center', fontSize: 14, color: '#999', marginTop: 2 },
-  rThanks: { textAlign: 'center', fontSize: 14, color: '#666', marginTop: 4, fontStyle: 'italic' },
-  actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  rDash: { textAlign: 'center', color: '#CCC', marginVertical: Spacing.xs, fontSize: 11 },
+  rSection: { fontSize: 14, fontWeight: '700', color: '#999', letterSpacing: 1, marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: Spacing.xs},
+  rFooter: { textAlign: 'center', fontSize: 14, color: '#999', marginTop: Spacing.xs},
+  rThanks: { textAlign: 'center', fontSize: 14, color: '#666', marginTop: Spacing.xs, fontStyle: 'italic' },
+  actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs},
   actionBtn: {
     flex: 1,
     flexDirection: 'row',

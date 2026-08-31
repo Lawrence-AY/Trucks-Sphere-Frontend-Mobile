@@ -95,7 +95,7 @@ export default function OrdersListScreen() {
       </View>
 
       {/* Status Dropdown Filter */}
-      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.sm }}>
+      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.xs}}>
         <TouchableOpacity
           style={[styles.dropdownBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
           onPress={() => setStatusDropdownOpen(!statusDropdownOpen)}
@@ -125,7 +125,7 @@ export default function OrdersListScreen() {
       </View>
 
       {/* Material Dropdown Filter */}
-      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.sm }}>
+      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.xs}}>
         <TouchableOpacity
           style={[styles.dropdownBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
           onPress={() => { setMatDropdownOpen(!matDropdownOpen); setMatSearch(''); }}
@@ -244,8 +244,7 @@ const styles = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
+    marginHorizontal: Spacing.lg, marginTop: Spacing.xs,
     borderRadius: Radius.md,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
@@ -260,22 +259,22 @@ const styles = StyleSheet.create({
   matSearchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderBottomWidth: 1, gap: 6 },
   matSearchInput: { flex: 1, fontSize: 13, paddingVertical: 2 },
   list: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.sm },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.md },
+  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.xs},
   orderTitleWrap: { flex: 1 },
   orderPo: { fontSize: 14, fontWeight: '700' },
-  vendorName: { fontSize: 12, marginTop: 2 },
+  vendorName: { fontSize: 12, marginTop: Spacing.xs},
   cardBody: { gap: 6 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   detailText: { fontSize: 13 },
-  progressRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm, marginTop: Spacing.md },
+  progressRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm, marginTop: Spacing.xs},
   progressStatBox: { flex: 1 },
   progressLabel: { fontSize: 10 },
-  progressValue: { fontSize: 13, fontWeight: '800', marginTop: 2 },
-  tripList: { borderTopWidth: 1, marginTop: Spacing.md, paddingTop: Spacing.sm, gap: Spacing.xs },
+  progressValue: { fontSize: 13, fontWeight: '800', marginTop: Spacing.xs},
+  tripList: { borderTopWidth: 1, marginTop: Spacing.xs, paddingTop: Spacing.sm, gap: Spacing.xs },
   tripRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   tripText: { flex: 1, fontSize: 12 },
-  moreTrips: { fontSize: 11, marginTop: 2 },
-  empty: { alignItems: 'center', marginTop: 60 },
-  emptyText: { fontSize: 15, marginTop: Spacing.md },
+  moreTrips: { fontSize: 11, marginTop: Spacing.xs},
+  empty: { alignItems: 'center', marginTop: Spacing.xs},
+  emptyText: { fontSize: 15, marginTop: Spacing.xs},
 });

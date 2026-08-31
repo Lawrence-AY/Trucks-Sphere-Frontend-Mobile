@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Modal as NativeModal, StyleSheet, View } from 'react-native';
+import { FlatList, Keyboard, Modal as NativeModal, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Avatar,
@@ -62,6 +62,7 @@ export function Select({
   }, [options, search]);
 
   const open = () => {
+    Keyboard.dismiss();
     setSearch('');
     setVisible(true);
   };
@@ -166,8 +167,8 @@ export function Select({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: Spacing.md,
+  container: { marginBottom: Spacing.xs,
+    minWidth: 0,
   },
   modal: {
     marginHorizontal: Spacing.md,
@@ -183,8 +184,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
   },
   search: {
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginHorizontal: Spacing.md, marginBottom: Spacing.xs,
   },
   searchInput: {
     minHeight: 0,

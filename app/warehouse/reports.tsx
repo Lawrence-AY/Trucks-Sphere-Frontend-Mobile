@@ -57,10 +57,10 @@ function Metric({ icon, label, value, color }: { icon: keyof typeof Ionicons.gly
 const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.md, paddingBottom: Spacing['3xl'] },
-  intro: { fontSize: 13, marginBottom: Spacing.md },
+  intro: { fontSize: 13, marginBottom: Spacing.xs},
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   metric: { width: '48%', borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md },
-  metricIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+  metricIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
   metricValue: { fontSize: 20, fontWeight: '800' },
-  metricLabel: { fontSize: 12, fontWeight: '600', marginTop: 3 },
+  metricLabel: { fontSize: 12, fontWeight: '600', marginTop: Spacing.xs},
 });

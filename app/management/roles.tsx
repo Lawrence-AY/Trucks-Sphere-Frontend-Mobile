@@ -239,13 +239,12 @@ const styles = StyleSheet.create({
   },
   header: { padding: Spacing.lg, paddingBottom: Spacing.sm },
   title: { fontSize: 24, fontWeight: '800' },
-  subtitle: { fontSize: 14, marginTop: 2 },
+  subtitle: { fontSize: 14, marginTop: Spacing.xs},
   list: { padding: Spacing.md, paddingBottom: Spacing['4xl'] },
   roleCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    padding: Spacing.lg, marginBottom: Spacing.xs,
   },
   roleHeader: {
     flexDirection: 'row',
@@ -264,22 +263,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   roleDesc: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   roleMeta: {
     gap: 4,
     alignItems: 'flex-end',
   },
-  permissionsSection: {
-    marginTop: Spacing.md,
+  permissionsSection: { marginTop: Spacing.xs,
     paddingTop: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   permissionsTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    marginBottom: Spacing.sm,
+    fontWeight: '700', marginBottom: Spacing.xs,
   },
   permissionsGrid: {
     flexDirection: 'row',

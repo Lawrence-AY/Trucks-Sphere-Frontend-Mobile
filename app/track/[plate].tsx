@@ -24,11 +24,22 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { fetchPublicTrackingByPlate } from '../../services/api';
+import { fetchPublicTrackingByPlate, recordSecurityTrackingDecision } from '../../services/api';
+import { getItem, removeItem } from '../../services/database';
 import { Colors, Spacing, Radius } from '../../constants/theme';
 import { canControlStatusBarAppearance } from '../../utils/statusBar';
+
+const TRACK_SESSION_KEY = 'user_track';
+const LEGACY_TRACK_SESSION_KEY = 'track_session';
+const FLAG_REASON_OPTIONS = [
+  'Driver identity could not be verified',
+  'Truck registration does not match',
+  'Cargo or document discrepancy',
+  'Unsafe condition',
+  'Other',
+];
 
 function formatEAT(isoString?: string): string {
   if (!isoString) return '—';
@@ -60,11 +71,27 @@ type PageState =
 
 export default function PublicTrackingScreen() {
   const { plate } = useLocalSearchParams<{ plate: string }>();
+  const [securitySession, setSecuritySession] = useState<{ id: string; token: string; plate: string } | null>(null);
   const [searchPlate, setSearchPlate] = useState((plate || '').toUpperCase());
   const [state, setState] = useState<PageState>(
     plate ? { kind: 'loading' } : { kind: 'expired', message: 'Enter a vehicle registration number to track.' }
   );
   const [photoFullscreen, setPhotoFullscreen] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
+  const [selectedFlagReason, setSelectedFlagReason] = useState('');
+  const [showFlagOptions, setShowFlagOptions] = useState(false);
+  const [decisionBusy, setDecisionBusy] = useState(false);
+  const [decisionMessage, setDecisionMessage] = useState('');
+
+  useEffect(() => {
+    void Promise.all([getItem(TRACK_SESSION_KEY), getItem(LEGACY_TRACK_SESSION_KEY)]).then(([raw, legacyRaw]) => {
+      try {
+        const session = raw ? JSON.parse(raw) : legacyRaw ? JSON.parse(legacyRaw) : null;
+        if (!session?.id || !session?.token) return router.replace('/session' as any);
+        setSecuritySession(session);
+      } catch { router.replace('/session' as any); }
+    });
+  }, []);
 
   const trackByPlate = useCallback(async (plateNum: string, isBackgroundRefresh = false) => {
     const clean = (plateNum || '').trim().toUpperCase();
@@ -111,12 +138,30 @@ export default function PublicTrackingScreen() {
   stateRef.current = state;
 
   useEffect(() => {
+    if (!securitySession) return;
     if (plate) {
       const p = String(plate).toUpperCase();
       setSearchPlate(p);
       trackByPlate(p);
     }
-  }, [plate, trackByPlate]);
+  }, [plate, trackByPlate, securitySession]);
+
+  const submitDecision = async (outcome: 'verified' | 'flagged') => {
+    const resolvedFlagReason = selectedFlagReason === 'Other' ? flagReason.trim() : selectedFlagReason;
+    if (!securitySession || (outcome === 'flagged' && !resolvedFlagReason)) return;
+    setDecisionBusy(true); setDecisionMessage('');
+    try {
+      await recordSecurityTrackingDecision(securitySession.id, securitySession.token, outcome, resolvedFlagReason);
+      setDecisionMessage(outcome === 'flagged' ? 'Delivery flagged. The vendor and administrators were notified.' : 'Delivery accepted.');
+      if (outcome === 'flagged') {
+        await Promise.all([removeItem(TRACK_SESSION_KEY), removeItem(LEGACY_TRACK_SESSION_KEY)]);
+        setState((current) => current.kind === 'active'
+          ? { ...current, data: { ...current.data, securityFlag: { status: 'flagged', reason: resolvedFlagReason } } }
+          : current);
+      }
+    } catch (err: any) { setDecisionMessage(err?.response?.data?.error || 'Unable to save the decision.'); }
+    finally { setDecisionBusy(false); }
+  };
 
   // Auto-refresh tracking data every 10 seconds when showing active delivery
   useEffect(() => {
@@ -272,12 +317,23 @@ export default function PublicTrackingScreen() {
   const siteNet = (siteWeighIn != null && siteWeighOut != null) ? siteWeighIn - siteWeighOut : null;
   const hasQuarryWeights = quarryWeighIn != null || quarryWeighOut != null || quarryNet != null;
   const hasSiteWeights = siteWeighIn != null || siteWeighOut != null;
+  const hasSecurityFlag = d.securityFlag?.status === 'flagged';
 
   return (
     <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {renderHeader(d.plateNumber || '—', true)}
+
+        {hasSecurityFlag ? (
+          <View style={[styles.securityFlagBanner, { backgroundColor: '#FEF2F2', borderColor: colors.danger }]}>
+            <Ionicons name="warning-outline" size={22} color={colors.danger} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.securityFlagTitle, { color: colors.danger }]}>Security flag raised</Text>
+              <Text style={[styles.securityFlagReason, { color: textSec }]}>{d.securityFlag.reason || 'This delivery requires review.'}</Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* ─── Source Quarry Card (includes quarry weight records) ─── */}
         <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
@@ -393,6 +449,27 @@ export default function PublicTrackingScreen() {
           ) : null}
         </View>
 
+        {!hasSecurityFlag && !decisionMessage ? (
+          <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+            <Text style={[styles.cardTitle, { color: text }]}>Security Decision</Text>
+            <View style={styles.decisionActions}>
+              <TouchableOpacity disabled={decisionBusy} onPress={() => submitDecision('verified')} style={[styles.decisionButton, { backgroundColor: colors.success }]}><Text style={styles.decisionButtonText}>Accept</Text></TouchableOpacity>
+              <TouchableOpacity disabled={decisionBusy} onPress={() => setShowFlagOptions((visible) => !visible)} style={[styles.decisionButton, { backgroundColor: colors.danger }]}><Text style={styles.decisionButtonText}>Flag</Text></TouchableOpacity>
+            </View>
+            {showFlagOptions ? <>
+              <Text style={[styles.flagPrompt, { color: textSec }]}>Select a reason for flagging</Text>
+              <View style={styles.flagOptions}>
+                {FLAG_REASON_OPTIONS.map((option) => {
+                  const selected = selectedFlagReason === option;
+                  return <TouchableOpacity key={option} disabled={decisionBusy} onPress={() => setSelectedFlagReason(option)} style={[styles.flagOption, { borderColor: selected ? colors.danger : border, backgroundColor: selected ? '#FEF2F2' : surface }]}><Text style={[styles.flagOptionText, { color: selected ? colors.danger : textSec }]}>{option}</Text></TouchableOpacity>;
+                })}
+              </View>
+              {selectedFlagReason === 'Other' ? <TextInput value={flagReason} onChangeText={setFlagReason} placeholder="Enter the reason for flagging" placeholderTextColor={textMut} style={[styles.reasonInput, { color: text, borderColor: border }]} multiline /> : null}
+              <TouchableOpacity disabled={decisionBusy || !(selectedFlagReason === 'Other' ? flagReason.trim() : selectedFlagReason)} onPress={() => submitDecision('flagged')} style={[styles.confirmFlagButton, { backgroundColor: colors.danger, opacity: selectedFlagReason === 'Other' ? (flagReason.trim() ? 1 : 0.5) : (selectedFlagReason ? 1 : 0.5) }]}><Text style={styles.decisionButtonText}>Confirm Flag</Text></TouchableOpacity>
+            </> : null}
+          </View>
+        ) : <View style={[styles.card, { backgroundColor: '#ECFDF5', borderColor: colors.success }]}><Text style={[styles.cardTitle, { color: colors.success }]}>{decisionMessage}</Text></View>}
+
         <View style={styles.footer}>
           <Ionicons name="lock-closed-outline" size={14} color={textMut} />
           <Text style={[styles.footerText, { color: textMut }]}>This tracking link will automatically expire upon delivery.</Text>
@@ -439,7 +516,7 @@ const styles = StyleSheet.create({
   headerLeftGroup: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerIconCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '800', lineHeight: 24 },
-  headerSubtitle: { fontSize: 12, fontWeight: '600', marginTop: 1, letterSpacing: 0.5 },
+  headerSubtitle: { fontSize: 12, fontWeight: '600', marginTop: Spacing.xs, letterSpacing: 0.5 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1 },
   liveDot: { width: 7, height: 7, borderRadius: 4 },
   liveLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, color: '#10B981', textTransform: 'uppercase' },
@@ -453,25 +530,28 @@ const styles = StyleSheet.create({
 
   /* ─── Cards ─── */
   card: {
-    borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, gap: Spacing.xs, marginHorizontal: Spacing.lg, marginBottom: Spacing.md,
+    borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, gap: Spacing.xs, marginHorizontal: Spacing.lg, marginBottom: Spacing.xs,
     ...Platform.select({ web: { boxShadow: '0 1px 3px 0 rgba(0,0,0,0.06)' }, default: { elevation: 2 } }),
   },
+  securityFlagBanner: { flexDirection: 'row', gap: Spacing.sm, margin: Spacing.lg, marginBottom: Spacing.xs, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md },
+  securityFlagTitle: { fontSize: 15, fontWeight: '800' },
+  securityFlagReason: { fontSize: 13, fontWeight: '600', marginTop: 2 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   cardHeadIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: 15, fontWeight: '700' },
-  cardDivider: { height: 1, marginVertical: Spacing.xs },
+  cardDivider: { height: 1, marginVertical: Spacing.xs},
 
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 7, gap: Spacing.sm },
   infoLabel: { fontSize: 13, fontWeight: '500', flexShrink: 0, minWidth: 110 },
   infoValue: { fontSize: 13, fontWeight: '700', textAlign: 'right', flexShrink: 1 },
 
-  sectionLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginTop: Spacing.xs, marginBottom: 2 },
-  weightDivider: { height: 1, marginVertical: Spacing.sm },
-  totalWeightRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.xs },
+  sectionLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  weightDivider: { height: 1, marginVertical: Spacing.xs},
+  totalWeightRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.xs},
   totalWeightLabel: { fontSize: 14, fontWeight: '800' },
   totalWeightValue: { fontSize: 16, fontWeight: '900' },
 
-  photoSection: { marginTop: Spacing.md, gap: Spacing.sm },
+  photoSection: { marginTop: Spacing.xs, gap: Spacing.sm },
   photoHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   photoLabel: { fontSize: 12, fontWeight: '600' },
   photoContainer: { position: 'relative', borderRadius: Radius.md, overflow: 'hidden' as const, backgroundColor: '#F8FAFC' },
@@ -482,25 +562,34 @@ const styles = StyleSheet.create({
   fullscreenOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
   fullscreenCloseBtn: { position: 'absolute', top: Platform.OS === 'web' ? 24 : 56, right: 20, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   fullscreenImage: { width: '100%', height: '70%', borderRadius: Radius.md },
-  fullscreenCaption: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600', marginTop: Spacing.lg },
+  fullscreenCaption: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600', marginTop: Spacing.xs},
 
-  coordRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Radius.md, borderWidth: 1 },
+  coordRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xs, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Radius.md, borderWidth: 1 },
   coordIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   coordTitle: { fontSize: 12, fontWeight: '700' },
-  coordValue: { fontSize: 12, fontWeight: '500', marginTop: 2 },
+  coordValue: { fontSize: 12, fontWeight: '500', marginTop: Spacing.xs},
 
   expiredCard: { alignItems: 'center', maxWidth: 320, gap: Spacing.md },
-  expiredIconCircle: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs },
+  expiredIconCircle: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
   expiredTitle: { fontSize: 20, fontWeight: '800' },
   expiredMessage: { fontSize: 14, fontWeight: '500', textAlign: 'center', lineHeight: 20 },
-  expiredDivider: { width: 48, height: 3, borderRadius: 2, marginVertical: Spacing.xs },
+  expiredDivider: { width: 48, height: 3, borderRadius: 2, marginVertical: Spacing.xs},
   expiredHint: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
 
-  loadingText: { marginTop: Spacing.md, fontSize: 14, fontWeight: '500' },
+  loadingText: { marginTop: Spacing.xs, fontSize: 14, fontWeight: '500' },
 
   retryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 24, paddingVertical: 12, borderRadius: Radius.md },
   retryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.lg, paddingHorizontal: Spacing.lg },
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: Spacing.xs, paddingHorizontal: Spacing.lg },
   footerText: { fontSize: 11, fontWeight: '500' },
+  reasonInput: { minHeight: 64, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.sm, textAlignVertical: 'top', marginTop: Spacing.sm },
+  decisionActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+  decisionButton: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: Radius.md },
+  decisionButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  flagPrompt: { fontSize: 13, fontWeight: '700', marginTop: Spacing.md },
+  flagOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginTop: Spacing.xs },
+  flagOption: { borderWidth: 1, borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs },
+  flagOptionText: { fontSize: 12, fontWeight: '700' },
+  confirmFlagButton: { alignItems: 'center', paddingVertical: 12, borderRadius: Radius.md, marginTop: Spacing.sm },
 });

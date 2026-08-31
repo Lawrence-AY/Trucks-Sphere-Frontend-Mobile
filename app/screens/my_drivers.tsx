@@ -42,9 +42,9 @@ export default function MyDriversScreen() {
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1 }, searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, height: 44, gap: 8 },
+  container: { flex: 1 }, searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: Spacing.xs, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, height: 44, gap: 8 },
   searchInput: { flex: 1, fontSize: 14 },
-  card: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, padding: 16, marginBottom: 8, gap: 12 },
+  card: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, padding: 16, marginBottom: Spacing.xs, gap: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 14, fontWeight: '700' }, name: { fontSize: 15, fontWeight: '600' }, text: { fontSize: 13 },
 });

@@ -12,6 +12,8 @@ import { BaseRepository } from './BaseRepository';
 import { Vendor, Driver, Vehicle } from '../../store/types';
 import api from '../api';
 import { getStoredToken } from '../database';
+import { collectionCache } from '../cache/CollectionCache';
+import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 
 class VendorRepository extends BaseRepository<Vendor> {
   constructor() {
@@ -20,6 +22,28 @@ class VendorRepository extends BaseRepository<Vendor> {
       apiPath: '/api/vendors',
       cacheKey: 'vendors',
     });
+  }
+
+  private async publishCreatedVendor(vendor: Vendor): Promise<void> {
+    // The repository cache serves the driver/truck forms, while the Zustand
+    // cache serves the rest of the app. Publish to both immediately instead
+    // of waiting for the 30-second collection poll or Firestore snapshot.
+    await collectionCache.addToCollection(this.config.cacheKey, vendor);
+    useRealTimeSyncStore.getState().optimisticUpdate('vendors', vendor);
+  }
+
+  override async create(data: Partial<Vendor>): Promise<Vendor> {
+    const vendor = await super.create(data);
+    useRealTimeSyncStore.getState().optimisticUpdate('vendors', vendor);
+    return vendor;
+  }
+
+  /** Create a vendor and its login account, then publish it to local lists. */
+  async createWithAccount(payload: { vendor: Partial<Vendor>; account: { email: string; password: string; isActive: boolean } }) {
+    const response = await api.post('/api/vendors/with-account', payload);
+    const result = response.data as { vendor: Vendor; user: unknown; username: string };
+    await this.publishCreatedVendor(result.vendor);
+    return result;
   }
 
   /**

@@ -192,7 +192,7 @@ export default function CreateJobScreen() {
           )}
         </Card>
 
-        <Card style={{ marginTop: Spacing.md }}>
+        <Card style={{ marginTop: Spacing.xs}}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Assignment</Text>
 
           <Select
@@ -283,27 +283,23 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: Spacing.md,
+    fontWeight: '700', marginBottom: Spacing.xs,
   },
   poInfo: {
     padding: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    marginTop: Spacing.sm,
+    borderWidth: 1, marginTop: Spacing.xs,
     gap: 4,
   },
   poInfoText: {
@@ -311,8 +307,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Spacing.md, marginTop: Spacing.xs,
   },
   actionBtn: {
     flex: 1,

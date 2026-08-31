@@ -94,15 +94,7 @@ export function CsvImportPanel({ type, requiredColumns, onCompleted }: CsvImport
 
   return (
     <Card mode="outlined" style={styles.panel} contentStyle={styles.panelContent}>
-      <View style={styles.titleRow}>
-        <View style={[styles.iconWrap, { backgroundColor: `${colors.primary}15` }]}>
-          <Ionicons name="cloud-upload-outline" size={20} color={colors.primary} />
-        </View>
-        <View style={styles.copy}>
-          <Text variant="titleSmall">Import from CSV or Excel</Text>
-          <Text variant="bodySmall" style={{ color: colors.textMuted }}>Preview checks duplicates before any records are added.</Text>
-        </View>
-      </View>
+      
 
       <Text variant="labelSmall" style={{ color: colors.textMuted }}>Required columns: {requiredColumns}</Text>
 
@@ -149,7 +141,7 @@ export function CsvImportPanel({ type, requiredColumns, onCompleted }: CsvImport
 }
 
 const styles = StyleSheet.create({
-  panel: { borderRadius: Radius.lg, marginBottom: Spacing.lg },
+  panel: { borderRadius: Radius.lg, marginBottom: Spacing.xs},
   panelContent: { padding: Spacing.md, gap: Spacing.sm },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   iconWrap: { width: 38, height: 38, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },

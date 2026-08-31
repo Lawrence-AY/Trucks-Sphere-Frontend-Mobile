@@ -56,8 +56,7 @@ export function Tabs({ tabs, activeTab, onTabChange }: TabsProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: Spacing.md,
+  container: { marginBottom: Spacing.xs,
   },
   content: {
     paddingHorizontal: Spacing.md,
@@ -67,15 +66,13 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   tab: {
-    width: 180,
-    minWidth: 180,
-    maxWidth: 180,
+    minWidth: 96,
     flexGrow: 0,
     flexShrink: 0,
     height: 40,
     minHeight: 40,
     maxHeight: 40,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 0,
     borderWidth: 1,
     borderRadius: 10,

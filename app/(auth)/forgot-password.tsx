@@ -41,8 +41,8 @@ const styles = StyleSheet.create({
   panel: { borderRadius: Radius.xl, maxWidth: 440, width: '100%', alignSelf: 'center' },
   panelContent: { padding: Spacing.xl },
   back: { marginLeft: -Spacing.sm },
-  title: { fontWeight: '800', marginTop: Spacing.sm },
-  subtitle: { lineHeight: 20, marginTop: Spacing.sm, marginBottom: Spacing.xl },
-  button: { marginTop: Spacing.xl },
+  title: { fontWeight: '800', marginTop: Spacing.xs},
+  subtitle: { lineHeight: 20, marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  button: { marginTop: Spacing.xs},
   buttonContent: { height: 48 },
 });

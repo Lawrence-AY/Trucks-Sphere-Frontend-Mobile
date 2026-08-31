@@ -198,6 +198,7 @@ export default function VendorLayout() {
         screenOptions={{
           tabBarActiveTintColor: colors.tabActive,
           tabBarInactiveTintColor: colors.tabInactive,
+          tabBarHideOnKeyboard: true,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
@@ -294,7 +295,7 @@ export default function VendorLayout() {
               <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                 {user?.displayName || 'User'}
               </Text>
-              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
+              <View style={{ marginTop: Spacing.xs, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>
                   {getRoleLabel(user?.role || '')}
                 </Text>
@@ -432,7 +433,7 @@ export default function VendorLayout() {
 
                 {/* OTP Input */}
                 <View style={styles.otpSection}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: Spacing.sm }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: Spacing.xs}}>
                     Enter Fuel Authorization PIN sent to your phone
                   </Text>
                   <TextInput
@@ -521,8 +522,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   drawerItem: {
     flexDirection: 'row',
@@ -559,8 +559,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#FEF2F2',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   logoutTitle: {
     color: '#1E293B',
@@ -569,9 +568,7 @@ const styles = StyleSheet.create({
   },
   logoutMessage: {
     color: '#64748B',
-    fontSize: 14,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xl,
+    fontSize: 14, marginTop: Spacing.xs, marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   logoutActions: {
@@ -641,8 +638,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: Spacing.md, marginBottom: Spacing.xs,
   },
   authModalTitle: {
     color: '#1E293B',
@@ -652,8 +648,7 @@ const styles = StyleSheet.create({
   authModalSubtitle: {
     color: '#64748B',
     fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
+    lineHeight: 18, marginTop: Spacing.xs,
   },
   closeButton: {
     width: 38,
@@ -665,8 +660,7 @@ const styles = StyleSheet.create({
   authDetailCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+    padding: Spacing.lg, marginBottom: Spacing.xs,
   },
   authDetailRow: {
     flexDirection: 'row',
@@ -676,8 +670,7 @@ const styles = StyleSheet.create({
   },
   authDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: Spacing.xs,
+    backgroundColor: '#E2E8F0', marginVertical: Spacing.xs,
   },
   otpSection: {},
   otpInput: {
@@ -692,8 +685,7 @@ const styles = StyleSheet.create({
   },
   authActions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Spacing.md, marginTop: Spacing.xs,
   },
   denyButton: {
     flex: 1,

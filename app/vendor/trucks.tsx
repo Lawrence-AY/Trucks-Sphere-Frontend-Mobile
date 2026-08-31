@@ -98,6 +98,7 @@ export default function VendorTrucksScreen() {
         vehiclesWithStats.map((vehicle) => (
           <DataCard
             key={vehicle.id}
+            style={vehicle.securityFlag?.status === 'cleared' ? { borderColor: '#A78BFA', borderWidth: 1.5 } : undefined}
             onPress={() =>
               router.push(`/screens/truck-history?id=${vehicle.id}&plate=${encodeURIComponent(vehicle.plateNumber || vehicle.plate || '')}` as any)
             }
@@ -112,7 +113,7 @@ export default function VendorTrucksScreen() {
                     <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                       {vehicle.plateNumber || vehicle.plate}
                     </Text>
-                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
+                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: Spacing.xs}}>
                       {vehicle.make} {vehicle.model} ({vehicle.year || 'N/A'})
                     </Text>
                   </View>
@@ -135,6 +136,7 @@ export default function VendorTrucksScreen() {
                 </Text>
               </View>
             </View>
+            {vehicle.securityFlag?.status === 'cleared' ? <Text style={styles.clearedLabel}>Unsuspended after security clearance</Text> : null}
           </DataCard>
         ))
       ) : (
@@ -178,4 +180,5 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   miniStatText: { fontSize: 12, fontWeight: '600' },
+  clearedLabel: { color: '#6D28D9', fontSize: 12, fontWeight: '700', marginTop: Spacing.xs },
 });

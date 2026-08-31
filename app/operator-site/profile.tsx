@@ -90,7 +90,7 @@ export default function OperatorSiteProfileScreen() {
 
           {!editingProfile ? (
             <TouchableOpacity
-              style={[styles.editBtn, { backgroundColor: colors.primary, marginTop: Spacing.md }]}
+              style={[styles.editBtn, { backgroundColor: colors.primary, marginTop: Spacing.xs}]}
               onPress={() => { setEditingProfile(true); setEditDisplayName(user?.displayName || ''); setEditPhone(user?.phone || ''); setProfileError(''); }}
               activeOpacity={0.7}
             >
@@ -98,7 +98,7 @@ export default function OperatorSiteProfileScreen() {
               <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>Edit Profile</Text>
             </TouchableOpacity>
           ) : (
-            <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
+            <View style={{ gap: Spacing.sm, marginTop: Spacing.xs}}>
               {profileError ? <Text style={[styles.errorText, { color: colors.danger }]}>{profileError}</Text> : null}
               <Text style={[styles.inputLabel, { color: colors.textMuted }]}>Display Name</Text>
               <TextInput
@@ -230,9 +230,9 @@ const styles = StyleSheet.create({
   changePwdBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm },
   changePwdBtnText: { flex: 1, fontSize: 14, fontWeight: '700' },
   passwordForm: { gap: Spacing.sm },
-  formTitle: { fontSize: 15, fontWeight: '800', marginBottom: Spacing.xs },
+  formTitle: { fontSize: 15, fontWeight: '800', marginBottom: Spacing.xs},
   errorText: { fontSize: 12, fontWeight: '700' },
-  formActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
+  formActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs},
   cancelBtn: { flex: 1, minHeight: 44, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   cancelBtnText: { fontSize: 14, fontWeight: '700' },
   submitBtn: { flex: 2, minHeight: 44, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },

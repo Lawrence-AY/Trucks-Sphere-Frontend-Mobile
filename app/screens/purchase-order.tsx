@@ -14,7 +14,7 @@ function PORow({ label, value, bold }: { label: string; value: string; bold?: bo
   return (
     <View style={styles.rRow}>
       <Text style={styles.rLabel}>{label}</Text>
-      <Text style={[styles.rValue, bold && { fontWeight: '700' }]} numberOfLines={3}>{value}</Text>
+      <Text style={[styles.rValue, bold && { fontWeight: '700' }]}>{value}</Text>
     </View>
   );
 }
@@ -247,7 +247,7 @@ export default function PurchaseOrderScreen() {
 
             {materialId && vendorId ? (
               <View style={[styles.poPreview, { backgroundColor: colors.accent + '12', borderColor: colors.accent }]}>
-                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, marginBottom: 4 }}>PURCHASE ORDER NUMBER</Text>
+                <Text style={{ fontSize: 11, fontWeight: '600', color: colors.textMuted, marginBottom: Spacing.xs}}>PURCHASE ORDER NUMBER</Text>
                 {poPreview ? (
                   <Text style={{ fontSize: 18, fontWeight: '900', color: colors.accent }}>{poPreview}</Text>
                 ) : (
@@ -271,20 +271,20 @@ export default function PurchaseOrderScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={styles.content}>
         {loading && <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>}
-        {error && !loading && <View style={styles.center}><Ionicons name="alert-circle-outline" size={48} color={colors.danger} /><Text style={{ fontSize: 14, color: colors.danger, textAlign: 'center', marginTop: Spacing.md }}>{error}</Text><TouchableOpacity onPress={() => loadData(searchPo)} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: '700' }}>Try again</Text></TouchableOpacity></View>}
+        {error && !loading && <View style={styles.center}><Ionicons name="alert-circle-outline" size={48} color={colors.danger} /><Text style={{ fontSize: 14, color: colors.danger, textAlign: 'center', marginTop: Spacing.xs}}>{error}</Text><TouchableOpacity onPress={() => loadData(searchPo)} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: '700' }}>Try again</Text></TouchableOpacity></View>}
         {!loading && order && (
           <View style={[styles.receipt, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.receiptHeader}><Ionicons name="document-text" size={28} color={colors.primary} /><Text style={[styles.receiptTitle, { color: colors.text }]}>PURCHASE ORDER</Text></View>
             <View style={styles.receiptBody}>
               <Text style={[styles.rHead, { color: colors.text }]}>{order.poNumber}</Text>
-              <PORow label="Material" value={order.materialName} />
+              <PORow label="Materials on PO" value={(Array.isArray(order.materials) && order.materials.length ? order.materials : [{ materialName: order.materialName, quantity: order.quantity, unit: order.unit }]).map(function (item: any) { return (item.materialName || 'Material') + (item.quantity != null ? ' (' + item.quantity + ' ' + (item.unit || '') + ')' : ''); }).join('\n')} />
               <PORow label="Vendor" value={order.vendorName} />
               <PORow label="Quantity" value={order.quantity + ' ' + order.unit} bold />
               <PORow label="Created At" value={order.createdAt ? formatEAT(order.createdAt) : '-'} />
             </View>
           </View>
         )}
-        {!loading && !order && !error && <View style={styles.center}><Ionicons name="document-text-outline" size={48} color={colors.textMuted} /><Text style={{ color: colors.textMuted, marginTop: Spacing.md }}>No purchase order selected.</Text></View>}
+        {!loading && !order && !error && <View style={styles.center}><Ionicons name="document-text-outline" size={48} color={colors.textMuted} /><Text style={{ color: colors.textMuted, marginTop: Spacing.xs}}>No purchase order selected.</Text></View>}
       </ScrollView>
     </View>
   );
@@ -293,27 +293,27 @@ export default function PurchaseOrderScreen() {
 var styles = StyleSheet.create({
   content: { padding: Spacing.md, paddingBottom: Spacing['4xl'] },
   center: { alignItems: 'center', paddingVertical: Spacing['4xl'] },
-  receipt: { borderWidth: 1.5, borderRadius: Radius.md, padding: Spacing.lg, marginBottom: Spacing.md },
-  receiptHeader: { alignItems: 'center', marginBottom: Spacing.md },
-  receiptTitle: { fontSize: 16, fontWeight: '700', letterSpacing: 1, marginTop: 4 },
+  receipt: { borderWidth: 1.5, borderRadius: Radius.md, padding: Spacing.lg, marginBottom: Spacing.xs},
+  receiptHeader: { alignItems: 'center', marginBottom: Spacing.xs},
+  receiptTitle: { fontSize: 16, fontWeight: '700', letterSpacing: 1, marginTop: Spacing.xs},
   receiptBody: { padding: Spacing.sm },
   rHead: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
   rRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 3, gap: Spacing.sm },
-  rLabel: { fontSize: 14, color: '#666', flexShrink: 0, marginTop: 1 },
+  rLabel: { fontSize: 14, color: '#666', flexShrink: 0, marginTop: Spacing.xs},
   rValue: { fontSize: 14, color: '#333', flex: 1, textAlign: 'right', flexWrap: 'wrap' },
-  stamp: { alignItems: 'center', paddingVertical: 8, borderRadius: 6, borderWidth: 1, marginVertical: 8 },
+  stamp: { alignItems: 'center', paddingVertical: 8, borderRadius: 6, borderWidth: 1, marginVertical: Spacing.xs},
   stampText: { fontSize: 14, fontWeight: '700', letterSpacing: 1 },
-  inputGroup: { marginBottom: Spacing.md },
-  label: { fontSize: 13, fontWeight: '600', marginBottom: Spacing.xs },
+  inputGroup: { marginBottom: Spacing.xs},
+  label: { fontSize: 13, fontWeight: '600', marginBottom: Spacing.xs},
   pickerBtn: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: Spacing.sm },
   pickerText: { flex: 1, fontSize: 14 },
-  poPreview: { borderRadius: Radius.md, borderWidth: 1.5, padding: Spacing.md, marginBottom: Spacing.md, alignItems: 'center' },
+  poPreview: { borderRadius: Radius.md, borderWidth: 1.5, padding: Spacing.md, marginBottom: Spacing.xs, alignItems: 'center' },
   inputWrap: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: Spacing.sm },
   inputField: { flex: 1, fontSize: 14, height: 44 },
   submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: Radius.md, gap: Spacing.sm },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  inlineError: { fontSize: 13, fontWeight: '600', marginBottom: Spacing.md },
-  retryBtn: { marginTop: Spacing.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderWidth: 1, borderRadius: Radius.md },
+  inlineError: { fontSize: 13, fontWeight: '600', marginBottom: Spacing.xs},
+  retryBtn: { marginTop: Spacing.xs, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderWidth: 1, borderRadius: Radius.md },
   modalOverlay: { flex: 1 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.lg, paddingTop: Spacing['2xl'] },
   modalTitle: { fontSize: 18, fontWeight: '700' },

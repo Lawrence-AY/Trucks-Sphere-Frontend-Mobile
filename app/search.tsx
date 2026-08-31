@@ -370,31 +370,26 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   searchingText: {
-    fontSize: 14,
-    marginTop: Spacing.md,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   noResults: {
     fontSize: 18,
-    fontWeight: '700',
-    marginTop: Spacing.lg,
+    fontWeight: '700', marginTop: Spacing.xs,
   },
   noResultsSub: {
-    fontSize: 14,
-    marginTop: Spacing.sm,
+    fontSize: 14, marginTop: Spacing.xs,
     textAlign: 'center',
   },
   resultsList: {
     padding: Spacing.md,
     paddingBottom: Spacing['4xl'],
   },
-  group: {
-    marginBottom: Spacing.lg,
+  group: { marginBottom: Spacing.xs,
   },
   groupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   groupTitle: {
     fontSize: 16,
@@ -425,7 +420,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   resultSubtitle: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
 });

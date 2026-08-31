@@ -6,13 +6,12 @@
  *   - Full driver details form
  *   - License information
  *   - Photo upload (after driver creation)
- *   - Driver status
  *
  * NOTE: Insurance & Compliance fields have been moved to the Vendor form.
  * Drivers inherit these from their linked vendor.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -44,12 +43,6 @@ import { uploadDriverPhoto } from '../../../services/uploadService';
 import { collectionCache } from '../../../services/cache/CollectionCache';
 import { Vendor } from '../../../store/types';
 
-const STATUS_OPTIONS = [
-  { id: 'active', name: 'Active' },
-  { id: 'inactive', name: 'Inactive' },
-  { id: 'suspended', name: 'Suspended' },
-];
-
 export default function CreateDriverScreen() {
   const params = useLocalSearchParams<{ vendorId?: string; id?: string }>();
   const driverId = typeof params.id === 'string' ? params.id : undefined;
@@ -64,7 +57,8 @@ export default function CreateDriverScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [form, setForm] = useState({
     vendorId: params.vendorId || '',
-    fullName: '',
+    firstName: '',
+    surname: '',
     phone: '',
     email: '',
     nationalId: '',
@@ -75,6 +69,9 @@ export default function CreateDriverScreen() {
     status: 'active' as string,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // A late result for an earlier spelling must never overwrite a corrected name.
+  const identityCheckVersion = useRef(0);
+  const saveAttemptVersion = useRef(0);
 
   useEffect(() => {
     loadVendors();
@@ -84,6 +81,12 @@ export default function CreateDriverScreen() {
     if (driverId) loadDriver(driverId);
   }, [driverId, params.vendorId]);
 
+  useEffect(() => vendorRepository.onChange(() => {
+    // A vendor can be created in another screen while this form stays mounted.
+    // Reload the repository cache as soon as that write completes.
+    void loadVendors();
+  }), []);
+
   async function loadDriver(id: string) {
     try {
       const driver = await driverRepository.getById(id);
@@ -92,9 +95,11 @@ export default function CreateDriverScreen() {
         router.back();
         return;
       }
+      const nameParts = String(driver.fullName || (driver as any).name || '').trim().split(/\s+/).filter(Boolean);
       setForm({
         vendorId: driver.vendorId || '',
-        fullName: driver.fullName || (driver as any).name || '',
+        firstName: (driver as any).firstName || nameParts[0] || '',
+        surname: (driver as any).surname || nameParts.slice(1).join(' ') || '',
         phone: driver.phone || '',
         email: driver.email || '',
         nationalId: driver.nationalId || '',
@@ -121,11 +126,14 @@ export default function CreateDriverScreen() {
   }
 
   function updateField(field: string, value: string) {
+    const changesIdentity = field === 'firstName' || field === 'surname' || field === 'nationalId';
+    if (changesIdentity) identityCheckVersion.current += 1;
     setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
+    if (errors[field] || (changesIdentity && errors.nationalId)) {
       setErrors((prev) => {
         const copy = { ...prev };
         delete copy[field];
+        if (changesIdentity) delete copy.nationalId;
         return copy;
       });
     }
@@ -182,10 +190,51 @@ export default function CreateDriverScreen() {
     }
   }
 
+  async function verifyIdentity(): Promise<boolean> {
+    const nationalId = form.nationalId.trim();
+    const firstName = form.firstName.trim();
+    const surname = form.surname.trim();
+    if (!nationalId || !firstName || !surname) return false;
+    const requestVersion = ++identityCheckVersion.current;
+    try {
+      const response = await api.post<{ verified?: boolean; skipped?: boolean }>('/api/drivers/verify-identity', {
+        nationalId,
+        firstName,
+        surname,
+      });
+      return Boolean(response.data.verified || response.data.skipped);
+    } catch (err: any) {
+      // The user may have corrected a name while this request was in flight.
+      if (requestVersion !== identityCheckVersion.current) return false;
+      const code = err?.code || err?.response?.data?.code;
+      if (code === 'IPRS_IDENTITY_MISMATCH') {
+        setErrors((prev) => ({
+          ...prev,
+          nationalId: 'The National ID does not match the first name and surname provided.',
+        }));
+      } else if (code === 'IPRS_UNAVAILABLE' || code === 'IPRS_SESSION_FAILED' || code === 'IPRS_VERIFICATION_FAILED') {
+        setErrors((prev) => ({ ...prev, nationalId: 'IPRS verification is currently unavailable. Please try again.' }));
+      }
+      return false;
+    }
+  }
+
+  async function checkNationalIdOnBlur() {
+    const available = await checkNationalId();
+    if (available && form.firstName.trim() && form.surname.trim()) await verifyIdentity();
+  }
+
+  async function checkIdentityOnNameBlur() {
+    if (!form.nationalId.trim() || !form.firstName.trim() || !form.surname.trim()) return;
+    const available = await checkNationalId();
+    if (available) await verifyIdentity();
+  }
+
   async function validate(): Promise<boolean> {
     const newErrors: Record<string, string> = {};
     if (!form.vendorId) newErrors.vendorId = 'Vendor is required';
-    if (!form.fullName.trim()) newErrors.fullName = 'Full name is required';
+    if (!form.firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!form.surname.trim()) newErrors.surname = 'Surname is required';
     if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
     if (!form.nationalId.trim()) newErrors.nationalId = 'National ID is required';
     if (!form.licenseNumber.trim()) newErrors.licenseNumber = 'License number is required';
@@ -195,6 +244,8 @@ export default function CreateDriverScreen() {
     }
     const nationalIdAvailable = await checkNationalId();
     if (!nationalIdAvailable) return false;
+    const identityVerified = await verifyIdentity();
+    if (!identityVerified) return false;
     setErrors({});
     return true;
   }
@@ -202,7 +253,8 @@ export default function CreateDriverScreen() {
   function resetForm() {
     setForm({
       vendorId: '',
-      fullName: '',
+      firstName: '',
+      surname: '',
       phone: '',
       email: '',
       nationalId: '',
@@ -218,13 +270,16 @@ export default function CreateDriverScreen() {
   }
 
   async function handleSave() {
-    if (!(await validate())) return;
+    const saveAttempt = ++saveAttemptVersion.current;
+    if (!(await validate()) || saveAttempt !== saveAttemptVersion.current) return;
 
     setSaving(true);
     try {
       const driverPayload = {
         vendorId: form.vendorId,
-        fullName: form.fullName.trim(),
+        firstName: form.firstName.trim(),
+        surname: form.surname.trim(),
+        fullName: `${form.firstName.trim()} ${form.surname.trim()}`,
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
         nationalId: form.nationalId.trim() || undefined,
@@ -269,12 +324,36 @@ export default function CreateDriverScreen() {
         resetForm();
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to create driver';
+      const code = err?.code || err?.response?.data?.code;
+      if (code === 'IPRS_IDENTITY_MISMATCH') {
+        setErrors((prev) => ({
+          ...prev,
+          nationalId: 'The National ID does not match the first name and surname provided.',
+        }));
+        Alert.alert('IPRS verification failed', 'The National ID does not match the first name and surname provided.');
+        return;
+      }
+      if (code === 'IPRS_IDENTITY_DETAILS_REQUIRED') {
+        setErrors((prev) => ({ ...prev, firstName: 'First name is required for IPRS verification.', surname: 'Surname is required for IPRS verification.' }));
+        return;
+      }
+      const msg = code === 'IPRS_NOT_CONFIGURED'
+        ? 'IPRS verification is enabled but has not been configured.'
+        : code === 'IPRS_UNAVAILABLE' || code === 'IPRS_SESSION_FAILED' || code === 'IPRS_VERIFICATION_FAILED'
+          ? 'IPRS is currently unavailable. Please try again later.'
+          : err?.message || 'Failed to create driver';
       Alert.alert('Error', msg);
     } finally {
       setSaving(false);
       setUploadingPhoto(false);
     }
+  }
+
+  function handleCancel() {
+    // Prevent a pending availability/IPRS check from continuing into creation.
+    saveAttemptVersion.current += 1;
+    identityCheckVersion.current += 1;
+    router.back();
   }
 
   const vendorOptions = vendors.map((v) => ({
@@ -298,7 +377,7 @@ export default function CreateDriverScreen() {
         {!isEditMode ? (
           <CsvImportPanel
             type="drivers"
-            requiredColumns="vendor_id or vendor_name, full_name, phone, national_id, license_number"
+            requiredColumns="vendor_id or vendor_name, first_name, surname, phone, national_id, license_number"
             onCompleted={async () => {
               driverRepository.invalidateCache();
               await loadVendors();
@@ -388,13 +467,24 @@ export default function CreateDriverScreen() {
           </View>
 
           <Input
-            label="Full Name"
-            value={form.fullName}
-            onChangeText={(v) => updateField('fullName', v)}
-            placeholder="Enter driver name"
+            label="First Name"
+            value={form.firstName}
+            onChangeText={(v) => updateField('firstName', v)}
+            placeholder="Enter first name"
             icon="person-outline"
             required
-            error={errors.fullName}
+            error={errors.firstName}
+            onBlur={checkIdentityOnNameBlur}
+          />
+          <Input
+            label="Surname"
+            value={form.surname}
+            onChangeText={(v) => updateField('surname', v)}
+            placeholder="Enter surname"
+            icon="person-outline"
+            required
+            error={errors.surname}
+            onBlur={checkIdentityOnNameBlur}
           />
           <Input
             label="Phone Number"
@@ -419,11 +509,11 @@ export default function CreateDriverScreen() {
             value={form.nationalId}
             onChangeText={(v) => updateField('nationalId', v)}
             placeholder="e.g. 12345678"
-            icon="finger-print-outline"
+            icon="card-outline"
             keyboardType="numeric"
             required
             error={errors.nationalId}
-            onBlur={checkNationalId}
+            onBlur={checkNationalIdOnBlur}
           />
           <Input
             label="License Number"
@@ -448,21 +538,15 @@ export default function CreateDriverScreen() {
             placeholder="e.g. 2025-12-31"
             icon="calendar-outline"
           />
-          <Select
-            label="Status"
-            value={form.status}
-            options={STATUS_OPTIONS}
-            onSelect={(v) => updateField('status', v)}
-            icon="checkmark-circle-outline"
-          />
         </Card>
 
         <View style={styles.actions}>
           <Button
             title="Cancel"
-            onPress={() => router.back()}
+            onPress={handleCancel}
             variant="secondary"
             style={styles.actionBtn}
+            disabled={saving || uploadingPhoto || loadingDriver}
           />
           <Button
             title={isEditMode ? 'Save Changes' : 'Create Driver'}
@@ -502,15 +586,14 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  header: { marginBottom: Spacing.lg },
+  header: { marginBottom: Spacing.xs},
   title: { fontSize: 24, fontWeight: '800' },
-  subtitle: { fontSize: 14, marginTop: 4 },
-  photoSectionCard: { marginBottom: Spacing.md, paddingTop: Spacing.sm },
+  subtitle: { fontSize: 14, marginTop: Spacing.xs},
+  photoSectionCard: { marginBottom: Spacing.xs, paddingTop: Spacing.sm },
   photoSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   photoSectionIcon: {
     width: 36,
@@ -529,18 +612,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
   },
   photoStatusText: { fontSize: 11, fontWeight: '700' },
-  photoSectionSub: { fontSize: 13, marginBottom: Spacing.md },
+  photoSectionSub: { fontSize: 13, marginBottom: Spacing.xs},
   photoPreviewWrap: {
     width: '100%',
     height: 200,
     borderRadius: Radius.md,
-    overflow: 'hidden',
-    marginBottom: Spacing.sm,
+    overflow: 'hidden', marginBottom: Spacing.xs,
     backgroundColor: '#F1F5F9',
   },
   photoPreviewLarge: { width: '100%', height: '100%' },
   photoPreviewPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  photoPlaceholderText: { fontSize: 13, fontWeight: '600', marginTop: 8 },
+  photoPlaceholderText: { fontSize: 13, fontWeight: '600', marginTop: Spacing.xs},
   photoPreviewOverlay: {
     position: 'absolute',
     top: 0,
@@ -551,8 +633,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoPreviewOverlayText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: 8 },
-  photoActionsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
+  photoPreviewOverlayText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: Spacing.xs},
+  photoActionsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xs},
   photoBtnFull: {
     flex: 1,
     flexDirection: 'row',
@@ -574,6 +656,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   photoRemoveText: { fontSize: 13, fontWeight: '700' },
-  actions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  actions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs},
   actionBtn: { flex: 1 },
 });

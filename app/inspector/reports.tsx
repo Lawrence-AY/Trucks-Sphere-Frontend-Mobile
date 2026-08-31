@@ -1,0 +1,17 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../hooks/useTheme';
+import { fetchDeliveryOrders } from '../../services/api';
+import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
+import { Spacing, Radius } from '../../constants/theme';
+
+export default function InspectorReportsScreen() {
+  const colors = useTheme(); const [orders, setOrders] = useState<any[]>([]); const [refreshing, setRefreshing] = useState(false); const [exporting, setExporting] = useState(false);
+  const load = useCallback(async () => setOrders((await fetchDeliveryOrders()).filter((job: any) => job.materialInspection?.mrfNumber)), []);
+  useEffect(() => { void load(); }, [load]);
+  const rows = orders.flatMap((job) => (job.materialInspection.materialReceipts || [{ materialName: job.materialName, receivedQuantity: '', unit: job.unit }]).map((line: any) => [job.materialInspection.mrfNumber, job.jobId, job.poNumber || '', line.materialName || '', String(line.orderedQuantity ?? ''), String(line.receivedQuantity ?? ''), line.unit || '', job.materialInspection.initialVisualInspection || '', job.materialInspection.inspectorName || '']));
+  const exportReport = async (format: 'csv' | 'pdf') => { if (!rows.length) return Alert.alert('No inspections', 'There are no completed material inspections to report.'); setExporting(true); try { const headers = ['MIF #','Job ID','PO #','Material','PO Qty','Received Qty','Unit','Result','Inspector']; const title = 'Material Inspection Report'; if (format === 'csv') await shareCsvAsFile(title, buildCsvContent(headers, rows)); else await sharePdfAsFile(title, buildHtmlContent(headers, rows, title)); } finally { setExporting(false); } };
+  return <ScrollView style={[styles.page,{backgroundColor:colors.background}]} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.accent} />}><View style={[styles.card,{backgroundColor:colors.surface,borderColor:colors.border}]}><Ionicons name="bar-chart-outline" size={28} color="#0F766E"/><Text style={[styles.title,{color:colors.text}]}>Material Inspection Report</Text><Text style={{color:colors.textMuted}}>{rows.length} material receipt line{rows.length === 1 ? '' : 's'} captured</Text><TouchableOpacity disabled={exporting} onPress={() => { void exportReport('pdf'); }} style={styles.primary}><Text style={styles.primaryText}>{exporting ? 'Preparing…' : 'Export PDF'}</Text></TouchableOpacity><TouchableOpacity disabled={exporting} onPress={() => { void exportReport('csv'); }} style={[styles.secondary,{borderColor:colors.border}]}><Text style={{color:colors.text,fontWeight:'800'}}>Export CSV</Text></TouchableOpacity></View></ScrollView>;
+}
+const styles = StyleSheet.create({page:{flex:1},content:{padding:Spacing.lg,paddingBottom:Spacing.xs},card:{borderWidth:1,borderRadius:Radius.lg,padding:Spacing.lg,gap:Spacing.md},title:{fontSize:18,fontWeight:'800'},primary:{backgroundColor:'#0F766E',borderRadius:Radius.md,padding:14,alignItems:'center'},primaryText:{color:'#fff',fontWeight:'800'},secondary:{borderWidth:1,borderRadius:Radius.md,padding:14,alignItems:'center'} });

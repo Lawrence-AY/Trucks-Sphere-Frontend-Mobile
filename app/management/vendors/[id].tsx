@@ -176,7 +176,7 @@ export default function VendorDetailScreen() {
               <Text style={[styles.vendorId, { color: colors.textMuted }]}>
                 {vendor.vendorId || vendor.id} · {vendor.contactPerson || 'No contact'}
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.xs}}>
                  
                 <Text style={[styles.vendorId, { color: colors.textMuted }]}>
                   {vendor.phone || ''}
@@ -298,7 +298,7 @@ function DriversTab({ drivers, vendorId, colors, canWrite }: { drivers: Driver[]
         onPress={() => router.push(`/management/drivers/create?vendorId=${vendorId}` as any)}
         icon="person-add-outline"
         size="sm"
-        style={{ marginBottom: Spacing.md }}
+        style={{ marginBottom: Spacing.xs}}
       />}
       {drivers.length === 0 ? (
         <EmptyState icon="people-outline" title="No drivers" subtitle="Add drivers to this vendor" />
@@ -337,7 +337,7 @@ function VehiclesTab({ vehicles, vendorId, colors, canWrite }: { vehicles: Vehic
         onPress={() => router.push(`/management/vehicles/create?vendorId=${vendorId}` as any)}
         icon="car-outline"
         size="sm"
-        style={{ marginBottom: Spacing.md }}
+        style={{ marginBottom: Spacing.xs}}
       />}
       {vehicles.length === 0 ? (
         <EmptyState icon="car-outline" title="No vehicles" subtitle="Add vehicles to this vendor" />
@@ -528,8 +528,7 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
+    gap: Spacing.md, marginBottom: Spacing.xs,
   },
   avatar: {
     width: 56,
@@ -555,7 +554,7 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
+    flexWrap: 'wrap',
     gap: Spacing.xs,
     paddingBottom: 2,
   },
@@ -589,8 +588,7 @@ const styles = StyleSheet.create({
   listCard: {
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   listCardHeader: {
     flexDirection: 'row',
@@ -613,18 +611,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listCardSub: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: Spacing.md,
+    fontWeight: '700', marginBottom: Spacing.xs,
   },
   metricRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   metricCard: {
     flex: 1,
@@ -637,16 +632,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   metricLabel: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   alert: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
+    padding: Spacing.md, marginTop: Spacing.xs,
   },
   alertText: {
     fontSize: 13,

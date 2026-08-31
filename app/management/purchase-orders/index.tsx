@@ -99,6 +99,7 @@ export default function PurchaseOrderListScreen() {
 
   function renderPO({ item }: { item: PurchaseOrder }) {
     const progress = getProgress(item);
+    const materialLines = item.materials?.length ? item.materials : [{ materialName: item.materialName, materialNumber: item.materialNumber, quantity: item.quantity, unit: item.unit }];
     return (
       <TouchableOpacity
         style={[styles.poCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -118,18 +119,10 @@ export default function PurchaseOrderListScreen() {
         </View>
 
         <View style={styles.poMeta}>
-          <View style={styles.metaItem}>
+          {materialLines.map((line, index) => <View style={styles.metaItem} key={index}>
             <Ionicons name="cube-outline" size={14} color={colors.textMuted} />
-            <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
-              {item.materialName || 'Unknown Material'}
-            </Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="scale-outline" size={14} color={colors.textMuted} />
-            <Text style={[styles.metaText, { color: colors.textMuted }]}>
-              {formatNumber(item.quantity || 0)} {item.unit || 'units'} 
-            </Text>
-          </View>
+            <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>{line.materialNumber || ''} {line.materialName || 'Unknown Material'} • {formatNumber(line.quantity || 0)} {line.unit || 'units'}</Text>
+          </View>)}
         </View>
 
         <View style={styles.poFooter}>
@@ -207,12 +200,10 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   count: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   searchBar: {
     flexDirection: 'row',
@@ -221,8 +212,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: 0,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   searchInput: {
     flex: 1,
@@ -254,14 +244,12 @@ const styles = StyleSheet.create({
   poCard: {
     borderRadius: 5,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: 0.1,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   poHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
+    alignItems: 'flex-start', marginBottom: Spacing.xs,
   },
   poInfo: {
     flex: 1,
@@ -272,13 +260,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   poVendor: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   poMeta: {
     flexDirection: 'column',
-    gap: 5,
-    marginBottom: Spacing.md,
+    gap: 5, marginBottom: Spacing.xs,
   },
   metaItem: {
     flexDirection: 'row',
@@ -288,13 +274,11 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 12,
   },
-  progressSection: {
-    marginBottom: Spacing.md,
+  progressSection: { marginBottom: Spacing.xs,
   },
   progressRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    justifyContent: 'space-between', marginBottom: Spacing.xs,
   },
   progressLabel: {
     fontSize: 11,

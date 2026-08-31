@@ -187,17 +187,17 @@ export default function WarehouseQueueScreen() {
         uri: asset.uri,
         name: asset.fileName || `warehouse-packaging-${Date.now()}.jpg`,
         mimeType: asset.mimeType || 'image/jpeg',
-        displayName: asset.fileName || 'Captured packaging photo',
+        displayName: asset.fileName || 'Captured receipt photo',
       });
     } catch (error: any) {
-      Alert.alert('Capture failed', error?.message || 'Could not capture the packaging photo.');
+      Alert.alert('Capture failed', error?.message || 'Could not capture the receipt photo.');
     }
   };
 
   const choosePackagingPhoto = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Photo library permission needed', 'Allow photo library access to select the packaging photo.');
+      Alert.alert('Photo library permission needed', 'Allow photo library access to select the receipt photo.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
@@ -207,7 +207,7 @@ export default function WarehouseQueueScreen() {
       uri: asset.uri,
       name: asset.fileName || `warehouse-packaging-${Date.now()}.jpg`,
       mimeType: asset.mimeType || 'image/jpeg',
-      displayName: asset.fileName || 'Selected packaging photo',
+      displayName: asset.fileName || 'Selected rceipt photo',
     });
   };
 
@@ -595,49 +595,49 @@ export default function WarehouseQueueScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  subtitle: { fontSize: 13, lineHeight: 19, marginTop: 4 },
+  subtitle: { fontSize: 13, lineHeight: 19, marginTop: Spacing.xs},
   list: { padding: Spacing.md, paddingBottom: 110 },
   emptyList: { flexGrow: 1, justifyContent: 'center', padding: Spacing.lg, paddingBottom: 110 },
-  jobCard: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.sm },
+  jobCard: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.xs},
   jobHeader: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start' },
   jobId: { fontSize: 16, fontWeight: '800' },
-  reference: { fontSize: 12, marginTop: 2 },
+  reference: { fontSize: 12, marginTop: Spacing.xs},
   status: { borderRadius: Radius.full, paddingHorizontal: 9, paddingVertical: 5 },
   statusText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
-  assignmentRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.sm },
+  assignmentRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.xs},
   assignmentText: { fontSize: 13, fontWeight: '600', marginRight: Spacing.sm },
-  items: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: Spacing.md, paddingTop: Spacing.sm, gap: 6 },
+  items: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: Spacing.xs, paddingTop: Spacing.sm, gap: 6 },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   itemName: { flex: 1, fontSize: 13, fontWeight: '600' },
   itemQuantity: { fontSize: 12, fontWeight: '700' },
-  readMoreButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 3, paddingVertical: 3 },
+  readMoreButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: Spacing.xs, paddingVertical: 3 },
   readMoreText: { fontSize: 12, fontWeight: '800' },
   fab: { position: 'absolute', right: 22, bottom: 26, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', elevation: 7, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 5 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.5)' },
   sheet: { maxHeight: '92%', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0 },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, padding: Spacing.lg, paddingBottom: Spacing.sm },
   sheetTitle: { fontSize: 20, fontWeight: '800' },
-  sheetSubtitle: { fontSize: 12, lineHeight: 17, marginTop: 3 },
+  sheetSubtitle: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs},
   closeButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   sheetContent: { padding: Spacing.lg, paddingTop: Spacing.sm, paddingBottom: 42 },
-  notice: { flexDirection: 'row', gap: Spacing.sm, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.md },
+  notice: { flexDirection: 'row', gap: Spacing.sm, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs},
   noticeText: { flex: 1, fontSize: 12, lineHeight: 18, fontWeight: '600' },
   assignmentGrid: { flexDirection: 'row', gap: Spacing.sm },
   assignmentField: { flex: 1 },
-  busyAssignmentText: { color: '#B45309', fontSize: 12, fontWeight: '700', marginTop: -Spacing.sm, marginBottom: Spacing.sm },
-  productsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, marginTop: Spacing.sm, marginBottom: Spacing.sm },
+  busyAssignmentText: { color: '#B45309', fontSize: 12, fontWeight: '700', marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  productsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, marginTop: Spacing.xs, marginBottom: Spacing.xs},
   productsTitle: { fontSize: 17, fontWeight: '800' },
-  productsSubtitle: { fontSize: 12, marginTop: 2 },
+  productsSubtitle: { fontSize: 12, marginTop: Spacing.xs},
   addProductButton: { minHeight: 36, paddingHorizontal: Spacing.sm, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: 3 },
   addProductText: { fontSize: 12, fontWeight: '800' },
-  lineCard: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm, position: 'relative' },
+  lineCard: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs, position: 'relative' },
   removeProductButton: { position: 'absolute', top: 8, right: 8, zIndex: 1, padding: 2 },
   packagingSection: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, gap: Spacing.sm },
   packagingHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
   packagingTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 },
   packagingIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   packagingTitle: { fontSize: 15, fontWeight: '800' },
-  packagingSubtitle: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  packagingSubtitle: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs},
   photoStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: Radius.full },
   photoStatusText: { fontSize: 11, fontWeight: '800' },
   packagingLargePreview: { width: '100%', height: 176, borderRadius: Radius.md, overflow: 'hidden' },
@@ -648,12 +648,12 @@ const styles = StyleSheet.create({
   packagingRemoveButton: { minHeight: 46, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: Radius.md },
   packagingButtonText: { fontSize: 13, fontWeight: '800' },
   packagingPhoto: { width: 76, height: 58, borderRadius: Radius.sm, backgroundColor: '#E2E8F0' },
-  cardPhoto: { width: '100%', height: 164, borderRadius: Radius.md, marginTop: Spacing.md, backgroundColor: '#E2E8F0' },
+  cardPhoto: { width: '100%', height: 164, borderRadius: Radius.md, marginTop: Spacing.xs, backgroundColor: '#E2E8F0' },
   photoHint: { position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(15,23,42,0.76)', borderRadius: Radius.full, paddingHorizontal: 9, paddingVertical: 5 },
   photoHintText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
-  missingPhotoButton: { marginTop: Spacing.sm, minHeight: 40, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  missingPhotoButton: { marginTop: Spacing.xs, minHeight: 40, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   missingPhotoText: { color: '#B45309', fontSize: 12, fontWeight: '800' },
-  submitButton: { minHeight: 52, borderRadius: Radius.md, marginTop: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
+  submitButton: { minHeight: 52, borderRadius: Radius.md, marginTop: Spacing.xs, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   submitText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   imagePreviewBackdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.96)', alignItems: 'center', justifyContent: 'center', padding: Spacing.md },
   imagePreviewClose: { position: 'absolute', top: 52, right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center', zIndex: 1 },

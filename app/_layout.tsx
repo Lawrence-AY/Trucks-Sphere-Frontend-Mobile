@@ -8,6 +8,7 @@ import { useTheme, useThemeMode } from '../hooks/useTheme';
 import { useThemeStore } from '../store/themeStore';
 import Toast from 'react-native-toast-message';
 import WebLayout from '../components/WebLayout';
+import WebAlerts from '../components/WebAlerts';
 import { setOnAuthExpired } from '../services/api';
 import { ManagementRouteGuard } from '../components/management/ManagementRouteGuard';
 import { CLEAR_HIDDEN_STACK_SCREEN_OPTIONS } from '../components/ui/stackScreenOptions';
@@ -75,12 +76,15 @@ export default function RootLayout() {
             <Stack.Screen name="operator-fuel" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="operator-quarry" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="warehouse" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="inspector" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="screens" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="session" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="track" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             </Stack>
           </WebLayout>
         </ManagementRouteGuard>
         <Toast />
+        <WebAlerts />
       </PaperThemeProvider>
     </GestureHandlerRootView>
   );

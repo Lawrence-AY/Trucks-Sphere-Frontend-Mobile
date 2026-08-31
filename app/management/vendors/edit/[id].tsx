@@ -26,9 +26,12 @@ import { Card } from '../../../../components/ui/Card';
 import { Input } from '../../../../components/ui/Input';
 import { Select } from '../../../../components/ui/Select';
 import { Button } from '../../../../components/ui/Button';
+import { ConfirmDialog } from '../../../../components/ui/ConfirmDialog';
 import { LoadingSkeleton } from '../../../../components/ui/LoadingSkeleton';
 import { vendorRepository } from '../../../../services/repositories/VendorRepository';
 import { Vendor } from '../../../../store/types';
+import { useAuthStore } from '../../../../store/authStore';
+import { MANAGEMENT_ROLES, normalizeRole } from '../../../../utils/access';
 
 const STATUS_OPTIONS = [
   { id: 'active', name: 'Active' },
@@ -39,9 +42,13 @@ const STATUS_OPTIONS = [
 export default function EditVendorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const canDeleteVendor = normalizeRole(user?.role) === MANAGEMENT_ROLES.SUPER_ADMIN;
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [form, setForm] = useState({
     companyName: '',
     contactPerson: '',
@@ -130,6 +137,21 @@ export default function EditVendorScreen() {
       Alert.alert('Error', err?.message || 'Failed to update vendor');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await vendorRepository.delete(id!);
+      Alert.alert('Deleted', 'Vendor deleted successfully.', [
+        { text: 'OK', onPress: () => router.replace('/management/vendors' as any) },
+      ]);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to delete vendor');
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   }
 
@@ -238,7 +260,28 @@ export default function EditVendorScreen() {
             loading={saving}
           />
         </View>
+
+        {canDeleteVendor ? (
+          <Button
+            title="Delete Vendor"
+            onPress={() => setShowDeleteConfirm(true)}
+            variant="danger"
+            icon="trash-outline"
+            loading={deleting}
+            fullWidth
+          />
+        ) : null}
       </ScrollView>
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        title="Delete Vendor"
+        message={`Delete ${vendor?.companyName || 'this vendor'}? This cannot be undone.`}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+        loading={deleting}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -251,21 +294,18 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 14, marginTop: Spacing.xs,
   },
   actions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Spacing.md, marginTop: Spacing.xs,
   },
   actionBtn: {
     flex: 1,

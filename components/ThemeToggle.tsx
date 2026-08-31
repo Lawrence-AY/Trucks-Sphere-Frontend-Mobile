@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Spacing } from '../constants/theme';
 import { useTheme, useThemeMode } from '../hooks/useTheme';
 
 /** A compact appearance switch designed for persistent navigation drawers. */
@@ -36,8 +37,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     minHeight: 58,
-    marginHorizontal: 16,
-    marginTop: 12,
+    marginHorizontal: 16, marginTop: Spacing.xs,
     paddingHorizontal: 12,
     borderWidth: 1,
     borderRadius: 8,
@@ -58,7 +58,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 11,
-    fontWeight: '600',
-    marginTop: 1,
+    fontWeight: '600', marginTop: Spacing.xs,
   },
 });

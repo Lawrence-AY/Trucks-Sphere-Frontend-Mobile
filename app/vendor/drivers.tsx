@@ -97,6 +97,7 @@ export default function VendorDriversScreen() {
         driverWithStats.map((driver) => (
           <DataCard
             key={driver.id}
+            style={driver.securityFlag?.status === 'cleared' ? { borderColor: '#A78BFA', borderWidth: 1.5 } : undefined}
             onPress={() =>
               router.push(`/screens/driver-history?id=${driver.id}&name=${encodeURIComponent(driver.name)}` as any)
             }
@@ -118,7 +119,7 @@ export default function VendorDriversScreen() {
                   </Text>
                 
                 </View>
-                <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
+                <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: Spacing.xs}}>
                   {driver.phone || 'No phone'}
                 </Text>
               </View>
@@ -139,6 +140,7 @@ export default function VendorDriversScreen() {
               </View>
             </View>
                        <DetailRow icon="id-card-outline" value={`National ID: ${driver.nationalId || 'N/A'}`} />
+          {driver.securityFlag?.status === 'cleared' ? <Text style={styles.clearedLabel}>Unsuspended after security clearance</Text> : null}
 
           </DataCard>
         ))
@@ -184,4 +186,5 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   miniStatText: { fontSize: 12, fontWeight: '600' },
+  clearedLabel: { color: '#6D28D9', fontSize: 12, fontWeight: '700', marginTop: Spacing.xs },
 });

@@ -570,7 +570,7 @@ export default function FuelDispenseScreen() {
               </Text>
             </View>
             <Text
-              style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}
+              style={{ fontSize: 12, color: colors.textMuted, marginTop: Spacing.xs}}
             >
               Tap the + button to view and dispense fuel
             </Text>
@@ -764,8 +764,7 @@ export default function FuelDispenseScreen() {
                                     styles.selectSub,
                                     {
                                       color: "#10B981",
-                                      fontWeight: "600",
-                                      marginTop: 1,
+                                      fontWeight: "600", marginTop: Spacing.xs,
                                     },
                                   ]}
                                 >
@@ -1410,8 +1409,7 @@ export default function FuelDispenseScreen() {
                   {/* Fuel price info */}
                   {store.flowFuelAmount && fuelPrice > 0 ? (
                     <View
-                      style={{
-                        marginTop: Spacing.sm,
+                      style={{ marginTop: Spacing.xs,
                         flexDirection: "row",
                         alignItems: "center",
                         gap: Spacing.sm,
@@ -1609,8 +1607,7 @@ export default function FuelDispenseScreen() {
               style={{
                 fontSize: 14,
                 color: colors.textMuted,
-                textAlign: "center",
-                marginBottom: Spacing.lg,
+                textAlign: "center", marginBottom: Spacing.xs,
               }}
             >
               Enter the Authorization PIN sent to the vendor's phone.
@@ -1722,8 +1719,7 @@ const styles = StyleSheet.create({
   flowHead: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
 
   sheetTitle: {
@@ -1732,8 +1728,7 @@ const styles = StyleSheet.create({
   },
 
   sheetSub: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
 
   iconButton: {
@@ -1748,8 +1743,7 @@ const styles = StyleSheet.create({
   stepRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.lg,
+    justifyContent: "center", marginBottom: Spacing.xs,
     paddingHorizontal: Spacing.xl,
   },
 
@@ -1790,8 +1784,7 @@ const styles = StyleSheet.create({
   },
 
   selectSub: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
 
   fuelChip: {
@@ -1801,8 +1794,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 4,
+    borderWidth: 1, marginTop: Spacing.xs,
     alignSelf: "flex-start",
   },
 
@@ -1892,8 +1884,7 @@ const styles = StyleSheet.create({
   inputHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
 
   inputIcon: {
@@ -1910,8 +1901,7 @@ const styles = StyleSheet.create({
   },
 
   inputSub: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
 
   fuelInputWrap: {
@@ -1946,8 +1936,7 @@ const styles = StyleSheet.create({
 
   photoPreviewWrap: {
     borderRadius: Radius.md,
-    overflow: "hidden",
-    marginBottom: Spacing.md,
+    overflow: "hidden", marginBottom: Spacing.xs,
     minHeight: 180,
     justifyContent: "center",
     alignItems: "center",
@@ -1966,8 +1955,7 @@ const styles = StyleSheet.create({
 
   photoPlaceholderText: {
     fontSize: 13,
-    color: "#94A3B8",
-    marginTop: Spacing.sm,
+    color: "#94A3B8", marginTop: Spacing.xs,
   },
 
   photoOverlay: {
@@ -2014,8 +2002,7 @@ const styles = StyleSheet.create({
   otpHead: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: Spacing.sm,
+    justifyContent: "space-between", marginBottom: Spacing.xs,
   },
 
   otpTitle: {
@@ -2026,8 +2013,7 @@ const styles = StyleSheet.create({
   otpInputWrap: {
     borderRadius: Radius.md,
     borderWidth: 2,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md, marginBottom: Spacing.xs,
   },
 
   otpInput: {

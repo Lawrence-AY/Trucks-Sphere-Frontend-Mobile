@@ -14,7 +14,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Switch,
@@ -30,6 +29,7 @@ import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
 import { materialRepository } from '../../../services/repositories/MaterialRepository';
+import { showAlertWithCallback } from '../../../utils/webAlert';
 import { MaterialCategory, MeasurementUnit, MaterialProperty } from '../../../store/types';
 
 const CATEGORIES: { id: MaterialCategory; name: string }[] = [
@@ -136,7 +136,6 @@ export default function CreateMaterialScreen() {
         description: form.description.trim() || undefined,
         unitPrice: form.unitPrice.trim() ? Number(form.unitPrice) : undefined,
         salesPrice: form.salesPrice.trim() ? Number(form.salesPrice) : undefined,
-        barcode: form.barcode.trim() || undefined,
         weight: form.weight.trim() ? Number(form.weight) : undefined,
         volume: form.volume.trim() ? Number(form.volume) : undefined,
         isWarehouseMaterial: form.isWarehouseMaterial,
@@ -144,15 +143,15 @@ export default function CreateMaterialScreen() {
         status: 'active',
       });
 
-      Alert.alert('Success', 'Material created successfully', [
-        {
-          text: 'View Materials',
-          onPress: () => router.back(),
-        },
-      ]);
+      materialRepository.invalidateCache();
+      await showAlertWithCallback('Material created', 'Material created successfully.', () => router.back());
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to create material';
-      Alert.alert('Error', msg);
+      const errorCode = String(err?.code || '').toUpperCase();
+      const isRequestTimeout = errorCode === 'NETWORK_TIMEOUT' || errorCode === 'ECONNABORTED';
+      const msg = isRequestTimeout
+        ? 'The server is still confirming this material with Odoo. It may already have been created and synced. Go back and refresh the Materials list before trying again to avoid a duplicate.'
+        : err?.response?.data?.message || err?.message || 'Failed to create material';
+      await showAlertWithCallback('Unable to create material', msg, () => {});
     } finally {
       setSaving(false);
     }
@@ -253,13 +252,6 @@ export default function CreateMaterialScreen() {
             icon="pricetag-outline"
             keyboardType="numeric"
             error={errors.salesPrice}
-          />
-          <Input
-            label="Barcode"
-            value={form.barcode}
-            onChangeText={(v) => updateField('barcode', v)}
-            placeholder="Optional product barcode"
-            icon="barcode-outline"
           />
           <Input
             label="Weight (kg)"
@@ -389,19 +381,16 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing['4xl'],
   },
-  header: {
-    marginBottom: Spacing.lg,
+  header: { marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 14, marginTop: Spacing.xs,
   },
-  propertiesSection: {
-    marginTop: Spacing.lg,
+  propertiesSection: { marginTop: Spacing.xs,
   },
   warehouseOption: {
     flexDirection: 'row',
@@ -409,16 +398,14 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     padding: Spacing.md,
     borderWidth: 1,
-    borderRadius: Radius.md,
-    marginBottom: Spacing.md,
+    borderRadius: Radius.md, marginBottom: Spacing.xs,
   },
   warehouseOptionTitle: { fontSize: 14, fontWeight: '700' },
-  warehouseOptionText: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  warehouseOptionText: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs},
   propertiesHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   sectionTitle: {
     fontSize: 18,
@@ -444,13 +431,11 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   removeProp: {
-    padding: Spacing.sm,
-    marginBottom: Spacing.sm,
+    padding: Spacing.sm, marginBottom: Spacing.xs,
   },
   actions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Spacing.md, marginTop: Spacing.xs,
   },
   actionBtn: {
     flex: 1,

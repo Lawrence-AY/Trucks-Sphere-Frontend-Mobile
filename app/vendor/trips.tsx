@@ -141,7 +141,7 @@ export default function VendorTripsScreen() {
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                     {item.jobId || item.id}
                   </Text>
-                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: Spacing.xs}}>
                     PO: {item.poNumber || 'N/A'}
                   </Text>
                 </View>

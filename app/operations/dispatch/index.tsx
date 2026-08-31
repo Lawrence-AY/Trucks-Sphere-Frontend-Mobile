@@ -193,16 +193,14 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   list: {
     padding: Spacing.md,
@@ -212,26 +210,22 @@ const styles = StyleSheet.create({
   jobCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   jobHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
+    justifyContent: 'space-between', marginBottom: Spacing.xs,
   },
   jobId: {
     fontSize: 15,
     fontWeight: '700',
   },
   jobPO: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   jobDetails: {
-    gap: 4,
-    marginBottom: Spacing.md,
+    gap: 4, marginBottom: Spacing.xs,
   },
   detailItem: {
     flexDirection: 'row',

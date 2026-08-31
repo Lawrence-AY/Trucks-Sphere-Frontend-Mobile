@@ -33,13 +33,43 @@ export function getErrorCode(error: any): string {
 }
 
 const PUBLIC_ERROR_MESSAGES: Record<string, string> = {
+  HTTP_400: 'The information provided is invalid. Please check it and try again.',
+  HTTP_401:
+    'Invalid username or password. Please check your details and try again.',
+  NETWORK_TIMEOUT:
+    'The server took too long to respond. Check the local network connection and try again.',
+  NETWORK_UNAVAILABLE:
+    'Unable to reach the server. Check that the backend is running and this device can reach it.',
+  HTTP_403: 'You do not have permission to complete this action.',
+  HTTP_404: 'The requested item could not be found.',
+  HTTP_409: 'This action conflicts with an existing record. Refresh and try again.',
+  HTTP_429: 'Too many requests. Please wait a moment and try again.',
+  HTTP_500: 'The server could not complete this action. Please try again shortly.',
+  VENDOR_ALREADY_EXISTS:
+    'A matching vendor already exists. Refresh the Vendors list before trying again.',
   ACTIVE_JOB_RESOURCE_CONFLICT:
     'This driver or truck already has an active delivery. Complete or cancel that delivery, or select another driver or truck.',
+  MATERIAL_INSPECTION_REQUIRED:
+    'Complete the Material Inspection & Receipt Form before site weigh-out.',
+  SECURITY_FLAG_UNRESOLVED:
+    'This delivery has a security flag. It must be cleared and the fleet unsuspended before site weigh-in.',
+  IPRS_IDENTITY_MISMATCH:
+    'The National ID does not match the provided first name and surname.',
+  IPRS_IDENTITY_DETAILS_REQUIRED:
+    'First name, surname, and National ID are required for IPRS verification.',
+  IPRS_NOT_CONFIGURED:
+    'IPRS verification is enabled but has not been configured.',
+  IPRS_UNAVAILABLE:
+    'IPRS is currently unavailable. Please try again later.',
+  IPRS_SESSION_FAILED:
+    'IPRS is currently unavailable. Please try again later.',
+  IPRS_VERIFICATION_FAILED:
+    'IPRS is currently unavailable. Please try again later.',
 };
 
 export function toPublicError(error: any): Error {
   const code = getErrorCode(error);
-  return Object.assign(new Error(PUBLIC_ERROR_MESSAGES[code] || `Error code: ${code}`), {
+  return Object.assign(new Error(PUBLIC_ERROR_MESSAGES[code] || 'Unable to complete the request. Please try again.'), {
     code,
     statusCode: error?.response?.status || null,
     isPublicError: true,
@@ -83,6 +113,7 @@ async function backendRequest<T>(
   url: string,
   data?: any,
   params?: any,
+  options?: { silentTransportFailure?: boolean },
 ): Promise<T> {
   const token = await getStoredToken();
   const headers: Record<string, string> = {};
@@ -91,6 +122,9 @@ async function backendRequest<T>(
   if (data !== undefined) {
     headers["Content-Type"] = "application/json";
   }
+  // Creation can allocate counters and start Odoo synchronisation. It should
+  // not be misreported as a failed delivery on slower LAN connections.
+  const timeout = method === 'post' && ['/api/purchase-orders', '/api/delivery-orders'].includes(url) ? 45000 : 10000;
   const sendRequest = (accessToken: string | null) => axios.request<T>({
     baseURL: API_BASE_URL,
     url,
@@ -98,14 +132,28 @@ async function backendRequest<T>(
     data,
     params,
     headers: accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers,
-    timeout: 10000,
+    timeout,
   });
   try {
     const response = await sendRequest(token);
     return response.data;
-  } catch (error: any) {
+  } catch (originalError: any) {
+    // Browser requests to a LAN API can occasionally fail while the browser
+    // reconnects to the local network. Retry read-only requests once before
+    // treating the collection as unavailable; never retry writes automatically.
+    let error = originalError;
+    let status = error?.response?.status;
+    if (method === 'get' && !status) {
+      try {
+        await new Promise<void>((resolve) => setTimeout(resolve, 350));
+        const retryResponse = await sendRequest(token);
+        return retryResponse.data;
+      } catch (retryError: any) {
+        error = retryError;
+        status = error?.response?.status;
+      }
+    }
     const requestUrl = `${API_BASE_URL}${url}`;
-    const status = error?.response?.status;
     const errorCode =
       error?.response?.data?.code ||
       error?.response?.data?.errorInfo?.code ||
@@ -122,8 +170,14 @@ async function backendRequest<T>(
     }
     // Keep transport diagnostics out of production device logs. Callers
     // receive a stable, non-sensitive error code via `toPublicError` below.
-    if (__DEV__) {
-      const logRequestFailure = status && status < 500 ? console.warn : console.error;
+    // Session restoration deliberately handles a profile failure by retrying
+    // once or returning the user to sign-in. Do not emit a red development
+    // error for that caller-managed state transition.
+    const isSessionProfileRequest = url === '/api/auth/profile';
+    if (__DEV__ && !isSessionProfileRequest && !options?.silentTransportFailure) {
+      // Collection screens already retain their current data after a transport
+      // failure. Keep this as a non-blocking warning rather than a red error.
+      const logRequestFailure = console.warn;
       logRequestFailure(`[API] ${method.toUpperCase()} ${requestUrl} failed`, {
         status: status || null,
         code: errorCode || null,
@@ -194,13 +248,14 @@ function unwrapOne<T = any>(data: any, fallback: T): T {
 async function safeFetch<T>(
   label: string,
   fetcher: () => Promise<T[]>,
+  options?: { silentTransportFailure?: boolean },
 ): Promise<T[]> {
   try {
     const result = await fetcher();
     return result;
   } catch (error: any) {
     const msg = error?.message || error?.code || String(error);
-    if (__DEV__) {
+    if (__DEV__ && !options?.silentTransportFailure) {
       console.warn(`[API] ${label} collection request failed; retaining existing store data.`, msg);
     }
     return [];
@@ -278,7 +333,7 @@ export async function fetchDeliveryOrders(params?: {
 
 export async function previewPurchaseOrderNumber(
   vendorId: string,
-  materialId: string,
+  materialId?: string,
 ): Promise<string> {
   const result = await backendRequest<{ poNumber?: string }>(
     "get",
@@ -704,6 +759,29 @@ const api: ApiClient = {
 
 // ============== Public Tracking API (no auth required) ==============
 
+export async function startSecurityTrackingSession(securityCode: string, location?: any): Promise<any> {
+  const response = await axios.post(`${API_BASE_URL}/api/track/sessions`, { securityCode, location }, { timeout: 8000, headers: { 'Content-Type': 'application/json' } });
+  return response.data;
+}
+
+export async function selectSecurityTrackingVehicle(sessionId: string, token: string, plateNumber: string): Promise<any> {
+  const response = await axios.post(`${API_BASE_URL}/api/track/sessions/${encodeURIComponent(sessionId)}/vehicle`, { token, plateNumber }, { timeout: 8000, headers: { 'Content-Type': 'application/json' } });
+  return response.data;
+}
+
+export async function recordSecurityTrackingDecision(sessionId: string, token: string, outcome: 'verified' | 'flagged', reason?: string): Promise<any> {
+  const response = await axios.post(`${API_BASE_URL}/api/track/sessions/${encodeURIComponent(sessionId)}/decision`, { token, outcome, reason }, { timeout: 8000, headers: { 'Content-Type': 'application/json' } });
+  return response.data;
+}
+
+export async function fetchTrackingFlags(): Promise<any[]> {
+  return backendRequest<any>('get', '/api/track/flags').then(unwrapItems);
+}
+
+export async function clearTrackingFlag(id: string, reason: string): Promise<any> {
+  return backendRequest<any>('post', `/api/track/flags/${encodeURIComponent(id)}/clear`, { reason });
+}
+
 /**
  * Fetch public tracking data for a given tracking ID.
  * This endpoint does NOT require authentication — it is a public URL.
@@ -1008,8 +1086,10 @@ export async function downloadVendorCategoryCSV(
 // ============== Issues API ==============
 
 export async function fetchIssues(params?: { status?: string }): Promise<any[]> {
-  return safeFetch('issues', () =>
-    backendRequest<any>('get', '/api/issues', undefined, params).then(unwrapItems),
+  return safeFetch(
+    'issues',
+    () => backendRequest<any>('get', '/api/issues', undefined, params, { silentTransportFailure: true }).then(unwrapItems),
+    { silentTransportFailure: true },
   );
 }
 

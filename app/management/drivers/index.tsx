@@ -281,8 +281,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   searchInput: {
     flex: 1,
@@ -296,8 +295,7 @@ const styles = StyleSheet.create({
   driverCard: {
     borderRadius: 5,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: 0.1,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   driverHeader: {
     flexDirection: 'row',
@@ -331,8 +329,7 @@ const styles = StyleSheet.create({
   vendorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    gap: 4, marginTop: Spacing.xs,
   },
   vendorLabel: {
     fontSize: 12,
@@ -342,8 +339,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.lg,
-    paddingTop: Spacing.md,
-    marginTop: Spacing.md,
+    paddingTop: Spacing.md, marginTop: Spacing.xs,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   metaItem: {

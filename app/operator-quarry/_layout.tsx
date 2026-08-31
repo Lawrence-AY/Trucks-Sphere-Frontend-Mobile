@@ -99,6 +99,7 @@ export default function OperatorQuarryLayout() {
         screenOptions={{
           tabBarActiveTintColor: colors.tabActive,
           tabBarInactiveTintColor: colors.tabInactive,
+          tabBarHideOnKeyboard: true,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           // Keep this tab bar in the normal layout flow. The dashboard FAB is
@@ -190,7 +191,7 @@ export default function OperatorQuarryLayout() {
               <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                 {user?.displayName || 'User'}
               </Text>
-              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
+              <View style={{ marginTop: Spacing.xs, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>
                   {getRoleLabel(user?.role || '')}
                 </Text>
@@ -291,8 +292,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   drawerItem: {
     flexDirection: 'row',
@@ -329,8 +329,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#FEF2F2',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   logoutTitle: {
     color: '#1E293B',
@@ -339,9 +338,7 @@ const styles = StyleSheet.create({
   },
   logoutMessage: {
     color: '#64748B',
-    fontSize: 14,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xl,
+    fontSize: 14, marginTop: Spacing.xs, marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   logoutActions: {

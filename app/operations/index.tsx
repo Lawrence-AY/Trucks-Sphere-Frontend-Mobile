@@ -301,16 +301,14 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
   },
   subtitle: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   searchBar: {
     flexDirection: 'row',
@@ -330,8 +328,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: Spacing['4xl'],
   },
-  section: {
-    marginBottom: Spacing.md,
+  section: { marginBottom: Spacing.xs,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -370,20 +367,17 @@ const styles = StyleSheet.create({
   jobHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
+    justifyContent: 'space-between', marginBottom: Spacing.xs,
   },
   jobId: {
     fontSize: 15,
     fontWeight: '700',
   },
   jobPO: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
   jobDetails: {
-    gap: 4,
-    marginBottom: Spacing.sm,
+    gap: 4, marginBottom: Spacing.xs,
   },
   jobDetailItem: {
     flexDirection: 'row',

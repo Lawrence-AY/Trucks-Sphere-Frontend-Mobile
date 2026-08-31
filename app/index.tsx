@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Spacing } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
 import { isManagementRole, managementHomeRoute } from '../utils/access';
 
@@ -76,6 +77,7 @@ export default function IndexScreen() {
         case 'operator_site': router.replace('/operator-site/schedule' as any); break;
         case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
         case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
+        case 'inspector': router.replace('/inspector' as any); break;
         case 'operator_warehouse': router.replace('/warehouse' as any); break;
         default: router.replace('/management/dashboard' as any);
       }
@@ -211,8 +213,7 @@ const styles = StyleSheet.create({
   containerLine: {
     height: 2,
     borderRadius: 2,
-    backgroundColor: '#2F6386',
-    marginBottom: 13,
+    backgroundColor: '#2F6386', marginBottom: Spacing.xs,
   },
   wheelRow: {
     position: 'absolute',
@@ -244,8 +245,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#2EE9D4',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
+    justifyContent: 'center', marginBottom: Spacing.xs,
     backgroundColor: 'rgba(16, 185, 129, 0.08)',
   },
   logoLetters: {
@@ -263,8 +263,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     color: '#B7C7D8',
-    fontSize: 12,
-    marginTop: 8,
+    fontSize: 12, marginTop: Spacing.xs,
     fontWeight: '600',
   },
   footer: {
@@ -273,8 +272,7 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#D8E7F6',
     fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 14,
+    fontWeight: '700', marginBottom: Spacing.xs,
     textTransform: 'uppercase',
   },
   progressTrack: {

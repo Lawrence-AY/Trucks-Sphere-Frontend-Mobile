@@ -63,10 +63,10 @@ export default function ManagementLiteHome() {
 }
 
 const styles = StyleSheet.create({
-  intro: { marginTop: -Spacing.xs, marginBottom: Spacing.sm, fontSize: 14 },
+  intro: { marginTop: Spacing.xs, marginBottom: Spacing.xs, fontSize: 14 },
   metricRow: { flexDirection: 'row', gap: Spacing.xs },
   card: { minHeight: 82, borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   cardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   icon: { width: 46, height: 46, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 16, fontWeight: '800', marginBottom: 2 },
+  title: { fontSize: 16, fontWeight: '800', marginBottom: Spacing.xs},
 });

@@ -373,6 +373,7 @@ export default function OperatorSiteWeightsScreen() {
   /* ─── Active Job Calculations ─── */
 
   const siteWeighIn = activeJob?.siteWeighInWeight ?? activeJob?.siteArrivalWeight ?? 0;
+  const activeSecurityFlag = activeJob?.securityFlag?.status === 'flagged' || activeJob?.isFlagged === true || activeJob?.siteArrivalWeightVarianceFlagged === true || activeJob?.hasWeightDiscrepancy === true;
   const weightOutNum = parseFloat(weightOutInput);
 
   const netWeight =
@@ -618,6 +619,15 @@ export default function OperatorSiteWeightsScreen() {
                 </Text>
               </View>
             </View>
+            {activeSecurityFlag ? (
+              <View style={styles.securityFlagAlert}>
+                <Ionicons name="warning-outline" size={20} color="#B91C1C" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.securityFlagAlertTitle}>Security flag raised</Text>
+                  <Text style={styles.securityFlagAlertText}>{activeJob.securityFlag?.reason || 'This delivery requires review before it is finalized.'}</Text>
+                </View>
+              </View>
+            ) : null}
             <DetailRow
               icon="person-outline"
               value={`${activeJob.driverName || 'N/A'} · ${activeJob.plateNumber || 'N/A'}`}
@@ -896,7 +906,7 @@ export default function OperatorSiteWeightsScreen() {
                     {weightOutNum.toFixed(1)} T
                   </Text>
                 </View>
-                <View style={[styles.grnDivider, { marginTop: 4 }]} />
+                <View style={[styles.grnDivider, { marginTop: Spacing.xs}]} />
                 <View style={styles.grnRow}>
                   <Text
                     style={[
@@ -1040,7 +1050,7 @@ export default function OperatorSiteWeightsScreen() {
                       {weightOutNum.toFixed(1)} T
                     </Text>
                   </View>
-                  <View style={[styles.grnDivider, { marginTop: 4 }]} />
+                  <View style={[styles.grnDivider, { marginTop: Spacing.xs}]} />
                   <View style={styles.grnRow}>
                     <Text
                       style={[
@@ -1144,10 +1154,13 @@ export default function OperatorSiteWeightsScreen() {
           const isCompleted =
             item.status === 'completed' || item.status === 'delivered';
           const lotNum = item.storageLot || item.lotNumber || item.destinationLot || '';
+          const hasSecurityFlag = item.securityFlag?.status === 'flagged' || item.isFlagged === true;
+          const hasWeightFlag = item.siteArrivalWeightVarianceFlagged === true || item.hasWeightDiscrepancy === true;
 
           return (
             <DataCard
               key={item.id}
+              style={hasSecurityFlag ? { borderColor: '#B45309', borderWidth: 1.5, backgroundColor: '#FFFBEB' } : hasWeightFlag ? { borderColor: '#DC2626', borderWidth: 1.5 } : undefined}
               onPress={() => !isCompleted && openWeighForm(item)}
             >
               <View
@@ -1174,6 +1187,16 @@ export default function OperatorSiteWeightsScreen() {
                 icon="cube-outline"
                 value={`${item.materialName || 'Material'}${lotNum ? ` · Lot: ${lotNum}` : ''}`}
               />
+
+              {hasSecurityFlag || hasWeightFlag ? (
+                <View style={styles.securityFlagAlert}>
+                  <Ionicons name="warning-outline" size={18} color="#B91C1C" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.securityFlagAlertTitle}>{hasSecurityFlag ? 'Security flag raised' : 'Weight flag raised'}</Text>
+                    <Text style={styles.securityFlagAlertText}>{item.securityFlag?.reason || item.flagReason || item.differenceNote || 'Review this delivery before finalizing site weights.'}</Text>
+                  </View>
+                </View>
+              ) : null}
 
               <View
                 style={[
@@ -1251,23 +1274,23 @@ const styles = StyleSheet.create({
   jobCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    padding: Spacing.lg, marginBottom: Spacing.xs,
   },
   jobCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
+    alignItems: 'flex-start', marginBottom: Spacing.xs,
   },
   jobCardTitle: { fontSize: 18, fontWeight: '800' },
-  jobPo: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.sm },
+  jobPo: { fontSize: 12, fontWeight: '600', marginTop: Spacing.xs},
+  securityFlagAlert: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, padding: Spacing.sm, marginBottom: Spacing.sm, backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', borderWidth: 1, borderRadius: Radius.md },
+  securityFlagAlertTitle: { color: '#B91C1C', fontSize: 13, fontWeight: '800' },
+  securityFlagAlertText: { color: '#7F1D1D', fontSize: 12, fontWeight: '600', marginTop: 2, lineHeight: 17 },
+  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.xs},
   sectionLabel: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: Spacing.sm,
+    letterSpacing: 1, marginBottom: Spacing.xs,
   },
   recordedWeightBox: {
     flexDirection: 'row',
@@ -1295,7 +1318,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
   },
-  qwValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
+  qwValue: { fontSize: 14, fontWeight: '800', marginTop: Spacing.xs},
   stageLabel: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1303,8 +1326,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    marginBottom: Spacing.sm,
+    borderWidth: 1, marginBottom: Spacing.xs,
   },
   stageLabelText: {
     fontSize: 13,
@@ -1315,14 +1337,12 @@ const styles = StyleSheet.create({
   inputCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    padding: Spacing.lg, marginBottom: Spacing.xs,
   },
   inputHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   inputIcon: {
     width: 40,
@@ -1332,23 +1352,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   inputTitle: { fontSize: 16, fontWeight: '700' },
-  inputSub: { fontSize: 12, marginTop: 2 },
+  inputSub: { fontSize: 12, marginTop: Spacing.xs},
   weightInputWrap: {
     borderRadius: Radius.md,
     borderWidth: 2,
     paddingHorizontal: Spacing.md,
     height: 64,
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   weightInput: { flex: 1, fontSize: 28, fontWeight: '800' },
   weightSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
   netPreview: {
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
+    padding: Spacing.md, marginTop: Spacing.xs,
     alignItems: 'center',
   },
   netLabel: {
@@ -1357,13 +1375,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  netValue: { fontSize: 28, fontWeight: '900', marginTop: 4 },
-  netCalc: { fontSize: 12, marginTop: 4 },
+  netValue: { fontSize: 28, fontWeight: '900', marginTop: Spacing.xs},
+  netCalc: { fontSize: 12, marginTop: Spacing.xs},
   diffRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 8,
+    width: '100%', marginTop: Spacing.xs,
     paddingHorizontal: 8,
   },
   diffLabel: { fontSize: 12, fontWeight: '600' },
@@ -1371,8 +1388,7 @@ const styles = StyleSheet.create({
   mismatchBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
+    gap: 6, marginTop: Spacing.xs,
     borderRadius: Radius.md,
     borderWidth: 1,
     padding: Spacing.sm,
@@ -1391,16 +1407,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
     gap: Spacing.sm,
-    minHeight: 50,
-    marginTop: Spacing.sm,
+    minHeight: 50, marginTop: Spacing.xs,
   },
   submitBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
   cancelBtn: {
     alignItems: 'center',
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    marginTop: Spacing.sm,
+    borderWidth: 1, marginTop: Spacing.xs,
   },
   cancelText: { fontSize: 14, fontWeight: '600' },
   listWeightBadge: {
@@ -1410,8 +1424,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.full,
-    marginTop: Spacing.sm,
+    borderRadius: Radius.full, marginTop: Spacing.xs,
   },
   listNetBadge: {
     flexDirection: 'row',
@@ -1420,8 +1433,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.full,
-    marginTop: 4,
+    borderRadius: Radius.full, marginTop: Spacing.xs,
   },
   tapHint: {
     flexDirection: 'row',
@@ -1430,8 +1442,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.full,
-    marginTop: 6,
+    borderRadius: Radius.full, marginTop: Spacing.xs,
   },
   tapHintText: { fontSize: 11, fontWeight: '700' },
   modalBackdrop: {
@@ -1455,24 +1466,20 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: Spacing.md,
+    alignSelf: 'center', marginBottom: Spacing.xs,
   },
   grnTitle: {
     fontSize: 20,
     fontWeight: '900',
-    textAlign: 'center',
-    marginBottom: Spacing.xs,
+    textAlign: 'center', marginBottom: Spacing.xs,
   },
   grnSub: {
     fontSize: 13,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
+    textAlign: 'center', marginBottom: Spacing.xs,
   },
   grnSummary: {
     borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
+    padding: Spacing.md, marginBottom: Spacing.xs,
     gap: 6,
   },
   grnRow: {
@@ -1485,8 +1492,7 @@ const styles = StyleSheet.create({
   grnValue: { fontSize: 13, fontWeight: '700' },
   grnDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 4,
+    backgroundColor: '#E2E8F0', marginVertical: Spacing.xs,
   },
   backorderNotice: {
     flexDirection: 'row',
@@ -1494,16 +1500,14 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     borderWidth: 1,
     borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginTop: Spacing.md,
+    padding: Spacing.md, marginTop: Spacing.xs,
   },
   backorderTitle: { fontSize: 13, fontWeight: '800' },
-  backorderText: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  backorderText: { fontSize: 12, fontWeight: '600', marginTop: Spacing.xs},
   grnActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
+    gap: Spacing.sm, marginBottom: Spacing.xs,
   },
   grnActionBtn: {
     flex: 1,
@@ -1529,15 +1533,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   grnDoneText: { fontSize: 14, fontWeight: '700' },
-  grnExportSection: {
-    marginBottom: Spacing.lg,
+  grnExportSection: { marginBottom: Spacing.xs,
   },
   grnExportTitle: {
     fontSize: 13,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
+    letterSpacing: 0.5, marginBottom: Spacing.xs,
   },
   grnDownloadRow: {
     flexDirection: 'row',

@@ -36,7 +36,7 @@ export function Card({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: Spacing.md,
+  card: { marginBottom: Spacing.sm,
+    minWidth: 0,
   },
 });

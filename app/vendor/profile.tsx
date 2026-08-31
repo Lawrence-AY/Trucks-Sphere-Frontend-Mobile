@@ -289,8 +289,8 @@ export default function VendorProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  editField: { marginBottom: Spacing.md },
-  editLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  editField: { marginBottom: Spacing.xs},
+  editLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.xs},
   editInput: {
     height: 46,
     borderRadius: Radius.md,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  editActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+  editActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs},
   editCancelBtn: {
     flex: 1, height: 44, borderRadius: Radius.md, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   editProfileBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: Spacing.sm, borderRadius: Radius.md,
-    borderWidth: 1, marginTop: Spacing.md,
+    borderWidth: 1, marginTop: Spacing.xs,
   },
   editProfileBtnText: { fontSize: 14, fontWeight: '700' },
 });
