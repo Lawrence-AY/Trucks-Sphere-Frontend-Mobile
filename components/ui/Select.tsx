@@ -53,11 +53,15 @@ export function Select({
   const [visible, setVisible] = useState(false);
   const [search, setSearch] = useState('');
   const selected = options.find((option) => option.id === value);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
+
     if (!query) return options;
+
     return options.filter((option) =>
-      option.name.toLowerCase().includes(query) || option.subtitle?.toLowerCase().includes(query)
+      option.name.toLowerCase().includes(query) ||
+      option.subtitle?.toLowerCase().includes(query)
     );
   }, [options, search]);
 
@@ -71,18 +75,26 @@ export function Select({
     <>
       <View style={styles.modalHeader}>
         <Text variant="titleLarge">Select {label}</Text>
-        <IconButton icon="close" onPress={() => setVisible(false)} />
+
+        <IconButton
+          icon="close"
+          onPress={() => {
+            Keyboard.dismiss();
+            setVisible(false);
+          }}
+        />
       </View>
+
       {searchable ? (
         <Searchbar
           placeholder={`Search ${label.toLowerCase()}...`}
           value={search}
           onChangeText={setSearch}
-          autoFocus
           style={styles.search}
           inputStyle={styles.searchInput}
         />
       ) : null}
+
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
@@ -92,24 +104,51 @@ export function Select({
             description={item.subtitle}
             titleNumberOfLines={2}
             descriptionNumberOfLines={1}
-            left={() => item.imageUrl ? <Avatar.Image size={34} source={{ uri: item.imageUrl }} /> : null}
+            left={() =>
+              item.imageUrl ? (
+                <Avatar.Image
+                  size={34}
+                  source={{ uri: item.imageUrl }}
+                />
+              ) : null
+            }
             onPress={() => {
+              Keyboard.dismiss();
               onSelect(item.id);
               setVisible(false);
             }}
-            right={() => item.id === value ? <List.Icon icon="check" color={colors.primary} /> : null}
+            right={() =>
+              item.id === value ? (
+                <List.Icon
+                  icon="check"
+                  color={colors.primary}
+                />
+              ) : null
+            }
           />
         )}
         ItemSeparatorComponent={Divider}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Ionicons name="search-outline" size={32} color={colors.textMuted} />
-            <Text variant="bodyMedium" style={{ color: colors.textMuted }}>
+            <Ionicons
+              name="search-outline"
+              size={32}
+              color={colors.textMuted}
+            />
+
+            <Text
+              variant="bodyMedium"
+              style={{ color: colors.textMuted }}
+            >
               No {label.toLowerCase()} found
             </Text>
           </View>
         }
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator
+        nestedScrollEnabled
+        style={styles.optionsList}
+        contentContainerStyle={styles.optionsContent}
       />
     </>
   );
@@ -130,12 +169,42 @@ export function Select({
             activeOutlineColor={colors.primary}
             textColor={selected ? colors.text : colors.textMuted}
             dense
-            left={icon ? <PaperTextInput.Icon icon={({ color, size }) => <Ionicons name={icon} color={color} size={size} />} /> : undefined}
-            right={<PaperTextInput.Icon icon={({ color, size }) => <Ionicons name="chevron-down" color={color} size={size} />} />}
+            left={
+              icon ? (
+                <PaperTextInput.Icon
+                  icon={({ color, size }) => (
+                    <Ionicons
+                      name={icon}
+                      color={color}
+                      size={size}
+                    />
+                  )}
+                />
+              ) : undefined
+            }
+            right={
+              <PaperTextInput.Icon
+                icon={({ color, size }) => (
+                  <Ionicons
+                    name="chevron-down"
+                    color={color}
+                    size={size}
+                  />
+                )}
+              />
+            }
           />
         </View>
       </TouchableRipple>
-      {error ? <HelperText type="error" visible>{error}</HelperText> : null}
+
+      {error ? (
+        <HelperText
+          type="error"
+          visible
+        >
+          {error}
+        </HelperText>
+      ) : null}
 
       {nativeModal ? (
         <NativeModal
@@ -143,10 +212,18 @@ export function Select({
           transparent
           animationType="fade"
           presentationStyle="overFullScreen"
-          onRequestClose={() => setVisible(false)}
+          onRequestClose={() => {
+            Keyboard.dismiss();
+            setVisible(false);
+          }}
         >
           <View style={styles.nativeModalOverlay}>
-            <View style={[styles.modal, { backgroundColor: colors.surface }]}>
+            <View
+              style={[
+                styles.modal,
+                { backgroundColor: colors.surface },
+              ]}
+            >
               {optionsContent}
             </View>
           </View>
@@ -155,8 +232,14 @@ export function Select({
         <Portal>
           <Modal
             visible={visible}
-            onDismiss={() => setVisible(false)}
-            contentContainerStyle={[styles.modal, { backgroundColor: colors.surface }]}
+            onDismiss={() => {
+              Keyboard.dismiss();
+              setVisible(false);
+            }}
+            contentContainerStyle={[
+              styles.modal,
+              { backgroundColor: colors.surface },
+            ]}
           >
             {optionsContent}
           </Modal>
@@ -167,15 +250,19 @@ export function Select({
 }
 
 const styles = StyleSheet.create({
-  container: { marginBottom: Spacing.xs,
+  container: {
+    marginBottom: Spacing.xs,
     minWidth: 0,
   },
+
   modal: {
     marginHorizontal: Spacing.md,
-    maxHeight: '78%',
+    maxHeight: '80%',
+    height: '80%',
     borderRadius: Radius.lg,
     overflow: 'hidden',
   },
+
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -183,17 +270,30 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.lg,
     paddingTop: Spacing.sm,
   },
+
   search: {
-    marginHorizontal: Spacing.md, marginBottom: Spacing.xs,
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.xs,
   },
+
   searchInput: {
     minHeight: 0,
   },
+
+  optionsList: {
+    flex: 1,
+  },
+
+  optionsContent: {
+    paddingBottom: Spacing.md,
+  },
+
   empty: {
     alignItems: 'center',
     gap: Spacing.sm,
     paddingVertical: Spacing['3xl'],
   },
+
   nativeModalOverlay: {
     flex: 1,
     justifyContent: 'center',
