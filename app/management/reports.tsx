@@ -33,7 +33,7 @@ const FILTERS = [
   { key: 'month', label: 'Month' },
 ];
 const CATEGORIES = [
-  { key: 'stocks', label: 'Stocks', icon: 'layers-outline', color: '#0F766E' },
+  //{ key: 'stocks', label: 'Stocks', icon: 'layers-outline', color: '#0F766E' },
   { key: 'deliveries', label: 'Deliveries', icon: 'cube-outline', color: '#2563EB' },
   { key: 'fuel', label: 'Fuel', icon: 'water-outline', color: '#F59E0B' },
   { key: 'vendors', label: 'Vendors', icon: 'business-outline', color: '#8B5CF6' },
@@ -371,12 +371,7 @@ export default function ReportsScreen() {
         </Text>
       </TouchableOpacity>
 
-      {isLoading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: Spacing.xs}} />
-      ) : (
-        activeTab === 'stocks' ? <View style={{ gap: 12 }}><Text style={{ color: colors.text }}>Stock CSV and the master Excel include current balances across all dates, valuation, usage, quarantine, shortages and excess receipts.</Text><TouchableOpacity onPress={() => router.push('/management/stocks')}><Text style={{ color: colors.primary }}>Open stock balances and valuation</Text></TouchableOpacity></View> : <View style={styles.metricsGrid}>{renderCategoryCards(activeTab, d, colors, metrics)}</View>
-      )}
-
+      
       <View style={{ height: 40 }} />
     </PageShell>
   );

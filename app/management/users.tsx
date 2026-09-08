@@ -15,6 +15,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  KeyboardAvoidingView,
   TouchableOpacity,
   Modal,
   RefreshControl,
@@ -483,7 +484,7 @@ export default function UsersScreen() {
 
       {/* Add User Modal */}
       <Modal visible={showAddModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Add User</Text>
@@ -492,7 +493,7 @@ export default function UsersScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalBody}>
+            <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
               <Input
                 label="Full Name"
                 value={form.displayName}
@@ -576,12 +577,12 @@ export default function UsersScreen() {
               </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit User Modal */}
       <Modal visible={showEditModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Edit User</Text>
@@ -590,7 +591,7 @@ export default function UsersScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalBody}>
+            <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
               <Input
                 label="Full Name"
                 value={editForm.displayName}
@@ -692,7 +693,7 @@ export default function UsersScreen() {
               </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

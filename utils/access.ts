@@ -108,7 +108,7 @@ const MANAGEMENT_ROUTE_ACCESS: Array<{ prefix: string; roles: ManagementRole[] }
   { prefix: '/management/quarries', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/management/sites', roles: [MANAGEMENT_ROLES.SUPER_ADMIN] },
   { prefix: '/management/analytics', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
-  { prefix: '/management/stocks', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
+  //{ prefix: '/management/stocks', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/security-personnel', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/reports', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/flagged', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },

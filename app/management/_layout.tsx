@@ -20,7 +20,7 @@ const LITE_BOTTOM_TABS = ['dashboard', 'vendors', 'trucks', 'drivers'];
 const BOTTOM_TABS = [...new Set([...DEFAULT_BOTTOM_TABS, ...LITE_BOTTOM_TABS])];
 // These routes are opened from visible navigation and are not primary tab destinations.
 const SECONDARY_ROUTES = [
-  'stocks',
+  'stocks', // Register with href: null below so Expo Router cannot add a visible tab.
   'security-personnel',
   'super-admin',
   'edit',

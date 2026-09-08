@@ -22,7 +22,7 @@ export const SuperAdminSidebar: ManagementNavigationSection[] = [
     { label: 'Active Jobs', icon: 'pulse-outline', route: '/management/active' },
     { label: 'Purchase Orders', icon: 'document-text-outline', route: '/management/purchase-orders' },
     { label: 'Warehouse', icon: 'cube-outline', route: '/warehouse' },
-    { label: 'Stocks', icon: 'layers-outline', route: '/management/stocks' },
+   // { label: 'Stocks', icon: 'layers-outline', route: '/management/stocks' },
     { label: 'Completed Trips', icon: 'checkmark-done-outline', route: '/management/trips' },
     { label: 'Tracking', icon: 'navigate-outline', route: '/track' },
     { label: 'Security Personnel', icon: 'shield-checkmark-outline', route: '/management/security-personnel' },
@@ -54,7 +54,7 @@ export const AdminSidebar: ManagementNavigationSection[] = [
   { title: 'Operations', icon: 'radio-outline', items: [
     { label: 'Purchase Orders', icon: 'document-text-outline', route: '/management/purchase-orders' },
     { label: 'Warehouse', icon: 'cube-outline', route: '/warehouse' },
-    { label: 'Stocks', icon: 'layers-outline', route: '/management/stocks' },
+    //{ label: 'Stocks', icon: 'layers-outline', route: '/management/stocks' },
     { label: 'Tracking', icon: 'navigate-outline', route: '/track' },
     { label: 'Security Personnel', icon: 'shield-checkmark-outline', route: '/management/security-personnel' },
     { label: 'Flagged', icon: 'flag-outline', route: '/management/flagged' },

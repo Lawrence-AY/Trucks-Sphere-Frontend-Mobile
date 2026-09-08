@@ -1,3 +1,4 @@
+import { Redirect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect, Stack } from 'expo-router';
 import { Text, View, Modal, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
@@ -7,7 +8,9 @@ import { StackScreen } from '../../components/ui/StackScreen';
 import { DataCard } from '../../components/EnterpriseUI';
 import { useTheme } from '../../hooks/useTheme';
 
-export default function StocksScreen() {
+export default function StocksUnavailable() { return <Redirect href="/management/dashboard" />; }
+
+function StocksScreen() {
   const colors = useTheme();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
