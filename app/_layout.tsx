@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
+import { BackNavigation } from '../components/BackNavigation';
 import { Stack, router } from 'expo-router';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -62,6 +63,7 @@ export default function RootLayout() {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <PaperThemeProvider>
+        <BackNavigation />
         {canControlStatusBarAppearance ? (
           <StatusBar barStyle={systemStatusBarStyle} backgroundColor={colors.surface} translucent={false} />
         ) : null}

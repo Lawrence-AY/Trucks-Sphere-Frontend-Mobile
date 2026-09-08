@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   ActivityIndicator,
   Alert,
   Image,
@@ -232,12 +234,14 @@ export default function OperatorSiteReceiveScreen() {
     const wOutNumeric = parseFloat(weightOut);
 
     return (
+      <KeyboardAvoidingView style={{ flex: 1, minHeight: 0 }} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
       <ScrollView
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.formContent}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
-        automaticallyAdjustKeyboardInsets
+        nestedScrollEnabled
+        showsVerticalScrollIndicator
       >
         {/* Job Info Card */}
         <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -407,6 +411,7 @@ export default function OperatorSiteReceiveScreen() {
         </TouchableOpacity>
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     );
   }
 

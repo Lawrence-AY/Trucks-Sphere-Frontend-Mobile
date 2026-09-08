@@ -1,3 +1,4 @@
+import { vendorOptions as buildVendorOptions } from '../../../utils/vendorOptions';
 /**
  * Vehicles List Screen - Full CRUD with vendor filtering
  *
@@ -212,7 +213,7 @@ export default function VehiclesListScreen() {
           value={vendorFilter || ''}
           options={[
             { id: '', name: 'All Vendors' },
-            ...vendors.map((v) => ({ id: v.id, name: v.companyName || v.id })),
+            ...buildVendorOptions(vendors),
           ]}
           onSelect={(v) => setVendorFilter(v || null)}
           placeholder="Filter by vendor..."

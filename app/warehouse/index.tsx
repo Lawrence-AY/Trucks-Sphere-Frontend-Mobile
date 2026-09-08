@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,7 +20,7 @@ import { Radius, Spacing } from '../../constants/theme';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { createWarehouseJob, fetchDeliveryOrders, fetchDrivers, fetchMaterials, fetchPurchaseOrders, fetchVehicles, fetchVendors, fetchWarehouseJobs } from '../../services/api';
+import { createWarehouseJob, fetchDeliveryOrders, fetchMaterials, fetchPurchaseOrders, fetchVendors, fetchWarehouseJobs } from '../../services/api';
 import { uploadWarehousePackagingPhoto, type UploadFile } from '../../services/uploadService';
 import { Driver, Material, PurchaseOrder, Vehicle, Vendor, WarehouseJob } from '../../store/types';
 import { useAuthStore } from '../../store/authStore';
@@ -54,16 +55,12 @@ export default function WarehouseQueueScreen() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [purchaseOrderId, setPurchaseOrderId] = useState('');
   const [vendorId, setVendorId] = useState('');
-  const [driverId, setDriverId] = useState('');
-  const [vehicleId, setVehicleId] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([makeLine()]);
   const [packagingPhoto, setPackagingPhoto] = useState<PackagingPhoto | null>(null);
   const [uploadingPhotoJobId, setUploadingPhotoJobId] = useState<string | null>(null);
@@ -71,22 +68,18 @@ export default function WarehouseQueueScreen() {
   const [expandedProductJobIds, setExpandedProductJobIds] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
-    const [warehouseJobs, deliveryData, purchaseOrderData, materialData, vendorData, driverData, vehicleData] = await Promise.all([
+    const [warehouseJobs, deliveryData, purchaseOrderData, materialData, vendorData] = await Promise.all([
       fetchWarehouseJobs(),
       fetchDeliveryOrders(),
       fetchPurchaseOrders(),
       fetchMaterials(),
       fetchVendors(),
-      fetchDrivers(),
-      fetchVehicles(),
     ]);
     setJobs(warehouseJobs as WarehouseJob[]);
     setDeliveries(deliveryData);
     setPurchaseOrders(purchaseOrderData as PurchaseOrder[]);
     setMaterials(materialData as Material[]);
     setVendors(vendorData as Vendor[]);
-    setDrivers(driverData as Driver[]);
-    setVehicles(vehicleData as Vehicle[]);
     setLoading(false);
   }, []);
 
@@ -117,36 +110,14 @@ export default function WarehouseQueueScreen() {
   );
   const warehousePurchaseOrders = useMemo(
     () => purchaseOrders.filter((order) =>
-      order.status !== 'cancelled' && (order.isWarehouseMaterial || warehouseMaterialIds.has(String(order.materialId || '').trim().toLowerCase())),
+      order.status !== 'cancelled' && (order.isWarehouseMaterial || [order, ...(order.materials || [])].some((line) => warehouseMaterialIds.has(String(line.materialId || '').trim().toLowerCase()))),
     ),
     [purchaseOrders, warehouseMaterialIds],
   );
-  const availableDrivers = useMemo(
-    () => drivers.filter((driver) => driver.vendorId === vendorId && driver.availability !== false),
-    [drivers, vendorId],
-  );
-  const availableVehicles = useMemo(
-    () => vehicles.filter((vehicle) => vehicle.vendorId === vendorId && vehicle.status === 'active'),
-    [vehicles, vendorId],
-  );
-  const selectedDriverBusyJob = useMemo(
-    () => driverId ? deliveries.find((delivery) => delivery.driverId === driverId && isActiveJob(delivery.status)) : null,
-    [deliveries, driverId],
-  );
-  const selectedVehicleBusyJob = useMemo(
-    () => vehicleId ? deliveries.find((delivery) =>
-      (delivery.vehicleId === vehicleId || delivery.plateNumber === availableVehicles.find((vehicle) => vehicle.id === vehicleId)?.registrationNumber || delivery.plateNumber === availableVehicles.find((vehicle) => vehicle.id === vehicleId)?.plateNumber) &&
-      isActiveJob(delivery.status),
-    ) : null,
-    [availableVehicles, deliveries, vehicleId],
-  );
-  const assignmentBusy = Boolean(selectedDriverBusyJob || selectedVehicleBusyJob);
 
   const resetSheet = () => {
     setPurchaseOrderId('');
     setVendorId('');
-    setDriverId('');
-    setVehicleId('');
     setLines([makeLine()]);
     setPackagingPhoto(null);
   };
@@ -161,8 +132,6 @@ export default function WarehouseQueueScreen() {
     const order = purchaseOrders.find((entry) => entry.id === id);
     setPurchaseOrderId(id);
     setVendorId(order?.vendorId || '');
-    setDriverId('');
-    setVehicleId('');
   };
 
   const updateLine = (id: string, changes: Partial<DraftLine>) => {
@@ -233,7 +202,7 @@ export default function WarehouseQueueScreen() {
         packagingPhotoURL: uploaded.photoURL,
         packagingPhotoFileName: file.name,
       } : entry));
-      Alert.alert('Packaging photo attached', `${job.jobId} is now available for Site acceptance and weighing.`);
+      Alert.alert('Packaging photo attached', `${job.jobId} is now available for site acceptance, then inspection.`);
     } catch (error: any) {
       Alert.alert('Could not attach photo', error?.message || 'Please try again.');
     } finally {
@@ -242,22 +211,14 @@ export default function WarehouseQueueScreen() {
   };
 
   const canSubmit = Boolean(
-    purchaseOrderId && vendorId && driverId && vehicleId && !assignmentBusy && packagingPhoto &&
+    purchaseOrderId && vendorId && packagingPhoto &&
     lines.length > 0 &&
     lines.every((line) => line.productName.trim() && line.unit.trim() && Number.isFinite(Number(line.quantity)) && Number(line.quantity) > 0),
   );
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      if (assignmentBusy) {
-        Alert.alert('Assignment unavailable', selectedDriverBusyJob && selectedVehicleBusyJob
-          ? `The selected driver and truck are already on active trips (${selectedDriverBusyJob.jobId} and ${selectedVehicleBusyJob.jobId}).`
-          : selectedDriverBusyJob
-            ? `The selected driver is already on active trip ${selectedDriverBusyJob.jobId}.`
-            : `The selected truck is already on active trip ${selectedVehicleBusyJob?.jobId}.`);
-        return;
-      }
-      Alert.alert('Complete the submission', 'Choose the purchase order, driver, truck, packaging photo, and product quantities.');
+      Alert.alert('Complete the submission', 'Choose the purchase order, packaging photo, and product quantities.');
       return;
     }
 
@@ -266,8 +227,6 @@ export default function WarehouseQueueScreen() {
       const job = await createWarehouseJob({
         purchaseOrderId,
         vendorId,
-        driverId,
-        vehicleId,
         items: lines.map((line) => ({ productName: line.productName.trim(), quantity: Number(line.quantity), unit: line.unit.trim() })),
         createdByUid: user?.uid || '',
         createdByName: user?.displayName || user?.email || '',
@@ -284,7 +243,7 @@ export default function WarehouseQueueScreen() {
           };
         } catch {
           // The delivery order is already submitted to the site. Avoid a
-          // second submission that would create another truck movement.
+          // second submission that would create a duplicate delivery.
           packagingUploadFailed = true;
         }
       }
@@ -294,8 +253,8 @@ export default function WarehouseQueueScreen() {
       Alert.alert(
         'Warehouse delivery submitted',
         packagingUploadFailed
-          ? `${job.jobId}\nThe truck was submitted to the Site Schedule, but the packaging photo was not saved.`
-          : `${job.jobId}\nThe truck is now on the Site Schedule for acceptance and weighing.`,
+          ? `${job.jobId}\nThe delivery was submitted to the Site Schedule, but the packaging photo was not saved.`
+          : `${job.jobId}\nThe delivery is now on the Site Schedule for acceptance, then inspection.`,
       );
     } catch (error: any) {
       Alert.alert('Could not submit delivery', error?.message || 'Please try again.');
@@ -323,12 +282,6 @@ export default function WarehouseQueueScreen() {
       <View style={styles.assignmentRow}>
         <Ionicons name="business-outline" size={16} color={colors.textMuted} />
         <Text style={[styles.assignmentText, { color: colors.text }]}>{item.vendorName}</Text>
-      </View>
-      <View style={styles.assignmentRow}>
-        <Ionicons name="person-outline" size={16} color={colors.textMuted} />
-        <Text style={[styles.assignmentText, { color: colors.text }]}>{item.driverName}</Text>
-        <Ionicons name="car-outline" size={16} color={colors.textMuted} />
-        <Text style={[styles.assignmentText, { color: colors.text }]}>{item.plateNumber}</Text>
       </View>
       
 
@@ -417,7 +370,7 @@ export default function WarehouseQueueScreen() {
             <View style={styles.sheetHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.sheetTitle, { color: colors.text }]}>Submit warehouse delivery</Text>
-                <Text style={[styles.sheetSubtitle, { color: colors.textMuted }]}>This sends the assigned truck directly to the Site Schedule.</Text>
+                <Text style={[styles.sheetSubtitle, { color: colors.textMuted }]}>This sends the delivery to the site for acceptance, then inspection.</Text>
               </View>
               <TouchableOpacity onPress={closeSheet} disabled={saving} style={styles.closeButton}>
                 <Ionicons name="close" size={24} color={colors.text} />
@@ -441,39 +394,11 @@ export default function WarehouseQueueScreen() {
                 placeholder="Select a warehouse-material order"
               />
 
-              <Select
-                nativeModal
-                label="Driver"
-                value={driverId}
-                options={availableDrivers.map((driver) => ({
-                  id: driver.id,
-                  name: driver.fullName,
-                  subtitle: `${driver.driverId || 'Driver'} • ${deliveries.find((delivery) => delivery.driverId === driver.id && isActiveJob(delivery.status)) ? `On trip: ${deliveries.find((delivery) => delivery.driverId === driver.id && isActiveJob(delivery.status))?.jobId}` : driver.licenseNumber || driver.phone || 'No licence recorded'}`,
-                  imageUrl: driver.photoURL,
-                }))}
-                onSelect={setDriverId}
-                icon="person-outline"
-                required
-                placeholder={selectedVendor ? 'Select driver' : 'Select purchase order first'}
-              />
-              {selectedDriverBusyJob ? <Text style={styles.busyAssignmentText}>Driver is on active trip {selectedDriverBusyJob.jobId}</Text> : null}
-
-              <Select
-                nativeModal
-                label="Truck"
-                value={vehicleId}
-                options={availableVehicles.map((vehicle) => ({ id: vehicle.id, name: vehicle.registrationNumber || vehicle.plateNumber || vehicle.id, subtitle: `${vehicle.make || ''} ${vehicle.model || ''}`.trim() }))}
-                onSelect={setVehicleId}
-                icon="car-outline"
-                required
-                placeholder={selectedVendor ? 'Select truck' : 'Select purchase order first'}
-              />
-              {selectedVehicleBusyJob ? <Text style={styles.busyAssignmentText}>Truck is on active trip {selectedVehicleBusyJob.jobId}</Text> : null}
 
               <View style={styles.productsHeader}>
                 <View>
                   <Text style={[styles.productsTitle, { color: colors.text }]}>Products</Text>
-                  <Text style={[styles.productsSubtitle, { color: colors.textMuted }]}>Add every product being delivered in this truck.</Text>
+                  <Text style={[styles.productsSubtitle, { color: colors.textMuted }]}>Add every product in this delivery.</Text>
                 </View>
                 <TouchableOpacity
                   style={[styles.addProductButton, { borderColor: colors.primary }]}
@@ -503,7 +428,7 @@ export default function WarehouseQueueScreen() {
                     required
                     placeholder="Type the product name"
                   />
-                  <View style={styles.assignmentGrid}>
+                  <ResponsiveGrid style={styles.assignmentGrid}>
                     <View style={styles.assignmentField}>
                       <Input
                         label="Quantity"
@@ -527,7 +452,7 @@ export default function WarehouseQueueScreen() {
                         placeholder="Select unit"
                       />
                     </View>
-                  </View>
+                  </ResponsiveGrid>
                 </View>
               ))}
 
@@ -614,7 +539,7 @@ const styles = StyleSheet.create({
   readMoreText: { fontSize: 12, fontWeight: '800' },
   fab: { position: 'absolute', right: 22, bottom: 26, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', elevation: 7, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 5 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.5)' },
-  sheet: { maxHeight: '92%', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0 },
+  sheet: { width: '100%', maxWidth: 960, alignSelf: 'center', maxHeight: '92%', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0 },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, padding: Spacing.lg, paddingBottom: Spacing.sm },
   sheetTitle: { fontSize: 20, fontWeight: '800' },
   sheetSubtitle: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs},
@@ -625,7 +550,7 @@ const styles = StyleSheet.create({
   assignmentGrid: { flexDirection: 'row', gap: Spacing.sm },
   assignmentField: { flex: 1 },
   busyAssignmentText: { color: '#B45309', fontSize: 12, fontWeight: '700', marginTop: Spacing.xs, marginBottom: Spacing.xs},
-  productsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  productsHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, marginTop: Spacing.xs, marginBottom: Spacing.xs},
   productsTitle: { fontSize: 17, fontWeight: '800' },
   productsSubtitle: { fontSize: 12, marginTop: Spacing.xs},
   addProductButton: { minHeight: 36, paddingHorizontal: Spacing.sm, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: 3 },
@@ -633,22 +558,22 @@ const styles = StyleSheet.create({
   lineCard: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs, position: 'relative' },
   removeProductButton: { position: 'absolute', top: 8, right: 8, zIndex: 1, padding: 2 },
   packagingSection: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, gap: Spacing.sm },
-  packagingHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
+  packagingHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm },
   packagingTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 },
   packagingIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   packagingTitle: { fontSize: 15, fontWeight: '800' },
   packagingSubtitle: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs},
   photoStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: Radius.full },
   photoStatusText: { fontSize: 11, fontWeight: '800' },
-  packagingLargePreview: { width: '100%', height: 176, borderRadius: Radius.md, overflow: 'hidden' },
+  packagingLargePreview: { width: '100%', aspectRatio: 16 / 9, borderRadius: Radius.md, overflow: 'hidden' },
   photoPlaceholder: { alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
   photoPlaceholderText: { fontSize: 13, fontWeight: '600' },
-  packagingActions: { flexDirection: 'row', gap: Spacing.sm },
-  packagingButton: { flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: Radius.md },
+  packagingActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  packagingButton: { flex: 1, flexBasis: '45%', minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: Radius.md },
   packagingRemoveButton: { minHeight: 46, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: Radius.md },
   packagingButtonText: { fontSize: 13, fontWeight: '800' },
   packagingPhoto: { width: 76, height: 58, borderRadius: Radius.sm, backgroundColor: '#E2E8F0' },
-  cardPhoto: { width: '100%', height: 164, borderRadius: Radius.md, marginTop: Spacing.xs, backgroundColor: '#E2E8F0' },
+  cardPhoto: { width: '100%', aspectRatio: 16 / 9, borderRadius: Radius.md, marginTop: Spacing.xs, backgroundColor: '#E2E8F0' },
   photoHint: { position: 'absolute', right: 8, bottom: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(15,23,42,0.76)', borderRadius: Radius.full, paddingHorizontal: 9, paddingVertical: 5 },
   photoHintText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   missingPhotoButton: { marginTop: Spacing.xs, minHeight: 40, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },

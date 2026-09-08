@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -121,7 +122,7 @@ export default function VendorTrucksScreen() {
                 </View>
               </View>
             </View>
-            <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
+            <ResponsiveGrid sideBySide style={[styles.statsRow, { borderTopColor: colors.border }]}>
             
               <View style={styles.miniStat}>
                 <Ionicons name="layers-outline" size={14} color={colors.accent} />
@@ -135,7 +136,7 @@ export default function VendorTrucksScreen() {
                   {vehicle.completedTrips} done
                 </Text>
               </View>
-            </View>
+            </ResponsiveGrid>
             {vehicle.securityFlag?.status === 'cleared' ? <Text style={styles.clearedLabel}>Unsuspended after security clearance</Text> : null}
           </DataCard>
         ))

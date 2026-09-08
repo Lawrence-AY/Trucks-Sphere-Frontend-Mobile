@@ -59,7 +59,7 @@ interface SyncState {
 const CACHE_PREFIX = 'sync_cache_';
 // Keep data current without continuously triggering authenticated browser
 // requests (and their CORS preflights) while a vendor screen is open.
-const POLL_INTERVAL_MS = 30000;
+const POLL_INTERVAL_MS = 5000;
 const UNSUBSCRIBE_GRACE_PERIOD_MS = 15000;
 // Public environment values ship with the app, so they must never enable
 // verbose production logging.
@@ -492,6 +492,8 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
       },
     });
 
+    // A refresh after a write must not reuse a request started before it.
+    await inFlightFetches.get(cacheKey);
     let result = await fetchWithETag(collectionName, params);
     if (result.notModified && existing.data.length === 0) {
       delete etagStore[cacheKey];

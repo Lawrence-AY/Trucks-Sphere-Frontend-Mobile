@@ -190,7 +190,8 @@ export default function PurchaseOrderScreen() {
   }, [id]);
 
   function handleCreate() {
-    if (!materialId || !vendorId || !quantity) {
+    const warehouseMaterial = materials.find((m) => m.id === materialId)?.isWarehouseMaterial === true;
+    if (!materialId || !vendorId || (!warehouseMaterial && (!Number.isFinite(Number(quantity)) || Number(quantity) <= 0))) {
       Alert.alert('Missing Fields', 'Please fill in all required fields.');
       return;
     }
@@ -203,12 +204,17 @@ export default function PurchaseOrderScreen() {
       materialName: selectedMaterial ? selectedMaterial.name || '' : '',
       vendorId: vendorId,
       vendorName: selectedVendor ? selectedVendor.companyName || selectedVendor.name || '' : '',
-      quantity: qty,
-      unit: selectedMaterial ? selectedMaterial.unit || 'tons' : 'tons',
+      ...(warehouseMaterial ? {} : { quantity: qty }),
+      ...(warehouseMaterial ? {} : { unit: selectedMaterial ? selectedMaterial.unit || 'tons' : 'tons' }),
       status: 'pending',
       requestedBy: user ? user.uid || 'u1' : 'u1',
     }).then(function (res: any) {
       const newPoNumber = res?.data?.poNumber || res?.poNumber || 'POMAT###';
+      setMaterialId('');
+      setVendorId('');
+      setQuantity('');
+      setError('');
+      setPoPreview('');
       Alert.alert('Success', 'Purchase Order ' + newPoNumber + ' created!', [
         { text: 'OK', onPress: function () { router.back(); } },
       ]);
@@ -233,17 +239,17 @@ export default function PurchaseOrderScreen() {
         <ScrollView contentContainerStyle={styles.content}>
          
           <View style={[styles.receipt, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <ModalPicker label="Material" value={materialId} options={materials.map(function (m) { return { id: m.id, name: (m.name || m.id) + ' (' + formatMaterialId(m.id) + ')' }; })} onSelect={setMaterialId} icon="cube-outline" />
+            <ModalPicker label="Material" value={materialId} options={materials.map(function (m) { return { id: m.id, name: (m.name || m.id) + ' (' + formatMaterialId(m.id) + ')' }; })} onSelect={(value) => { setMaterialId(value); setQuantity(''); }} icon="cube-outline" />
             <ModalPicker label="Vendor" value={vendorId} options={vendors.map(function (v) { return { id: v.id, name: (v.companyName || v.name || v.id) + ' (' + formatVendorId(v.id) + ')' }; })} onSelect={setVendorId} icon="business-outline" />
 
-            <View style={styles.inputGroup}>
+            {!selectedMaterial2?.isWarehouseMaterial && <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.textMuted }]}>Quantity</Text>
               <View style={[styles.inputWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
                 <Ionicons name="resize-outline" size={16} color={colors.textMuted} />
                 <TextInput style={[styles.inputField, { color: colors.text }]} value={quantity} onChangeText={setQuantity} keyboardType="numeric" placeholder="e.g. 200" placeholderTextColor={colors.textMuted} />
                 <Text style={{ color: colors.textMuted, fontSize: 14 }}>{selectedMaterial2 ? selectedMaterial2.unit || 'tons' : 'tons'}</Text>
               </View>
-            </View>
+            </View>}
 
             {materialId && vendorId ? (
               <View style={[styles.poPreview, { backgroundColor: colors.accent + '12', borderColor: colors.accent }]}>
@@ -279,7 +285,7 @@ export default function PurchaseOrderScreen() {
               <Text style={[styles.rHead, { color: colors.text }]}>{order.poNumber}</Text>
               <PORow label="Materials on PO" value={(Array.isArray(order.materials) && order.materials.length ? order.materials : [{ materialName: order.materialName, quantity: order.quantity, unit: order.unit }]).map(function (item: any) { return (item.materialName || 'Material') + (item.quantity != null ? ' (' + item.quantity + ' ' + (item.unit || '') + ')' : ''); }).join('\n')} />
               <PORow label="Vendor" value={order.vendorName} />
-              <PORow label="Quantity" value={order.quantity + ' ' + order.unit} bold />
+              {!order.isWarehouseMaterial && <PORow label="Quantity" value={order.quantity + ' ' + order.unit} bold />}
               <PORow label="Created At" value={order.createdAt ? formatEAT(order.createdAt) : '-'} />
             </View>
           </View>

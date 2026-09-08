@@ -1,3 +1,5 @@
+import { ResponsiveGrid } from '../../../../components/ResponsiveGrid';
+import { vendorOptions as buildVendorOptions } from '../../../../utils/vendorOptions';
 /**
  * Edit Purchase Order Screen - Update PO details
  *
@@ -166,7 +168,7 @@ export default function EditPurchaseOrderScreen() {
           <Select
             label="Vendor"
             value={form.vendorId}
-            options={vendors.map((v) => ({ id: v.id, name: `${String(v.vendorId || v.id).replace(/^V/i, '')} - ${v.companyName || (v as any).name || 'Unknown Vendor'}` }))}
+            options={buildVendorOptions(vendors)}
             onSelect={(v) => updateField('vendorId', v)}
             icon="business-outline"
             required
@@ -202,7 +204,8 @@ export default function EditPurchaseOrderScreen() {
             </View>
           )}
 
-          <Input
+          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Input
             label="Quantity"
             value={form.quantity}
             onChangeText={(v) => updateField('quantity', v)}
@@ -230,6 +233,7 @@ export default function EditPurchaseOrderScreen() {
             required
             error={errors.unit}
           />
+</ResponsiveGrid>
 
         </Card>
 

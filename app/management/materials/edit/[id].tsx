@@ -17,9 +17,11 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { router } from '../../../../utils/router';
+import { StackScreen } from '../../../../components/ui/StackScreen';
 import { useTheme } from '../../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../../constants/theme';
 import { Card } from '../../../../components/ui/Card';
@@ -57,9 +59,10 @@ export default function EditMaterialScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
+    isWarehouseMaterial: false,
     name: '',
     category: 'Aggregates' as MaterialCategory,
-    measurementType: 'Tonnes' as MeasurementUnit,
+    measurementType: '' as MeasurementUnit,
     defaultUnit: 'Tonnes',
     description: '',
     unitPrice: '',
@@ -84,10 +87,11 @@ export default function EditMaterialScreen() {
       }
       setMaterial(m);
       setForm({
+        isWarehouseMaterial: Boolean(m.isWarehouseMaterial),
         name: m.name || '',
         category: m.category || 'Aggregates',
-        measurementType: m.measurementType || 'Tonnes',
-        defaultUnit: m.defaultUnit || 'Tonnes',
+        measurementType: m.measurementType || '' as MeasurementUnit,
+        defaultUnit: m.defaultUnit || '',
         description: m.description || '',
         unitPrice: m.unitPrice === undefined ? '' : String(m.unitPrice),
         salesPrice: m.salesPrice === undefined ? '' : String(m.salesPrice),
@@ -117,10 +121,10 @@ export default function EditMaterialScreen() {
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!form.name.trim()) newErrors.name = 'Material name is required';
-    if (!form.category) newErrors.category = 'Category is required';
-    if (!form.measurementType) newErrors.measurementType = 'Measurement type is required';
+    if (!form.isWarehouseMaterial && !form.category) newErrors.category = 'Category is required';
+
     for (const field of ['unitPrice', 'salesPrice', 'weight', 'volume'] as const) {
-      if (form[field].trim() && (!Number.isFinite(Number(form[field])) || Number(form[field]) < 0)) {
+      if (!form.isWarehouseMaterial && form[field].trim() && (!Number.isFinite(Number(form[field])) || Number(form[field]) < 0)) {
         newErrors[field] = 'Enter a valid non-negative number';
       }
     }
@@ -134,6 +138,8 @@ export default function EditMaterialScreen() {
     try {
       await materialRepository.update(id!, {
         name: form.name,
+        isWarehouseMaterial: form.isWarehouseMaterial,
+        ...(form.isWarehouseMaterial ? { category: 'Warehouse' as MaterialCategory } : {
         category: form.category,
         measurementType: form.measurementType,
         defaultUnit: form.defaultUnit,
@@ -143,6 +149,7 @@ export default function EditMaterialScreen() {
         barcode: form.barcode.trim() || undefined,
         weight: form.weight.trim() ? Number(form.weight) : undefined,
         volume: form.volume.trim() ? Number(form.volume) : undefined,
+        }),
         updatedAt: new Date().toISOString(),
       });
       router.back();
@@ -166,7 +173,8 @@ export default function EditMaterialScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content}>
+      <Stack.Screen options={{ title: 'Edit Material', headerShown: false }} />
+      <StackScreen title="Edit Material" fallbackHref="/management/materials" contentStyle={styles.content}>
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>Edit Material</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
@@ -185,6 +193,8 @@ export default function EditMaterialScreen() {
             error={errors.name}
           />
 
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 12 }}><Text style={{ flex: 1, color: colors.text }}>Warehouse reference material</Text><Switch value={form.isWarehouseMaterial} onValueChange={(value) => { setForm((current) => ({ ...current, isWarehouseMaterial: value, category: value ? 'Warehouse' : '' as MaterialCategory })); setErrors({}); }} /></View>
+          {!form.isWarehouseMaterial && <>
           <Select
             label="Category"
             value={form.category}
@@ -201,7 +211,6 @@ export default function EditMaterialScreen() {
             options={UNITS}
             onSelect={(v) => updateField('measurementType', v)}
             icon="speedometer-outline"
-            required
             error={errors.measurementType}
           />
 
@@ -266,6 +275,7 @@ export default function EditMaterialScreen() {
             error={errors.volume}
           />
 
+          </>}
         </Card>
 
         <View style={styles.actions}>
@@ -283,7 +293,7 @@ export default function EditMaterialScreen() {
             loading={saving}
           />
         </View>
-      </ScrollView>
+      </StackScreen>
     </KeyboardAvoidingView>
   );
 }

@@ -256,7 +256,9 @@ const styles = StyleSheet.create({
   },
 
   modal: {
-    marginHorizontal: Spacing.md,
+    width: '94%',
+    maxWidth: 720,
+    alignSelf: 'center',
     maxHeight: '80%',
     height: '80%',
     borderRadius: Radius.lg,

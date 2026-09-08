@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   ActivityIndicator,
   Alert,
   Modal,
@@ -317,7 +318,7 @@ export default function OperatorSiteWeightsScreen() {
     let filtered = deliveries.filter(
       (d) =>
         !['cancelled', 'completed', 'delivered'].includes(d.status) &&
-        d.siteWeighOutWeight == null &&
+        !d.isWarehouseDelivery && d.deliveryOrigin !== 'warehouse' && d.siteWeighOutWeight == null &&
         (d.siteWeighInWeight != null || d.siteArrivalWeight != null || d.status === 'weighed_in' || d.status === 'site_in'),
     );
     // Apply data isolation for operator-site role
@@ -595,12 +596,14 @@ export default function OperatorSiteWeightsScreen() {
         : null);
 
     return (
-      <>
+      <KeyboardAvoidingView style={{ flex: 1, minHeight: 0 }} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
         <ScrollView
           style={[styles.container, { backgroundColor: colors.background }]}
           contentContainerStyle={styles.formContent}
           showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
         >
           {/* Job Card */}
           <View
@@ -1117,7 +1120,7 @@ export default function OperatorSiteWeightsScreen() {
             </View>
           </View>
         </Modal>
-      </>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -1268,7 +1271,7 @@ export default function OperatorSiteWeightsScreen() {
 /* ─── Styles ─── */
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, minHeight: 0 },
   formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   metricRow: { flexDirection: 'row', gap: Spacing.sm },
   jobCard: {

@@ -21,15 +21,14 @@ export function ManagementSearchHeader({
 }: ManagementSearchHeaderProps) {
   const colors = useTheme();
   const { width } = useWindowDimensions();
-  const isCompactNativeHeader = Platform.OS !== 'web' && width < 430;
-  const searchWidth = isCompactNativeHeader ? 160 : 220;
+  const availableWidth = Math.max(0, width - 68);
 
   return (
     <Tabs.Screen
       options={{
         title,
         headerLeft: () => (
-          <View style={styles.leftGroup}>
+          <View style={[styles.leftGroup, { width: availableWidth }]}>
             <Text numberOfLines={1} style={[styles.title, { color: colors.text }]}>{title}</Text>
             <Searchbar
               placeholder="Search"
@@ -37,7 +36,7 @@ export function ManagementSearchHeader({
               onChangeText={onChangeSearch}
               autoCapitalize="none"
               accessibilityLabel={`Search ${title}`}
-              style={[styles.search, { width: searchWidth, backgroundColor: colors.inputBg }]}
+              style={[styles.search, { backgroundColor: colors.inputBg }]}
               inputStyle={[styles.searchInput, { color: colors.text }]}
             />
           </View>
@@ -51,8 +50,10 @@ export function ManagementSearchHeader({
 
 const styles = StyleSheet.create({
   leftGroup: { marginLeft: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  title: { width: 92, fontSize: 14, fontWeight: '700' },
+  title: { width: '30%', flexShrink: 1, fontSize: 14, fontWeight: '700' },
   search: {
+    flex: 1,
+    minWidth: 0,
     height: 38,
     marginRight: 0,
     borderRadius: Radius.md,

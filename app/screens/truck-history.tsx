@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -114,7 +115,7 @@ export default function TruckHistoryScreen() {
               ) : null}
             </View>
           </View>
-          <View style={styles.statsRow}>
+          <ResponsiveGrid sideBySide style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={[styles.statValue, { color: colors.text }]}>{truck.capacity || '-'}T</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Capacity</Text>
@@ -123,7 +124,7 @@ export default function TruckHistoryScreen() {
               <Text style={[styles.statValue, { color: colors.text }]}>{trips.length}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Trips</Text>
             </View>
-          </View>
+          </ResponsiveGrid>
         </View>
       )}
 

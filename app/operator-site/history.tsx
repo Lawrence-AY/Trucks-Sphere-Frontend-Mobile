@@ -121,7 +121,8 @@ export default function OperatorSiteHistoryScreen() {
         d.siteOperatorUid === operatorUid ||
         d.siteWeighInByUid === operatorUid ||
         d.siteWeighOutByUid === operatorUid ||
-        d.receivedByUid === operatorUid
+        d.receivedByUid === operatorUid ||
+        d.warehouseAcceptedByUid === operatorUid
       );
     }
     return filtered;
@@ -154,7 +155,7 @@ export default function OperatorSiteHistoryScreen() {
   const pendingJobs = useMemo(() => {
     return deliveries
       .filter(
-        (d) => isActiveJob(d.status) && normalizeJobStatus(d.status) !== 'DISPATCHED',
+        (d) => !d.warehouseAcceptedAt && isActiveJob(d.status) && normalizeJobStatus(d.status) !== 'DISPATCHED',
       )
       .sort(
         (a, b) =>
@@ -165,10 +166,10 @@ export default function OperatorSiteHistoryScreen() {
 
   const completedRecords = useMemo(() => {
     return deliveries
-      .filter((d) => ['SITE_WEIGHED_OUT', 'COMPLETED'].includes(normalizeJobStatus(d.status)))
+      .filter((d) => Boolean(d.warehouseAcceptedAt) || ['SITE_WEIGHED_OUT', 'COMPLETED'].includes(normalizeJobStatus(d.status)))
       .filter((d) => {
         const date = new Date(
-          d.receivedAt || d.siteWeighInAt || d.updatedAt || d.createdAt,
+          d.warehouseAcceptedAt || d.receivedAt || d.siteWeighInAt || d.updatedAt || d.createdAt,
         );
         return date >= startDate;
       })
@@ -179,10 +180,10 @@ export default function OperatorSiteHistoryScreen() {
       .sort(
         (a, b) =>
           new Date(
-            b.receivedAt || b.siteWeighInAt || b.updatedAt || b.createdAt,
+            b.warehouseAcceptedAt || b.receivedAt || b.siteWeighInAt || b.updatedAt || b.createdAt,
           ).getTime() -
           new Date(
-            a.receivedAt || a.siteWeighInAt || a.updatedAt || a.createdAt,
+            a.warehouseAcceptedAt || a.receivedAt || a.siteWeighInAt || a.updatedAt || a.createdAt,
           ).getTime(),
       );
   }, [deliveries, startDate]);
@@ -191,11 +192,12 @@ export default function OperatorSiteHistoryScreen() {
 
   const analytics = useMemo(() => {
     const totalCompleted = completedRecords.length;
-    const totalSiteNet = completedRecords.reduce(
+    const weighedRecords = completedRecords.filter((r) => !r.isWarehouseMaterial && r.originType !== 'WAREHOUSE');
+    const totalSiteNet = weighedRecords.reduce(
       (sum, r) => sum + (r.siteNetWeight || r.quantityDelivered || 0),
       0,
     );
-    const totalQuarryNet = completedRecords.reduce(
+    const totalQuarryNet = weighedRecords.reduce(
       (sum, r) =>
         sum +
         (r.netWeight ??
@@ -204,27 +206,27 @@ export default function OperatorSiteHistoryScreen() {
             : 0)),
       0,
     );
-    const totalDifference = completedRecords.reduce(
+    const totalDifference = weighedRecords.reduce(
       (sum, r) => sum + Math.abs(r.siteWeightDifference || 0),
       0,
     );
 
  
-    const discrepancies = completedRecords.filter(
+    const discrepancies = weighedRecords.filter(
       (r) =>
         r.siteWeightDifference != null &&
         Math.abs(r.siteWeightDifference) > 0.5,
     ).length;
 
     // Average net per delivery
-    const avgNet = totalCompleted > 0 ? totalSiteNet / totalCompleted : 0;
+    const avgNet = weighedRecords.length > 0 ? totalSiteNet / weighedRecords.length : 0;
 
     // Material breakdown
     const materialBreakdown: Record<
       string,
       { count: number; totalNet: number }
     > = {};
-    completedRecords.forEach((r) => {
+    weighedRecords.forEach((r) => {
       const mat = r.materialName || "Unknown";
       if (!materialBreakdown[mat]) {
         materialBreakdown[mat] = { count: 0, totalNet: 0 };
@@ -262,6 +264,8 @@ export default function OperatorSiteHistoryScreen() {
     "Site Net (t)",
     "Difference (t)",
     "Finalized",
+    "Warehouse Accepted At",
+    "Accepted By",
   ];
 
   const buildExportRows = (records: any[]): string[][] =>
@@ -294,7 +298,9 @@ export default function OperatorSiteHistoryScreen() {
         siteOut != null ? siteOut.toFixed(1) : "—",
         siteNet != null ? siteNet.toFixed(1) : "—",
         diff != null ? `${diff > 0 ? "+" : ""}${diff.toFixed(2)}` : "—",
-        formatEAT(r.receivedAt || r.updatedAt || r.createdAt || ""),
+        formatEAT(r.warehouseAcceptedAt || r.receivedAt || r.updatedAt || r.createdAt || ""),
+        formatEAT(r.warehouseAcceptedAt),
+        r.warehouseAcceptedByName || r.warehouseAcceptedByUid || "",
       ];
     });
 
@@ -320,9 +326,37 @@ export default function OperatorSiteHistoryScreen() {
 
   /* ─── Render: Detail Modal ─── */
 
+
+  const renderWarehouseReceipt = (item: any) => (
+    <View style={{ gap: Spacing.sm }}>
+      <Text style={[styles.tableJobId, { color: colors.text }]}>{item.jobId}</Text>
+      {item.receiptNoteId ? <Text style={{ color: colors.text }}>Receipt Note: {item.receiptNoteId}</Text> : null}
+      <Text style={{ color: colors.textMuted }}>{item.poNumber || 'No PO'} ? Warehouse</Text>
+      <Text style={{ color: colors.text }}>{item.vendorName || ''}</Text>
+      <Text style={{ color: colors.text }}>Accepted by: {item.warehouseAcceptedByName || item.warehouseAcceptedByUid || 'Unknown'}</Text>
+      <Text style={{ color: colors.textMuted }}>Accepted: {formatEAT(item.warehouseAcceptedAt)}</Text>
+      <Text style={{ color: colors.text }}>{normalizeJobStatus(item.status) === 'COMPLETED' ? 'Inspected' : 'Awaiting inspection'}</Text>
+      {(item.materials || item.additionalItems || []).map((line: any, index: number) => (
+        <Text key={line.id || index} style={{ color: colors.text }}>{line.materialName || line.name || line.productName} ? {line.quantity ?? ''} {line.unit || ''}</Text>
+      ))}
+    </View>
+  );
+
   const renderDetailModal = () => {
     if (!selectedItem) return null;
     const item = selectedItem;
+    if (item.warehouseAcceptedAt) return (
+      <Modal visible={detailModalVisible} transparent animationType="slide" onRequestClose={() => setDetailModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.detailSheet, { backgroundColor: colors.surface }]}>
+            <ScrollView contentContainerStyle={{ gap: Spacing.md }}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close details" onPress={() => setDetailModalVisible(false)}><Ionicons name="close" size={24} color={colors.text} /></TouchableOpacity>
+              {renderWarehouseReceipt(item)}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
     const siteIn = item.siteWeighInWeight ?? null;
     const siteOut = item.siteWeighOutWeight ?? null;
     const siteNet = item.siteNetWeight ?? item.quantityDelivered ?? null;
@@ -922,6 +956,7 @@ export default function OperatorSiteHistoryScreen() {
         </DataCard>
       ) : completedRecords.length ? (
         completedRecords.map((item) => {
+          if (item.warehouseAcceptedAt) return <DataCard key={item.id} onPress={() => openDetail(item)}>{renderWarehouseReceipt(item)}</DataCard>;
           const quarryNet =
             item.netWeight ??
             (item.weighInWeight != null && item.weighOutWeight != null

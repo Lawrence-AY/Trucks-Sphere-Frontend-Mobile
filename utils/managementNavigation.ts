@@ -16,14 +16,16 @@ export type ManagementNavigationSection = {
 
 export const SuperAdminSidebar: ManagementNavigationSection[] = [
   { title: 'Overview', icon: 'apps-outline', items: [
-    { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard' },
+    { label: 'Dashboard', icon: 'grid-outline', route: '/management/dashboard' },
   ] },
   { title: 'Operations', icon: 'radio-outline', items: [
-    { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active' },
+    { label: 'Active Jobs', icon: 'pulse-outline', route: '/management/active' },
     { label: 'Purchase Orders', icon: 'document-text-outline', route: '/management/purchase-orders' },
     { label: 'Warehouse', icon: 'cube-outline', route: '/warehouse' },
+    { label: 'Stocks', icon: 'layers-outline', route: '/management/stocks' },
     { label: 'Completed Trips', icon: 'checkmark-done-outline', route: '/management/trips' },
     { label: 'Tracking', icon: 'navigate-outline', route: '/track' },
+    { label: 'Security Personnel', icon: 'shield-checkmark-outline', route: '/management/security-personnel' },
     { label: 'Flagged', icon: 'flag-outline', route: '/management/flagged' },
   ] },
   { title: 'Fleet', icon: 'car-outline', items: [
@@ -46,13 +48,15 @@ export const SuperAdminSidebar: ManagementNavigationSection[] = [
 
 export const AdminSidebar: ManagementNavigationSection[] = [
   { title: 'Overview', icon: 'apps-outline', items: [
-    { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard' },
-    { label: 'Active Jobs', icon: 'layers-outline', route: '/management/active' },
+    { label: 'Dashboard', icon: 'grid-outline', route: '/management/dashboard' },
+    { label: 'Active Jobs', icon: 'pulse-outline', route: '/management/active' },
   ] },
   { title: 'Operations', icon: 'radio-outline', items: [
     { label: 'Purchase Orders', icon: 'document-text-outline', route: '/management/purchase-orders' },
     { label: 'Warehouse', icon: 'cube-outline', route: '/warehouse' },
+    { label: 'Stocks', icon: 'layers-outline', route: '/management/stocks' },
     { label: 'Tracking', icon: 'navigate-outline', route: '/track' },
+    { label: 'Security Personnel', icon: 'shield-checkmark-outline', route: '/management/security-personnel' },
     { label: 'Flagged', icon: 'flag-outline', route: '/management/flagged' },
   ] },
   { title: 'Fleet', icon: 'car-outline', items: [
@@ -70,7 +74,7 @@ export const AdminSidebar: ManagementNavigationSection[] = [
 
 export const AdminLiteSidebar: ManagementNavigationSection[] = [
   { title: 'Overview', icon: 'apps-outline', items: [
-    { label: 'Dashboard', icon: 'home-outline', route: '/management/dashboard' },
+    { label: 'Dashboard', icon: 'grid-outline', route: '/management/dashboard' },
   ] },
   { title: 'Fleet', icon: 'car-outline', items: [
     { label: 'Vendors', icon: 'business-outline', route: '/management/vendors' },

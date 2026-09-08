@@ -1,3 +1,4 @@
+import { PurchaseOrderMaterials } from '../../../components/PurchaseOrderMaterials';
 /**
  * Purchase Order List Screen - Full CRUD with workflow
  *
@@ -80,6 +81,7 @@ export default function PurchaseOrderListScreen() {
           po.poNumber?.toLowerCase().includes(q) ||
           po.vendorName?.toLowerCase().includes(q) ||
           po.materialName?.toLowerCase().includes(q) ||
+          po.materials?.some((line) => line.materialName?.toLowerCase().includes(q)) ||
           po.id?.toLowerCase().includes(q)
       );
     }
@@ -118,12 +120,7 @@ export default function PurchaseOrderListScreen() {
           {getStatusBadge(item.status)}
         </View>
 
-        <View style={styles.poMeta}>
-          {materialLines.map((line, index) => <View style={styles.metaItem} key={index}>
-            <Ionicons name="cube-outline" size={14} color={colors.textMuted} />
-            <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>{line.materialNumber || ''} {line.materialName || 'Unknown Material'} • {formatNumber(line.quantity || 0)} {line.unit || 'units'}</Text>
-          </View>)}
-        </View>
+        <PurchaseOrderMaterials order={item} />
 
         <View style={styles.poFooter}>
           <Text style={[styles.footerText, { color: colors.textMuted }]}>

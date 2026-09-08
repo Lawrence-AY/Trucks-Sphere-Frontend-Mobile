@@ -19,7 +19,7 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -124,9 +124,10 @@ export default function MaterialDetailScreen() {
             <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Category</Text>
             <View style={styles.categoryBadge}>
               <View style={[styles.categoryDot, { backgroundColor: catColor }]} />
-              <Text style={[styles.categoryText, { color: catColor }]}>{material.category}</Text>
+              <Text style={[styles.categoryText, { color: catColor }]}>{material.isWarehouseMaterial ? 'Warehouse' : material.category}</Text>
             </View>
           </View>
+          {!material.isWarehouseMaterial && <>
           <View style={styles.detailRow}>
             <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Measurement Type</Text>
             <Text style={[styles.detailValue, { color: colors.text }]}>{material.measurementType || 'N/A'}</Text>
@@ -171,6 +172,7 @@ export default function MaterialDetailScreen() {
               <Text style={[styles.detailValue, { color: colors.text }]}>{material.volume} m³</Text>
             </View>
           )}
+          </>}
         </Card>
 
        
@@ -287,9 +289,7 @@ export default function MaterialDetailScreen() {
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <View style={[styles.headerIcon, { backgroundColor: catColor + '15' }]}>
-              <Ionicons
-                name={
-                  material.category === 'Aggregates' ? 'layers-outline' :
+              {material.isWarehouseMaterial ? <MaterialCommunityIcons name="warehouse" size={28} color={catColor} /> : <Ionicons name={ material.category === 'Aggregates' ? 'layers-outline' :
                   material.category === 'Steel' ? 'barbell-outline' :
                   material.category === 'Cement' ? 'cube-outline' :
                   material.category === 'Liquid' ? 'water-outline' :
@@ -298,12 +298,12 @@ export default function MaterialDetailScreen() {
                 }
                 size={28}
                 color={catColor}
-              />
+              />}
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.headerTitle, { color: colors.text }]}>{material.name}</Text>
               <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-                {material.category} • {material.defaultUnit || material.measurementType || 'units'}
+                {material.isWarehouseMaterial ? 'Warehouse' : `${material.category || 'Other'} ? ${material.defaultUnit || material.measurementType || ''}`}
               </Text>
             </View>
           </View>

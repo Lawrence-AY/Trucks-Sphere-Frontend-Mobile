@@ -24,7 +24,7 @@ export default function WarehouseReportsScreen() {
     const products = mine.reduce((total, job) => total + (job.items?.length || 0), 0);
     const vendors = new Set(mine.map((job) => job.vendorId).filter(Boolean)).size;
     const latest = mine[0]?.submittedAt ? new Date(mine[0].submittedAt).toLocaleDateString() : '—';
-    return { shipments: mine.length, products, vendors, latest };
+    return { shipments: mine.length, products, vendors, latest, awaiting: mine.filter((job) => job.status === 'SUBMITTED').length, accepted: mine.filter((job) => (job.status as string) === 'ACCEPTED').length, inspected: mine.filter((job) => (job.status as string) === 'INSPECTED').length };
   }, [jobs, user?.uid]);
 
   if (loading) return <View style={[styles.centered, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /></View>;
@@ -37,6 +37,9 @@ export default function WarehouseReportsScreen() {
       <Text style={[styles.intro, { color: colors.textMuted }]}>A summary of your warehouse shipments.</Text>
       <View style={styles.grid}>
         <Metric icon="cube-outline" label="Shipments" value={report.shipments} color="#2563EB" />
+        <Metric icon="time-outline" label="Awaiting acceptance" value={report.awaiting} color="#F59E0B" />
+        <Metric icon="checkmark-circle-outline" label="Awaiting inspection" value={report.accepted} color="#2563EB" />
+        <Metric icon="clipboard-outline" label="Inspected" value={report.inspected} color="#10B981" />
         <Metric icon="layers-outline" label="Products" value={report.products} color="#10B981" />
         <Metric icon="business-outline" label="Vendors" value={report.vendors} color="#F59E0B" />
         <Metric icon="calendar-outline" label="Latest shipment" value={report.latest} color="#8B5CF6" />

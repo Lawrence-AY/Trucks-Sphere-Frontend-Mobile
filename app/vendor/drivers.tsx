@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useMemo, useState } from 'react';
 import { Image, RefreshControl, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
@@ -124,7 +125,7 @@ export default function VendorDriversScreen() {
                 </Text>
               </View>
             </View>
-            <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
+            <ResponsiveGrid sideBySide style={[styles.statsRow, { borderTopColor: colors.border }]}>
            
               <View style={styles.miniStat}>
                 <Ionicons name="layers-outline" size={14} color={colors.primary} />
@@ -138,7 +139,7 @@ export default function VendorDriversScreen() {
                   {driver.completedTrips} done
                 </Text>
               </View>
-            </View>
+            </ResponsiveGrid>
                        <DetailRow icon="id-card-outline" value={`National ID: ${driver.nationalId || 'N/A'}`} />
           {driver.securityFlag?.status === 'cleared' ? <Text style={styles.clearedLabel}>Unsuspended after security clearance</Text> : null}
 

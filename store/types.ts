@@ -223,7 +223,8 @@ export type MaterialCategory =
   | 'Cement'
   | 'Liquid'
   | 'Blocks'
-  | 'Other';
+  | 'Other'
+  | 'Warehouse';
 
 // ─── Measurement Unit ───
 export type MeasurementUnit =
@@ -256,19 +257,14 @@ export interface Material extends AuditTrail {
   status: MaterialStatus;
   description?: string;
   properties?: MaterialProperty[]; // Dynamic properties
-  /** Odoo Standard Cost / TruckSphere purchase unit price. */
+  /** Purchase unit price. */
   unitPrice?: number;
-  /** Odoo Sales Price, retained when products are used in sales workflows. */
+  /** Sales price. */
   salesPrice?: number;
   barcode?: string;
   weight?: number;
   volume?: number;
   productType?: string;
-  odooProductTemplateId?: number;
-  odooProductVariantId?: number | null;
-  odooProductCategoryId?: number | null;
-  odooUomId?: number | null;
-  odooSyncedAt?: string;
   // Computed
   standardWeight?: number; // e.g., 50kg per bag for cement
   diameterOptions?: string[]; // For steel: 8mm, 10mm, 12mm...
@@ -292,15 +288,17 @@ export interface WarehouseJob extends AuditTrail {
   poNumber?: string;
   vendorId: string;
   vendorName: string;
-  driverId: string;
-  driverName: string;
-  vehicleId: string;
-  plateNumber: string;
+  driverId?: string;
+  driverName?: string;
+  vehicleId?: string;
+  plateNumber?: string;
   siteId: string;
   siteName: string;
   items: WarehouseJobItem[];
   itemCount: number;
-  status: 'SUBMITTED';
+  status: 'SUBMITTED' | 'ACCEPTED' | 'INSPECTED';
+  warehouseAcceptedAt?: string | null;
+  warehouseAcceptedByName?: string;
   submittedAt: string;
   packagingPhotoURL?: string;
   packagingPhotoCapturedAt?: string;
@@ -398,8 +396,8 @@ export interface PurchaseOrderMaterialLine {
   materialId: string;
   materialNumber?: string;
   materialName: string;
-  quantity: number;
-  unit: string;
+  quantity?: number | null;
+  unit?: string | null;
   isWarehouseMaterial?: boolean;
 }
 
@@ -477,19 +475,6 @@ export interface Job extends AuditTrail {
   packagingPhotoURL?: string;
   packagingPhotoCapturedAt?: string;
   packagingPhotoFileName?: string;
-  // Odoo Inventory receipt / native backorder linkage.
-  odooReceiptId?: number;
-  odooReceiptNumber?: string;
-  odooReceiptState?: string;
-  odooReceiptSyncStatus?: 'pending' | 'synced' | 'failed';
-  odooReceiptSyncErrorCode?: string;
-  odooReceiptSyncedAt?: string;
-  odooReceiptLastAttemptAt?: string;
-  odooBackorderReceiptId?: number;
-  odooBackorderReceiptNumber?: string;
-  odooBackorderReceiptState?: string;
-  odooSourceReceiptId?: number;
-  odooSourceReceiptNumber?: string;
   // Backorder lineage created when a completed site's net delivery is short.
   isBackorder?: boolean;
   backorderOfDeliveryOrderId?: string;

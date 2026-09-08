@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { IconButton, Button, Card, HelperText, Text, TextInput } from 'react-native-paper';
 import { router } from '../../utils/router';
 import { requestPasswordReset } from '../../services/api';
@@ -22,7 +22,8 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
       <Card mode="outlined" style={styles.panel} contentStyle={styles.panelContent}>
         <IconButton icon="arrow-left" onPress={() => router.back()} style={styles.back} />
         <Text variant="headlineSmall" style={styles.title}>Reset password</Text>
@@ -32,12 +33,14 @@ export default function ForgotPasswordScreen() {
         {message ? <HelperText type="info" visible>{message}</HelperText> : null}
         <Button mode="contained" onPress={submit} loading={submitting} disabled={submitting} style={styles.button} contentStyle={styles.buttonContent}>Send reset link</Button>
       </Card>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: Spacing.xl },
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: Spacing.xl },
   panel: { borderRadius: Radius.xl, maxWidth: 440, width: '100%', alignSelf: 'center' },
   panelContent: { padding: Spacing.xl },
   back: { marginLeft: -Spacing.sm },

@@ -49,13 +49,14 @@ export default function WarehouseHistoryScreen() {
     setDownloading(true);
     try {
       await shareCsvAsFile('Warehouse_Shipment_History', buildCsvContent(
-        ['Job ID', 'Purchase Order', 'Vendor', 'Driver', 'Truck', 'Products', 'Submitted At'],
+        ['Job ID', 'Purchase Order', 'Vendor', 'Receipt Status', 'Accepted At', 'Accepted By', 'Products', 'Submitted At'],
         filteredJobs.map((job) => [
           job.jobId,
           poReference(job),
           job.vendorName,
-          job.driverName,
-          job.plateNumber,
+          job.status,
+          job.warehouseAcceptedAt || '',
+          job.warehouseAcceptedByName || '',
           (job.items || []).map((item) => `${item.materialName} (${item.quantity} ${item.unit})`).join('; '),
           job.submittedAt || '',
         ]),
@@ -102,7 +103,7 @@ export default function WarehouseHistoryScreen() {
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
             <Text style={[styles.reference, { color: colors.textMuted }]}>{poReference(item)}</Text>
-            <View style={styles.detail}><Ionicons name="person-outline" size={15} color={colors.textMuted} /><Text style={[styles.detailText, { color: colors.text }]}>{item.driverName} · {item.plateNumber}</Text></View>
+<View style={styles.detail}><Ionicons name="checkmark-circle-outline" size={15} color={colors.textMuted} /><Text style={[styles.detailText, { color: colors.text }]}>{item.status === 'INSPECTED' ? 'Inspected' : item.status === 'ACCEPTED' ? 'Awaiting inspection' : 'Awaiting site acceptance'}</Text></View>
             <Text style={[styles.date, { color: colors.textMuted }]}>{item.submittedAt ? new Date(item.submittedAt).toLocaleString() : 'Submitted'}</Text>
           </View>
         )}

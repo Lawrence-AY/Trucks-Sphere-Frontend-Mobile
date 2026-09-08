@@ -1,3 +1,4 @@
+import { isDeliveryFlagged } from '../../utils/siteFlags';
 import { useCallback, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import {
@@ -44,7 +45,7 @@ export default function OperatorSiteLayout() {
   const colors = useTheme();
   const resolvedIssuesCount = useResolvedIssuesCount();
   const deliveries = useDeliveryOrders();
-  const flaggedDeliveriesCount = deliveries.filter((item: any) => item.securityFlag?.status === 'flagged' || item.isFlagged === true || item.siteArrivalWeightVarianceFlagged === true || item.hasWeightDiscrepancy === true).length;
+  const flaggedDeliveriesCount = deliveries.filter(isDeliveryFlagged).length;
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -96,7 +97,7 @@ export default function OperatorSiteLayout() {
 
   return (
     <>
-      <Tabs
+      <Tabs backBehavior="fullHistory"
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
           tabBarActiveTintColor: colors.tabActive,

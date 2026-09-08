@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
 /**
  * Create Material Screen - With dynamic property definitions
  *
@@ -38,7 +39,7 @@ const CATEGORIES: { id: MaterialCategory; name: string }[] = [
   { id: 'Cement', name: 'Cement' },
   { id: 'Liquid', name: 'Liquid' },
   { id: 'Blocks', name: 'Blocks' },
-  { id: 'Other', name: 'Other' },
+ 
 ];
 
 const MEASUREMENT_UNITS: { id: MeasurementUnit; name: string }[] = [
@@ -67,7 +68,6 @@ export default function CreateMaterialScreen() {
     name: '',
     category: '' as string,
     measurementType: '' as string,
-    defaultUnit: '',
     description: '',
     unitPrice: '',
     salesPrice: '',
@@ -112,10 +112,9 @@ export default function CreateMaterialScreen() {
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!form.name.trim()) newErrors.name = 'Material name is required';
-    if (!form.category) newErrors.category = 'Category is required';
-    if (!form.measurementType) newErrors.measurementType = 'Measurement type is required';
+    if (!form.isWarehouseMaterial && !form.category) newErrors.category = 'Category is required';
     for (const field of ['unitPrice', 'salesPrice', 'weight', 'volume'] as const) {
-      if (form[field].trim() && (!Number.isFinite(Number(form[field])) || Number(form[field]) < 0)) {
+      if (!form.isWarehouseMaterial && form[field].trim() && (!Number.isFinite(Number(form[field])) || Number(form[field]) < 0)) {
         newErrors[field] = 'Enter a valid non-negative number';
       }
     }
@@ -130,26 +129,34 @@ export default function CreateMaterialScreen() {
     try {
       await materialRepository.create({
         name: form.name.trim(),
+        ...(!form.isWarehouseMaterial ? {
         category: form.category as MaterialCategory,
-        measurementType: form.measurementType as MeasurementUnit,
-        defaultUnit: form.defaultUnit.trim() || undefined,
+        ...(form.measurementType ? { measurementType: form.measurementType as MeasurementUnit } : {}),
         description: form.description.trim() || undefined,
         unitPrice: form.unitPrice.trim() ? Number(form.unitPrice) : undefined,
         salesPrice: form.salesPrice.trim() ? Number(form.salesPrice) : undefined,
         weight: form.weight.trim() ? Number(form.weight) : undefined,
         volume: form.volume.trim() ? Number(form.volume) : undefined,
-        isWarehouseMaterial: form.isWarehouseMaterial,
         properties: properties.length > 0 ? properties : undefined,
+        } : {}),
+        isWarehouseMaterial: form.isWarehouseMaterial,
         status: 'active',
       });
 
       materialRepository.invalidateCache();
+      setForm({
+        name: '', category: '', measurementType: '',
+        description: '', unitPrice: '', salesPrice: '', barcode: '',
+        weight: '', volume: '', isWarehouseMaterial: false,
+      });
+      setProperties([]);
+      setErrors({});
       await showAlertWithCallback('Material created', 'Material created successfully.', () => router.back());
     } catch (err: any) {
       const errorCode = String(err?.code || '').toUpperCase();
       const isRequestTimeout = errorCode === 'NETWORK_TIMEOUT' || errorCode === 'ECONNABORTED';
       const msg = isRequestTimeout
-        ? 'The server is still confirming this material with Odoo. It may already have been created and synced. Go back and refresh the Materials list before trying again to avoid a duplicate.'
+        ? 'The server is still confirming this material. It may already have been created. Go back and refresh the Materials list before trying again to avoid a duplicate.'
         : err?.response?.data?.message || err?.message || 'Failed to create material';
       await showAlertWithCallback('Unable to create material', msg, () => {});
     } finally {
@@ -190,12 +197,16 @@ export default function CreateMaterialScreen() {
             </View>
             <Switch
               value={form.isWarehouseMaterial}
-              onValueChange={(value) => setForm((prev) => ({ ...prev, isWarehouseMaterial: value }))}
+              onValueChange={(value) => {
+                setForm((prev) => ({ ...prev, isWarehouseMaterial: value }));
+                setErrors({});
+              }}
               trackColor={{ false: colors.border, true: colors.primary + '80' }}
               thumbColor={form.isWarehouseMaterial ? colors.primary : colors.surface}
             />
           </View>
 
+          {!form.isWarehouseMaterial && <>
           <Select
             label="Category"
             value={form.category}
@@ -213,17 +224,8 @@ export default function CreateMaterialScreen() {
             options={MEASUREMENT_UNITS}
             onSelect={(v) => updateField('measurementType', v)}
             icon="speedometer-outline"
-            required
             error={errors.measurementType}
-            placeholder="Select measurement..."
-          />
-
-          <Input
-            label="Default Unit"
-            value={form.defaultUnit}
-            onChangeText={(v) => updateField('defaultUnit', v)}
-            placeholder="e.g. Tonnes, Bags, Pieces"
-            icon="checkmark-outline"
+            placeholder="Select measurement (optional)..."
           />
 
           <Input
@@ -271,10 +273,11 @@ export default function CreateMaterialScreen() {
             keyboardType="numeric"
             error={errors.volume}
           />
+          </>}
         </Card>
 
         {/* Dynamic Properties */}
-        <View style={styles.propertiesSection}>
+        {!form.isWarehouseMaterial && <View style={styles.propertiesSection}>
           <View style={styles.propertiesHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Properties</Text>
             <TouchableOpacity onPress={addProperty} style={styles.addPropBtn}>
@@ -304,7 +307,8 @@ export default function CreateMaterialScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <Select
+                <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Select
                   label="Type"
                   value={prop.type}
                   options={PROPERTY_TYPES}
@@ -318,6 +322,7 @@ export default function CreateMaterialScreen() {
                   onChangeText={(v) => updateProperty(index, 'label', v)}
                   placeholder="e.g. Diameter"
                 />
+</ResponsiveGrid>
                 {prop.type === 'select' && (
                   <Input
                     label="Options (comma separated)"
@@ -331,6 +336,7 @@ export default function CreateMaterialScreen() {
           )}
         </View>
 
+        }
         <View style={styles.actions}>
           <Button
             title="Cancel"

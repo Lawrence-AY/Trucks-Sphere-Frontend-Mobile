@@ -42,6 +42,9 @@ class VendorRepository extends BaseRepository<Vendor> {
   async createWithAccount(payload: { vendor: Partial<Vendor>; account: { email: string; password: string; isActive: boolean } }) {
     const response = await api.post('/api/vendors/with-account', payload);
     const result = response.data as { vendor: Vendor; user: unknown; username: string };
+    if (!result || typeof result !== 'object' || !result.vendor?.id || !result.username) {
+      throw new Error('The server did not confirm the vendor login account. Check the Vendors list before retrying.');
+    }
     await this.publishCreatedVendor(result.vendor);
     return result;
   }

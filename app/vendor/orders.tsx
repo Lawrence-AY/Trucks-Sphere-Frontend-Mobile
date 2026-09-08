@@ -1,3 +1,4 @@
+import { PurchaseOrderMaterials, getPurchaseOrderMaterials } from '../../components/PurchaseOrderMaterials';
 import { useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -46,7 +47,7 @@ export default function VendorOrdersScreen() {
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     return orders.filter((item) => {
-      const matchesSearch = !query || [item.poNumber, item.materialName]
+      const matchesSearch = !query || [item.poNumber, ...getPurchaseOrderMaterials(item).map((line) => line.materialName)]
         .some((value) => String(value || '').toLowerCase().includes(query));
       return matchesSearch && (filter === 'all' || item.status === filter);
     });
@@ -64,11 +65,10 @@ export default function VendorOrdersScreen() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber}</Text>
-                <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.materialName}</Text>
               </View>
           
             </View>
-            <DetailRow icon="cube-outline" value={`${item.quantity || 0} ${item.unit || 'units'}`} />
+            <PurchaseOrderMaterials order={item} />
             <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.createdAt)}</Text>
           </DataCard>
         ))

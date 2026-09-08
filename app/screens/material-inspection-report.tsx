@@ -53,12 +53,12 @@ export default function MaterialInspectionReportScreen() {
       ['Job ID', job.jobId || job.id || '—'],
       ['Purchase Order', job.poNumber || job.purchaseOrderId || '—'],
       ['Vendor', job.vendorName || '—'],
-      ['Driver / Truck', `${job.driverName || '—'} / ${job.plateNumber || '—'}`],
+      ...(job.isWarehouseDelivery ? [['Origin', 'Warehouse'], ['Site Accepted At', job.warehouseAcceptedAt ? formatEAT(job.warehouseAcceptedAt) : 'Pending'], ['Accepted By', job.warehouseAcceptedByName || '']] : [['Driver / Truck', `${job.driverName || ''} / ${job.plateNumber || ''}`]]),
       ['Inspector', inspection.inspectorName || '—'],
       ['Inspected At', inspection.inspectedAt ? formatEAT(inspection.inspectedAt) : '—'],
     ];
     const materialRows = materials.flatMap(({ material, receipt }: any) => [
-      [`${material.materialName || 'Material'} — PO Quantity`, material.quantity != null ? `${material.quantity} ${material.unit || ''}`.trim() : '—'],
+      [`${material.materialName || 'Material'} — Dispatched Quantity`, material.quantity != null ? `${material.quantity} ${material.unit || ''}`.trim() : '—'],
       [`${material.materialName || 'Material'} — Received Quantity`, receipt?.receivedQuantity != null ? `${receipt.receivedQuantity} ${receipt.unit || material.unit || ''}`.trim() : 'Not captured'],
       [`${material.materialName || 'Material'} — Initial Visual Inspection`, receipt?.initialVisualInspection || (inspection.mrfNumber ? 'N/A' : 'Pending')],
       ...(receipt?.failureReason ? [[`${material.materialName || 'Material'} — Failure Reason`, receipt.failureReason]] : []),
@@ -97,7 +97,7 @@ export default function MaterialInspectionReportScreen() {
         <Row label="Job ID" value={job.jobId || job.id} colors={colors} />
         <Row label="Purchase Order" value={job.poNumber || job.purchaseOrderId || '—'} colors={colors} />
         <Row label="Vendor" value={job.vendorName || '—'} colors={colors} />
-        <Row label="Driver / Truck" value={`${job.driverName || '—'} / ${job.plateNumber || '—'}`} colors={colors} />
+        {job.isWarehouseDelivery ? <><Row label="Origin" value="Warehouse" colors={colors} /><Row label="Site Accepted At" value={job.warehouseAcceptedAt ? formatEAT(job.warehouseAcceptedAt) : 'Pending'} colors={colors} /><Row label="Accepted By" value={job.warehouseAcceptedByName || ''} colors={colors} /></> : <Row label="Driver / Truck" value={`${job.driverName || ''} / ${job.plateNumber || ''}`} colors={colors} />}
         <Row label="Inspector" value={inspection.inspectorName || '—'} colors={colors} />
         <Row label="Inspected At" value={inspection.inspectedAt ? formatEAT(inspection.inspectedAt) : '—'} colors={colors} />
       </View>

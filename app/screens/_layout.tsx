@@ -1,4 +1,5 @@
-import { Stack, router } from 'expo-router';
+import { router } from '../../utils/router';
+import { Stack } from 'expo-router';
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +21,7 @@ export default function ScreensLayout() {
   const screenOptions = useClearStackScreenOptions();
 
   return (
-    <Stack screenOptions={screenOptions}>
+    <Stack screenOptions={{ ...screenOptions, headerLeft: () => <StackBackButton /> }}>
       <Stack.Screen name="receipt-note" options={{ title: 'Receipt Note', headerLeft: () => <StackBackButton /> }} />
       <Stack.Screen name="weigh-receipt" options={{ title: 'Weighment Receipt' }} />
       <Stack.Screen name="delivery-note" options={{ title: 'Delivery Note', headerLeft: () => <StackBackButton /> }} />

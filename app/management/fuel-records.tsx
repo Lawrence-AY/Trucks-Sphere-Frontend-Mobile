@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 /**
  * Fuel Records Screen - Shows fuel in/out summary with dispensed values
  *
@@ -144,7 +145,7 @@ export default function FuelRecordsScreen() {
       />
 
       {/* Stats Row */}
-      <View style={styles.statsRow}>
+      <ResponsiveGrid sideBySide style={styles.statsRow}>
         <View
           style={[
             styles.statCard,
@@ -187,7 +188,7 @@ export default function FuelRecordsScreen() {
             Balance
           </Text>
         </View>
-      </View>
+      </ResponsiveGrid>
 
       <SectionTitle
         title={`Fuel Records (${filtered.length})`}

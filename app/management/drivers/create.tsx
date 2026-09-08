@@ -1,3 +1,5 @@
+import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
+import { vendorOptions as buildVendorOptions } from '../../../utils/vendorOptions';
 /**
  * Create Driver Screen - Belongs to a Vendor
  *
@@ -127,13 +129,13 @@ export default function CreateDriverScreen() {
 
   function updateField(field: string, value: string) {
     const changesIdentity = field === 'firstName' || field === 'surname' || field === 'nationalId';
-    if (changesIdentity) identityCheckVersion.current += 1;
+    if (changesIdentity) { identityCheckVersion.current += 1; saveAttemptVersion.current += 1; }
     setForm((prev) => ({ ...prev, [field]: value }));
-    if (errors[field] || (changesIdentity && errors.nationalId)) {
+    if (errors[field] || changesIdentity) {
       setErrors((prev) => {
         const copy = { ...prev };
         delete copy[field];
-        if (changesIdentity) delete copy.nationalId;
+        if (changesIdentity) { delete copy.nationalId; delete copy.firstName; delete copy.surname; }
         return copy;
       });
     }
@@ -172,62 +174,23 @@ export default function CreateDriverScreen() {
     }
   };
 
-  async function checkNationalId(): Promise<boolean> {
+  async function checkNationalId(requestVersion = identityCheckVersion.current): Promise<boolean> {
     const nationalId = form.nationalId.trim();
     if (!nationalId) return false;
     try {
       const response = await api.get<{ available: boolean }>(
         `/api/drivers/national-id/${encodeURIComponent(nationalId)}${driverId ? `?excludeId=${encodeURIComponent(driverId)}` : ''}`,
       );
+      if (requestVersion !== identityCheckVersion.current) return false;
       if (!response.data.available) {
         setErrors((prev) => ({ ...prev, nationalId: 'A driver with this National ID already exists.' }));
         return false;
       }
       return true;
     } catch {
-      // The server repeats this validation when saving; do not block valid offline form entry.
-      return true;
+      // The server repeats this validation when saving. Ignore stale requests.
+      return requestVersion === identityCheckVersion.current;
     }
-  }
-
-  async function verifyIdentity(): Promise<boolean> {
-    const nationalId = form.nationalId.trim();
-    const firstName = form.firstName.trim();
-    const surname = form.surname.trim();
-    if (!nationalId || !firstName || !surname) return false;
-    const requestVersion = ++identityCheckVersion.current;
-    try {
-      const response = await api.post<{ verified?: boolean; skipped?: boolean }>('/api/drivers/verify-identity', {
-        nationalId,
-        firstName,
-        surname,
-      });
-      return Boolean(response.data.verified || response.data.skipped);
-    } catch (err: any) {
-      // The user may have corrected a name while this request was in flight.
-      if (requestVersion !== identityCheckVersion.current) return false;
-      const code = err?.code || err?.response?.data?.code;
-      if (code === 'IPRS_IDENTITY_MISMATCH') {
-        setErrors((prev) => ({
-          ...prev,
-          nationalId: 'The National ID does not match the first name and surname provided.',
-        }));
-      } else if (code === 'IPRS_UNAVAILABLE' || code === 'IPRS_SESSION_FAILED' || code === 'IPRS_VERIFICATION_FAILED') {
-        setErrors((prev) => ({ ...prev, nationalId: 'IPRS verification is currently unavailable. Please try again.' }));
-      }
-      return false;
-    }
-  }
-
-  async function checkNationalIdOnBlur() {
-    const available = await checkNationalId();
-    if (available && form.firstName.trim() && form.surname.trim()) await verifyIdentity();
-  }
-
-  async function checkIdentityOnNameBlur() {
-    if (!form.nationalId.trim() || !form.firstName.trim() || !form.surname.trim()) return;
-    const available = await checkNationalId();
-    if (available) await verifyIdentity();
   }
 
   async function validate(): Promise<boolean> {
@@ -242,10 +205,9 @@ export default function CreateDriverScreen() {
       setErrors(newErrors);
       return false;
     }
-    const nationalIdAvailable = await checkNationalId();
+    const requestVersion = ++identityCheckVersion.current;
+    const nationalIdAvailable = await checkNationalId(requestVersion);
     if (!nationalIdAvailable) return false;
-    const identityVerified = await verifyIdentity();
-    if (!identityVerified) return false;
     setErrors({});
     return true;
   }
@@ -270,11 +232,11 @@ export default function CreateDriverScreen() {
   }
 
   async function handleSave() {
+    if (saving) return;
     const saveAttempt = ++saveAttemptVersion.current;
-    if (!(await validate()) || saveAttempt !== saveAttemptVersion.current) return;
-
     setSaving(true);
     try {
+      if (!(await validate()) || saveAttempt !== saveAttemptVersion.current) return;
       const driverPayload = {
         vendorId: form.vendorId,
         firstName: form.firstName.trim(),
@@ -324,6 +286,7 @@ export default function CreateDriverScreen() {
         resetForm();
       }
     } catch (err: any) {
+      if (saveAttempt !== saveAttemptVersion.current) return;
       const code = err?.code || err?.response?.data?.code;
       if (code === 'IPRS_IDENTITY_MISMATCH') {
         setErrors((prev) => ({
@@ -339,7 +302,7 @@ export default function CreateDriverScreen() {
       }
       const msg = code === 'IPRS_NOT_CONFIGURED'
         ? 'IPRS verification is enabled but has not been configured.'
-        : code === 'IPRS_UNAVAILABLE' || code === 'IPRS_SESSION_FAILED' || code === 'IPRS_VERIFICATION_FAILED'
+        : code === 'IPRS_UNAVAILABLE' || code === 'IPRS_SESSION_FAILED' || code === 'IPRS_VERIFICATION_FAILED' || code === 'IPRS_RESPONSE_UNRECOGNIZED'
           ? 'IPRS is currently unavailable. Please try again later.'
           : err?.message || 'Failed to create driver';
       Alert.alert('Error', msg);
@@ -356,10 +319,7 @@ export default function CreateDriverScreen() {
     router.back();
   }
 
-  const vendorOptions = vendors.map((v) => ({
-    id: v.id,
-    name: v.companyName || (v as any).name || 'Unknown Vendor',
-  }));
+  const vendorOptions = buildVendorOptions(vendors);
   const displayPhotoUri = photoUri || existingPhotoUrl;
 
   return (
@@ -466,7 +426,8 @@ export default function CreateDriverScreen() {
             )}
           </View>
 
-          <Input
+          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Input
             label="First Name"
             value={form.firstName}
             onChangeText={(v) => updateField('firstName', v)}
@@ -474,7 +435,6 @@ export default function CreateDriverScreen() {
             icon="person-outline"
             required
             error={errors.firstName}
-            onBlur={checkIdentityOnNameBlur}
           />
           <Input
             label="Surname"
@@ -484,7 +444,6 @@ export default function CreateDriverScreen() {
             icon="person-outline"
             required
             error={errors.surname}
-            onBlur={checkIdentityOnNameBlur}
           />
           <Input
             label="Phone Number"
@@ -513,7 +472,6 @@ export default function CreateDriverScreen() {
             keyboardType="numeric"
             required
             error={errors.nationalId}
-            onBlur={checkNationalIdOnBlur}
           />
           <Input
             label="License Number"
@@ -538,6 +496,7 @@ export default function CreateDriverScreen() {
             placeholder="e.g. 2025-12-31"
             icon="calendar-outline"
           />
+</ResponsiveGrid>
         </Card>
 
         <View style={styles.actions}>

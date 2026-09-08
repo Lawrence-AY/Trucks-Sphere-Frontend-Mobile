@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../../../components/ResponsiveGrid';
 /**
  * Edit Vendor Screen - Update vendor details
  *
@@ -177,7 +178,8 @@ export default function EditVendorScreen() {
         </View>
 
         <Card>
-          <Input
+          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Input
             label="Company Name"
             value={form.companyName}
             onChangeText={(v) => updateField('companyName', v)}
@@ -243,6 +245,7 @@ export default function EditVendorScreen() {
             onSelect={(v) => updateField('status', v)}
             icon="checkmark-circle-outline"
           />
+</ResponsiveGrid>
         </Card>
 
         <View style={styles.actions}>

@@ -99,7 +99,8 @@ export default function FuelDispenseScreen() {
               const finalizedAtSite = ["SITE_WEIGHED_OUT", "COMPLETED"].includes(
                 normalizeJobStatus(d.status),
               );
-              return finalizedAtSite && !completedIds.includes(jobId);
+              const warehouse = d.isWarehouseDelivery || [d.deliveryOrigin, d.materialSource].some((value) => String(value || '').trim().toLowerCase() === 'warehouse');
+              return !warehouse && finalizedAtSite && !completedIds.includes(jobId);
             },
           ),
         );

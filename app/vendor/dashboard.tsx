@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
@@ -133,7 +134,7 @@ export default function VendorDashboardScreen() {
     >
       {/* Summary note: fuel authorization requests appear at the root vendor level (via _layout.tsx) */}
 
-      <View style={styles.metricRow}>
+      <ResponsiveGrid sideBySide style={styles.metricRow}>
         <MetricTile
           icon="document-text"
           label="Orders"
@@ -150,8 +151,8 @@ export default function VendorDashboardScreen() {
           compact
           onPress={() => router.push("/vendor/drivers" as any)}
         />
-      </View>
-      <View style={styles.metricRow}>
+      </ResponsiveGrid>
+      <ResponsiveGrid sideBySide style={styles.metricRow}>
         <MetricTile
           icon="car"
           label="Trucks"
@@ -168,8 +169,8 @@ export default function VendorDashboardScreen() {
           compact
           onPress={() => router.push("/vendor/trips" as any)}
         />
-      </View>
-      <View style={styles.metricRow}>
+      </ResponsiveGrid>
+      <ResponsiveGrid sideBySide style={styles.metricRow}>
         <MetricTile
           icon="checkmark-done"
           label="Completed"
@@ -185,7 +186,7 @@ export default function VendorDashboardScreen() {
           compact
           onPress={() => router.push("/vendor/fuel" as any)}
         />
-      </View>
+      </ResponsiveGrid>
 
       <SectionTitle
         title="Recent trips"

@@ -1,3 +1,4 @@
+import { PurchaseOrderMaterials, getPurchaseOrderMaterials } from './PurchaseOrderMaterials';
 import { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -70,9 +71,9 @@ export default function OrdersListScreen() {
     const matchesSearch = !search ||
       (order.poNumber || '').toLowerCase().includes(s) ||
       (order.vendorName || '').toLowerCase().includes(s) ||
-      (order.materialName || '').toLowerCase().includes(s);
+      getPurchaseOrderMaterials(order).some((line) => (line.materialName || '').toLowerCase().includes(s));
     const matchesFilter = filter === 'all' || order.status === filter;
-    const matchesMaterial = !materialFilter || order.materialId === materialFilter;
+    const matchesMaterial = !materialFilter || getPurchaseOrderMaterials(order).some((line) => line.materialId === materialFilter);
     return matchesSearch && matchesFilter && matchesMaterial;
   });
 
@@ -199,7 +200,7 @@ const OrderCard = ({ item, deliveries }: { item: any; deliveries: any[] }) => {
       <View style={styles.cardBody}>
         <View style={styles.detailRow}>
           <Ionicons name="cube-outline" size={14} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { color: colors.textSecondary }]}>{item.materialName} - {item.quantity} {item.unit}</Text>
+          <PurchaseOrderMaterials order={item} />
         </View>
         <View style={styles.detailRow}>
           <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
@@ -208,7 +209,7 @@ const OrderCard = ({ item, deliveries }: { item: any; deliveries: any[] }) => {
       </View>
 
       <View style={styles.progressRow}>
-        <ProgressStat label="Quantity" value={`${item.quantity} ${item.unit}`} color={colors.text} />
+        <ProgressStat label="Materials" value={String(getPurchaseOrderMaterials(item).length)} color={colors.text} />
         <ProgressStat label="Trips" value={orderTrips.length.toString()} color={colors.text} />
       </View>
 

@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -109,10 +110,10 @@ export default function MaterialDetailsScreen() {
       
       />
 
-      <View style={styles.metricRow}>
+      <ResponsiveGrid sideBySide style={styles.metricRow}>
         <MetricTile icon="document-text" label="Purchase orders" value={orders.length} tone={colors.primary} />
         <MetricTile icon="briefcase" label="Linked vendors" value={summary.vendors} tone={colors.accent} />
-      </View>
+      </ResponsiveGrid>
 
       <SectionTitle title="Purchase Orders" />
       {orders.length ? (

@@ -228,7 +228,7 @@ export default function JobDetailsScreen() {
         <TimelineItem
           icon="add-circle-outline"
           title="Job Created"
-          meta={`${formatMaybeDate(job?.createdAt)}\nDriver: ${driver?.name || job?.driverName || 'Pending driver'}\nVehicle: ${vehicle?.plateNumber || vehicle?.plate || job?.plateNumber || 'Pending vehicle'}`}
+          meta={job?.isWarehouseDelivery || job?.deliveryOrigin === 'warehouse' ? `${formatMaybeDate(job?.createdAt)}\nFrom warehouse` : `${formatMaybeDate(job?.createdAt)}\nDriver: ${driver?.name || job?.driverName || 'Pending driver'}\nVehicle: ${vehicle?.plateNumber || vehicle?.plate || job?.plateNumber || 'Pending vehicle'}`}
           color={colors.primary}
           complete
         />

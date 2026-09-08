@@ -1,6 +1,7 @@
+import { router } from '../../utils/router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { Tabs, router } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
@@ -42,7 +43,7 @@ export default function InspectorLayout() {
   const signOut = async () => { setLoggingOut(true); await logout(); setLoggingOut(false); setConfirmLogout(false); setMenuOpen(false); router.replace('/(auth)/login' as any); };
   const headerRight = () => <View style={{ flexDirection: 'row', alignItems: 'center' }}><TouchableOpacity onPress={() => router.push('/screens/issues' as any)} style={styles.headerButton}><Ionicons name="warning-outline" size={22} color="#EF4444" />{resolvedIssuesCount > 0 ? <View style={styles.issueBadge}><Text style={styles.issueBadgeText}>{resolvedIssuesCount}</Text></View> : null}</TouchableOpacity>{Platform.OS !== 'web' ? <TouchableOpacity onPress={toggleMenu} style={styles.headerButton}><Ionicons name="menu-outline" size={25} color={colors.text} /></TouchableOpacity> : null}</View>;
   return <>
-    <Tabs screenOptions={{ headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text, headerShadowVisible: false, headerTitleStyle: { fontWeight: '700' }, headerRight, tabBarHideOnKeyboard: true, tabBarActiveTintColor: '#10B981', tabBarInactiveTintColor: colors.tabInactive, tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : { backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 6) + 4, paddingTop: 6, height: 68 + Math.max(insets.bottom, 6) }, tabBarLabelStyle: { fontSize: 11, fontWeight: '600' } }}>
+    <Tabs backBehavior="fullHistory" screenOptions={{ headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text, headerShadowVisible: false, headerTitleStyle: { fontWeight: '700' }, headerRight, tabBarHideOnKeyboard: true, tabBarActiveTintColor: '#10B981', tabBarInactiveTintColor: colors.tabInactive, tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : { backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 6) + 4, paddingTop: 6, height: 68 + Math.max(insets.bottom, 6) }, tabBarLabelStyle: { fontSize: 11, fontWeight: '600' } }}>
       <Tabs.Screen name="index" options={{ title: 'Inspection', tabBarLabel: 'Inspections', tabBarIcon: ({ color }) => <Ionicons name="clipboard-outline" size={22} color={color} /> }} />
       <Tabs.Screen name="history" options={{ title: 'Inspection History', tabBarLabel: 'History', tabBarIcon: ({ color }) => <Ionicons name="time-outline" size={22} color={color} /> }} />
       <Tabs.Screen name="reports" options={{ href: null }} />

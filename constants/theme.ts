@@ -2,7 +2,7 @@ export const Colors = {
   light: {
     primary: '#0D3150',     
     primaryLight: '#E7F5FC',
-    accent: '#25D366',       // WhatsApp green
+    accent: '#25D366',      
     success: '#25D366',
     warning: '#F59E0B',
     danger: '#EF4444',

@@ -27,6 +27,7 @@ const escapeHtml = (str: string | null | undefined): string => {
 
 /* ---------- HTML builder (same as before, but now all data escaped) ---------- */
 function buildDeliveryNoteHtml(data: {
+  isWarehouse?: boolean;
   jobId: string;
   poNumber: string;
   driverName: string;
@@ -52,6 +53,7 @@ function buildDeliveryNoteHtml(data: {
     weighOutGeoAddress, weighOutCity, weighOutTown, timestamp,
   } = data;
 
+  const isWarehouse = Boolean(data.isWarehouse);
   const e = escapeHtml;
   const geoLines = [weighOutGeoAddress, weighOutCity, weighOutTown].filter(Boolean);
   const geoText = geoLines.length > 0 ? geoLines.join(', ') : 'N/A';
@@ -104,8 +106,8 @@ function buildDeliveryNoteHtml(data: {
   <div class="section">
     <div class="section-title">Parties</div>
     <div class="row"><span class="label">Vendor</span><span class="value">${e(vendorName) || 'N/A'}</span></div>
-    <div class="row"><span class="label">Driver</span><span class="value">${e(driverName) || 'N/A'}</span></div>
-    <div class="row"><span class="label">Truck</span><span class="value">${e(plateNumber) || 'N/A'}</span></div>
+    ${!isWarehouse ? `<div class="row"><span class="label">Driver</span><span class="value">${e(driverName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Truck</span><span class="value">${e(plateNumber) || 'N/A'}</span></div>` : '<div class="row"><span class="label">Origin</span><span class="value">Warehouse</span></div>'}
   </div>
 
   <div class="section">
@@ -113,7 +115,7 @@ function buildDeliveryNoteHtml(data: {
     <div class="row"><span class="label">Material</span><span class="value">${e(materialName) || 'N/A'}</span></div>
   </div>
 
-  <div class="section">
+  ${!isWarehouse ? `<div class="section">
     <div class="section-title">Route & Geolocation</div>
     
     <div class="row"><span class="label">City / Town</span><span class="value">${e(quarryCityTown) || e(weighOutCity) || 'N/A'}</span></div>
@@ -123,9 +125,9 @@ function buildDeliveryNoteHtml(data: {
   <div class="section">
     <div class="section-title">Quarry Personnel</div>
     <div class="row"><span class="label">Recorded By</span><span class="value">${e(quarryPersonnel) || 'N/A'}</span></div>
-  </div>
+  </div>` : ''}
 
-  ${weighInWeight || weighOutWeight || netWeight ? `
+  ${!isWarehouse && (weighInWeight || weighOutWeight || netWeight) ? `
   <div class="section">
     <div class="section-title">Weight Record</div>
     <table>
@@ -205,6 +207,7 @@ export default function DeliveryNoteScreen() {
   const colors = useTheme();
   const [searchJobId, setSearchJobId] = useState(id || '');
   const [delivery, setDelivery] = useState<any>(null);
+  const isWarehouse = Boolean(delivery?.isWarehouseDelivery || delivery?.warehouseJobId) || String(delivery?.deliveryOrigin || delivery?.materialSource || '').toLowerCase() === 'warehouse';
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -277,9 +280,12 @@ export default function DeliveryNoteScreen() {
       ['Delivery Note #', delivery.jobId],
       ['Purchase Order', delivery.poNumber || 'N/A'],
       ['Vendor', delivery.vendorName || 'N/A'],
+      ...(isWarehouse ? [['Origin', 'Warehouse']] : [
       ['Driver', delivery.driverName || 'N/A'],
       ['Truck', delivery.plateNumber || 'N/A'],
+      ]),
       ['Materials on PO', materialsLabel],
+      ...(!isWarehouse ? [
       ['Weigh-Out (Location)', capturedQuarrySource || 'N/A'],
       ['Recorded By', quarryPersonnel || 'N/A'],
       ['City / Town', quarryCityTown || 'N/A'],
@@ -288,6 +294,7 @@ export default function DeliveryNoteScreen() {
       ['Weigh-In', delivery.weighInWeight ? `${delivery.weighInWeight} t` : '—'],
       ['Weigh-Out', delivery.weighOutWeight ? `${delivery.weighOutWeight} t` : '—'],
       ['Net Weight', `${netWeight} tonnes`],
+      ] : []),
       ['Status', (delivery.status || '').replace(/_/g, ' ').toUpperCase()],
       ['Date Created', delivery.createdAt || ''],
     ];
@@ -309,6 +316,7 @@ export default function DeliveryNoteScreen() {
     setExporting('pdf');
     try {
       const pdfData = {
+        isWarehouse,
         jobId: delivery.jobId || '',
         poNumber: delivery.poNumber || '',
         driverName: delivery.driverName || '',
@@ -396,12 +404,16 @@ export default function DeliveryNoteScreen() {
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>PARTIES</Text>
               <DNRow label="Vendor" value={delivery.vendorName} />
+              {!isWarehouse && <>
               <DNRow label="Driver" value={delivery.driverName} />
               <DNRow label="Truck" value={delivery.plateNumber} />
+              </>}
+              {isWarehouse && <DNRow label="Origin" value="Warehouse" />}
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>MATERIAL</Text>
               <DNRow label="Materials on PO" value={materialsLabel} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
+              {!isWarehouse && <>
               <Text style={styles.rSection}>ROUTE </Text>
               <DNRow label="Weight out location" value={capturedQuarrySource || 'N/A'} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
@@ -421,8 +433,9 @@ export default function DeliveryNoteScreen() {
                   <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
                 </>
               )}
+              </>}
               <Text style={styles.rBarcode}>||| ||| ||| ||| ||| ||| |||</Text>
-              <Text style={styles.rFooter}>Quarry Operator Confirmation</Text>
+              <Text style={styles.rFooter}>{isWarehouse ? 'Warehouse Confirmation' : 'Quarry Operator Confirmation'}</Text>
               <Text style={styles.rThanks}>Thank you</Text>
             </View>
           </View>

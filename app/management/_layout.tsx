@@ -4,7 +4,7 @@ import {
   Platform, StyleSheet, View, Text, TouchableOpacity, Animated, Pressable, useWindowDimensions, ScrollView, Modal, ActivityIndicator,
   type ColorValue,
 } from 'react-native';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
@@ -20,6 +20,8 @@ const LITE_BOTTOM_TABS = ['dashboard', 'vendors', 'trucks', 'drivers'];
 const BOTTOM_TABS = [...new Set([...DEFAULT_BOTTOM_TABS, ...LITE_BOTTOM_TABS])];
 // These routes are opened from visible navigation and are not primary tab destinations.
 const SECONDARY_ROUTES = [
+  'stocks',
+  'security-personnel',
   'super-admin',
   'edit',
   'lite',
@@ -205,7 +207,7 @@ export default function ManagementLayout() {
   return (
     <View style={{ flex: 1 }}>
       <ManagementMenuProvider openMenu={toggleMenu}>
-      <Tabs
+      <Tabs backBehavior="fullHistory"
         tabBar={Platform.OS === 'web' ? NoopTabBar : undefined}
         screenOptions={getManagementScreenOptions(colors, tabBottomInset)}
       >
@@ -293,7 +295,7 @@ export default function ManagementLayout() {
                         onPress={() => handleMenuNav(item.route)}
                         disabled={disabled}
                       >
-                        <Ionicons name={item.icon} size={20} color={isLogout ? colors.danger : colors.text} />
+                        {item.route === '/warehouse' ? <MaterialCommunityIcons name="warehouse" size={20} color={colors.text} /> : <Ionicons name={item.icon} size={20} color={isLogout ? colors.danger : colors.text} />}
                         <Text style={[styles.drawerItemText, { color: isLogout ? colors.danger : colors.text }, disabled && [styles.drawerItemTextDisabled, { color: colors.textTertiary }]]}>{item.label}</Text>
                         {disabled && <View style={[styles.plannedDot, { backgroundColor: colors.textTertiary }]} />}
                       </TouchableOpacity>

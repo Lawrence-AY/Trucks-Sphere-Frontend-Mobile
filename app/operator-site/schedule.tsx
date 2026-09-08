@@ -1,5 +1,8 @@
+import api from '../../services/api';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   ActivityIndicator,
   Alert,
   Image,
@@ -99,6 +102,7 @@ export default function OperatorSiteDashboardScreen() {
   const [bankerInputs, setBankerInputs] = useState<Record<string, string>>({});
   const [bankerOpenInputs, setBankerOpenInputs] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
+  const [denialReasons, setDenialReasons] = useState<Record<string, string>>({});
   const [submitErrors, setSubmitErrors] = useState<Record<string, string>>({});
 
   // ─── Success modal for Phase 1 completion ───
@@ -208,6 +212,7 @@ export default function OperatorSiteDashboardScreen() {
       // The clear action changes this state, so they reappear here immediately
       // after unsuspension without a separate client-side transition.
       if (d.securityFlag?.status === 'flagged' || d.isFlagged === true) return false;
+      if (isWarehouseMaterial(d)) return !d.warehouseAcceptedAt && !d.warehouseDeniedAt && Boolean(d.packagingPhotoURL);
       if (d.siteWeighOutWeight != null) return false;
       // Exclude jobs that already have site arrival recorded — they belong on Weights tab
       if (d.siteWeighInWeight != null || d.siteArrivalWeight != null || status === 'SITE_WEIGHED_IN') return false;
@@ -750,6 +755,38 @@ export default function OperatorSiteDashboardScreen() {
           </DataCard>
         ) : filtered.length ? (
           filtered.slice(0, 30).map((item) => {
+            if (isWarehouseMaterial(item)) return <View key={item.id} style={{ padding: 16, marginBottom: 8, backgroundColor: colors.surface, borderRadius: 8 }}>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>{item.jobId || item.id}</Text>
+              <Text style={{ color: colors.textMuted }}>{item.vendorName} ? Warehouse</Text>
+              {(item.materials?.length ? item.materials : [{ materialName: item.materialName, quantity: item.quantityOrdered, unit: item.unit }, ...(item.additionalItems || [])]).map((line: any, index: number) => <Text key={index} style={{ color: colors.text }}>{line.materialName} ? {line.quantity} {line.unit}</Text>)}
+              {item.packagingPhotoURL ? <Image source={{ uri: item.packagingPhotoURL }} style={{ width: 120, height: 90, marginVertical: 8 }} /> : null}
+              <TextInput value={denialReasons[item.id] || ''} onChangeText={(reason) => setDenialReasons((current) => ({ ...current, [item.id]: reason }))} placeholder="Reason if denying delivery" placeholderTextColor={colors.textMuted} multiline style={{ color: colors.text, borderColor: colors.border, borderWidth: 1, padding: 10, marginVertical: 8, borderRadius: 6 }} />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity disabled={submitting[item.id]} style={{ flex: 1, backgroundColor: colors.primary, padding: 12, borderRadius: 6, opacity: submitting[item.id] ? 0.5 : 1 }} onPress={async () => {
+                setSubmitting((current) => ({ ...current, [item.id]: true }));
+                try {
+                  const { data: accepted } = await api.post('/api/delivery-orders/' + encodeURIComponent(item.id) + '/accept-warehouse', {});
+                  useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', accepted);
+                  setDeliveries((current) => current.map((entry) => entry.id === item.id ? { ...entry, ...accepted } : entry));
+                  Alert.alert('Delivery accepted', 'The delivery is now awaiting inspection.');
+                } catch (error: any) { Alert.alert('Unable to accept delivery', error?.message || 'Please try again.'); }
+                finally { setSubmitting((current) => ({ ...current, [item.id]: false })); }
+              }}><Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>{submitting[item.id] ? 'Accepting...' : 'Accept delivery'}</Text></TouchableOpacity>
+              <TouchableOpacity disabled={submitting[item.id]} style={{ flex: 1, backgroundColor: colors.danger, padding: 12, borderRadius: 6, opacity: submitting[item.id] ? 0.5 : 1 }} onPress={async () => {
+                const reason = (denialReasons[item.id] || '').trim();
+                if (!reason) return Alert.alert('Reason required', 'Enter a reason for denying this delivery.');
+                setSubmitting((current) => ({ ...current, [item.id]: true }));
+                try {
+                  const { data: denied } = await api.post('/api/delivery-orders/' + encodeURIComponent(item.id) + '/deny-warehouse', { reason });
+                  useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', denied);
+                  setDeliveries((current) => current.map((entry) => entry.id === item.id ? { ...entry, ...denied } : entry));
+                  Alert.alert('Delivery denied', 'The denial has been recorded for the vendor and management.');
+                } catch (error: any) { Alert.alert('Unable to deny delivery', error?.message || 'Please try again.'); }
+                finally { setSubmitting((current) => ({ ...current, [item.id]: false })); }
+              }}><Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Deny delivery</Text></TouchableOpacity>
+              </View>
+            </View>;
+
             const hasQuarryWeights =
               item.weighInWeight != null && item.weighOutWeight != null;
             const quarryNet =
@@ -1265,9 +1302,9 @@ export default function OperatorSiteDashboardScreen() {
 
       {/* ─── FAB Modal: Register Unscheduled Arrival ─── */}
       <Modal visible={fabVisible} transparent animationType="slide" onRequestClose={closeFab}>
-        <View style={styles.fabModalBackdrop}>
+        <KeyboardAvoidingView style={styles.fabModalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
           <View style={[styles.fabSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md }}>
+            <ScrollView style={{ flex: 1, minHeight: 0 }} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" nestedScrollEnabled contentContainerStyle={{ gap: Spacing.md, paddingBottom: Spacing.xl }}>
               <View style={styles.sheetHead}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.sheetTitle, { color: colors.text }]}>Register Unscheduled Arrival</Text>
@@ -1335,7 +1372,7 @@ export default function OperatorSiteDashboardScreen() {
                   </View>
 
                   
-                    <ScrollView style={styles.fabSelectionList} nestedScrollEnabled showsVerticalScrollIndicator>
+                    <ScrollView style={styles.fabSelectionList} nestedScrollEnabled keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator>
                     <View style={styles.fabOptionList}>
                       {fabVendorDrivers.length ? (
                         fabVendorDrivers.map((driver) => {
@@ -1599,7 +1636,7 @@ export default function OperatorSiteDashboardScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ─── Phase 1 Success Modal ─── */}
@@ -1925,7 +1962,7 @@ const styles = StyleSheet.create({
   fabBtn: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
   // FAB Modal
   fabModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
-  fabSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%' },
+  fabSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, height: '90%', minHeight: 0 },
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Spacing.md },
   sheetTitle: { fontSize: 18, fontWeight: '900' },
   sheetSub: { fontSize: 13, lineHeight: 18, marginTop: Spacing.xs},

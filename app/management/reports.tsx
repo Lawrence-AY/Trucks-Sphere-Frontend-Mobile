@@ -9,6 +9,7 @@ import {
   View,
   Alert,
 } from 'react-native';
+import { router } from '../../utils/router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
@@ -32,6 +33,7 @@ const FILTERS = [
   { key: 'month', label: 'Month' },
 ];
 const CATEGORIES = [
+  { key: 'stocks', label: 'Stocks', icon: 'layers-outline', color: '#0F766E' },
   { key: 'deliveries', label: 'Deliveries', icon: 'cube-outline', color: '#2563EB' },
   { key: 'fuel', label: 'Fuel', icon: 'water-outline', color: '#F59E0B' },
   { key: 'vendors', label: 'Vendors', icon: 'business-outline', color: '#8B5CF6' },
@@ -188,13 +190,13 @@ export default function ReportsScreen() {
           .reduce((s: number, d: any) => s + (Number(d.quantityDelivered) || Number(d.quantityOrdered) || 0), 0),
       },
       siteOps: {
-        total: deliveries.filter((d: any) => d.siteWeighInAt).length,
-        active: deliveries.filter((d: any) => d.siteWeighInAt && !d.siteWeighOutAt).length,
-        completed: deliveries.filter((d: any) => d.siteWeighInAt && d.siteWeighOutAt).length,
+        total: deliveries.filter((d: any) => d.siteWeighInAt || d.warehouseAcceptedAt).length,
+        active: deliveries.filter((d: any) => (d.siteWeighInAt || d.warehouseAcceptedAt) && !d.siteWeighOutAt && !(d.isWarehouseDelivery && d.materialInspection?.mrfNumber)).length,
+        completed: deliveries.filter((d: any) => (d.siteWeighInAt && d.siteWeighOutAt) || (d.isWarehouseDelivery && d.materialInspection?.mrfNumber)).length,
         totalNet: deliveries
-          .filter((d: any) => d.siteWeighInAt)
+          .filter((d: any) => d.siteWeighInAt && !d.isWarehouseDelivery)
           .reduce((s: number, d: any) => s + (Number(d.siteNetWeight || d.netWeight) || 0), 0),
-        preview: deliveries.filter((d: any) => d.siteWeighInAt).slice(0, 5),
+        preview: deliveries.filter((d: any) => d.siteWeighInAt || d.warehouseAcceptedAt).slice(0, 5),
       },
       inspections: {
         total: fDel.filter((d: any) => d.materialInspection?.mrfNumber).length,
@@ -372,7 +374,7 @@ export default function ReportsScreen() {
       {isLoading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: Spacing.xs}} />
       ) : (
-        <View style={styles.metricsGrid}>{renderCategoryCards(activeTab, d, colors, metrics)}</View>
+        activeTab === 'stocks' ? <View style={{ gap: 12 }}><Text style={{ color: colors.text }}>Stock CSV and the master Excel include current balances across all dates, valuation, usage, quarantine, shortages and excess receipts.</Text><TouchableOpacity onPress={() => router.push('/management/stocks')}><Text style={{ color: colors.primary }}>Open stock balances and valuation</Text></TouchableOpacity></View> : <View style={styles.metricsGrid}>{renderCategoryCards(activeTab, d, colors, metrics)}</View>
       )}
 
       <View style={{ height: 40 }} />

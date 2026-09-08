@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
 import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
@@ -39,11 +40,11 @@ export function ManagementLiteDashboard() {
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}>
       <SectionTitle title="Fleet overview" />
       <Text style={[styles.intro, { color: colors.textMuted }]}>Manage your vendors, trucks, and drivers from one place.</Text>
-      <View style={styles.metricRow}>
+      <ResponsiveGrid sideBySide style={styles.metricRow}>
         <MetricTile icon="business" label="Vendors" value={totals.vendors} tone={colors.warning} onPress={() => router.push('/management/vendors' as any)} />
         <MetricTile icon="car" label="Trucks" value={totals.trucks} tone={colors.accent} onPress={() => router.push('/management/trucks' as any)} />
         <MetricTile icon="people" label="Drivers" value={totals.drivers} tone="#8B5CF6" onPress={() => router.push('/management/drivers' as any)} />
-      </View>
+      </ResponsiveGrid>
       <SectionTitle title="Fleet records" />
       {modules.map((item) => (
         <View key={item.title} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>

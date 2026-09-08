@@ -33,6 +33,12 @@ export function getErrorCode(error: any): string {
 }
 
 const PUBLIC_ERROR_MESSAGES: Record<string, string> = {
+  WAREHOUSE_JOB_INVALID: 'Enter a product name and a quantity greater than zero for every product.',
+  WAREHOUSE_PURCHASE_ORDER_REQUIRED: 'The selected purchase order is no longer available. Refresh and select it again.',
+  WAREHOUSE_MATERIAL_REQUIRED: 'This purchase order must reference an existing warehouse material. Update the purchase order and try again.',
+  WAREHOUSE_PURCHASE_ORDER_CANCELLED: 'This purchase order is cancelled. Select an active order.',
+  WAREHOUSE_VENDOR_REQUIRED: 'The purchase order vendor could not be found. Update the purchase order vendor and try again.',
+  WAREHOUSE_POMAT_REQUIRED: 'The purchase order material needs a valid material number before dispatch.',
   HTTP_400: 'The information provided is invalid. Please check it and try again.',
   HTTP_401:
     'Invalid username or password. Please check your details and try again.',
@@ -122,7 +128,7 @@ async function backendRequest<T>(
   if (data !== undefined) {
     headers["Content-Type"] = "application/json";
   }
-  // Creation can allocate counters and start Odoo synchronisation. It should
+  // Creation allocates counters and writes records. It should
   // not be misreported as a failed delivery on slower LAN connections.
   const timeout = method === 'post' && ['/api/purchase-orders', '/api/delivery-orders'].includes(url) ? 45000 : 10000;
   const sendRequest = (accessToken: string | null) => axios.request<T>({
@@ -386,14 +392,6 @@ export async function updateDeliveryOrder(
   return unwrapOne(
     await backendRequest("put", `/api/delivery-orders/${id}`, payload),
     payload,
-  );
-}
-
-/** Retry an Odoo receipt synchronization after a previously failed attempt. */
-export async function syncDeliveryOrderWithOdoo(id: string): Promise<any> {
-  return unwrapOne(
-    await backendRequest('post', `/api/delivery-orders/${id}/sync-odoo`),
-    { id },
   );
 }
 

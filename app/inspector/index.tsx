@@ -11,8 +11,10 @@ import { useAuthStore } from '../../store/authStore';
 import { getInspectorSelection, setInspectorSelection } from '../../utils/inspectorSelection';
 import { buildHtmlContent, sharePdfAsFile } from '../../utils/exportData';
 import { useDeliveryOrders } from '../../store/realtimeData';
+import { isWarehouseJob } from '../../utils/warehouse';
 
 const materialLines = (job: any, purchaseOrders: any[] = []) => {
+  if (job?.isWarehouseDelivery && !job.materials?.length) return [{ materialId: job.materialId, materialName: job.materialName, quantity: job.quantityOrdered, unit: job.unit }, ...(job.additionalItems || []).map((line: any, index: number) => ({ ...line, materialId: line.materialId || `warehouse-${index}` }))];
   const jobLines = Array.isArray(job?.materials) && job.materials.length ? job.materials : [];
   if (jobLines.length) return jobLines;
   const po = purchaseOrders.find((order) => String(order.id) === String(job?.purchaseOrderId));
@@ -37,6 +39,7 @@ export default function InspectorScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [confirmation, setConfirmation] = useState<{ mrfNumber: string; materialCount: number; jobId: string; poNumber: string; materialReceipts: any[]; inspectorName: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savedJobId, setSavedJobId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [openingJobId, setOpeningJobId] = useState<string | null>(null);
 
@@ -49,13 +52,13 @@ export default function InspectorScreen() {
     if (selected) setActive(selected);
     const [data, orders] = await Promise.all([fetchDeliveryOrders(), fetchPurchaseOrders()]);
     setPurchaseOrders(orders || []);
-    const pending = data.filter((job: any) => job.siteWeighInWeight != null && job.siteWeighOutWeight == null && !job.materialInspection?.mrfNumber);
+    const pending = data.filter((job: any) => (job.isWarehouseDelivery ? Boolean(job.warehouseAcceptedAt) : job.siteWeighInWeight != null && job.siteWeighOutWeight == null) && !job.materialInspection?.mrfNumber);
     setJobs(pending);
     if (requestedId) setActive(pending.find((job: any) => job.jobId === requestedId || job.id === requestedId) || null);
   }, [id, jobId]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    const pending = realtimeDeliveries.filter((job: any) => job.siteWeighInWeight != null && job.siteWeighOutWeight == null && !job.materialInspection?.mrfNumber);
+    const pending = realtimeDeliveries.filter((job: any) => (job.isWarehouseDelivery ? Boolean(job.warehouseAcceptedAt) : job.siteWeighInWeight != null && job.siteWeighOutWeight == null) && !job.materialInspection?.mrfNumber);
     setJobs(pending);
     const requestedId = id || jobId;
     if (requestedId) setActive((current: any) => pending.find((job: any) => job.jobId === requestedId || job.id === requestedId) || current);
@@ -83,7 +86,7 @@ export default function InspectorScreen() {
     if (!captured.canceled && captured.assets?.[0]) setPhotos((current) => ({ ...current, [materialKey]: captured.assets[0].uri }));
   };
   const save = async () => {
-    if (!active) return;
+    if (!active || active.id === savedJobId) return;
     const lines = activeMaterialLines;
     const incompleteEvidence = lines.find((line: any, index: number) => {
       const key = String(line.materialId || index);
@@ -99,6 +102,8 @@ export default function InspectorScreen() {
     const materialReceipts = lines.map((line: any, index: number) => { const key = String(line.materialId || index); const check = materialChecks[key] || { result: '', reason: '', deficiency: '' }; return { materialId: line.materialId || String(index), materialName: line.materialName || 'Material', unit: line.unit || active.unit || '', orderedQuantity: Number(line.quantity || 0), receivedQuantity: Number(receivedQuantities[key] || 0), initialVisualInspection: check.result || 'Pending', failureReason: check.result === 'Failed' ? check.reason.trim() : '', deficiency: check.deficiency.trim() }; });
     if (materialReceipts.some((line: any) => line.initialVisualInspection === 'Failed' && !line.failureReason)) return Alert.alert('Reason required', 'Enter a failure reason for every material marked Failed.');
     if (materialReceipts.some((line: any) => !Number.isFinite(line.receivedQuantity) || line.receivedQuantity < 0)) return Alert.alert('Invalid quantity', 'Enter a valid received quantity for every material.');
+    if (active.isWarehouseDelivery && lines.some((line: any, index: number) => !String(receivedQuantities[String(line.materialId || index)] ?? '').trim())) return Alert.alert('Quantity required', 'Enter the actual received quantity for every warehouse product, including zero for missing items.');
+    if (active.isWarehouseDelivery && materialReceipts.some((line: any) => !['Pass', 'Failed'].includes(line.initialVisualInspection))) return Alert.alert('Inspection required', 'Choose Pass or Failed for every warehouse product.');
     setSaving(true);
     try {
       const inspection = await updateDeliveryOrder(active.id, { materialInspection: {
@@ -110,6 +115,7 @@ export default function InspectorScreen() {
         materialReceipts,
       }});
       await Promise.all(Object.entries(photos).map(([materialId, photo]) => uploadInspectionPhoto(active.id, photo, materialId)));
+      setSavedJobId(active.id);
       setConfirmation({ mrfNumber: inspection.materialInspection?.mrfNumber || 'MIF', materialCount: materialReceipts.length, jobId: active.jobId || active.id, poNumber: active.poNumber || '', materialReceipts, inspectorName: user?.displayName || user?.email || 'Inspector' });
       // Keep the completion dialog mounted until the Inspector explicitly
       // chooses an action. Refreshing here clears the active job and causes
@@ -134,7 +140,7 @@ export default function InspectorScreen() {
      {jobs.map((job) => <TouchableOpacity key={job.id} disabled={openingJobId === job.id} onPress={() => { if (openingJobId) return; setOpeningJobId(job.id); setInspectorSelection(job); router.push(`/inspector/inspect/${encodeURIComponent(job.id)}` as any); setTimeout(() => setOpeningJobId(null), 1000); }} 
      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, openingJobId === job.id && { opacity: .65 }]}>
       <Text style={[styles.jobId, { color: colors.text }]}>{job.jobId}</Text>
-      <Text style={{ color: colors.textMuted }}>{job.driverName || 'Unassigned'} · {job.plateNumber || 'N/A'}</Text>
+      <Text style={{ color: colors.textMuted }}>{isWarehouseJob(job) ? 'Warehouse delivery' : `${job.driverName || 'Unassigned'} · ${job.plateNumber || 'N/A'}`}</Text>
       <Text style={[styles.materials, { color: colors.text }]}>{materialList(job, purchaseOrders)}</Text>
       <Text style={{ color: job.materialInspection?.mrfNumber ? '#059669' : '#B45309', fontWeight: '700' }}>{job.materialInspection?.mrfNumber ? `${job.materialInspection.mrfNumber} — completed` : 'Inspection pending'}</Text>
     </TouchableOpacity>)}
@@ -157,11 +163,12 @@ export default function InspectorScreen() {
       <View style={styles.captureRow}><TouchableOpacity onPress={() => { void capturePhoto(key); }} style={[styles.materialPhoto, { borderColor: colors.border }]}>{photos[key] ? <Image source={{ uri: photos[key] }} style={styles.materialPreview}/> : <><Ionicons name="camera-outline" size={17} color={colors.textMuted}/><Text style={{ color: colors.textMuted, fontSize: 12 }}>Capture photo</Text></>}</TouchableOpacity><View style={{ flex: 1 }}>
       <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: 4 }}>Received quantity</Text><TextInput keyboardType="decimal-pad" value={receivedQuantities[key] || ''} onChangeText={(value) => setReceivedQuantities((current) => ({ ...current, [key]: value }))} 
       style={[styles.qtyInput, { color: colors.text, borderColor: colors.border }]} placeholder="Enter qty" placeholderTextColor={colors.textMuted}/></View></View></View>; })}</View>
-    <TouchableOpacity onPress={save} disabled={saving} style={[styles.save, { opacity: saving ? .6 : 1 }]}><Text style={styles.saveText}>{saving ? 'Saving…' : 'Save MIF inspection'}</Text></TouchableOpacity>
-  <Modal visible={Boolean(confirmation)} transparent animationType="fade" onRequestClose={() => { setConfirmation(null); router.replace('/inspector/history' as any); }}>
+    {active?.isWarehouseDelivery && activeMaterialLines.some((line: any, index: number) => Number(receivedQuantities[String(line.materialId || index)] || 0) > Number(line.quantity || 0)) ? <Text style={{ color: colors.danger }}>Received quantity exceeds the warehouse dispatch. This discrepancy will be flagged in Stocks and management reports.</Text> : null}
+    <TouchableOpacity onPress={save} disabled={saving || active.id === savedJobId} style={[styles.save, { opacity: saving || active.id === savedJobId ? .6 : 1 }]}><Text style={styles.saveText}>{saving ? 'Saving…' : active.id === savedJobId ? 'Inspection saved' : 'Save MIF inspection'}</Text></TouchableOpacity>
+  <Modal visible={Boolean(confirmation)} transparent animationType="fade" onRequestClose={() => setConfirmation(null)}>
     <View style={styles.confirmBackdrop}><View style={[styles.confirmCard,{backgroundColor:colors.surface,borderColor:colors.border}]}>
       <View style={styles.confirmIcon}><Ionicons name="checkmark" size={34} color="#fff"/></View>
-      <Text style={[styles.confirmTitle,{color:colors.text}]}>Inspection saved</Text><Text style={{color:colors.textMuted,textAlign:'center'}}>{confirmation?.mrfNumber} has been created with {confirmation?.materialCount} material record{confirmation?.materialCount===1?'':'s'}.</Text><TouchableOpacity onPress={() => { void printInspectionPdf(); }} disabled={printing} style={[styles.confirmButton,styles.printButton,{opacity:printing ? .6 : 1}]}><Ionicons name="print-outline" size={18} color="#fff"/><Text style={styles.saveText}>{printing?'Preparing PDF…':'Print PDF'}</Text></TouchableOpacity><TouchableOpacity onPress={() => { setConfirmation(null); router.replace('/inspector/history' as any); }} style={styles.confirmButton}><Text style={styles.saveText}>View history</Text></TouchableOpacity></View></View></Modal>
+      <Text style={[styles.confirmTitle,{color:colors.text}]}>Inspection saved</Text><Text style={{color:colors.textMuted,textAlign:'center'}}>{confirmation?.mrfNumber} has been created with {confirmation?.materialCount} material record{confirmation?.materialCount===1?'':'s'}.</Text><TouchableOpacity onPress={() => { void printInspectionPdf(); }} disabled={printing} style={[styles.confirmButton,styles.printButton,{opacity:printing ? .6 : 1}]}><Ionicons name="print-outline" size={18} color="#fff"/><Text style={styles.saveText}>{printing?'Preparing PDF…':'Print PDF'}</Text></TouchableOpacity><TouchableOpacity onPress={() => { setConfirmation(null); router.replace('/inspector/history' as any); }} style={styles.confirmButton}><Text style={styles.saveText}>View history</Text></TouchableOpacity><TouchableOpacity onPress={() => { setConfirmation(null); setActive(null); router.replace('/inspector' as any); }} style={styles.confirmButton}><Text style={styles.saveText}>Go back</Text></TouchableOpacity><TouchableOpacity onPress={() => setConfirmation(null)} style={styles.confirmButton}><Text style={styles.saveText}>Stay here</Text></TouchableOpacity></View></View></Modal>
   </ScrollView></KeyboardAvoidingView>;
 }
 const styles = StyleSheet.create({ page:{flex:1}, content:{padding: Spacing.md,paddingTop:0,

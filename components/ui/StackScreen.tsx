@@ -1,7 +1,8 @@
+import { router } from '../../utils/router';
 import React from 'react';
 import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Href, router } from 'expo-router';
+import { Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
@@ -81,6 +82,9 @@ export function StackScreen({
       </View>
       {scroll ? (
         <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      automaticallyAdjustKeyboardInsets
           contentContainerStyle={[styles.content, contentStyle]}
           showsVerticalScrollIndicator={Platform.OS === 'web'}
         >

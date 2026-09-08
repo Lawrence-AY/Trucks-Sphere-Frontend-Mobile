@@ -1,3 +1,4 @@
+import { PurchaseOrderMaterials, getPurchaseOrderMaterials } from '../../components/PurchaseOrderMaterials';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ScrollView, TextInput, RefreshControl } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -46,10 +47,10 @@ export default function ManagementOrdersScreen() {
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     return orders.filter((item: any) => {
-      const matchesSearch = !query || [item.poNumber, item.vendorName, item.materialName]
+      const matchesSearch = !query || [item.poNumber, item.vendorName, ...getPurchaseOrderMaterials(item).map((line) => line.materialName)]
         .some((v: any) => String(v || '').toLowerCase().includes(query));
       const matchesFilter = true;
-      const matchesMaterial = !materialFilter || item.materialId === materialFilter;
+      const matchesMaterial = !materialFilter || getPurchaseOrderMaterials(item).some((line) => line.materialId === materialFilter);
       return matchesSearch && matchesFilter && matchesMaterial;
     });
   }, [orders, search, materialFilter]);
@@ -116,8 +117,7 @@ export default function ManagementOrdersScreen() {
                   <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.vendorName}</Text>
                 </View>
               </View>
-              <DetailRow icon="cube-outline" label="Material" value={item.materialName || '—'} />
-              <DetailRow icon="scale-outline" label="Quantity" value={`${item.quantity || 0} ${item.unit || 'units'}`} />
+              <PurchaseOrderMaterials order={item} />
               <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.createdAt)}</Text>
             </DataCard>
           ))}

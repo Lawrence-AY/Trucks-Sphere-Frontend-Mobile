@@ -1,3 +1,5 @@
+import { useMaterials } from '../../store/realtimeData';
+import { isWarehouseJob } from '../../utils/warehouse';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -51,6 +53,7 @@ export default function OperatorQuarryDashboardScreen() {
   const refresh = useRealTimeSyncStore((s) => s.refresh);
   const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
   const purchaseOrders = usePurchaseOrders();
+  const materials = useMaterials();
   const [freshPurchaseOrders, setFreshPurchaseOrders] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -119,10 +122,11 @@ export default function OperatorQuarryDashboardScreen() {
 
   const matchingPurchaseOrders = useMemo(() => {
     const term = poSearch.trim().toLowerCase();
-    const orders = [...purchaseOrders, ...freshPurchaseOrders].filter(
+    const orders = [...freshPurchaseOrders, ...purchaseOrders].filter(
       (order, index, items) => items.findIndex((item) => item.id === order.id) === index,
     );
     return orders
+      .filter((order) => !isWarehouseJob(order, materials))
       // An operator chooses the work order first. The job card then records
       // both that PO's quarry and the operator who created the job.
       .filter((order) => !['completed', 'cancelled', 'archived'].includes(String(order.status || '').toLowerCase()))
@@ -137,7 +141,7 @@ export default function OperatorQuarryDashboardScreen() {
           order.poNumber?.toLowerCase().includes(term) ||
           order.vendorName?.toLowerCase().includes(term),
       );
-  }, [poSearch, purchaseOrders, freshPurchaseOrders]);
+  }, [poSearch, purchaseOrders, freshPurchaseOrders, materials]);
 
   const vendorDrivers = useMemo(() => {
     if (!selectedPo) return [];

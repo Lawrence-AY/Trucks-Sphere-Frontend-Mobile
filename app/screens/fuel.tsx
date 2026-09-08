@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -175,7 +176,7 @@ export default function FuelScreen() {
         onChange={setTimeFilter}
       />
 
-      <View style={styles.statsRow}>
+      <ResponsiveGrid sideBySide style={styles.statsRow}>
         <View
           style={[
             styles.statCard,
@@ -218,7 +219,7 @@ export default function FuelScreen() {
             Records
           </Text>
         </View>
-      </View>
+      </ResponsiveGrid>
 
      
 

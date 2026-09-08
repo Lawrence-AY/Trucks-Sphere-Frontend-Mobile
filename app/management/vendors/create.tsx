@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
 /**
  * Create Vendor Screen - Full form with all vendor fields
  *
@@ -9,7 +10,7 @@
  *   - Insurance & Compliance sections (single source of truth for drivers)
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -49,6 +50,7 @@ export default function CreateVendorScreen() {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
   const [saving, setSaving] = useState(false);
+  const createInFlight = useRef(false);
   const [form, setForm] = useState({
     // Company
     companyName: '',
@@ -135,8 +137,8 @@ export default function CreateVendorScreen() {
     if (!form.companyName.trim()) newErrors.companyName = 'Company name is required';
     if (!form.contactPerson.trim()) newErrors.contactPerson = 'Contact person is required';
     if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
-    const createAccount = Boolean(form.email.trim());
-    if (createAccount && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Invalid email address';
+    const createAccount = Boolean(form.email.trim() || form.password || form.confirmPassword);
+    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) newErrors.email = 'Invalid email address';
     if (createAccount && !form.password) newErrors.password = 'Password is required when creating a login account';
     else if (createAccount) {
       const passwordError = getStrongPasswordError(form.password);
@@ -148,7 +150,8 @@ export default function CreateVendorScreen() {
   }
 
   async function handleCreate() {
-    if (!validate()) return;
+    if (createInFlight.current || !validate()) return;
+    createInFlight.current = true;
 
     setSaving(true);
     try {
@@ -176,7 +179,8 @@ export default function CreateVendorScreen() {
           wibaEndDate: form.wibaEndDate.trim() || undefined,
           status: form.status as Vendor['status'],
         };
-      const result = form.email.trim()
+      const createAccount = Boolean(form.email.trim() || form.password || form.confirmPassword);
+      const result = createAccount
         ? await vendorRepository.createWithAccount({
             vendor,
             account: {
@@ -186,6 +190,15 @@ export default function CreateVendorScreen() {
             },
           })
         : { vendor: await vendorRepository.create(vendor) };
+
+      if (!result || typeof result !== 'object' || !result.vendor?.id) {
+        throw new Error('The server did not confirm the saved vendor. Check the Vendors list before retrying.');
+      }
+      const savedUsername = (result as { username?: string }).username;
+      if (createAccount && !savedUsername) throw new Error('The server did not confirm the login username. Check the vendor account before retrying.');
+      const confirmation = savedUsername
+        ? `Vendor created. Login username: ${savedUsername}`
+        : 'Vendor created without a login account.';
 
       setForm({
         companyName: '',
@@ -215,16 +228,17 @@ export default function CreateVendorScreen() {
         accountStatus: 'active',
       });
       setGeneratedUsername('');
-      const confirmation = 'username' in result
-        ? `Vendor created. Login username: ${result.username}`
-        : 'Vendor created without a login account.';
       Alert.alert('Success', confirmation, [
         { text: 'View Vendors', onPress: () => router.back() },
       ]);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || 'Failed to create vendor';
+      const code = err?.code || err?.response?.data?.code;
+      const msg = code === 'VENDOR_ALREADY_EXISTS'
+        ? 'A vendor already uses this company name, KRA PIN, or phone number. Check the Vendors list or correct those details.'
+        : err?.message || 'Failed to create vendor';
       Alert.alert('Error', msg);
     } finally {
+      createInFlight.current = false;
       setSaving(false);
     }
   }
@@ -240,11 +254,12 @@ export default function CreateVendorScreen() {
         </TouchableOpacity>
         <Text style={styles.backTitle}>Create Vendor</Text>
       </View>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         
 
         <Card>
-          <Input
+          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Input
             label="Company Name"
             value={form.companyName}
             onChangeText={(v) => updateField('companyName', v)}
@@ -322,12 +337,14 @@ export default function CreateVendorScreen() {
             placeholder="e.g. Compliant / Non-Compliant"
             icon="checkmark-done-outline"
           />
+</ResponsiveGrid>
         </Card>
 
         {/* Insurance Details */}
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Insurance Details</Text>
         <Card>
-          <Input
+          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Input
             label="Insurance Company"
             value={form.insuranceCompany}
             onChangeText={(v) => updateField('insuranceCompany', v)}
@@ -369,12 +386,15 @@ export default function CreateVendorScreen() {
             placeholder="e.g. ABC Brokers Ltd"
             icon="people-outline"
           />
+</ResponsiveGrid>
         </Card>
 
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Information</Text>
+        <Text style={{ color: colors.textMuted, marginBottom: 8 }}>Enter a password to create a username login. Email is optional.</Text>
         <Card>
-          <Input
-            label="Email Address"
+          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Input
+            label="Email Address (optional)"
             value={form.email}
             onChangeText={(v) => updateField('email', v)}
             placeholder="e.g. info@swiftlogistics.com"
@@ -399,6 +419,7 @@ export default function CreateVendorScreen() {
             secureTextEntry
             error={errors.password}
           />
+</ResponsiveGrid>
           <Button
             title="Suggest strong password"
             onPress={suggestStrongPassword}
@@ -422,7 +443,8 @@ export default function CreateVendorScreen() {
         {/* Compliance Details */}
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Compliance</Text>
         <Card>
-          <Input
+          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Input
             label="NTSA Inspection Expiry"
             value={form.ntsaInspectionExpiry}
             onChangeText={(v) => updateField('ntsaInspectionExpiry', v)}
@@ -450,6 +472,7 @@ export default function CreateVendorScreen() {
             placeholder="e.g. 2025-01-01"
             icon="calendar-outline"
           />
+</ResponsiveGrid>
         </Card>
 
         

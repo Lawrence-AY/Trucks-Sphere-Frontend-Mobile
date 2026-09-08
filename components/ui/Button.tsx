@@ -51,7 +51,7 @@ export function Button({
       buttonColor={buttonColor}
       textColor={textColor}
       icon={icon ? ({ color, size: iconSize }) => <Ionicons name={icon} color={color} size={iconSize} /> : undefined}
-      contentStyle={[styles.content, { height }]}
+      contentStyle={[styles.content, { minHeight: height }]}
       labelStyle={[styles.label, size === 'sm' && styles.labelSmall, size === 'lg' && styles.labelLarge]}
       style={[styles.button, fullWidth && styles.fullWidth, style]}
       uppercase={false}

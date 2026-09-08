@@ -1,4 +1,5 @@
-import { Tabs, useRouter } from 'expo-router';
+import { router } from '../../utils/router';
+import { Tabs } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +16,7 @@ export default function WarehouseLayout() {
   const colors = useTheme();
   const { isDark } = useThemeMode();
   const insets = useSafeAreaInsets();
-  const router = useRouter();
+
   const { user, logout } = useAuthStore();
   const [menuVisible, setMenuVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -35,7 +36,7 @@ export default function WarehouseLayout() {
   };
   return (
     <>
-    <Tabs
+    <Tabs backBehavior="fullHistory"
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text,

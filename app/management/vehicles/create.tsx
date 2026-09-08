@@ -1,3 +1,5 @@
+import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
+import { vendorOptions as buildVendorOptions } from '../../../utils/vendorOptions';
 /**
  * Create Vehicle Screen - Belongs to a Vendor
  *
@@ -152,7 +154,7 @@ export default function CreateVehicleScreen() {
     }
   }
 
-  const vendorOptions = vendors.map((v) => ({ id: v.id, name: v.companyName }));
+  const vendorOptions = buildVendorOptions(vendors);
 
   return (
     <KeyboardAvoidingView
@@ -170,7 +172,8 @@ export default function CreateVehicleScreen() {
         
 
         <Card>
-          <Select
+          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Select
             label="Vendor"
             value={form.vendorId}
             options={vendorOptions}
@@ -260,6 +263,7 @@ export default function CreateVehicleScreen() {
             placeholder="e.g. 2024-06-30"
             icon="time-outline"
           />
+</ResponsiveGrid>
 
         </Card>
 

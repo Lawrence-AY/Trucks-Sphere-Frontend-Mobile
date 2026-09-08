@@ -17,6 +17,7 @@ type TripListCardProps = {
 /** A single source of truth for the compact dashboard and active-trip cards. */
 export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripListCardProps) {
   const colors = useTheme();
+  const isWarehouse = Boolean(trip.isWarehouseDelivery || trip.warehouseJobId) || String(trip.deliveryOrigin || trip.materialSource || '').toLowerCase() === 'warehouse';
   const jobCardNumber = trip.jobCardNumber || trip.jobId || (trip.isBackorder ? 'Awaiting assignment' : '—');
 
   const siteFlagged = isDeliveryFlagged(trip);
@@ -29,17 +30,6 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
   const backorderQuantity = isBackorder
     ? Number(trip.quantityOrdered || trip.remainingQuantity || 0)
     : Number(trip.backorderRemainingQuantity || 0);
-  const odooReceiptNumber = isBackorder
-    ? trip.odooReceiptNumber
-    : trip.odooBackorderReceiptNumber;
-  const odooSyncStatus = trip.odooReceiptSyncStatus || 'pending';
-  const odooLabel = odooReceiptNumber
-    ? `Odoo receipt: ${odooReceiptNumber}`
-    : odooSyncStatus === 'synced'
-      ? 'Odoo receipt synchronized'
-      : odooSyncStatus === 'failed'
-        ? 'Odoo receipt sync needs retry'
-        : 'Awaiting Odoo receipt sync';
 
   return (
     <DataCard
@@ -52,7 +42,9 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
       onPress={onPress}
     >
       <View style={styles.row}>
-        {driverPhoto ? (
+        {isWarehouse ? (
+          <Ionicons name="business-outline" size={28} color={colors.primary} />
+        ) : driverPhoto ? (
           <Image source={{ uri: driverPhoto }} style={styles.driverPhoto} />
         ) : !trip.driverId ? (
           <View style={[styles.driverPhoto, styles.driverPhotoFallback, { backgroundColor: colors.primaryLight }]}>
@@ -61,11 +53,11 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
         ) : null}
         <View style={styles.driverDetails}>
           <Text style={[styles.driverName, { color: colors.text }]} numberOfLines={1}>
-            {trip.driverName || 'Unassigned driver'}
+            {isWarehouse ? 'From warehouse' : trip.driverName || 'Unassigned driver'}
           </Text>
-          <Text style={[styles.truckName, { color: colors.textMuted }]} numberOfLines={1}>
+          {!isWarehouse && <Text style={[styles.truckName, { color: colors.textMuted }]} numberOfLines={1}>
             {trip.plateNumber || 'No truck assigned'}
-          </Text>
+          </Text>}
         </View>
         <View style={styles.materialDetails}>
           <Text style={[styles.materialName, { color: colors.text }]} numberOfLines={1}>
@@ -81,8 +73,8 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
           {trip.vendorName || 'Unknown vendor'}
         </Text>
         <View style={styles.tripMeta}>
-          <Text style={[styles.jobCardNumber, { color: colors.textSecondary }]} numberOfLines={1}>
-            Job card: {jobCardNumber}
+          <Text style={[styles.jobCardNumber, { color: colors.textSecondary }]} numberOfLines={1} ellipsizeMode="tail">
+            {jobCardNumber}
           </Text>
           <Text style={[styles.timestamp, { color: colors.textTertiary }]} numberOfLines={1}>
             {formatEAT(trip.updatedAt || trip.createdAt)}
@@ -161,6 +153,7 @@ const styles = StyleSheet.create({
     maxWidth: '55%',
   },
   jobCardNumber: {
+    maxWidth: '100%',
     fontSize: 11,
     fontWeight: '700',
   },

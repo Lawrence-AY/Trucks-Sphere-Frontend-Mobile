@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useCallback, useMemo, useState } from "react";
 import {
   RefreshControl,
@@ -120,7 +121,7 @@ function ManagementDashboardContent() {
       }
     >
       <View style={styles.metricGrid}>
-        <View style={styles.metricRow}>
+        <ResponsiveGrid sideBySide style={styles.metricRow}>
           <MetricTile
             icon="trail-sign"
             label="Total trips"
@@ -139,8 +140,8 @@ function ManagementDashboardContent() {
             emphasized
             onPress={() => router.push("/management/active")}
           />
-        </View>
-        <View style={styles.metricRow}>
+        </ResponsiveGrid>
+        <ResponsiveGrid sideBySide style={styles.metricRow}>
           <MetricTile
             icon="checkmark-done-circle"
             label="Delivered"
@@ -159,8 +160,8 @@ function ManagementDashboardContent() {
             emphasized
             onPress={() => router.push("/management/active" as any)}
           />
-        </View>
-        <View style={styles.metricRow}>
+        </ResponsiveGrid>
+        <ResponsiveGrid sideBySide style={styles.metricRow}>
           <MetricTile
             icon="briefcase"
             label="Vendors"
@@ -179,8 +180,8 @@ function ManagementDashboardContent() {
             emphasized
             onPress={() => router.push("/management/drivers" as any)}
           />
-        </View>
-        <View style={styles.metricRow}>
+        </ResponsiveGrid>
+        <ResponsiveGrid sideBySide style={styles.metricRow}>
           <MetricTile
             icon="car"
             label="Vehicles"
@@ -199,7 +200,7 @@ function ManagementDashboardContent() {
             emphasized
             onPress={() => router.push("/management/fuel" as any)}
           />
-        </View>
+        </ResponsiveGrid>
       </View>
 
       <SectionTitle

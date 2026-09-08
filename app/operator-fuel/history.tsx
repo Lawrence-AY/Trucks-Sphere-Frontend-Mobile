@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -303,7 +304,7 @@ export default function FuelHistoryScreen() {
       />
 
       {filtered.length > 0 && (
-        <View style={styles.statsRow}>
+        <ResponsiveGrid sideBySide style={styles.statsRow}>
           <View
             style={[
               styles.statCard,
@@ -350,7 +351,7 @@ export default function FuelHistoryScreen() {
               </Text>
             </View>
           )}
-        </View>
+        </ResponsiveGrid>
       )}
 
       {filtered.length > 0 && (

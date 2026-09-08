@@ -21,7 +21,7 @@ import {
   RefreshControl,
   SectionList,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,7 +34,7 @@ import { materialRepository } from '../../../services/repositories/MaterialRepos
 import { Material, MaterialCategory } from '../../../store/types';
 import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 
-const CATEGORIES: MaterialCategory[] = ['Aggregates', 'Steel', 'Cement', 'Liquid', 'Blocks', 'Other'];
+const CATEGORIES: MaterialCategory[] = ['Aggregates', 'Steel', 'Cement', 'Liquid', 'Blocks', 'Other', 'Warehouse'];
 
 const CATEGORY_ICONS: Record<string, string> = {
   Aggregates: 'layers-outline',
@@ -43,6 +43,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   Liquid: 'water-outline',
   Blocks: 'grid-outline',
   Other: 'ellipsis-horizontal-outline',
+  Warehouse: 'business-outline',
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -52,6 +53,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Liquid: '#06B6D4',
   Blocks: '#8B5CF6',
   Other: '#10B981',
+  Warehouse: '#0F766E',
 };
 
 /**
@@ -64,6 +66,7 @@ function normalizeCategory(cat: string | undefined): string {
   if (lower === 'steel') return 'Steel';
   if (lower === 'cement' || lower === 'binder') return 'Cement';
   if (lower === 'liquid') return 'Liquid';
+  if (lower === 'warehouse') return 'Warehouse';
   if (lower === 'blocks') return 'Blocks';
   return 'Other';
 }
@@ -127,7 +130,7 @@ export default function MaterialsListScreen() {
       );
     }
     if (categoryFilter) {
-      result = result.filter((m) => categoryMatches(m.category, categoryFilter));
+      result = result.filter((m) => categoryMatches(m.isWarehouseMaterial ? 'Warehouse' : m.category, categoryFilter));
     }
     return result;
   }
@@ -136,14 +139,14 @@ export default function MaterialsListScreen() {
     const filtered = getFilteredMaterials();
     const grouped: Record<string, Material[]> = {};
     CATEGORIES.forEach((cat) => {
-      const items = filtered.filter((m) => categoryMatches(m.category, cat));
+      const items = filtered.filter((m) => categoryMatches(m.isWarehouseMaterial ? 'Warehouse' : m.category, cat));
       if (items.length > 0) grouped[cat] = items;
     });
     return Object.entries(grouped).map(([title, data]) => ({ title, data }));
   }
 
   function renderMaterial({ item }: { item: Material }) {
-    const normalizedCategory = normalizeCategory(item.category);
+    const normalizedCategory = normalizeCategory(item.isWarehouseMaterial ? 'Warehouse' : item.category);
     const catColor = CATEGORY_COLORS[normalizedCategory] || colors.primary;
     return (
       <TouchableOpacity
@@ -153,16 +156,16 @@ export default function MaterialsListScreen() {
       >
         <View style={styles.materialHeader}>
           <View style={[styles.materialIcon, { backgroundColor: catColor + '15' }]}>
-            <Ionicons
+            {item.isWarehouseMaterial ? <MaterialCommunityIcons name="warehouse" size={20} color={catColor} /> : <Ionicons
               name={(CATEGORY_ICONS[normalizedCategory] || 'cube-outline') as any}
               size={20}
               color={catColor}
-            />
+            />}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.materialName, { color: colors.text }]}>{item.name}</Text>
             <Text style={[styles.materialCategory, { color: colors.textMuted }]}>
-              {item.category} • {item.defaultUnit || item.measurementType || 'units'}
+              {item.isWarehouseMaterial ? 'Warehouse' : `${item.category || 'Other'}${item.defaultUnit || item.measurementType ? ` ${item.defaultUnit || item.measurementType}` : ''}`}
             </Text>
           </View>
         </View>
@@ -219,7 +222,7 @@ export default function MaterialsListScreen() {
         {/* Category Filter */}
         <FlatList
           horizontal
-          data={['all', ...CATEGORIES]}
+          data={['all', ...CATEGORIES.filter((category) => category !== 'Other')]}
           keyExtractor={(s) => s}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterRow}

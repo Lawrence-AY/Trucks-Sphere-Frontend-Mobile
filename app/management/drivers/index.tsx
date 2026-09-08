@@ -43,7 +43,6 @@ export default function DriverListScreen() {
   const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [syncingOdoo, setSyncingOdoo] = useState(false);
   const [search, setSearch] = useState('');
   const [vendorNameMap, setVendorNameMap] = useState<Record<string, string>>({});
 
@@ -94,36 +93,6 @@ export default function DriverListScreen() {
     setRefreshing(false);
   }
 
-  async function syncOdooDrivers() {
-    setSyncingOdoo(true);
-    try {
-      let job = (await api.post('/api/drivers/sync/odoo')).data;
-      const deadline = Date.now() + 60_000;
-
-      while (job?.status === 'running' && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 900));
-        job = (await api.get('/api/drivers/sync/odoo')).data;
-      }
-
-      if (job?.status === 'completed') {
-        driverRepository.invalidateCache();
-        await loadDrivers();
-        const result = job.result || {};
-        Alert.alert(
-          'Odoo drivers synchronized',
-          `${result.imported || 0} added · ${result.updatedFromOdoo || 0} updated`,
-        );
-      } else if (job?.status === 'failed') {
-        Alert.alert('Odoo sync failed', `Error code: ${job?.result?.code || 'ODOO_DRIVER_SYNC_FAILED'}`);
-      } else {
-        Alert.alert('Odoo sync is still running', 'Pull down to refresh the driver list in a moment.');
-      }
-    } catch {
-      Alert.alert('Odoo sync failed', 'Unable to synchronize Odoo drivers. Please try again.');
-    } finally {
-      setSyncingOdoo(false);
-    }
-  }
 
   function filterDrivers() {
     let result = [...drivers];

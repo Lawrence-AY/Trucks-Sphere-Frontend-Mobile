@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView, Modal } from 'react-native';
+import { KeyboardAvoidingView, Platform, ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
@@ -62,7 +62,8 @@ export default function VendorSettingsScreen() {
       </TouchableOpacity>
 
       <Modal visible={pwModal} transparent animationType="fade" onRequestClose={() => setPwModal(false)}>
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: Spacing.xs}}>Update Password</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Current password" placeholderTextColor={colors.textMuted} value={currentPw} onChangeText={setCurrentPw} secureTextEntry />
@@ -78,7 +79,8 @@ export default function VendorSettingsScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );
@@ -89,7 +91,8 @@ const styles = StyleSheet.create({
   avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
   btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: Radius.md },
   input: { height: 48, borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, fontSize: 14, marginBottom: Spacing.xs},
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: Spacing.xl },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', },
+  modalScrollContent: { flexGrow: 1, justifyContent: 'center', padding: Spacing.xl },
   modalCard: { borderRadius: Radius.xl, padding: Spacing.xl, gap: Spacing.xs },
   modalBtn: { flex: 1, height: 44, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
 });

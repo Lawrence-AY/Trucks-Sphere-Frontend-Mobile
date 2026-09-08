@@ -10,7 +10,7 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 import { useTheme, useThemeMode } from '../hooks/useTheme';
@@ -51,9 +51,9 @@ const ROLE_SECTIONS: NavSection[] = [
       { label: 'Materials', icon: 'cube-outline', route: '/vendor/materials', roles: ['vendor'], activeRoutes: ['/vendor/materials'] },
       { label: 'Profile', icon: 'person-outline', route: '/vendor/profile', roles: ['vendor'], activeRoutes: ['/vendor/profile'] },
       { label: 'Reports', icon: 'bar-chart-outline', route: '/vendor/reports', roles: ['vendor'], activeRoutes: ['/vendor/reports'] },
-      { label: 'Dashboard', icon: 'home-outline', route: '/operator-quarry/dashboard', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/dashboard'] },
+      { label: 'Dashboard', icon: 'clipboard-outline', route: '/operator-quarry/dashboard', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/dashboard'] },
       { label: 'Weigh-In', icon: 'download-outline', route: '/operator-quarry/weigh-in', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-in'] },
-      { label: 'Weigh-Out', icon: 'arrow-up-circle-outline', route: '/operator-quarry/weigh-out', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-out'] },
+      { label: 'Weigh-Out', icon: 'arrow-up-outline', route: '/operator-quarry/weigh-out', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/weigh-out'] },
       { label: 'History', icon: 'time-outline', route: '/operator-quarry/history', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-quarry/profile', roles: ['operator_quarry'], activeRoutes: ['/operator-quarry/profile'] },
       { label: 'Schedule', icon: 'calendar-outline', route: '/operator-site/schedule', roles: ['operator_site'], activeRoutes: ['/operator-site/schedule'] },
@@ -231,11 +231,7 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
                 onPress={() => handleNav(item.route)}
                 disabled={disabled}
               >
-                <Ionicons
-                  name={item.icon}
-                  size={20}
-                  color={active ? activeNavColor : inactiveNavColor}
-                />
+                {item.route === '/warehouse' ? <MaterialCommunityIcons name="warehouse" size={20} color={active ? activeNavColor : inactiveNavColor} /> : <Ionicons name={item.icon} size={20} color={active ? activeNavColor : inactiveNavColor} />}
                 <Text
                   style={[
                     styles.navItemText,

@@ -40,6 +40,9 @@ export function PageShell({
   }
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      automaticallyAdjustKeyboardInsets
       style={[styles.shell, { backgroundColor: colors.background }, style]}
       contentContainerStyle={styles.shellContent}
       refreshControl={refreshControl}
@@ -274,20 +277,21 @@ export function EmptyState({
 }
 
 const styles = StyleSheet.create({
-  shell: { flex: 1 },
+  shell: { flex: 0, width: '100%', minWidth: 0 },
   shellContent: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing['3xl'],
-    gap: Spacing.sm,
+    paddingHorizontal: '0.7%',
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing['xl'],
+    gap: Spacing.xs,
   },
   commandHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.md,
   },
-  commandCopy: { flex: 1 },
+  commandCopy: { flex: 1, minWidth: 0, flexBasis: '65%' },
   eyebrow: {
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -316,6 +320,7 @@ const styles = StyleSheet.create({
   },
   metricTile: {
     flex: 1,
+    minWidth: 0,
     minHeight: 104,
     borderRadius: Radius.md,
     borderWidth: 1,
@@ -390,6 +395,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   dataCard: {
+    minWidth: 0,
+    maxWidth: '100%',
     borderRadius: 5, marginBottom: Spacing.sm,
     overflow: 'hidden',
   },
@@ -399,6 +406,8 @@ const styles = StyleSheet.create({
   },
   sectionTitleRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'space-between',
   },
@@ -412,6 +421,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     flex: 1,
+    minWidth: 0,
   },
   progressBar: {
     height: 7,

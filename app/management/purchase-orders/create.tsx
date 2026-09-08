@@ -1,3 +1,4 @@
+import { vendorOptions as buildVendorOptions } from '../../../utils/vendorOptions';
 import React, { useEffect, useState } from 'react';
 import {
   Keyboard,
@@ -69,6 +70,10 @@ export default function CreatePurchaseOrderScreen() {
 
   const keyboardVisible = useState(false)[0];
 
+  const isWarehouseMaterial = (id: string) =>
+    materials.find((material) => material.id === id)?.isWarehouseMaterial === true;
+  const hasWarehouseReference = lines.some((line) => isWarehouseMaterial(line.materialId));
+
   useEffect(() => {
     Promise.all([
       vendorRepository.getAll(),
@@ -102,6 +107,10 @@ export default function CreatePurchaseOrderScreen() {
     field: keyof Line,
     value: string
   ) {
+    if (field === 'materialId' && isWarehouseMaterial(value) && lines.length > 1) {
+      void showAlert('Single material required', 'Remove the extra material lines before choosing a warehouse reference. A warehouse-reference PO can contain only one material.');
+      return;
+    }
     setLines((current) =>
       current.map((line, i) => {
         if (i !== index) return line;
@@ -114,8 +123,9 @@ export default function CreatePurchaseOrderScreen() {
           return {
             ...line,
             materialId: value,
+            quantity: material?.isWarehouseMaterial ? '' : line.quantity,
             unit:
-              material?.defaultUnit ||
+              material?.isWarehouseMaterial ? '' : material?.defaultUnit ||
               material?.measurementType ||
               'units',
           };
@@ -130,19 +140,23 @@ export default function CreatePurchaseOrderScreen() {
   }
 
   async function create() {
+    if (hasWarehouseReference && lines.length !== 1) {
+      await showAlert('Single material required', 'A warehouse-reference PO can contain only one material.');
+      return;
+    }
     if (
       !vendorId ||
       lines.some(
         (line) =>
           !line.materialId ||
-          !line.unit ||
+          (!isWarehouseMaterial(line.materialId) && (!line.unit ||
           !Number.isFinite(Number(line.quantity)) ||
-          Number(line.quantity) <= 0
+          Number(line.quantity) <= 0))
       )
     ) {
       await showAlert(
         'Missing required fields',
-        'Select a vendor and complete every material, quantity, and unit.'
+        'Select a vendor and material. Quantity and unit are required for non-warehouse materials.'
       );
       return;
     }
@@ -165,8 +179,10 @@ export default function CreatePurchaseOrderScreen() {
           materials.find(
             (material) => material.id === line.materialId
           )?.name || '',
-        quantity: Number(line.quantity),
-        unit: line.unit,
+        ...(!isWarehouseMaterial(line.materialId) ? {
+          quantity: Number(line.quantity),
+          unit: line.unit,
+        } : {}),
       }));
 
       const created =
@@ -188,6 +204,9 @@ export default function CreatePurchaseOrderScreen() {
           materials: orderLines,
         });
 
+      setVendorId('');
+      setLines([{ materialId: '', quantity: '', unit: '' }]);
+      setPoNumber('');
       await showAlert(
         'Purchase order created',
         `${created.poNumber} created successfully.`
@@ -208,17 +227,7 @@ export default function CreatePurchaseOrderScreen() {
     }
   }
 
-  const vendorOptions = vendors.map((v) => ({
-    id: v.id,
-    name: `${withoutPrefix(
-      v.vendorId || v.id,
-      'V'
-    )} - ${
-      v.companyName ||
-      (v as any)?.name ||
-      'Unknown Vendor'
-    }`,
-  }));
+  const vendorOptions = buildVendorOptions(vendors);
 
   const materialOptions = materials.map((m) => ({
     id: m.id,
@@ -327,7 +336,7 @@ export default function CreatePurchaseOrderScreen() {
                     color: colors.textMuted,
                   }}
                 >
-                  MATERIALS AND QUANTITIES
+                  MATERIALS
                 </Text>
 
                 {previewLines.map((line, index) => (
@@ -337,8 +346,8 @@ export default function CreatePurchaseOrderScreen() {
                       color: colors.text,
                     }}
                   >
-                    {line.label}: {line.quantity || '-'}{' '}
-                    {line.unit || 'units'}
+                    {line.label}{!isWarehouseMaterial(line.materialId)
+                      ? `: ${line.quantity || '-'} ${line.unit || 'units'}` : ''}
                   </Text>
                 ))}
               </View>
@@ -414,6 +423,7 @@ export default function CreatePurchaseOrderScreen() {
                 placeholder="Select material..."
               />
 
+              {!isWarehouseMaterial(line.materialId) && <>
               <Input
                 label="Quantity"
                 value={line.quantity}
@@ -445,10 +455,11 @@ export default function CreatePurchaseOrderScreen() {
                 required
                 placeholder="Select unit..."
               />
+              </>}
             </View>
           ))}
 
-          <TouchableOpacity
+          {!hasWarehouseReference && <TouchableOpacity
             style={[
               styles.add,
               {
@@ -480,7 +491,8 @@ export default function CreatePurchaseOrderScreen() {
             >
               Add material
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity>}
+          {hasWarehouseReference && <Text style={{ color: colors.textMuted }}>Warehouse-reference purchase orders contain one material only.</Text>}
         </Card>
 
         <View style={styles.actions}>

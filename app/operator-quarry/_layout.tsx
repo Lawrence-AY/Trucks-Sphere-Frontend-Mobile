@@ -94,7 +94,7 @@ export default function OperatorQuarryLayout() {
 
   return (
     <>
-      <Tabs
+      <Tabs backBehavior="fullHistory"
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
           tabBarActiveTintColor: colors.tabActive,

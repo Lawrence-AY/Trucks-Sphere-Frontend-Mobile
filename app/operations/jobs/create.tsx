@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
 /**
  * Create Job Screen - Create a delivery job from a Purchase Order
  *
@@ -132,6 +133,8 @@ export default function CreateJobScreen() {
         hasWeightDiscrepancy: false,
       });
 
+      setForm({ purchaseOrderId: '', driverId: '', vehicleId: '', quantity: '' });
+      setErrors({});
       Alert.alert('Success', 'Job created successfully', [
         { text: 'View Jobs', onPress: () => router.back() },
       ]);
@@ -195,7 +198,8 @@ export default function CreateJobScreen() {
         <Card style={{ marginTop: Spacing.xs}}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Assignment</Text>
 
-          <Select
+          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
+<Select
             label="Driver"
             value={form.driverId}
             options={filteredDrivers.map((d) => ({
@@ -234,6 +238,7 @@ export default function CreateJobScreen() {
             error={errors.quantity}
             suffix={selectedPO?.unit || ''}
           />
+</ResponsiveGrid>
         </Card>
 
         <View style={styles.actions}>

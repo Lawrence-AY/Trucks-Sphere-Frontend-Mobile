@@ -20,7 +20,6 @@ import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { useDeliveryOrders, useDrivers, useMaterials } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
-import { syncDeliveryOrderWithOdoo } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import { isActiveJob } from '../../utils/jobStatus';
 import {
@@ -71,7 +70,6 @@ export default function ManagementActiveScreen() {
   const [materialFilter, setMaterialFilter] = useState('');
   const [matDropdownOpen, setMatDropdownOpen] = useState(false);
   const [matSearch, setMatSearch] = useState('');
-  const [syncingOdooIds, setSyncingOdooIds] = useState<string[]>([]);
 
   // Realtime hooks
   const deliveries = useDeliveryOrders();
@@ -95,21 +93,6 @@ export default function ManagementActiveScreen() {
     setRefreshing(false);
   }, [refresh]);
 
-  const retryOdooReceiptSync = useCallback(async (deliveryId: string) => {
-    setSyncingOdooIds((current) => [...current, deliveryId]);
-    try {
-      const updated = await syncDeliveryOrderWithOdoo(deliveryId);
-      useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', updated);
-      useRealTimeSyncStore.getState().invalidateETag('deliveryOrders');
-      if (updated?.odooReceiptSyncStatus === 'failed') {
-        Alert.alert('Odoo confirmation pending', 'TruckSphere saved the delivery successfully, but Odoo has not confirmed the receipt yet. The receipt can be retried safely after checking the Odoo connection.');
-      }
-    } catch {
-      Alert.alert('Odoo confirmation pending', 'TruckSphere saved the delivery successfully, but the Odoo confirmation took too long or was unavailable. Retry the receipt sync when Odoo is reachable.');
-    } finally {
-      setSyncingOdooIds((current) => current.filter((id) => id !== deliveryId));
-    }
-  }, []);
 
   /* ─── Time Range Filtering ─── */
   const now = new Date();
@@ -363,23 +346,6 @@ export default function ManagementActiveScreen() {
                   trip={item}
                   driverPhoto={driverPhoto}
                   onPress={() => router.push(`/operations/jobs/${item.id}` as any)}
-                  bottomAction={item.odooReceiptSyncStatus === 'failed' ? (
-                    <TouchableOpacity
-                      style={[styles.odooRetry, { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }]}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        void retryOdooReceiptSync(item.id);
-                      }}
-                      disabled={syncingOdooIds.includes(item.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Retry Odoo receipt synchronization for ${item.jobId || item.id}`}
-                    >
-                      {syncingOdooIds.includes(item.id)
-                        ? <ActivityIndicator size="small" color="#B91C1C" />
-                        : <Ionicons name="refresh-outline" size={15} color="#B91C1C" />}
-                      <Text style={styles.odooRetryText}>{syncingOdooIds.includes(item.id) ? 'Retrying Odoo sync...' : 'Retry Odoo receipt sync'}</Text>
-                    </TouchableOpacity>
-                  ) : undefined}
                 />
               );
             })}
@@ -412,6 +378,4 @@ const styles = StyleSheet.create({
   activeTripList: {
     gap: 0.1,
   },
-  odooRetry: { minHeight: 34, marginTop: Spacing.xs, borderWidth: 1, borderRadius: Radius.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: Spacing.sm },
-  odooRetryText: { color: '#B91C1C', fontSize: 11, fontWeight: '800' },
 });

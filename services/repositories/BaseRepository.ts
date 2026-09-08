@@ -35,15 +35,7 @@ export class BaseRepository<T extends { id: string }> {
    * Returns cached data instantly, refreshes in background.
    */
   async getAll(params?: Record<string, string>): Promise<T[]> {
-    // 1. Try cache first
-    const cached = await collectionCache.getCollection<T>(this.config.cacheKey, params);
-    if (cached.length > 0) {
-      // Background refresh
-      this.fetchAndCache(params).catch(() => {});
-      return cached;
-    }
-
-    // 2. Fetch from API
+    // Await current data so callers receive the refreshed result.
     return this.fetchAndCache(params);
   }
 
@@ -51,11 +43,6 @@ export class BaseRepository<T extends { id: string }> {
    * Get a single item by ID.
    */
   async getById(id: string): Promise<T | null> {
-    // Try to find in cached collection first
-    const all = await collectionCache.getCollection<T>(this.config.cacheKey);
-    const found = all.find((item) => item.id === id);
-    if (found) return found;
-
     // Fetch from API
     try {
       const response = await api.get(`${this.config.apiPath}/${id}`);
@@ -109,6 +96,7 @@ export class BaseRepository<T extends { id: string }> {
 
     try {
       const response = await api.put(`${this.config.apiPath}/${id}`, updates);
+      await collectionCache.updateInCollection(this.config.cacheKey, id, response.data as T);
       return response.data as T;
     } catch (error) {
       // Rollback by invalidating cache (will re-fetch)
@@ -177,7 +165,7 @@ export class BaseRepository<T extends { id: string }> {
       await collectionCache.setCollection(this.config.cacheKey, items, params);
       return items;
     } catch (error) {
-      return [];
+      throw error;
     }
   }
 }

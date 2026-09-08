@@ -9,7 +9,7 @@
  *   - Pull to refresh
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -49,10 +49,9 @@ export default function VendorListScreen() {
   const canWriteVendors = hasManagementPermission(user?.role, 'vendors.write');
   const insets = useSafeAreaInsets();
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [filtered, setFiltered] = useState<Vendor[]>([]);
+  const requestVersion = useRef(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [syncingOdoo, setSyncingOdoo] = useState(false);
   const [search, setSearch] = useState('');
   const [vendorStats, setVendorStats] = useState<Record<string, { drivers: number; vehicles: number; jobs: number }>>({});
 
@@ -63,11 +62,10 @@ export default function VendorListScreen() {
     }, []),
   );
 
-  useEffect(() => {
-    filterVendors();
-  }, [search, vendors]);
+  const filtered = useMemo(() => filterVendors(), [search, vendors]);
 
   async function loadVendors() {
+    const version = ++requestVersion.current;
     try {
       // Fetch all parallel: vendors, drivers, vehicles, jobs
       const [vendorData, drivers, vehicles, jobs] = await Promise.all([
@@ -77,6 +75,7 @@ export default function VendorListScreen() {
         fetchDeliveryOrders(),
       ]);
 
+      if (version !== requestVersion.current) return;
       setVendors(vendorData);
 
       // Compute per-vendor stats
@@ -93,7 +92,7 @@ export default function VendorListScreen() {
     } catch {
       // Error handled silently
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }
 
@@ -104,41 +103,11 @@ export default function VendorListScreen() {
     setRefreshing(false);
   }
 
-  async function syncOdooVendors() {
-    setSyncingOdoo(true);
-    try {
-      let job = (await api.post('/api/vendors/sync/odoo')).data;
-      const deadline = Date.now() + 60_000;
-
-      while (job?.status === 'running' && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 900));
-        job = (await api.get('/api/vendors/sync/odoo')).data;
-      }
-
-      if (job?.status === 'completed') {
-        vendorRepository.invalidateCache();
-        await loadVendors();
-        const result = job.result || {};
-        Alert.alert(
-          'Odoo vendors synchronized',
-          `${result.imported || 0} added · ${result.updatedFromOdoo || 0} updated`,
-        );
-      } else if (job?.status === 'failed') {
-        Alert.alert('Odoo sync failed', `Error code: ${job?.result?.code || 'ODOO_VENDOR_SYNC_FAILED'}`);
-      } else {
-        Alert.alert('Odoo sync is still running', 'Pull down to refresh the vendor list in a moment.');
-      }
-    } catch {
-      Alert.alert('Odoo sync failed', 'Unable to synchronize Odoo vendors. Please try again.');
-    } finally {
-      setSyncingOdoo(false);
-    }
-  }
 
   function filterVendors() {
     let result = [...vendors];
     if (search.trim()) {
-      const q = search.toLowerCase();
+      const q = search.trim().toLowerCase();
       result = result.filter(
         (v) =>
           v.companyName?.toLowerCase().includes(q) ||
@@ -151,7 +120,7 @@ export default function VendorListScreen() {
           v.phone?.includes(q)
       );
     }
-    setFiltered(result);
+    return result.sort((a, b) => String(a.vendorId || a.id).localeCompare(String(b.vendorId || b.id), 'en', { numeric: true, sensitivity: 'base' }) || a.id.localeCompare(b.id));
   }
 
   function getStatusBadge(status?: string) {

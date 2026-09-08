@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "start": "set DEBUG= && npx expo start",
-    "android": "set DEBUG= && npx expo start --android",
+    "start": "set DEBUG= && npx expo start --clear",
+    "android": "set DEBUG= && npx expo start --android --clear",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
