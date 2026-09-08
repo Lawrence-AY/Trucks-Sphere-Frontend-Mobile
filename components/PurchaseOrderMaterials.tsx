@@ -2,9 +2,8 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
 
-export function getPurchaseOrderMaterials(order: any): any[] {
-  return Array.isArray(order.materials) && order.materials.length ? order.materials : [order];
-}
+import { getPurchaseOrderMaterials } from '../utils/poMaterials';
+export { getPurchaseOrderMaterials } from '../utils/poMaterials';
 
 export function PurchaseOrderMaterials({ order }: { order: any }) {
   const colors = useTheme();

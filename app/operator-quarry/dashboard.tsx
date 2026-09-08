@@ -1,3 +1,4 @@
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 import { useMaterials } from '../../store/realtimeData';
 import { isWarehouseJob } from '../../utils/warehouse';
 import { useEffect, useMemo, useState } from 'react';
@@ -325,7 +326,7 @@ export default function OperatorQuarryDashboardScreen() {
                     </TouchableOpacity>
                   );
                 })()}
-                <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
+                <DetailRow multiline icon="cube-outline" value={`${formatPurchaseOrderMaterials(item) || 'Material'}`} />
                 <DetailRow icon="business-outline" value={`${item.vendorName || 'N/A'}`} />
                 <View style={[styles.stageBadge, { backgroundColor: `${s.color}15`, borderColor: `${s.color}44` }]}>
                   <Ionicons name={s.icon as any} size={14} color={s.color} />
@@ -363,7 +364,7 @@ export default function OperatorQuarryDashboardScreen() {
                     </View>
                   </View>
                   <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
-                  <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
+                  <DetailRow multiline icon="cube-outline" value={`${formatPurchaseOrderMaterials(item) || 'Material'}`} />
                  
                   <DetailRow icon="person-outline" value={`Dispatched by: ${item.weighOutByName || item.createdByName || item.operatorUsername || '—'}`} />
                   {/* Weight summary */}
@@ -460,7 +461,7 @@ export default function OperatorQuarryDashboardScreen() {
                       >
                         <View style={{ flex: 1 }}>
                           <Text style={[styles.optionTitle, { color: colors.text }]}>{order.poNumber}</Text>
-                          <Text style={[styles.optionMeta, { color: colors.textMuted }]}>{order.vendorName} · {order.materialName}</Text>
+                          <Text style={[styles.optionMeta, { color: colors.textMuted }]}>{order.vendorName} · {formatPurchaseOrderMaterials(order)}</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                       </TouchableOpacity>
@@ -479,7 +480,7 @@ export default function OperatorQuarryDashboardScreen() {
                 <Text style={[styles.prefillTitle, { color: colors.text }]}>Order Details</Text>
                 <DetailRow icon="document-outline" value={`Order: ${selectedPo.poNumber}`} />
                 <DetailRow icon="business-outline" value={`Vendor: ${selectedPo.vendorNumber || String(selectedPo.vendorId || '').replace(/^V/i, '')} - ${selectedPo.vendorName}`} />
-                <DetailRow icon="cube-outline" value={`Material: ${selectedPo.materialNumber || String(selectedPo.materialId || '').replace(/^MAT/i, '')} - ${selectedPo.materialName}`} />
+                <DetailRow multiline icon="cube-outline" value={`Material: ${formatPurchaseOrderMaterials(selectedPo)}`} />
                
               </View>
             )}

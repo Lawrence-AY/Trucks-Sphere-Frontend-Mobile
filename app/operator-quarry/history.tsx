@@ -1,3 +1,4 @@
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 import { useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
@@ -350,7 +351,7 @@ export default function OperatorQuarryHistoryScreen() {
               <View style={styles.tableCell}>
                 <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Material</Text>
                 <Text style={[styles.tableValue, { color: colors.text }]}>
-                  {item.materialName || '—'}
+                  {formatPurchaseOrderMaterials(item) || '—'}
                 </Text>
               </View>
             </View>

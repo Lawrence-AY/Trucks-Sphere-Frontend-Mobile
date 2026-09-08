@@ -1,3 +1,4 @@
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -635,9 +636,9 @@ export default function OperatorSiteWeightsScreen() {
               icon="person-outline"
               value={`${activeJob.driverName || 'N/A'} · ${activeJob.plateNumber || 'N/A'}`}
             />
-            <DetailRow
+            <DetailRow multiline
               icon="cube-outline"
-              value={`${activeJob.materialName || 'Material'}`}
+              value={`${formatPurchaseOrderMaterials(activeJob) || 'Material'}`}
             />
             <DetailRow
               icon="business-outline"
@@ -881,7 +882,7 @@ export default function OperatorSiteWeightsScreen() {
                     Material
                   </Text>
                   <Text style={[styles.grnValue, { color: colors.text }]}>
-                    {activeJob.materialName}
+                    {formatPurchaseOrderMaterials(activeJob)}
                   </Text>
                 </View>
                 <View style={styles.grnRow}>
@@ -1021,7 +1022,7 @@ export default function OperatorSiteWeightsScreen() {
                       Material
                     </Text>
                     <Text style={[styles.grnValue, { color: colors.text }]}>
-                      {grnData.materialName}
+                      {formatPurchaseOrderMaterials(grnData)}
                     </Text>
                   </View>
                   {grnData.storageLot ? (
@@ -1188,7 +1189,7 @@ export default function OperatorSiteWeightsScreen() {
               />
               <DetailRow
                 icon="cube-outline"
-                value={`${item.materialName || 'Material'}${lotNum ? ` · Lot: ${lotNum}` : ''}`}
+                value={`${formatPurchaseOrderMaterials(item) || 'Material'}${lotNum ? ` · Lot: ${lotNum}` : ''}`}
               />
 
               {hasSecurityFlag || hasWeightFlag ? (

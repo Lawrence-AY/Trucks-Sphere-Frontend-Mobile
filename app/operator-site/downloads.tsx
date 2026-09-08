@@ -1,3 +1,4 @@
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 /**
  * Downloads Screen - Export reports, delivery orders, and receipts as PDF
  *
@@ -104,7 +105,7 @@ export default function DownloadsScreen() {
           <td>${order.vendorName || '-'}</td>
           <td>${order.driverName || '-'}</td>
           <td>${order.plateNumber || '-'}</td>
-          <td>${order.materialName || '-'}</td>
+          <td>${formatPurchaseOrderMaterials(order) || '-'}</td>
           <td>${order.isWarehouseDelivery || String(order.deliveryOrigin || '').toLowerCase() === 'warehouse' || String(order.materialSource || '').toLowerCase() === 'warehouse' ? 'Warehouse-banker' : order.banker || '-'}</td>
           <td>${order.quarryName || '-'}</td>
           <td>${order.weighOutGeoLocation?.city || order.weighOutGeoLocation?.town || order.weighOutGeoLocation?.address || order.weighOutLocation || '-'}</td>

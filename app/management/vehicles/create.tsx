@@ -9,7 +9,7 @@ import { vendorOptions as buildVendorOptions } from '../../../utils/vendorOption
  *   - Compliance dates (insurance, inspection)
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { router } from '../../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../hooks/useTheme';
@@ -32,7 +32,8 @@ import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
-import { Vendor } from '../../../store/types';
+import { useRealtimeCollection } from '../../../store/realtimeData';
+import { useRealTimeSyncStore } from '../../../store/realTimeSyncStore';
 
 const VEHICLE_TYPES = [
   { id: 'tipper', name: 'Tipper Truck' },
@@ -48,7 +49,10 @@ export default function CreateVehicleScreen() {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
   const [saving, setSaving] = useState(false);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const { data: vendors, loading: vendorsLoading, error: vendorsError } = useRealtimeCollection('vendors');
+  const refresh = useRealTimeSyncStore((state) => state.refresh);
+  const refreshVendors = useCallback(() => { void refresh('vendors'); }, [refresh]);
+  useFocusEffect(refreshVendors);
   const [form, setForm] = useState({
     vendorId: params.vendorId || '',
     registrationNumber: '',
@@ -65,27 +69,13 @@ export default function CreateVehicleScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    loadVendors();
     // Pre-populate vendor ID from navigation params (e.g. from vendor detail page)
     if (params.vendorId) {
       updateField('vendorId', params.vendorId);
     }
   }, []);
 
-  useEffect(() => vendorRepository.onChange(() => {
-    // Keep the selector current when a vendor is added without remounting
-    // this form.
-    void loadVendors();
-  }), []);
-
-  async function loadVendors() {
-    try {
-      const v = await vendorRepository.getAll();
-      setVendors(v);
-    } catch {
-      // Silent
-    }
-  }
+  useEffect(() => vendorRepository.onChange(refreshVendors), [refreshVendors]);
 
   function updateField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -177,10 +167,11 @@ export default function CreateVehicleScreen() {
             label="Vendor"
             value={form.vendorId}
             options={vendorOptions}
+            onOpen={refreshVendors}
             onSelect={(v) => updateField('vendorId', v)}
             icon="business-outline"
-            error={errors.vendorId}
-            placeholder="Select vendor..."
+            error={errors.vendorId || (vendorsError ? 'Unable to load vendors. Open the selector to retry.' : undefined)}
+            placeholder={vendorsLoading && !vendors.length ? 'Loading vendors...' : 'Select vendor...'}
           />
 
           <Input

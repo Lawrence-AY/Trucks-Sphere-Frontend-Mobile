@@ -1,3 +1,4 @@
+import { getPurchaseOrderMaterials } from './poMaterials';
 import { Platform, Alert, Share } from 'react-native';
 import { Paths, File } from 'expo-file-system';
 import * as ExpoSharing from 'expo-sharing';
@@ -249,10 +250,10 @@ export async function fetchExportData(entity: ExportEntity): Promise<{
       const orders = await fetchPurchaseOrders();
       title = 'Purchase Orders';
       headers = ['PO Number', 'Vendor', 'Material', 'Quantity', 'Unit', 'Unit Price', 'Total', 'Status', 'Quarry', 'Site', 'Created'];
-      rows = orders.map((o: any) => [
+      rows = orders.flatMap((order: any) => getPurchaseOrderMaterials(order).map((line: any) => ({ ...order, ...line })).map((o: any) => [
         o.poNumber, o.vendorName, o.materialName, String(o.quantity), o.unit,
         String(o.unitPrice), String(o.totalAmount), o.status, o.quarryName, o.siteName, o.createdAt,
-      ]);
+      ]));
     } else if (entity === 'deliveries') {
       const deliveries = await fetchDeliveryOrders();
       title = 'Deliveries';
@@ -284,9 +285,9 @@ export async function fetchExportData(entity: ExportEntity): Promise<{
         'Truck', v.plateNumber, v.model, v.make, v.status, String(v.capacity),
       ]);
       const poH = ['PO Number', 'Vendor', 'Material', 'Qty', 'Status', 'Total (KES)'];
-      const poRows = orders.map((o: any) => [
+      const poRows = orders.flatMap((order: any) => getPurchaseOrderMaterials(order).map((line: any) => ({ ...order, ...line })).map((o: any) => [
         'Order', o.poNumber, o.vendorName, o.materialName, `${o.quantity} ${o.unit}`, o.status, `KES ${o.totalAmount?.toLocaleString()}`,
-      ]);
+      ]));
       const delH = ['Job ID', 'Driver', 'Truck', 'Material', 'Status'];
       const delRows = deliveries.map((d: any) => [
         'Delivery', d.jobId, d.driverName, d.plateNumber, d.materialName, d.status,
@@ -360,16 +361,16 @@ async function doExport(entity: ExportEntity, format: 'csv' | 'pdf') {
       if (entity === 'purchase_orders') {
         title = 'Purchase Orders';
         headers = ['PO Number', 'Vendor', 'Material', 'Quantity', 'Unit', 'Unit Price', 'Total', 'Status', 'Quarry', 'Site', 'Created'];
-        rows = orders.map((o: any) => [
+        rows = orders.flatMap((order: any) => getPurchaseOrderMaterials(order).map((line: any) => ({ ...order, ...line })).map((o: any) => [
           o.poNumber, o.vendorName, o.materialName, String(o.quantity), o.unit,
           String(o.unitPrice), String(o.totalAmount), o.status, o.quarryName, o.siteName, o.createdAt,
-        ]);
+        ]));
       } else {
         title += ` + Purchase Orders`;
         const poHeaders = ['Type', 'PO Number', 'Vendor', 'Material', 'Qty', 'Status', 'Total (KES)'];
-        const poRows = orders.map((o: any) => [
+        const poRows = orders.flatMap((order: any) => getPurchaseOrderMaterials(order).map((line: any) => ({ ...order, ...line })).map((o: any) => [
           'Order', o.poNumber, o.vendorName, o.materialName, `${o.quantity} ${o.unit}`, o.status, `KES ${o.totalAmount?.toLocaleString()}`,
-        ]);
+        ]));
         rows = rows.map((row, i) => [...row, ...(poRows[i] || [])]);
         headers = [...headers, ...poHeaders.slice(1)];
       }

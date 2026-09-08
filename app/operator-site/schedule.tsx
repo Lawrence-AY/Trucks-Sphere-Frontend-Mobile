@@ -1,3 +1,4 @@
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 import api from '../../services/api';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -842,9 +843,9 @@ export default function OperatorSiteDashboardScreen() {
                     </View>
                   </View>
 
-                  <DetailRow
+                  <DetailRow multiline
                     icon="cube-outline"
-                    value={`${item.materialName || 'Material'}`}
+                    value={`${formatPurchaseOrderMaterials(item) || 'Material'}`}
                   />
                   <DetailRow
                     icon="business-outline"
@@ -1339,7 +1340,7 @@ export default function OperatorSiteDashboardScreen() {
                     >
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.fabOptionTitle, { color: colors.text }]}>{order.poNumber}</Text>
-                        <Text style={[styles.fabOptionMeta, { color: colors.textMuted }]}>{order.vendorName} · {order.materialName}</Text>
+                        <Text style={[styles.fabOptionMeta, { color: colors.textMuted }]}>{order.vendorName} · {formatPurchaseOrderMaterials(order)}</Text>
                       </View>
                       <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                     </TouchableOpacity>

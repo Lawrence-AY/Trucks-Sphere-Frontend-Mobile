@@ -29,6 +29,7 @@ interface SelectProps {
   value: string;
   options: SelectOption[];
   onSelect: (id: string) => void;
+  onOpen?: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
   error?: string;
   required?: boolean;
@@ -42,6 +43,7 @@ export function Select({
   value,
   options,
   onSelect,
+  onOpen,
   icon,
   error,
   required = false,
@@ -68,6 +70,7 @@ export function Select({
   const open = () => {
     Keyboard.dismiss();
     setSearch('');
+    onOpen?.();
     setVisible(true);
   };
 

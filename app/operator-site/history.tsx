@@ -1,3 +1,4 @@
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -495,7 +496,7 @@ export default function OperatorSiteHistoryScreen() {
                     Material
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.materialName || "N/A"}
+                    {formatPurchaseOrderMaterials(item) || "N/A"}
                   </Text>
                 </View>
                  
@@ -909,7 +910,7 @@ export default function OperatorSiteHistoryScreen() {
                     Material
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.materialName || "—"}
+                    {formatPurchaseOrderMaterials(item) || "—"}
                   </Text>
                 </View>
                
@@ -1016,7 +1017,7 @@ export default function OperatorSiteHistoryScreen() {
                     Material
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.materialName || "—"}
+                    {formatPurchaseOrderMaterials(item) || "—"}
                   </Text>
                 </View>
                

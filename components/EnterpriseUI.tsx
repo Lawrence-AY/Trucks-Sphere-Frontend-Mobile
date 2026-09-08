@@ -212,12 +212,12 @@ export function SectionTitle({ title, action }: { title: string; action?: React.
   );
 }
 
-export function DetailRow({ icon, label, value }: { icon?: IconName; label?: string; value: string }) {
+export function DetailRow({ icon, label, value, multiline = false }: { icon?: IconName; label?: string; value: string; multiline?: boolean }) {
   const colors = useTheme();
   return (
     <View style={styles.detailRow}>
       {icon ? <Ionicons name={icon} size={14} color={colors.textMuted} /> : null}
-      <Text variant="bodyMedium" style={[styles.detailText, { color: colors.textSecondary }]} numberOfLines={1}>
+      <Text variant="bodyMedium" style={[styles.detailText, { color: colors.textSecondary }]} numberOfLines={multiline ? undefined : 1}>
         {label ? `${label}: ` : ''}
         {value}
       </Text>

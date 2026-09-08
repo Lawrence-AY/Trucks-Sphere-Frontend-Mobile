@@ -11,7 +11,8 @@ import { PurchaseOrderMaterials } from '../../../components/PurchaseOrderMateria
  *   - Status workflow: Draft → Approved → In Progress → Completed → Archived
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -46,9 +47,9 @@ export default function PurchaseOrderListScreen() {
   const [search, setSearch] = useState('');
   const canCreatePurchaseOrder = hasManagementPermission(user?.role, 'purchaseOrders.create');
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     loadOrders();
-  }, []);
+  }, []));
 
   useEffect(() => {
     filterOrders();

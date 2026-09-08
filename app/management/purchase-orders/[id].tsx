@@ -25,6 +25,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { router } from '../../../utils/router';
+import { showAlert, showAlertWithCallback } from '../../../utils/webAlert';
 import { useTheme } from '../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../constants/theme';
 import { Card } from '../../../components/ui/Card';
@@ -80,17 +81,19 @@ export default function PurchaseOrderDetailScreen() {
   // ─── Workflow Actions ───
 
   async function handleCancel() {
+    if (actionLoading || !id) return;
     setActionLoading(true);
     try {
-      await purchaseOrderRepository.cancel(id!);
+      const cancelled = await purchaseOrderRepository.cancel(id!);
+      setPo(cancelled);
       setShowCancel(false);
-      Alert.alert(
+      await showAlertWithCallback(
         'Purchase order cancelled',
         'This purchase order has been removed from the active purchase order list.',
-        [{ text: 'OK', onPress: () => router.replace('/management/purchase-orders' as any) }]
+        () => router.replace('/management/purchase-orders' as any)
       );
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to cancel');
+      await showAlert('Error', err?.response?.data?.error || err?.message || 'Failed to cancel');
     } finally {
       setActionLoading(false);
       setShowCancel(false);
