@@ -96,12 +96,12 @@ export default function ManagementProfileScreen() {
               width: 72,
               height: 72,
               borderRadius: 36,
-              backgroundColor: '#1B2A4A18',
+              backgroundColor: colors.primaryLight,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Text style={{ fontSize: 28, fontWeight: '700', color: '#1B2A4A' }}>
+            <Text style={{ fontSize: 28, fontWeight: '700', color: colors.primaryText }}>
               {(user?.displayName || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>

@@ -240,7 +240,7 @@ export default function IssuesScreen() {
       {loading ? (
         <DataCard>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={colors.primaryText} />
             <Text style={{ fontSize: 14, color: colors.textMuted }}>Loading issues...</Text>
           </View>
         </DataCard>

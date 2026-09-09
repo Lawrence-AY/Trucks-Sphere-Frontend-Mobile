@@ -1,3 +1,4 @@
+import '../utils/webAlert';
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { BackNavigation } from '../components/BackNavigation';
 import { Stack, router } from 'expo-router';

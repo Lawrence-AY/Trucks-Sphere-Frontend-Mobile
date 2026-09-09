@@ -238,7 +238,7 @@ export default function ManagementLayout() {
             'audit-logs': 'Audit Logs',
             'users': 'Users',
             'roles': 'Roles',
-            'master-data': 'Master Data',
+            
             'vendors': 'Vendors',
             'purchase-orders': 'Purchase Orders',
             'vehicles': 'Vehicles',

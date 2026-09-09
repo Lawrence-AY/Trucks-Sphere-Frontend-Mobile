@@ -145,7 +145,7 @@ export default function OperationsDashboard() {
         </View>
 
         <View style={[styles.jobAction, { borderTopColor: colors.border }]}>
-          <Text style={[styles.nextAction, { color: colors.primary }]}>
+          <Text style={[styles.nextAction, { color: colors.primaryText }]}>
             {getNextAction(job)}
           </Text>
           <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -167,7 +167,7 @@ export default function OperationsDashboard() {
           onPress={() => setExpandedSection(isExpanded ? '' : section.key)}
         >
           <View style={styles.sectionHeaderLeft}>
-            <Ionicons name={section.icon} size={20} color={colors.primary} />
+            <Ionicons name={section.icon} size={20} color={colors.primaryText} />
             <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.label}</Text>
           </View>
           <View style={styles.sectionHeaderRight}>
@@ -209,7 +209,7 @@ export default function OperationsDashboard() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.inputBg }]}>
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>

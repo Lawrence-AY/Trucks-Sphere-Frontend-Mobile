@@ -2,14 +2,12 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   RefreshControl,
   ScrollView,
-  Share,
-  StyleSheet,
+   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
-  Alert,
+   Alert,
   useWindowDimensions,
 } from 'react-native';
 import { router, Tabs } from 'expo-router';
@@ -25,24 +23,18 @@ import { isActiveJob } from '../../utils/jobStatus';
 import {
   DataCard,
   EmptyState,
-  FilterRail,
-  PageShell,
+   PageShell,
   SectionTitle,
 } from '../../components/EnterpriseUI';
 import { TripListCard } from '../../components/TripListCard';
 
-const FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'today', label: 'Today' },
-  { key: 'week', label: 'Week' },
-  { key: 'month', label: 'Month' },
-];
-
+// ─── Flag detection ──────────────────────────────────────────────
 function isFlagged(item: any) {
   const net = Number(item.netWeight || 0);
   return net > 0 && (net < 19 || net > 23);
 }
 
+// ─── CSV export helpers ──────────────────────────────────────────
 function escapeCsvField(value: any): string {
   if (value == null || value === undefined) return '';
   const str = String(value);
@@ -58,6 +50,15 @@ function formatCsv(headers: string[], rows: string[][]): string {
   return `${hdr}\n${body}`;
 }
 
+// ─── Filter definitions ──────────────────────────────────────────
+const TIME_FILTERS = [
+  { key: 'all', label: 'All', icon: 'grid-outline' },
+  { key: 'today', label: 'Today', icon: 'today-outline' },
+  { key: 'week', label: 'Week', icon: 'calendar-outline' },
+  { key: 'month', label: 'Month', icon: 'calendar-outline' },
+  { key: 'flagged', label: 'Flagged', icon: 'alert-circle-outline' },
+];
+
 export default function ManagementActiveScreen() {
   const colors = useTheme();
   const { width } = useWindowDimensions();
@@ -71,7 +72,7 @@ export default function ManagementActiveScreen() {
   const [matDropdownOpen, setMatDropdownOpen] = useState(false);
   const [matSearch, setMatSearch] = useState('');
 
-  // Realtime hooks
+  // Realtime data
   const deliveries = useDeliveryOrders();
   const drivers = useDrivers();
   const materials = useMaterials();
@@ -93,8 +94,7 @@ export default function ManagementActiveScreen() {
     setRefreshing(false);
   }, [refresh]);
 
-
-  /* ─── Time Range Filtering ─── */
+  // ─── Time range helpers ────────────────────────────────────────
   const now = new Date();
   const getStartOfPeriod = (period: string): Date => {
     const d = new Date(now);
@@ -112,6 +112,7 @@ export default function ManagementActiveScreen() {
     return d;
   };
 
+  // ─── Filter logic ──────────────────────────────────────────────
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     const periodStart = getStartOfPeriod(filter);
@@ -119,7 +120,9 @@ export default function ManagementActiveScreen() {
     return deliveries.filter((item) => {
       if (!isActiveJob(item.status)) return false;
       if (item.isBackorder) return false;
-      if (!item.driverId && !item.driverName) return false;
+      if (!item.driverId && !item.driverName && !item.isWarehouseDelivery && !item.warehouseJobId && item.deliveryOrigin !== 'warehouse') return false;
+
+      // Search
       const matchesSearch = !query ||
         [
           item.jobId,
@@ -131,13 +134,21 @@ export default function ManagementActiveScreen() {
         ].some((value) => String(value || '').toLowerCase().includes(query));
       if (!matchesSearch) return false;
 
-      if (filter !== 'all') {
+      // Time filter
+      if (filter !== 'all' && filter !== 'flagged') {
         const itemDate = new Date(item.updatedAt || item.createdAt);
         if (itemDate < periodStart) return false;
       }
 
-      const matchesMaterial = !materialFilter || item.materialId === materialFilter;
-      return matchesMaterial;
+      // Flagged filter
+      if (filter === 'flagged') {
+        if (!isFlagged(item)) return false;
+      }
+
+      // Material filter
+      if (materialFilter && item.materialId !== materialFilter) return false;
+
+      return true;
     });
   }, [deliveries, filter, search, materialFilter]);
 
@@ -147,10 +158,7 @@ export default function ManagementActiveScreen() {
 
   const selectedMaterial = materials.find((m) => m.id === materialFilter);
 
-  /* ─── Counts for UI ─── */
-  const flaggedCount = deliveries.filter(isFlagged).length;
-
-  /* ─── Export Helpers ─── */
+  // ─── Export ──────────────────────────────────────────────────────
   const buildDeliveryRows = (records: any[]): string[][] =>
     records.map((r) => [
       r.jobId || '',
@@ -167,42 +175,8 @@ export default function ManagementActiveScreen() {
       formatEAT(r.updatedAt || r.createdAt),
     ]);
 
-  const deliveryHeaders = [
-    'Job ID', 'PO', 'Driver', 'Plate', 'Vendor', 'Material',
-    'Qty Ordered (t)', 'Weigh In', 'Weigh Out', 'Net', 'Status', 'Updated',
-  ];
-
-  const handleExportDeliveryCSV = async () => {
-    const rows = buildDeliveryRows(filtered);
-    await Share.share({
-      message: formatCsv(deliveryHeaders, rows),
-      title: 'Delivery_Orders',
-    });
-  };
-
-  const handleExportDeliveryPDF = async () => {
-    const rows = buildDeliveryRows(filtered);
-    const headerCells = deliveryHeaders
-      .map(
-        (h) =>
-          `<th style="padding:8px 10px;background:#1B2A4A;color:#fff;font-weight:700;text-align:left;border:1px solid #ddd;font-size:11px;">${h}</th>`
-      )
-      .join('');
-    const bodyRows = rows
-      .map((row, i) => {
-        const bg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
-        const cells = row
-          .map((cell) => `<td style="padding:6px 10px;border:1px solid #ddd;font-size:11px;">${cell || '—'}</td>`)
-          .join('');
-        return `<tr style="background:${bg};">${cells}</tr>`;
-      })
-      .join('');
-    const html = `<html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;padding:16px;">
-      <h1>Trucks Sphere — Delivery Orders</h1>
-      <table style="width:100%;border-collapse:collapse;">${headerCells}${bodyRows}</table>
-    </body></html>`;
-    await Share.share({ message: html, title: 'Delivery_Orders' });
-  };
+ 
+  
 
   const isLoading = deliveries.length === 0 && materials.length === 0;
 
@@ -214,18 +188,23 @@ export default function ManagementActiveScreen() {
           headerLeft: () => (
             <View style={styles.headerLeftGroup}>
               <Text numberOfLines={1} style={[styles.headerTitle, { color: colors.text }]}>Active Trips</Text>
-            <Searchbar
-              placeholder="Search"
-              value={search}
-              onChangeText={setSearch}
-              autoCapitalize="none"
-              style={[styles.headerSearch, { width: headerSearchWidth, backgroundColor: colors.inputBg }]}
-              inputStyle={[styles.headerSearchInput, { color: colors.text }]}
-            />
+              <Searchbar
+                placeholder="Search"
+                value={search}
+                onChangeText={setSearch}
+                autoCapitalize="none"
+                style={[styles.headerSearch, { width: headerSearchWidth, backgroundColor: colors.inputBg }]}
+                inputStyle={[styles.headerSearchInput, { color: colors.text }]}
+              />
             </View>
           ),
           headerTitle: () => null,
-          headerRight: () => <ManagementHeaderMenuButton />,
+          headerRight: () => (
+            <View style={styles.headerRightGroup}>
+               
+              <ManagementHeaderMenuButton />
+            </View>
+          ),
         }}
       />
 
@@ -234,23 +213,53 @@ export default function ManagementActiveScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Period Filter */}
-        <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
+        {/* ─── Filter chips ────────────────────────────────────── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContainer}
+        >
+          {TIME_FILTERS.map((option) => {
+            const isActive = filter === option.key;
+            let chipBg = isActive ? colors.primary : colors.surface;
+            let textColor = isActive ? '#FFFFFF' : colors.text;
+            let borderColor = isActive ? colors.primary : colors.border;
 
-        {/* Material Filter */}
-        <View style={{ marginBottom: Spacing.xs, marginTop: Spacing.xs}}>
+            // Special colour for flagged chip
+            if (option.key === 'flagged' && isActive) {
+              chipBg = '#EF4444'; // red
+              textColor = '#FFFFFF';
+              borderColor = '#EF4444';
+            }
+
+            return (
+              <TouchableOpacity
+                key={option.key}
+                style={[
+                  styles.filterChip,
+                  { backgroundColor: chipBg, borderColor: borderColor },
+                ]}
+                onPress={() => setFilter(option.key)}
+                activeOpacity={0.7}
+              >
+                 <Text style={[styles.filterChipText, { color: textColor }]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* ─── Material filter dropdown ────────────────────────── */}
+        <View style={styles.matFilterContainer}>
           <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              height: 40,
-              borderWidth: 1,
-              borderRadius: Radius.md,
-              paddingHorizontal: Spacing.md,
-              gap: 6,
-              borderColor: colors.border,
-              backgroundColor: colors.surface,
-            }}
+            style={[
+              styles.matFilterButton,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]}
             onPress={() => {
               setMatDropdownOpen(!matDropdownOpen);
               setMatSearch('');
@@ -258,7 +267,10 @@ export default function ManagementActiveScreen() {
           >
             <Ionicons name="cube-outline" size={16} color={colors.textMuted} />
             <Text
-              style={{ flex: 1, fontSize: 13, color: selectedMaterial ? colors.text : colors.textMuted }}
+              style={[
+                styles.matFilterLabel,
+                { color: selectedMaterial ? colors.text : colors.textMuted },
+              ]}
               numberOfLines={1}
             >
               {selectedMaterial ? selectedMaterial.name : 'Filter by material...'}
@@ -271,32 +283,21 @@ export default function ManagementActiveScreen() {
               <Ionicons name={matDropdownOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
             )}
           </TouchableOpacity>
+
           {matDropdownOpen && (
             <View
-              style={{
-                borderWidth: 1,
-                borderTopWidth: 0,
-                borderBottomLeftRadius: Radius.md,
-                borderBottomRightRadius: Radius.md,
-                overflow: 'hidden',
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-              }}
+              style={[
+                styles.matDropdown,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
             >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: Spacing.md,
-                  paddingVertical: 8,
-                  borderBottomWidth: 1,
-                  gap: 6,
-                  borderBottomColor: colors.border,
-                }}
-              >
+              <View style={[styles.matSearchRow, { borderBottomColor: colors.border }]}>
                 <Ionicons name="search" size={14} color={colors.textMuted} />
                 <TextInput
-                  style={{ flex: 1, fontSize: 13, paddingVertical: 2, color: colors.text }}
+                  style={[styles.matSearchInput, { color: colors.text }]}
                   placeholder="Search materials..."
                   placeholderTextColor={colors.textMuted}
                   value={matSearch}
@@ -304,26 +305,22 @@ export default function ManagementActiveScreen() {
                   autoFocus
                 />
               </View>
-              <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
+              <ScrollView style={styles.matList} nestedScrollEnabled>
                 {matFiltered.map((m: any) => (
                   <TouchableOpacity
                     key={m.id}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      paddingVertical: 10,
-                      paddingHorizontal: Spacing.md,
-                    }}
+                    style={styles.matItem}
                     onPress={() => {
                       setMaterialFilter(m.id);
                       setMatDropdownOpen(false);
                     }}
                   >
-                    <Text style={{ color: colors.text, fontSize: 13, flex: 1 }} numberOfLines={1}>
+                    <Text style={[styles.matItemText, { color: colors.text }]} numberOfLines={1}>
                       {m.name || m.id}
                     </Text>
-                    {m.id === materialFilter && <Ionicons name="checkmark" size={16} color={colors.accent} />}
+                    {m.id === materialFilter && (
+                      <Ionicons name="checkmark" size={16} color={colors.accent} />
+                    )}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -332,20 +329,23 @@ export default function ManagementActiveScreen() {
         </View>
 
         <SectionTitle title={`${filtered.length} active deliveries`} />
+
         {isLoading ? (
           <DataCard>
             <Text style={{ fontSize: 14, color: colors.textMuted }}>Loading movement board...</Text>
           </DataCard>
         ) : filtered.length ? (
-          <View style={styles.activeTripList}>
+          <View style={styles.tripList}>
             {filtered.map((item) => {
               const driverPhoto = driverPhotos.get(String(item.driverId || '').trim());
+
               return (
                 <TripListCard
                   key={item.id}
                   trip={item}
                   driverPhoto={driverPhoto}
                   onPress={() => router.push(`/operations/jobs/${item.id}` as any)}
+                  
                 />
               );
             })}
@@ -362,20 +362,129 @@ export default function ManagementActiveScreen() {
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  headerLeftGroup: { marginLeft: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headerTitle: { width: 92, fontSize: 14, fontWeight: '700' },
+  headerLeftGroup: {
+    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerTitle: {
+    width: 92,
+    fontSize: 14,
+    fontWeight: '700',
+  },
   headerSearch: {
     height: 38,
     marginRight: 0,
     borderRadius: Radius.md,
-    elevation: 0,
+    
   },
   headerSearchInput: {
     minHeight: 0,
     fontSize: 14,
   },
-  activeTripList: {
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+    gap: 4,
+  },
+  headerIcon: {
+    padding: 6,
+  },
+  filterContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginRight: Spacing.xs,
+   
+  },
+  chipIcon: {
+    marginRight: 6,
+  },
+  filterChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  matFilterContainer: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    position: 'relative',
+    zIndex: 10,
+  },
+  matFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 40,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    gap: 6,
+  },
+  matFilterLabel: {
+    flex: 1,
+    fontSize: 13,
+  },
+  matDropdown: {
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: Radius.md,
+    borderBottomRightRadius: Radius.md,
+    overflow: 'hidden',
+  },
+  matSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    gap: 6,
+  },
+  matSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    paddingVertical: 2,
+  },
+  matList: {
+    maxHeight: 150,
+  },
+  matItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+  },
+  matItemText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  tripList: {
     gap: 0.1,
+  },
+  flagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
+  flagBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

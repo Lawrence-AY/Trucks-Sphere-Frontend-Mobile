@@ -119,7 +119,7 @@ export default function ManagementResourceScreen({
               {details.map((detail, index) => (
                 <DetailRow key={`${detail.value}-${index}`} icon={detail.icon} label={detail.label} value={detail.value} />
               ))}
-              {item.securityFlag?.status === 'cleared' ? <Text style={styles.clearedLabel}>Unsuspended after security clearance</Text> : null}
+              {item.securityFlag?.status === 'cleared' ? <Text style={[styles.clearedLabel, { color: colors.primaryText }]}>Unsuspended after security clearance</Text> : null}
             </DataCard>
           );
         })

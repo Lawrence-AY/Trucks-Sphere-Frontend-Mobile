@@ -80,7 +80,7 @@ export default function MaterialInspectionReportScreen() {
     }
   };
 
-  if (loading) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={colors.primary} /><Text style={[styles.muted, { color: colors.textMuted }]}>Loading material inspection report...</Text></View>;
+  if (loading) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={colors.primaryText} /><Text style={[styles.muted, { color: colors.textMuted }]}>Loading material inspection report...</Text></View>;
   if (error || !job) return <View style={[styles.center, { backgroundColor: colors.background }]}><Ionicons name="alert-circle-outline" size={48} color={colors.danger} /><Text style={[styles.muted, { color: colors.textMuted }]}>{error || 'Report not found.'}</Text></View>;
 
   const inspection = job.materialInspection || {};
@@ -88,10 +88,10 @@ export default function MaterialInspectionReportScreen() {
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.content}>
       <View style={[styles.report, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.heading}>
-          <Ionicons name="clipboard-outline" size={28} color="#0F766E" />
+          <Ionicons name="clipboard-outline" size={28} color={colors.primaryText} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.title, { color: colors.text }]}>MATERIAL INSPECTION REPORT</Text>
-            <Text style={[styles.mif, { color: '#0F766E' }]}>{inspection.mrfNumber || 'Pending inspection'}</Text>
+            <Text style={[styles.mif, { color: colors.primaryText }]}>{inspection.mrfNumber || 'Pending inspection'}</Text>
           </View>
         </View>
         <Row label="Job ID" value={job.jobId || job.id} colors={colors} />

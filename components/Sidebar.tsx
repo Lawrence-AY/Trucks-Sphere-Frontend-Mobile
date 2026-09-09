@@ -62,6 +62,7 @@ const ROLE_SECTIONS: NavSection[] = [
       { label: 'Profile', icon: 'person-outline', route: '/operator-site/profile', roles: ['operator_site'], activeRoutes: ['/operator-site/profile'] },
       { label: 'Inspections', icon: 'clipboard-outline', route: '/inspector', roles: ['inspector'], activeRoutes: ['/inspector'], exactActive: true },
       { label: 'History', icon: 'time-outline', route: '/inspector/history', roles: ['inspector'], activeRoutes: ['/inspector/history'] },
+      { label: 'Profile', icon: 'person-outline', route: '/inspector/profile', roles: ['inspector'], activeRoutes: ['/inspector/profile'] },
       { label: 'Dispense Fuel', icon: 'water-outline', route: '/operator-fuel/dispense', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/dispense'] },
       { label: 'History', icon: 'time-outline', route: '/operator-fuel/history', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-fuel/profile', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/profile'] },
@@ -183,10 +184,10 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
         }}
       >
         <View style={[styles.logoMark, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]}>
-          <Text style={[styles.logoText, { color: colors.primary }]}>TS</Text>
+          <Text style={[styles.logoText, { color: colors.primaryText }]}>TS</Text>
         </View>
         <Text style={[styles.brandName, { color: colors.text }]}>
-          TRUCK<Text style={[styles.brandAccent, { color: colors.primary }]}>SPHERE</Text>
+          TRUCK<Text style={[styles.brandAccent, { color: colors.primaryText }]}>SPHERE</Text>
         </Text>
       </TouchableOpacity>
 
@@ -202,8 +203,8 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
             {user?.displayName || 'User'}
           </Text>
           <View style={styles.roleBadge}>
-            <Ionicons name="shield-checkmark" size={10} color={colors.primary} />
-            <Text style={[styles.roleText, { color: colors.primary }]}>{getRoleLabel(user?.role || '')}</Text>
+            <Ionicons name="shield-checkmark" size={10} color={colors.primaryText} />
+            <Text style={[styles.roleText, { color: colors.primaryText }]}>{getRoleLabel(user?.role || '')}</Text>
           </View>
         </View>
       </View>

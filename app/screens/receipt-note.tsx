@@ -89,6 +89,7 @@ function buildReceiptNoteHtml(data: {
   materialName: string;
   quarryName: string;
   quarryOrigin?: string;
+  banker?: string;
   quarryCityTown?: string;
   quarryPersonnel?: string;
   quarryWeighIn?: string;
@@ -173,7 +174,8 @@ function buildReceiptNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Route </div>
-    <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${e(quarryOrigin) || e(quarryName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Banker</span><span class="value">${e(data.banker) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Origin</span><span class="value">${e(quarryOrigin) || e(quarryName) || 'N/A'}</span></div>
     ${weighOutGeoAddress ? `<div class="row"><span class="label">Weigh-Out Location</span><span class="value">${e(weighOutGeoAddress)}</span></div>` : ''}
   </div>
 
@@ -269,7 +271,7 @@ export default function ReceiptNoteScreen() {
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.primaryText} />
         <Text style={{ color: colors.textMuted, marginTop: Spacing.xs}}>Loading receipt note...</Text>
       </View>
     );
@@ -291,6 +293,7 @@ export default function ReceiptNoteScreen() {
   }
 
   const rn = delivery.receiptNoteId;
+  const banker = delivery.banker || (delivery.isWarehouseDelivery ? 'Warehouse-banker' : 'N/A');
   const jobId = delivery.jobId;
   const poNumber = delivery.poNumber || 'N/A';
   const driverName = delivery.driverName || 'N/A';
@@ -300,7 +303,8 @@ export default function ReceiptNoteScreen() {
     ? delivery.materials.map((item: any) => `${item.materialName || 'Material'}${item.quantity != null ? ` (${item.quantity} ${item.unit || ''})` : ''}`).join('\n')
     : delivery.materialName) || 'N/A';
   const quarryName = resolvedQuarryName || delivery.quarryName || 'N/A';
-  const quarryOrigin = formatCapturedGeoLocation(
+  const isCustomSite = ['operator_site', 'site_operator'].includes(String(delivery.createdBy?.role || delivery.createdBy || '').trim().toLowerCase());
+  const quarryOrigin = isCustomSite ? delivery.materialSource || 'N/A' : formatCapturedGeoLocation(
     delivery?.weighOutGeoLocation,
     delivery?.weighOutLocation || quarryName,
   );
@@ -324,7 +328,8 @@ const exportRows = [
   ['Truck', plateNumber],
   ['Vendor', vendorName],
   ['Material', materialName],
-  ['Origin (Quarry)', quarryOrigin || quarryName],
+  ['Banker', banker],
+  ['Origin', quarryOrigin || quarryName],
 
   ['Quarry Personnel', quarryPersonnel || 'N/A'],
   ['Weigh-Out Location', geoAddress || 'N/A'],
@@ -354,6 +359,7 @@ const exportRows = [
     try {
       const html = buildReceiptNoteHtml({
         receiptNoteId: rn,
+        banker,
         jobId,
         poNumber,
         driverName,
@@ -435,7 +441,8 @@ const exportRows = [
 
         {/* Route & Geolocation */}
         <SectionBlock title="ROUTE " colors={colors}>
-          <RNRow label="Origin (Quarry)" value={quarryOrigin || quarryName} colors={colors} />
+          <RNRow label="Banker" value={banker} colors={colors} />
+          <RNRow label="Origin" value={quarryOrigin || quarryName} colors={colors} />
         
           {geoAddress ? (
             <RNRow label="Weigh-Out Location" value={geoAddress} colors={colors} />

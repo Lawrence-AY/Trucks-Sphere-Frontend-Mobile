@@ -41,7 +41,7 @@ export const SuperAdminSidebar: ManagementNavigationSection[] = [
   ] },
   { title: 'Administration', icon: 'settings-outline', items: [
     { label: 'Users', icon: 'people-outline', route: '/management/users' },
-    { label: 'Master Data', icon: 'server-outline', route: '/management/master-data' },
+    
     { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
   ] },
 ];

@@ -23,3 +23,13 @@ test('Create can retry an unavailable provider and does not check IPRS on blur',
  let calls=0;const h=harness(async()=>{if(++calls===1) throw {code:'IPRS_SESSION_FAILED'};return {id:'D001'};});
  await h.save();await h.save();assert.equal(calls,2);assert.doesNotMatch(h.source,/onBlur=|api\.post.*verify-identity/);
 });
+
+test('driver onboarding accepts an empty optional driving licence', async () => {
+ const sent = [];
+ const h = harness(async body => { sent.push(body); return { id: 'D002' }; });
+ h.form.licenseNumber = '';
+ await h.save();
+ assert.equal(sent.length, 1);
+ assert.equal(sent[0].licenseNumber, '');
+ assert.equal(h.errors().licenseNumber, undefined);
+});

@@ -11,6 +11,16 @@ interface CardProps {
   padding?: keyof typeof Spacing | number;
 }
 
+// PaperCard clones direct children with layout props. Flatten fragments first:
+// React.Fragment accepts only children/key, so those injected props cause errors.
+function flattenCardChildren(children: ReactNode, parentKey = ''): ReactNode[] {
+  return React.Children.toArray(children).flatMap((child) =>
+    React.isValidElement<{ children?: ReactNode }>(child) && child.type === React.Fragment
+      ? flattenCardChildren(child.props.children, `${parentKey}${child.key}/`)
+      : [React.isValidElement(child) ? React.cloneElement(child, { key: `${parentKey}${child.key}` }) : child]
+  );
+}
+
 export function Card({
   children,
   style,
@@ -18,6 +28,7 @@ export function Card({
   padding = 'md',
 }: CardProps) {
   const colors = useTheme();
+  const content = flattenCardChildren(children);
   const paddingValue = typeof padding === 'number' ? padding : Spacing[padding];
   const sharedProps = {
     style: [styles.card, variant === 'default' && { borderColor: colors.border, borderWidth: 1 }, style],
@@ -25,14 +36,14 @@ export function Card({
   };
 
   if (variant === 'elevated') {
-    return <PaperCard mode="elevated" elevation={1} {...sharedProps}>{children}</PaperCard>;
+    return <PaperCard mode="elevated" elevation={1} {...sharedProps}>{content}</PaperCard>;
   }
 
   if (variant === 'outlined') {
-    return <PaperCard mode="outlined" {...sharedProps}>{children}</PaperCard>;
+    return <PaperCard mode="outlined" {...sharedProps}>{content}</PaperCard>;
   }
 
-  return <PaperCard mode="contained" {...sharedProps}>{children}</PaperCard>;
+  return <PaperCard mode="contained" {...sharedProps}>{content}</PaperCard>;
 }
 
 const styles = StyleSheet.create({

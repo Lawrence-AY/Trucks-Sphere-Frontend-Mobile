@@ -47,6 +47,7 @@ export default function VendorOrdersScreen() {
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     return orders.filter((item) => {
+      if (["cancelled", "canceled"].includes(String(item.status || "").trim().toLowerCase())) return false;
       const matchesSearch = !query || [item.poNumber, ...getPurchaseOrderMaterials(item).map((line) => line.materialName)]
         .some((value) => String(value || '').toLowerCase().includes(query));
       return matchesSearch && (filter === 'all' || item.status === filter);

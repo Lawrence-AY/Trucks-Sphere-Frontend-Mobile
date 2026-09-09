@@ -1,3 +1,5 @@
+import { PurchaseOrderDeliveryAlerts } from '../../components/PurchaseOrderDeliveryVariance';
+import { TripMaterials } from '../../components/TripMaterials';
 import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
@@ -132,6 +134,7 @@ export default function VendorDashboardScreen() {
         />
       }
     >
+      <PurchaseOrderDeliveryAlerts />
       {/* Summary note: fuel authorization requests appear at the root vendor level (via _layout.tsx) */}
 
       <ResponsiveGrid sideBySide style={styles.metricRow}>
@@ -248,10 +251,7 @@ export default function VendorDashboardScreen() {
                 icon="person-outline"
                 value={`${item.driverName || "Unassigned"} · ${item.plateNumber || "No vehicle"}`}
               />
-              <DetailRow
-                icon="cube-outline"
-                value={`${item.materialName || "Material"}   `}
-              />
+              <TripMaterials trip={item} />
               {jobFuel > 0 && (
                 <View
                   style={{

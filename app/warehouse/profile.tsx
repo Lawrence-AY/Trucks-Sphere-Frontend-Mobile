@@ -14,7 +14,7 @@ export default function WarehouseProfileScreen() {
       <DataCard>
         <View style={{ alignItems: 'center', gap: Spacing.md }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: `${colors.primary}18`, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 28, fontWeight: '700', color: colors.primary }}>{(user?.displayName || 'W').charAt(0).toUpperCase()}</Text>
+            <Text style={{ fontSize: 28, fontWeight: '700', color: colors.primaryText }}>{(user?.displayName || 'W').charAt(0).toUpperCase()}</Text>
           </View>
           <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'Warehouse Operator'}</Text>
           <Text style={{ fontSize: 14, color: colors.textMuted }}>{user?.email || ''}</Text>

@@ -176,7 +176,7 @@ export default function WarehouseQueueScreen() {
       uri: asset.uri,
       name: asset.fileName || `warehouse-packaging-${Date.now()}.jpg`,
       mimeType: asset.mimeType || 'image/jpeg',
-      displayName: asset.fileName || 'Selected rceipt photo',
+      displayName: asset.fileName || 'Selected shipment photo',
     });
   };
 
@@ -307,7 +307,7 @@ export default function WarehouseQueueScreen() {
       <View style={[styles.items, { borderTopColor: colors.border }]}>
         {(expandedProductJobIds.has(item.id) ? item.items : item.items.slice(0, 1)).map((line, index) => (
           <View key={`${item.id}-${line.materialId || line.materialName || 'item'}-${index}`} style={styles.itemRow}>
-            <Ionicons name="cube-outline" size={15} color={colors.primary} />
+            <Ionicons name="cube-outline" size={15} color={colors.primaryText} />
             <Text style={[styles.itemName, { color: colors.text }]}>{line.materialName}</Text>
             <Text style={[styles.itemQuantity, { color: colors.textMuted }]}>{line.quantity} {line.unit}</Text>
           </View>
@@ -321,10 +321,10 @@ export default function WarehouseQueueScreen() {
               return next;
             })}
           >
-            <Text style={[styles.readMoreText, { color: colors.primary }]}>
+            <Text style={[styles.readMoreText, { color: colors.primaryText }]}>
               {expandedProductJobIds.has(item.id) ? 'Show less' : `Read more (${item.items.length - 1})`}
             </Text>
-            <Ionicons name={expandedProductJobIds.has(item.id) ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
+            <Ionicons name={expandedProductJobIds.has(item.id) ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primaryText} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -334,7 +334,7 @@ export default function WarehouseQueueScreen() {
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.primaryText} />
       </View>
     );
   }
@@ -404,8 +404,8 @@ export default function WarehouseQueueScreen() {
                   style={[styles.addProductButton, { borderColor: colors.primary }]}
                   onPress={() => setLines((current) => [...current, makeLine()])}
                 >
-                  <Ionicons name="add" size={17} color={colors.primary} />
-                  <Text style={[styles.addProductText, { color: colors.primary }]}>Add product</Text>
+                  <Ionicons name="add" size={17} color={colors.primaryText} />
+                  <Text style={[styles.addProductText, { color: colors.primaryText }]}>Add product</Text>
                 </TouchableOpacity>
               </View>
 
@@ -460,7 +460,7 @@ export default function WarehouseQueueScreen() {
                 <View style={styles.packagingHeader}>
                   <View style={styles.packagingTitleRow}>
                     <View style={[styles.packagingIcon, { backgroundColor: `${colors.primary}15` }]}>
-                      <Ionicons name="camera-outline" size={21} color={colors.primary} />
+                      <Ionicons name="camera-outline" size={21} color={colors.primaryText} />
                     </View>
                     <Text style={[styles.packagingTitle, { color: colors.text }]}>Packaging photo</Text>
                   </View>
@@ -469,7 +469,7 @@ export default function WarehouseQueueScreen() {
                     <Text style={[styles.photoStatusText, { color: packagingPhoto ? '#10B981' : '#EF4444' }]}>{packagingPhoto ? 'Captured' : 'Required'}</Text>
                   </View>
                 </View>
-                <Text style={[styles.packagingSubtitle, { color: colors.textMuted }]}>Capture the product packaging before submitting the shipment.</Text>
+                <Text style={[styles.packagingSubtitle, { color: colors.textMuted }]}>Take a photo or upload an image of the product packaging before submitting the shipment.</Text>
                 {packagingPhoto ? (
                   <Image source={{ uri: packagingPhoto.uri }} style={styles.packagingLargePreview} resizeMode="cover" />
                 ) : (
@@ -479,6 +479,10 @@ export default function WarehouseQueueScreen() {
                   </View>
                 )}
                 <View style={styles.packagingActions}>
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Upload shipment image" style={[styles.packagingButton, { backgroundColor: colors.inputBg, borderColor: colors.border }]} onPress={() => { void choosePackagingPhoto().catch((error) => Alert.alert('Image selection failed', error?.message || 'Please try again.')); }}>
+                    <Ionicons name="image-outline" size={20} color={colors.primaryText} />
+                    <Text style={[styles.packagingButtonText, { color: colors.primaryText }]}>{packagingPhoto ? 'Replace image' : 'Upload image'}</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity style={[styles.packagingButton, { backgroundColor: packagingPhoto ? '#10B98115' : colors.inputBg, borderColor: packagingPhoto ? '#10B98133' : colors.border }]} onPress={capturePackagingPhoto}>
                     <Ionicons name="camera-outline" size={20} color={packagingPhoto ? '#10B981' : colors.primary} />
                     <Text style={[styles.packagingButtonText, { color: packagingPhoto ? '#10B981' : colors.primary }]}>{packagingPhoto ? 'Retake photo' : 'Take photo'}</Text>

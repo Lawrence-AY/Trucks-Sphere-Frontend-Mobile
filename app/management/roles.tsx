@@ -135,11 +135,11 @@ export default function RolesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Roles & Permissions</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Roles & Permissions</Text>
       </View>
       <View style={styles.header}>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
@@ -195,8 +195,8 @@ export default function RolesScreen() {
                     <View style={styles.permissionsGrid}>
                       {role.permissions.map((perm) => (
                         <View key={perm} style={[styles.permissionChip, { backgroundColor: colors.primary + '10' }]}>
-                          <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
-                          <Text style={[styles.permissionText, { color: colors.primary }]}>
+                          <Ionicons name="checkmark-circle" size={14} color={colors.primaryText} />
+                          <Text style={[styles.permissionText, { color: colors.primaryText }]}>
                             {PERMISSION_LABELS[perm] || perm}
                           </Text>
                         </View>

@@ -283,11 +283,11 @@ export default function DriverDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Driver Details</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Driver Details</Text>
 
       </View>
       <ScrollView
@@ -303,7 +303,7 @@ export default function DriverDetailScreen() {
               {(driver as any).photoURL || (driver as any).photoUrl ? (
                 <Image source={{ uri: (driver as any).photoURL || (driver as any).photoUrl }} style={styles.avatarImage} />
               ) : (
-                <Ionicons name="person" size={32} color={colors.primary} />
+                <Ionicons name="person" size={32} color={colors.primaryText} />
               )}
             </View>
             <View style={{ flex: 1 }}>

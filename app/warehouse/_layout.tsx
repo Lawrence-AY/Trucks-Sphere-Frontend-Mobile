@@ -115,7 +115,7 @@ export default function WarehouseLayout() {
           <View style={[styles.drawer, { backgroundColor: colors.surface }]}> 
             <View style={[styles.drawerUser, { borderBottomColor: colors.border }]}> 
               <View style={[styles.drawerAvatar, { backgroundColor: `${colors.primary}18` }]}>
-                <Text style={[styles.drawerAvatarText, { color: colors.primary }]}>{(user?.displayName || user?.email || 'W').charAt(0).toUpperCase()}</Text>
+                <Text style={[styles.drawerAvatarText, { color: colors.primaryText }]}>{(user?.displayName || user?.email || 'W').charAt(0).toUpperCase()}</Text>
               </View>
               <Text style={[styles.drawerName, { color: colors.text }]}>{user?.displayName || 'Warehouse user'}</Text>
               <Text style={[styles.drawerRole, { color: colors.textMuted }]}>{getRoleLabel(user?.role || 'operator_warehouse')}</Text>

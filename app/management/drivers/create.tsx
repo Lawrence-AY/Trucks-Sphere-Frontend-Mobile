@@ -196,17 +196,16 @@ export default function CreateDriverScreen() {
   async function validate(): Promise<boolean> {
     const newErrors: Record<string, string> = {};
     if (!form.vendorId) newErrors.vendorId = 'Vendor is required';
-    if (!form.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!form.surname.trim()) newErrors.surname = 'Surname is required';
+    if (!isEditMode && !form.firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!isEditMode && !form.surname.trim()) newErrors.surname = 'Surname is required';
     if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!form.nationalId.trim()) newErrors.nationalId = 'National ID is required';
-    if (!form.licenseNumber.trim()) newErrors.licenseNumber = 'License number is required';
+    if (!isEditMode && !form.nationalId.trim()) newErrors.nationalId = 'National ID is required';
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return false;
     }
     const requestVersion = ++identityCheckVersion.current;
-    const nationalIdAvailable = await checkNationalId(requestVersion);
+    const nationalIdAvailable = isEditMode || await checkNationalId(requestVersion);
     if (!nationalIdAvailable) return false;
     setErrors({});
     return true;
@@ -251,8 +250,9 @@ export default function CreateDriverScreen() {
         emergencyContact: form.emergencyContact.trim() || undefined,
         status: form.status as any,
       };
+      const { firstName, surname, fullName, nationalId, ...editableFields } = driverPayload;
       const savedDriver = isEditMode
-        ? await driverRepository.update(driverId!, driverPayload)
+        ? await driverRepository.update(driverId!, editableFields)
         : await driverRepository.create(driverPayload);
 
       // Step 2: Upload photo using the newly created driver's ID
@@ -327,17 +327,17 @@ export default function CreateDriverScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>{isEditMode ? 'Edit Driver' : 'Onboard Driver'}</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>{isEditMode ? 'Edit Driver' : 'Onboard Driver'}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         {!isEditMode ? (
           <CsvImportPanel
             type="drivers"
-            requiredColumns="vendor_id or vendor_name, first_name, surname, phone, national_id, license_number"
+            requiredColumns="vendor_id or vendor_name, first_name, surname, phone, national_id"
             onCompleted={async () => {
               driverRepository.invalidateCache();
               await loadVendors();
@@ -361,7 +361,7 @@ export default function CreateDriverScreen() {
           <View style={styles.photoSectionCard}>
             <View style={styles.photoSectionHeader}>
               <View style={[styles.photoSectionIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="camera-outline" size={20} color={colors.primary} />
+                <Ionicons name="camera-outline" size={20} color={colors.primaryText} />
               </View>
               <Text style={[styles.photoSectionTitle, { color: colors.text }]}>Driver Photo</Text>
               {displayPhotoUri ? (
@@ -410,8 +410,8 @@ export default function CreateDriverScreen() {
                 onPress={handlePickPhoto}
                 disabled={uploadingPhoto}
               >
-                <Ionicons name="images-outline" size={20} color={colors.primary} />
-                <Text style={[styles.photoBtnText, { color: colors.primary }]}>Gallery</Text>
+                <Ionicons name="images-outline" size={20} color={colors.primaryText} />
+                <Text style={[styles.photoBtnText, { color: colors.primaryText }]}>Gallery</Text>
               </TouchableOpacity>
             </View>
             {photoUri && (
@@ -430,6 +430,7 @@ export default function CreateDriverScreen() {
 <Input
             label="First Name"
             value={form.firstName}
+            editable={!isEditMode}
             onChangeText={(v) => updateField('firstName', v)}
             placeholder="Enter first name"
             icon="person-outline"
@@ -439,6 +440,7 @@ export default function CreateDriverScreen() {
           <Input
             label="Surname"
             value={form.surname}
+            editable={!isEditMode}
             onChangeText={(v) => updateField('surname', v)}
             placeholder="Enter surname"
             icon="person-outline"
@@ -466,6 +468,7 @@ export default function CreateDriverScreen() {
           <Input
             label="National ID"
             value={form.nationalId}
+            editable={!isEditMode}
             onChangeText={(v) => updateField('nationalId', v)}
             placeholder="e.g. 12345678"
             icon="card-outline"

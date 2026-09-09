@@ -140,7 +140,7 @@ export default function VendorListScreen() {
       >
         <View style={styles.vendorHeader}>
           <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
-            <Text style={[styles.avatarText, { color: colors.primary }]}>
+            <Text style={[styles.avatarText, { color: colors.primaryText }]}>
               {displayName?.charAt(0)?.toUpperCase() || 'V'}
             </Text>
           </View>

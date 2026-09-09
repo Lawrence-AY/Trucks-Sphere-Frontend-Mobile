@@ -267,14 +267,14 @@ export default function SearchScreen() {
           )}
         </View>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.cancelBtn, { color: colors.primary }]}>Cancel</Text>
+          <Text style={[styles.cancelBtn, { color: colors.primaryText }]}>Cancel</Text>
         </TouchableOpacity>
       </View>
 
       {/* Results */}
       {searching ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={colors.primaryText} />
           <Text style={[styles.searchingText, { color: colors.textMuted }]}>Searching...</Text>
         </View>
       ) : results.length > 0 ? (

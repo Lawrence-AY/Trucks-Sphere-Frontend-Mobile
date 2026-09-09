@@ -239,7 +239,7 @@ export default function PurchaseOrderDetailScreen() {
 
 // ─── Details Tab ───
 function DetailsTab({ po, colors }: { po: PurchaseOrder; colors: any }) {
-  const materialLines = po.materials?.length ? po.materials : [{ materialId: po.materialId, materialNumber: po.materialNumber, materialName: po.materialName, quantity: po.quantity, unit: po.unit }];
+  const materialLines = po.materials?.length ? po.materials : [{ materialId: po.materialId, materialNumber: po.materialNumber, materialName: po.materialName, quantity: po.quantity, unit: po.unit, isWarehouseMaterial: po.isWarehouseMaterial }];
   const fields = [
     { label: 'PO Number', value: po.poNumber || po.id, icon: 'finger-print-outline' },
     { label: 'Vendor', value: `${po.vendorNumber || String(po.vendorId || '').replace(/^V/i, '')} - ${po.companyName || po.vendorName || '-'}`, icon: 'business-outline' },
@@ -263,7 +263,9 @@ function DetailsTab({ po, colors }: { po: PurchaseOrder; colors: any }) {
         <Text style={[styles.materialsTitle, { color: colors.text }]}>Materials</Text>
         {materialLines.map((line, index) => <View key={`${line.materialId}-${index}`} style={styles.fieldRow}>
           <View style={styles.fieldLabel}><Ionicons name="cube-outline" size={16} color={colors.textMuted} /><Text style={[styles.fieldLabelText, { color: colors.text }]}>{`${line.materialNumber || String(line.materialId || '').replace(/^MAT/i, '')} - ${line.materialName || '-'}`}</Text></View>
-          <Text style={[styles.fieldValue, { color: colors.text }]}>{formatNumber(line.quantity || 0)} {line.unit || 'units'}</Text>
+          {!line.isWarehouseMaterial && (
+            <Text style={[styles.fieldValue, { color: colors.text }]}>{formatNumber(line.quantity || 0)} {line.unit || 'units'}</Text>
+          )}
         </View>)}
       </Card>
     </>

@@ -32,20 +32,6 @@ type Line = {
   unit: string;
 };
 
-const UNITS = [
-  'Tonnes',
-  'Bags',
-  'Pieces',
-  'Millimetres',
-  'Metres',
-  'Litres',
-  'Cubic Metres',
-  'Kilograms',
-].map((name) => ({
-  id: name,
-  name,
-}));
-
 const withoutPrefix = (value: unknown, prefix: string) =>
   String(value || '').replace(new RegExp(`^${prefix}`, 'i'), '') || '-';
 
@@ -125,8 +111,8 @@ export default function CreatePurchaseOrderScreen() {
             materialId: value,
             quantity: material?.isWarehouseMaterial ? '' : line.quantity,
             unit:
-              material?.isWarehouseMaterial ? '' : material?.defaultUnit ||
-              material?.measurementType ||
+              material?.isWarehouseMaterial ? '' : material?.measurementType ||
+              material?.defaultUnit ||
               'units',
           };
         }
@@ -267,7 +253,7 @@ export default function CreatePurchaseOrderScreen() {
     >
       <View
         style={[
-          styles.bar,
+          styles.bar, { backgroundColor: colors.surface },
           {
             paddingTop: insets.top + 8,
           },
@@ -282,11 +268,11 @@ export default function CreatePurchaseOrderScreen() {
           <Ionicons
             name="arrow-back"
             size={22}
-            color="#1E293B"
+            color={colors.text}
           />
         </TouchableOpacity>
 
-        <Text style={styles.title}>
+        <Text style={[styles.title, { color: colors.text }]}>
           Create Purchase Order
         </Text>
       </View>
@@ -321,7 +307,7 @@ export default function CreatePurchaseOrderScreen() {
 
             <Text
               style={{
-                color: colors.primary,
+                color: colors.primaryText,
                 fontSize: 18,
                 fontWeight: '800',
               }}
@@ -391,7 +377,7 @@ export default function CreatePurchaseOrderScreen() {
                       )
                     }
                   >
-                    <Text style={styles.remove}>
+                    <Text style={[styles.remove, { color: colors.danger }]}>
                       Remove
                     </Text>
                   </TouchableOpacity>
@@ -440,20 +426,12 @@ export default function CreatePurchaseOrderScreen() {
                 suffix={line.unit || 'units'}
               />
 
-              <Select
+              <Input
                 label="Unit"
                 value={line.unit}
-                options={UNITS}
-                onSelect={(value) =>
-                  updateLine(
-                    index,
-                    'unit',
-                    value
-                  )
-                }
+                onChangeText={() => {}}
+                editable={false}
                 icon="speedometer-outline"
-                required
-                placeholder="Select unit..."
               />
               </>}
             </View>
@@ -480,12 +458,12 @@ export default function CreatePurchaseOrderScreen() {
             <Ionicons
               name="add-circle-outline"
               size={18}
-              color={colors.primary}
+              color={colors.primaryText}
             />
 
             <Text
               style={{
-                color: colors.primary,
+                color: colors.primaryText,
                 fontWeight: '700',
               }}
             >

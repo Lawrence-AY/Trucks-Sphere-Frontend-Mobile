@@ -131,7 +131,7 @@ export default function DriverListScreen() {
             {item.photoURL ? (
               <Image source={{ uri: item.photoURL }} style={styles.avatarImage} />
             ) : (
-              <Text style={[styles.avatarText, { color: colors.primary }]}>
+              <Text style={[styles.avatarText, { color: colors.primaryText }]}>
                 {name.charAt(0).toUpperCase()}
               </Text>
             )}

@@ -1,3 +1,4 @@
+import { readableTextColor } from '../utils/contrast';
 import { useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -150,15 +151,15 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
       <Text style={[styles.sectionTitle, { color: colors.text }]}>Job Documents</Text>
       {externalDeliveryNoteUrl ? (
         <TouchableOpacity
-          style={[styles.externalNote, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+          style={[styles.externalNote, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
           onPress={() => { void openExternalDeliveryNote(); }}
           accessibilityRole="link"
           accessibilityLabel="View attached external delivery note"
         >
-          <Ionicons name="document-attach-outline" size={20} color="#1D4ED8" />
+          <Ionicons name="document-attach-outline" size={20} color={colors.primaryText} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.externalNoteTitle}>External delivery note attached</Text>
-            <Text style={styles.externalNoteMeta} numberOfLines={1}>{job?.deliveryNoteFileName || 'View the captured note'}</Text>
+            <Text style={[styles.externalNoteTitle, { color: colors.text }]}>External delivery note attached</Text>
+            <Text style={[styles.externalNoteMeta, { color: colors.textSecondary }]} numberOfLines={1}>{job?.deliveryNoteFileName || 'View the captured note'}</Text>
           </View>
           <Ionicons name="open-outline" size={18} color="#1D4ED8" />
         </TouchableOpacity>
@@ -181,11 +182,11 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
           >
             <View style={styles.cardHeader}>
               <View style={[styles.iconWrap, { backgroundColor: `${document.color}16` }]}>
-                <Ionicons name={document.icon} size={22} color={document.color} />
+                <Ionicons name={document.icon} size={22} color={readableTextColor(document.color, colors.surface)} />
               </View>
               <View style={styles.cardCopy}>
                 <Text style={[styles.cardTitle, { color: colors.text }]}>{document.title}</Text>
-                <Text style={[styles.cardIdentifier, { color: document.available ? document.color : colors.textMuted }]} numberOfLines={1}>{document.identifier}</Text>
+                <Text style={[styles.cardIdentifier, { color: document.available ? colors.primaryText : colors.textMuted }]} numberOfLines={1}>{document.identifier}</Text>
               </View>
             </View>
             {!document.available ? (

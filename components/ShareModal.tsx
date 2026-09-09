@@ -71,7 +71,7 @@ export default function ShareModal({ visible, onClose }: ShareModalProps) {
               return (
                 <View key={entity.key} style={[styles.entityRow, { borderColor: colors.border }]}>
                   <View style={styles.entityInfo}>
-                    <Ionicons name={entity.icon} size={22} color={colors.primary} />
+                    <Ionicons name={entity.icon} size={22} color={colors.primaryText} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.entityLabel, { color: colors.text }]}>{entity.label}</Text>
                       {isInterlinked && (

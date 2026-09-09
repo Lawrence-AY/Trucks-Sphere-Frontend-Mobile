@@ -1,3 +1,4 @@
+import { isPurchaseOrderOpen, formatPurchaseOrderMaterials } from '../../../utils/poMaterials';
 import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
 /**
  * Create Job Screen - Create a delivery job from a Purchase Order
@@ -67,7 +68,7 @@ export default function CreateJobScreen() {
         driverRepository.getAll(),
         vehicleRepository.getAll(),
       ]);
-      setPos(p.filter((po) => po.status === 'approved' || po.status === 'in_progress'));
+      setPos(p.filter((po) => isPurchaseOrderOpen(po) && (po.status === 'approved' || po.status === 'in_progress')));
       setDrivers(d);
       setVehicles(v);
     } catch {
@@ -151,7 +152,7 @@ export default function CreateJobScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: colors.inputBg }]}>
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
@@ -171,7 +172,7 @@ export default function CreateJobScreen() {
             value={form.purchaseOrderId}
             options={pos.map((p) => ({
               id: p.id,
-              name: `${p.poNumber} - ${p.materialName} (${p.vendorName})`,
+              name: `${p.poNumber} - ${formatPurchaseOrderMaterials(p)} (${p.vendorName})`,
             }))}
             onSelect={(v) => updateField('purchaseOrderId', v)}
             icon="document-text-outline"
@@ -186,7 +187,7 @@ export default function CreateJobScreen() {
                 Vendor: {selectedPO.vendorName}
               </Text>
               <Text style={[styles.poInfoText, { color: colors.text }]}>
-                Material: {selectedPO.materialName}
+                Material: {formatPurchaseOrderMaterials(selectedPO)}
               </Text>
               <Text style={[styles.poInfoText, { color: colors.text }]}>
                 Remaining: {selectedPO.remainingQuantity ?? selectedPO.quantity} {selectedPO.unit}

@@ -3,7 +3,7 @@ export const TERMINAL_JOB_STATUSES = ['SITE_WEIGHED_OUT', 'COMPLETED', 'CANCELLE
 const LEGACY: Record<string, string> = {
   loaded: 'DISPATCHED', dispatched: 'DISPATCHED', in_transit: 'IN_TRANSIT', en_route: 'IN_TRANSIT',
   at_quarry: 'QUARRY_WEIGHED_IN', quarry_in: 'QUARRY_WEIGHED_IN', quarry_out: 'QUARRY_WEIGHED_OUT',
-  site_in: 'SITE_WEIGHED_IN', weighed_in: 'SITE_WEIGHED_IN', delivered: 'COMPLETED', completed: 'COMPLETED', cancelled: 'CANCELLED',
+  site_in: 'SITE_WEIGHED_IN', weighed_in: 'SITE_WEIGHED_IN', delivered: 'COMPLETED', completed: 'COMPLETED', cancelled: 'CANCELLED', canceled: 'CANCELLED',
 };
 
 export function normalizeJobStatus(status?: string): string {

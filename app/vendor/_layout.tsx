@@ -370,12 +370,12 @@ export default function VendorLayout() {
       {/* ===================== Fuel Authorization Modal (Root-Level) ===================== */}
       <Modal visible={authModalVisible} transparent animationType="slide" onRequestClose={closeAuthModal}>
         <View style={styles.authOverlay}>
-          <View style={[styles.authModalContent, { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+          <View style={[styles.authModalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {/* Header */}
             <View style={styles.authModalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.authModalTitle}>Fuel Authorization</Text>
-                <Text style={styles.authModalSubtitle}>
+                <Text style={[styles.authModalTitle, { color: colors.text }]}>Fuel Authorization</Text>
+                <Text style={[styles.authModalSubtitle, { color: colors.textMuted }]}>
                   A fuel operator is requesting authorization to dispense fuel
                 </Text>
               </View>
@@ -387,11 +387,11 @@ export default function VendorLayout() {
             {activeAuth && (
               <>
                 {/* Request Details */}
-                <View style={[styles.authDetailCard, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                <View style={[styles.authDetailCard, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
                   <View style={styles.authDetailRow}>
                     <Ionicons name="water-outline" size={20} color="#F59E0B" />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Fuel Amount</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Fuel Amount</Text>
                       <Text style={{ fontSize: 22, fontWeight: '800', color: '#F59E0B' }}>
                         {activeAuth.fuelAmount || 0} Litres
                       </Text>
@@ -403,8 +403,8 @@ export default function VendorLayout() {
                   <View style={styles.authDetailRow}>
                     <Ionicons name="person-outline" size={20} color="#3B82F6" />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Driver</Text>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Driver</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
                         {activeAuth.driverName || 'Unknown'}
                       </Text>
                     </View>
@@ -413,8 +413,8 @@ export default function VendorLayout() {
                   <View style={styles.authDetailRow}>
                     <Ionicons name="car-outline" size={20} color="#10B981" />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Truck</Text>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Truck</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
                         {activeAuth.plateNumber || 'Unknown'}
                       </Text>
                     </View>
@@ -423,7 +423,7 @@ export default function VendorLayout() {
                   <View style={styles.authDetailRow}>
                     <Ionicons name="time-outline" size={20} color="#F59E0B" />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Validity</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Validity</Text>
                       <Text style={{ fontSize: 13, fontWeight: '600', color: '#F59E0B' }}>
                         {formatExpiry(activeAuth.expiresAt)}
                       </Text>
@@ -433,11 +433,11 @@ export default function VendorLayout() {
 
                 {/* OTP Input */}
                 <View style={styles.otpSection}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: Spacing.xs}}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: Spacing.xs}}>
                     Enter Fuel Authorization PIN sent to your phone
                   </Text>
                   <TextInput
-                    style={[styles.otpInput, { color: '#1E293B', backgroundColor: '#F8FAFC', borderColor: '#3B82F6' }]}
+                    style={[styles.otpInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: '#3B82F6' }]}
                     placeholder="Enter 6-digit PIN"
                     placeholderTextColor="#94A3B8"
                     keyboardType="number-pad"

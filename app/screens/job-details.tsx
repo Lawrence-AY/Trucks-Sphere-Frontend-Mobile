@@ -116,7 +116,7 @@ export default function JobDetailsScreen() {
       <PageShell>
         <DataCard>
           <View style={styles.loadingRow}>
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={colors.primaryText} />
             <Text style={[styles.mutedStrong, { color: colors.textMuted }]}>Loading job hub...</Text>
           </View>
         </DataCard>
@@ -188,7 +188,7 @@ export default function JobDetailsScreen() {
           <View style={styles.clearanceHeader}>
             <Ionicons name="checkmark-circle-outline" size={22} color="#7C3AED" />
             <View style={{ flex: 1 }}>
-              <Text style={styles.clearanceTitle}>Security flag cleared</Text>
+              <Text style={[styles.clearanceTitle, { color: colors.primaryText }]}>Security flag cleared</Text>
               <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>Fleet unsuspended and eligible for site processing.</Text>
             </View>
           </View>
@@ -207,9 +207,9 @@ export default function JobDetailsScreen() {
         >
           <DataCard style={styles.inspectionCard}>
             <View style={styles.clearanceHeader}>
-              <Ionicons name="clipboard-outline" size={22} color="#0F766E" />
+              <Ionicons name="clipboard-outline" size={22} color={colors.primaryText} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.inspectionTitle}>Material inspection submitted</Text>
+                <Text style={[styles.inspectionTitle, { color: colors.primaryText }]}>Material inspection submitted</Text>
                 <Text style={[styles.clearanceText, { color: colors.textSecondary }]}>MIF #: {job.materialInspection.mrfNumber}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#0F766E" />
@@ -229,7 +229,7 @@ export default function JobDetailsScreen() {
           icon="add-circle-outline"
           title="Job Created"
           meta={job?.isWarehouseDelivery || job?.deliveryOrigin === 'warehouse' ? `${formatMaybeDate(job?.createdAt)}\nFrom warehouse` : `${formatMaybeDate(job?.createdAt)}\nDriver: ${driver?.name || job?.driverName || 'Pending driver'}\nVehicle: ${vehicle?.plateNumber || vehicle?.plate || job?.plateNumber || 'Pending vehicle'}`}
-          color={colors.primary}
+          color={colors.primaryText}
           complete
         />
         {timelineCheckpoints.map((item) => {

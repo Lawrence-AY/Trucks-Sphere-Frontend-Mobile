@@ -1,3 +1,4 @@
+import { PurchaseOrderDeliveryAlerts } from '../../../components/PurchaseOrderDeliveryVariance';
 import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
 import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -38,6 +39,7 @@ export function ManagementLiteDashboard() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}>
+      <PurchaseOrderDeliveryAlerts />
       <SectionTitle title="Fleet overview" />
       <Text style={[styles.intro, { color: colors.textMuted }]}>Manage your vendors, trucks, and drivers from one place.</Text>
       <ResponsiveGrid sideBySide style={styles.metricRow}>
@@ -49,7 +51,7 @@ export function ManagementLiteDashboard() {
       {modules.map((item) => (
         <View key={item.title} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <TouchableOpacity onPress={() => router.push(item.route as any)} style={styles.cardMain}>
-            <View style={[styles.icon, { backgroundColor: `${colors.primary}14` }]}><Ionicons name={item.icon as any} size={22} color={colors.primary} /></View>
+            <View style={[styles.icon, { backgroundColor: `${colors.primary}14` }]}><Ionicons name={item.icon as any} size={22} color={colors.primaryText} /></View>
             <View style={{ flex: 1 }}><Text style={[styles.title, { color: colors.text }]}>{item.title}</Text><Text style={{ color: colors.textMuted }}>{item.subtitle}</Text></View>
           </TouchableOpacity>
           <Button title={item.createLabel} size="sm" icon="add" onPress={() => router.push(item.createRoute as any)} />

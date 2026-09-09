@@ -68,7 +68,7 @@ export default function WarehouseHistoryScreen() {
     }
   };
 
-  if (loading) return <View style={[styles.centered, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /></View>;
+  if (loading) return <View style={[styles.centered, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primaryText} /></View>;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

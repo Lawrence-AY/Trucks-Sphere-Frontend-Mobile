@@ -1,3 +1,4 @@
+import { ReportActions } from '../../components/ReportActions';
 /**
  * Vendor Reports Screen
  *
@@ -88,36 +89,7 @@ export default function VendorReportsScreen() {
         ))}
       </ScrollView>
 
-      {/* Category download cards */}
-      <View style={styles.categoryGrid}>
-        {VENDOR_CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat.key}
-            style={[
-              styles.categoryCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-            onPress={() => handleDownload(cat.key)}
-            disabled={downloading !== null}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.categoryIcon, { backgroundColor: cat.color + '15' }]}>
-              {downloading === cat.key ? (
-                <ActivityIndicator size="small" color={cat.color} />
-              ) : (
-                <Ionicons name={cat.icon as any} size={24} color={cat.color} />
-              )}
-            </View>
-            <Text style={[styles.categoryLabel, { color: colors.text }]}>{cat.label}</Text>
-            <View style={[styles.downloadBadge, { backgroundColor: cat.color + '20' }]}>
-              <Ionicons name="download-outline" size={14} color={cat.color} />
-              <Text style={[styles.downloadBadgeText, { color: cat.color }]}>
-                {downloading === cat.key ? 'Downloading...' : 'CSV'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
+      <ReportActions categories={VENDOR_CATEGORIES.map(c => ({ ...c, label: c.label + ' CSV' }))} busy={downloading !== null} onExport={handleDownload} />
 
       <View style={{ height: Spacing['4xl'] }} />
     </PageShell>

@@ -47,7 +47,7 @@ function ActorLine({ label, actor, timestamp }: { label: string; actor: Responsi
   const context = [labelRole(actor.role), actor.entityType ? actor.entityId || actor.entityType : ''].filter(Boolean).join(' · ');
   return (
     <View style={styles.actorLine}>
-      <View style={[styles.avatar, { backgroundColor: `${colors.primary}16` }]}><Text style={[styles.initial, { color: colors.primary }]}>{initial}</Text></View>
+      <View style={[styles.avatar, { backgroundColor: `${colors.primary}16` }]}><Text style={[styles.initial, { color: colors.primaryText }]}>{initial}</Text></View>
       <View style={styles.actorCopy}>
         <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{name}</Text>
@@ -68,7 +68,7 @@ export function UserActionInfo({ record, title = 'Activity' }: { record: RecordW
   if (!created && !updated) return null;
   return (
     <Card style={styles.card}>
-      <View style={styles.heading}><Ionicons name="person-circle-outline" size={19} color={colors.primary} /><Text style={[styles.headingText, { color: colors.text }]}>{title}</Text></View>
+      <View style={styles.heading}><Ionicons name="person-circle-outline" size={19} color={colors.primaryText} /><Text style={[styles.headingText, { color: colors.text }]}>{title}</Text></View>
       {created ? <ActorLine label="Created by" actor={created} timestamp={record.createdAt} /> : null}
       {updated && (!created || JSON.stringify(updated) !== JSON.stringify(created) || record.updatedAt !== record.createdAt) ? (
         <ActorLine label="Last updated by" actor={updated} timestamp={record.updatedAt} />

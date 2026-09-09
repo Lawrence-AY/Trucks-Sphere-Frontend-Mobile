@@ -84,7 +84,7 @@ export default function OperatorSiteMaterialsScreen() {
                       <Text style={[styles.dropdownItemText, { color: isActive ? colors.primary : colors.text }]}>
                         {cat}
                       </Text>
-                      {isActive && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                      {isActive && <Ionicons name="checkmark" size={16} color={colors.primaryText} />}
                     </TouchableOpacity>
                   );
                 })}

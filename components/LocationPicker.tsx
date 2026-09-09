@@ -51,9 +51,9 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator size="small" color={colors.primary} />
+          <ActivityIndicator size="small" color={colors.primaryText} />
         ) : (
-          <Ionicons name="location-outline" size={22} color={colors.primary} />
+          <Ionicons name="location-outline" size={22} color={colors.primaryText} />
         )}
         <Text
           style={[styles.address, { color: currentAddress ? colors.text : colors.textMuted }]}

@@ -1,3 +1,4 @@
+import { useFlagViewsStore, flagViewKey } from '../../store/flagViewsStore';
 import { isDeliveryFlagged } from '../../utils/siteFlags';
 import { useCallback, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
@@ -45,8 +46,9 @@ export default function OperatorSiteLayout() {
   const colors = useTheme();
   const resolvedIssuesCount = useResolvedIssuesCount();
   const deliveries = useDeliveryOrders();
-  const flaggedDeliveriesCount = deliveries.filter(isDeliveryFlagged).length;
+  const viewedFlags = useFlagViewsStore((state) => state.viewed);
   const { user, logout } = useAuthStore();
+  const flaggedDeliveriesCount = deliveries.filter((job) => isDeliveryFlagged(job) && !viewedFlags[flagViewKey(user?.uid || '', job)]).length;
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const tabBottomInset = Math.max(insets.bottom, 6);

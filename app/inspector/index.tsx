@@ -12,6 +12,7 @@ import { getInspectorSelection, setInspectorSelection } from '../../utils/inspec
 import { buildHtmlContent, sharePdfAsFile } from '../../utils/exportData';
 import { useDeliveryOrders } from '../../store/realtimeData';
 import { isWarehouseJob } from '../../utils/warehouse';
+import { isAwaitingInspection } from '../../utils/inspection';
 
 const materialLines = (job: any, purchaseOrders: any[] = []) => {
   if (job?.isWarehouseDelivery && !job.materials?.length) return [{ materialId: job.materialId, materialName: job.materialName, quantity: job.quantityOrdered, unit: job.unit }, ...(job.additionalItems || []).map((line: any, index: number) => ({ ...line, materialId: line.materialId || `warehouse-${index}` }))];
@@ -52,13 +53,13 @@ export default function InspectorScreen() {
     if (selected) setActive(selected);
     const [data, orders] = await Promise.all([fetchDeliveryOrders(), fetchPurchaseOrders()]);
     setPurchaseOrders(orders || []);
-    const pending = data.filter((job: any) => (job.isWarehouseDelivery ? Boolean(job.warehouseAcceptedAt) : job.siteWeighInWeight != null && job.siteWeighOutWeight == null) && !job.materialInspection?.mrfNumber);
+    const pending = data.filter(isAwaitingInspection);
     setJobs(pending);
     if (requestedId) setActive(pending.find((job: any) => job.jobId === requestedId || job.id === requestedId) || null);
   }, [id, jobId]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    const pending = realtimeDeliveries.filter((job: any) => (job.isWarehouseDelivery ? Boolean(job.warehouseAcceptedAt) : job.siteWeighInWeight != null && job.siteWeighOutWeight == null) && !job.materialInspection?.mrfNumber);
+    const pending = realtimeDeliveries.filter(isAwaitingInspection);
     setJobs(pending);
     const requestedId = id || jobId;
     if (requestedId) setActive((current: any) => pending.find((job: any) => job.jobId === requestedId || job.id === requestedId) || current);

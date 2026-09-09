@@ -14,18 +14,17 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { router } from '../../../../utils/router';
 import { useTheme } from '../../../../hooks/useTheme';
 import { Spacing, Radius } from '../../../../constants/theme';
 import { Card } from '../../../../components/ui/Card';
 import { Input } from '../../../../components/ui/Input';
-import { Select } from '../../../../components/ui/Select';
+import { StackScreen } from '../../../../components/ui/StackScreen';
 import { Button } from '../../../../components/ui/Button';
 import { ConfirmDialog } from '../../../../components/ui/ConfirmDialog';
 import { LoadingSkeleton } from '../../../../components/ui/LoadingSkeleton';
@@ -33,12 +32,6 @@ import { vendorRepository } from '../../../../services/repositories/VendorReposi
 import { Vendor } from '../../../../store/types';
 import { useAuthStore } from '../../../../store/authStore';
 import { MANAGEMENT_ROLES, normalizeRole } from '../../../../utils/access';
-
-const STATUS_OPTIONS = [
-  { id: 'active', name: 'Active' },
-  { id: 'inactive', name: 'Inactive' },
-  { id: 'suspended', name: 'Suspended' },
-];
 
 export default function EditVendorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -58,7 +51,6 @@ export default function EditVendorScreen() {
     address: '',
     kraPin: '',
     registrationNumber: '',
-    status: 'active',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -83,7 +75,6 @@ export default function EditVendorScreen() {
         address: v.address || '',
         kraPin: v.kraPin || '',
         registrationNumber: v.registrationNumber || '',
-        status: v.status || 'active',
       });
     } catch {
       Alert.alert('Error', 'Failed to load vendor');
@@ -128,7 +119,6 @@ export default function EditVendorScreen() {
         address: form.address,
         kraPin: form.kraPin,
         registrationNumber: form.registrationNumber,
-        status: form.status as any,
         updatedAt: new Date().toISOString(),
       });
       Alert.alert('Saved', 'Vendor updated successfully', [
@@ -169,13 +159,9 @@ export default function EditVendorScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Edit Vendor</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Update {vendor?.companyName || 'vendor'} details
-          </Text>
-        </View>
+      <Stack.Screen options={{ title: 'Edit Vendor', headerShown: false }} />
+      <StackScreen title="Edit Vendor" fallbackHref="/management/vendors" contentStyle={styles.content}>
+      
 
         <Card>
           <ResponsiveGrid minItemWidth={280} maxColumns={2}>
@@ -238,13 +224,6 @@ export default function EditVendorScreen() {
             icon="location-outline"
             multiline
           />
-          <Select
-            label="Status"
-            value={form.status}
-            options={STATUS_OPTIONS}
-            onSelect={(v) => updateField('status', v)}
-            icon="checkmark-circle-outline"
-          />
 </ResponsiveGrid>
         </Card>
 
@@ -274,7 +253,7 @@ export default function EditVendorScreen() {
             fullWidth
           />
         ) : null}
-      </ScrollView>
+      </StackScreen>
       <ConfirmDialog
         visible={showDeleteConfirm}
         title="Delete Vendor"
@@ -308,7 +287,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: Spacing.md, marginTop: Spacing.xs,
+    gap: Spacing.md, marginTop: Spacing.xs, marginBottom: Spacing.md,
   },
   actionBtn: {
     flex: 1,

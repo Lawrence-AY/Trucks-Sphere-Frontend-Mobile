@@ -170,13 +170,14 @@ export function MetricTile({
 }
 
 export function StatusPill({ status, compact = false }: { status: string; compact?: boolean }) {
+  const colors = useTheme();
   const color = getStatusColor(status);
   return (
     <Chip
       compact={compact}
       icon="circle"
-      style={[styles.statusPill, { backgroundColor: `${color}18` }]}
-      textStyle={[styles.statusPillText, { color }]}
+      style={[styles.statusPill, { backgroundColor: colors.inputBg }]}
+      textStyle={[styles.statusPillText, { color: colors.text }]}
       theme={{ colors: { onSurfaceVariant: color } }}
     >
       {formatStatus(status)}
@@ -251,7 +252,7 @@ export function EmptyState({
   return (
     <Surface style={[styles.empty, { backgroundColor: transparent ? 'transparent' : colors.surface }]} elevation={0}>
       <View style={[styles.emptyIcon, { backgroundColor: `${colors.primary}16` }]}>
-        <Ionicons name={icon} size={34} color={colors.primary} />
+        <Ionicons name={icon} size={34} color={colors.primaryText} />
       </View>
       <Text
         variant="titleMedium"
@@ -269,7 +270,7 @@ export function EmptyState({
           borderless
           style={[styles.emptyAction, { backgroundColor: `${colors.primary}14` }]}
         >
-          <Text variant="labelLarge" style={{ color: colors.primary }}>{actionLabel}</Text>
+          <Text variant="labelLarge" style={{ color: colors.primaryText }}>{actionLabel}</Text>
         </TouchableRipple>
       ) : null}
     </Surface>
@@ -397,12 +398,12 @@ const styles = StyleSheet.create({
   dataCard: {
     minWidth: 0,
     maxWidth: '100%',
-    borderRadius: 5, marginBottom: Spacing.sm,
+    borderRadius: 5, marginBottom: 0.1,
     overflow: 'hidden',
   },
   dataCardContent: {
     padding: Spacing.md,
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
   sectionTitleRow: {
     flexDirection: 'row',

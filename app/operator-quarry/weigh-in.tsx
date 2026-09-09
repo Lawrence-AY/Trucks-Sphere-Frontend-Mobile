@@ -151,7 +151,7 @@ export default function OperatorQuarryWeighInScreen() {
               <Image source={{ uri: getDriverPhoto(activeJob) }} style={styles.driverPhoto} />
             ) : (
               <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
-                <Text style={[styles.driverInitial, { color: colors.primary }]}>
+                <Text style={[styles.driverInitial, { color: colors.primaryText }]}>
                   {(activeJob.driverName || 'D').charAt(0).toUpperCase()}
                 </Text>
               </View>
@@ -201,7 +201,7 @@ export default function OperatorQuarryWeighInScreen() {
         <InputAccessoryView nativeID="weigh-in-keyboard-accessory">
           <View style={[styles.keyboardAccessory, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             <TouchableOpacity onPress={Keyboard.dismiss} style={styles.keyboardDoneButton}>
-              <Text style={[styles.keyboardDoneText, { color: colors.primary }]}>Done</Text>
+              <Text style={[styles.keyboardDoneText, { color: colors.primaryText }]}>Done</Text>
             </TouchableOpacity>
           </View>
         </InputAccessoryView>
@@ -240,7 +240,7 @@ export default function OperatorQuarryWeighInScreen() {
                   <Image source={{ uri: getDriverPhoto(item) }} style={styles.driverPhoto} />
                 ) : (
                   <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
-                    <Text style={[styles.driverInitial, { color: colors.primary }]}>
+                    <Text style={[styles.driverInitial, { color: colors.primaryText }]}>
                       {(item.driverName || 'D').charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -250,8 +250,8 @@ export default function OperatorQuarryWeighInScreen() {
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
               {!grayed && (
                 <View style={[styles.tapHint, { backgroundColor: `${colors.primary}08` }]}>
-                  <Ionicons name="hand-left-outline" size={12} color={colors.primary} />
-                  <Text style={[styles.tapHintText, { color: colors.primary }]}>Tap to weigh in</Text>
+                  <Ionicons name="hand-left-outline" size={12} color={colors.primaryText} />
+                  <Text style={[styles.tapHintText, { color: colors.primaryText }]}>Tap to weigh in</Text>
                 </View>
               )}
               <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>

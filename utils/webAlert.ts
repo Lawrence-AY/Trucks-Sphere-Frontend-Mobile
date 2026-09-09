@@ -1,71 +1,30 @@
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
+import { installWebAlertBridge } from './webAlertQueue';
 
-function dispatchWebAlert(title: string, message: string, type: AlertPayload['type'] = 'info'): void {
-  if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-  const payload: AlertPayload = {
-    id: `alert_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-    title,
-    message,
-    type,
-    timestamp: new Date().toISOString(),
-    source: 'web',
-  };
-  window.dispatchEvent(new CustomEvent('trucksphere:alert', { detail: payload }));
-}
+// Loaded by the root before any screen can display an alert.
+installWebAlertBridge();
 
-export const showConfirm = (title: string, message: string): Promise<boolean> => {
-  if (Platform.OS === 'web') {
-    const result = window.confirm(`${title}\n\n${message}`);
-    return Promise.resolve(result);
-  }
-  const { Alert } = require('react-native');
-  return new Promise((resolve) => {
+export const showConfirm = (title: string, message: string): Promise<boolean> =>
+  new Promise((resolve) => {
     Alert.alert(title, message, [
       { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
       { text: 'OK', onPress: () => resolve(true) },
-    ]);
+    ], { cancelable: true, onDismiss: () => resolve(false) });
   });
-};
 
-export const showAlert = (title: string, message: string): Promise<void> => {
-  if (Platform.OS === 'web') {
-    dispatchWebAlert(title, message, title.toLowerCase().includes('error') ? 'critical' : 'info');
-    return Promise.resolve();
-  }
-  const { Alert } = require('react-native');
-  return new Promise((resolve) => {
+export const showAlert = (title: string, message: string): Promise<void> =>
+  new Promise((resolve) => {
     Alert.alert(title, message, [{ text: 'OK', onPress: () => resolve() }]);
   });
-};
 
-/**
- * Show an alert with a callback action after dismissal.
- * Works on both web (blocks with window.alert) and native (Alert with onPress).
- */
+/** Run navigation or other follow-up work only after acknowledgement. */
 export const showAlertWithCallback = (
-  title: string,
-  message: string,
-  onDismiss: () => void
-): Promise<void> => {
-  if (Platform.OS === 'web') {
-    dispatchWebAlert(title, message, title.toLowerCase().includes('error') ? 'critical' : 'info');
-    onDismiss();
-    return Promise.resolve();
-  }
-  const { Alert } = require('react-native');
-  return new Promise((resolve) => {
-    Alert.alert(title, message, [
-      { text: 'OK', onPress: () => { onDismiss(); resolve(); } },
-    ]);
-  });
-};
-
-// ─── Shared Alert Sync Utility ───
-// When the mobile app creates an alert, it should also be displayable on web.
-// This utility normalizes alert creation across platforms and stores alerts
-// in a shared collection for cross-platform visibility.
-
-let alertSyncHandler: ((alert: AlertPayload) => void) | null = null;
+  title: string, message: string, onDismiss: () => void,
+): Promise<void> => new Promise((resolve) => {
+  Alert.alert(title, message, [{ text: 'OK', onPress: () => {
+    try { onDismiss(); } finally { resolve(); }
+  } }]);
+});
 
 export interface AlertPayload {
   id: string;
@@ -79,89 +38,26 @@ export interface AlertPayload {
   relatedEntityType?: string;
 }
 
-/**
- * Register a handler that will be called whenever a synced alert is triggered.
- * On web, this can update a toast/notification state.
- * On mobile, showSystemAlert defaults to true for backwards compatibility.
- */
+let alertSyncHandler: ((alert: AlertPayload) => void) | null = null;
 export function setAlertSyncHandler(handler: (alert: AlertPayload) => void) {
   alertSyncHandler = handler;
 }
 
-/**
- * Show an alert on the current platform AND dispatch it to the sync handler
- * so it can also appear on the web dashboard (if connected).
- */
-export function showSyncedAlert(
-  title: string,
-  message: string,
-  type: AlertPayload['type'] = 'info',
-  relatedJobId?: string
-): void {
-  const payload: AlertPayload = {
+function syncAlert(title: string, message: string, type: AlertPayload['type'], relatedJobId?: string) {
+  alertSyncHandler?.({
     id: `alert_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-    title,
-    message,
-    type,
+    title, message, type, relatedJobId,
     timestamp: new Date().toISOString(),
     source: Platform.OS === 'web' ? 'web' : 'mobile',
-    relatedJobId,
-  };
-
-  // Dispatch to sync handler (e.g. save to Firestore alerts collection)
-  if (alertSyncHandler) {
-    alertSyncHandler(payload);
-  }
-
-  // Also show native alert on the current device
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('trucksphere:alert', { detail: payload }));
-  } else {
-    const { Alert } = require('react-native');
-    const icon = type === 'critical' ? '🚨' : type === 'warning' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️';
-    Alert.alert(`${icon} ${title}`, message, [{ text: 'OK' }]);
-  }
+  });
 }
 
-/**
- * Show a synced confirm dialog. Returns true if user confirmed.
- * On web, uses native confirm(). On mobile, uses Alert.alert with Cancel/OK.
- * Also dispatches to the sync handler for visibility on web dashboard.
- */
-export async function showSyncedConfirm(
-  title: string,
-  message: string,
-  type: AlertPayload['type'] = 'warning',
-  relatedJobId?: string
-): Promise<boolean> {
-  const payload: AlertPayload = {
-    id: `alert_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-    title,
-    message,
-    type,
-    timestamp: new Date().toISOString(),
-    source: Platform.OS === 'web' ? 'web' : 'mobile',
-    relatedJobId,
-  };
+export function showSyncedAlert(title: string, message: string, type: AlertPayload['type'] = 'info', relatedJobId?: string): void {
+  syncAlert(title, message, type, relatedJobId);
+  Alert.alert(title, message, [{ text: 'OK' }]);
+}
 
-  // Dispatch to sync handler
-  if (alertSyncHandler) {
-    alertSyncHandler(payload);
-  }
-
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('trucksphere:alert', { detail: payload }));
-    }
-    return window.confirm(`${title}\n\n${message}`);
-  }
-
-  const { Alert } = require('react-native');
-  const icon = type === 'critical' ? '🚨' : type === 'warning' ? '⚠️' : '❓';
-  return new Promise((resolve) => {
-    Alert.alert(`${icon} ${title}`, message, [
-      { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
-      { text: 'OK', onPress: () => resolve(true) },
-    ]);
-  });
+export async function showSyncedConfirm(title: string, message: string, type: AlertPayload['type'] = 'warning', relatedJobId?: string): Promise<boolean> {
+  syncAlert(title, message, type, relatedJobId);
+  return showConfirm(title, message);
 }

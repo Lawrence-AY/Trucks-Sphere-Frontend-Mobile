@@ -1,6 +1,5 @@
 /**
- * Master Data Hub - Centralized management for all master data entities
- *
+  *
  * This is the administrative backbone of TruckSphere.
  * All reusable business data is managed from here.
  */
@@ -123,7 +122,7 @@ export default function MasterDataScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.primaryText} />
       </View>
     );
   }
@@ -131,11 +130,11 @@ export default function MasterDataScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Master Data</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Master Data</Text>
       </View>
       <View style={styles.header}>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>

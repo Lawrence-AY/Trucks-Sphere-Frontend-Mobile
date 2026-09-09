@@ -186,11 +186,11 @@ export default function VehiclesListScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ManagementSearchHeader title="Vehicles" search={search} onChangeSearch={setSearch} placeholder="Search vehicles..." />
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Vehicles</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Vehicles</Text>
       </View>
       <View style={styles.header}>
         <View style={styles.headerRow}>

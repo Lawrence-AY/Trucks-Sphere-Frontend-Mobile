@@ -35,7 +35,7 @@ export function ConfirmDialog({
   const variantConfig = {
     danger: { color: colors.danger, button: 'danger' as const, fallbackIcon: 'alert-circle' as const },
     warning: { color: colors.warning, button: 'warning' as const, fallbackIcon: 'warning' as const },
-    info: { color: colors.primary, button: 'primary' as const, fallbackIcon: 'information-circle' as const },
+    info: { color: colors.primaryText, button: 'primary' as const, fallbackIcon: 'information-circle' as const },
   }[variant];
 
   return (

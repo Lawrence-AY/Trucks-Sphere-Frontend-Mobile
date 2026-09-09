@@ -47,3 +47,7 @@ export function getSiteWeightFlagReason(job: any): string {
 
   return 'Site arrival weight is outside the allowed tolerance.';
 }
+
+export function flagViewKey(userId: string, job: any): string {
+ return JSON.stringify([userId, job.id, job.securityFlag?.status, job.securityFlag?.flaggedAt, job.securityFlag?.reason, job.siteFlaggedAt, job.flaggedAt, job.isFlagged, job.siteArrivalWeightVarianceFlagged, job.siteArrivalWeightVarianceStatus, job.siteArrivalWeightVariance, job.siteArrivalWeightVarianceReason, job.siteFlagReason, job.flagReason, job.hasWeightDiscrepancy, job.differenceNote]);
+}

@@ -38,7 +38,10 @@ export function Button({
     danger: colors.danger,
     warning: colors.warning,
   } as Partial<Record<ButtonVariant, string>>)[variant];
-  const textColor = variant === 'secondary' || variant === 'ghost' ? colors.text : '#FFFFFF';
+  const textColor = variant === 'secondary' || variant === 'ghost' ? colors.text
+    : variant === 'success' ? colors.onSuccess
+    : variant === 'warning' ? colors.onWarning
+    : variant === 'danger' ? colors.onDanger : '#FFFFFF';
   const mode = variant === 'ghost' ? 'text' : variant === 'secondary' ? 'outlined' : 'contained';
   const height = { sm: 36, md: 44, lg: 52 }[size];
 

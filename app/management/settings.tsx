@@ -49,14 +49,14 @@ export default function ManagementSettingsScreen() {
      
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={{ alignItems: 'center', gap: Spacing.md }}>
-          <View style={[styles.avatar, { backgroundColor: '#1B2A4A18' }]}>
-            <Text style={{ fontSize: 28, fontWeight: '700', color: '#1B2A4A' }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
+          <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
+            <Text style={{ fontSize: 28, fontWeight: '700', color: colors.primaryText }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
           </View>
           <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'User'}</Text>
           <Text style={{ fontSize: 14, color: colors.textMuted }}>{user?.email || ''}</Text>
           <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-            <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#1B2A4A18' }}>
-              <Text style={{ fontSize: 14, color: '#1B2A4A', fontWeight: '600' }}>{getRoleLabel(user?.role || '')}</Text>
+            <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.primaryLight }}>
+              <Text style={{ fontSize: 14, color: colors.primaryText, fontWeight: '600' }}>{getRoleLabel(user?.role || '')}</Text>
             </View>
           </View>
         </View>
@@ -64,8 +64,8 @@ export default function ManagementSettingsScreen() {
 
       {/* Update Password */}
       <TouchableOpacity style={[styles.btn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]} onPress={() => setPwModal(true)}>
-        <Ionicons name="lock-closed-outline" size={20} color={colors.primary} />
-        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primary }}>Update Password</Text>
+        <Ionicons name="lock-closed-outline" size={20} color={colors.primaryText} />
+        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.primaryText }}>Update Password</Text>
       </TouchableOpacity>
 
       {/* Password Modal */}
@@ -79,8 +79,8 @@ export default function ManagementSettingsScreen() {
             <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: Spacing.xs}}>{PASSWORD_REQUIREMENTS}</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Confirm new password" placeholderTextColor={colors.textMuted} value={confirmPw} onChangeText={setConfirmPw} secureTextEntry />
             <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs}}>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E2E8F0' }]} onPress={() => { setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw(''); }} disabled={updating}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1E293B' }}>Cancel</Text>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: colors.inputBg }]} onPress={() => { setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw(''); }} disabled={updating}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1B2A4A' }]} onPress={handlePasswordUpdate} disabled={updating}>
                 {updating ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFF' }}>Update</Text>}

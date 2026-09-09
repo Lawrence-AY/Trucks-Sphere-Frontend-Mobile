@@ -431,8 +431,8 @@ export default function OperatorSiteReceiveScreen() {
             <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
             <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
             <View style={[styles.tapHint, { backgroundColor: `${colors.primary}08` }]}>
-              <Ionicons name="hand-left-outline" size={12} color={colors.primary} />
-              <Text style={[styles.tapHintText, { color: colors.primary }]}>Tap to receive</Text>
+              <Ionicons name="hand-left-outline" size={12} color={colors.primaryText} />
+              <Text style={[styles.tapHintText, { color: colors.primaryText }]}>Tap to receive</Text>
             </View>
             <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
           </DataCard>

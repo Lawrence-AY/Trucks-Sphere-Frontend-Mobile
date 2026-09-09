@@ -148,7 +148,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
 
           {loading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ActivityIndicator size="large" color={colors.primaryText} />
               <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading driver profile...</Text>
             </View>
           ) : driver ? (
@@ -159,7 +159,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
                   <Image source={{ uri: driver.photoURL }} style={styles.avatar} />
                 ) : (
                   <View style={[styles.avatarPlaceholder, { backgroundColor: `${colors.primary}15` }]}>
-                    <Text style={{ fontSize: 36, fontWeight: '900', color: colors.primary }}>
+                    <Text style={{ fontSize: 36, fontWeight: '900', color: colors.primaryText }}>
                       {(driver.name || driver.fullName || 'D').charAt(0).toUpperCase()}
                     </Text>
                   </View>

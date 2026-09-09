@@ -27,7 +27,7 @@ export default function WarehouseReportsScreen() {
     return { shipments: mine.length, products, vendors, latest, awaiting: mine.filter((job) => job.status === 'SUBMITTED').length, accepted: mine.filter((job) => (job.status as string) === 'ACCEPTED').length, inspected: mine.filter((job) => (job.status as string) === 'INSPECTED').length };
   }, [jobs, user?.uid]);
 
-  if (loading) return <View style={[styles.centered, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primary} /></View>;
+  if (loading) return <View style={[styles.centered, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primaryText} /></View>;
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}

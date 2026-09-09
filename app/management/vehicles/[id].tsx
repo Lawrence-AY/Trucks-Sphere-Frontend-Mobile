@@ -100,14 +100,7 @@ export default function VehicleDetailScreen() {
               {vehicle.capacity} {vehicle.capacityUnit || 'tonnes'}
             </Text>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Status</Text>
-            <Badge
-              label={vehicle.status || 'active'}
-              variant={vehicle.status === 'active' ? 'success' : 'default'}
-              dot
-            />
-          </View>
+           
         </Card>
 
         <UserActionInfo record={vehicle as any} />
@@ -151,11 +144,11 @@ export default function VehicleDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Vehicle Details</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Vehicle Details</Text>
       </View>
       <ScrollView
         contentContainerStyle={styles.content}
@@ -167,19 +160,15 @@ export default function VehicleDetailScreen() {
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <View style={[styles.headerIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="car" size={28} color={colors.primary} />
+              <Ionicons name="car" size={28} color={colors.primaryText} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.headerTitle, { color: colors.text }]}>{vehicle.registrationNumber}</Text>
               <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-                {vehicle.make} {vehicle.model} ({vehicle.year})
+                {vehicle.make} {vehicle.model} {vehicle.year}
               </Text>
             </View>
-            <Badge
-              label={vehicle.status || 'active'}
-              variant={vehicle.status === 'active' ? 'success' : 'default'}
-              dot
-            />
+           
           </View>
 
         </View>

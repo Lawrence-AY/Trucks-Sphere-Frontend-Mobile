@@ -172,6 +172,8 @@ export default function OperatorQuarryHistoryScreen() {
     'Job ID',
     'PO Number',
     'Material',
+    'Quarry Weigh-In (t)',
+    'Quarry Weigh-Out (t)',
     'Qty Loaded (t)',
     'Truck Plate',
     'Driver',
@@ -192,12 +194,14 @@ export default function OperatorQuarryHistoryScreen() {
       return [
         r.jobId || '',
         r.poNumber || '',
-        r.materialName || '',
+        formatPurchaseOrderMaterials(r),
+        r.weighInWeight != null ? String(r.weighInWeight) : '',
+        r.weighOutWeight != null ? String(r.weighOutWeight) : '',
         quarryNet != null ? `${quarryNet.toFixed(1)}` : String(r.quantityOrdered ?? '—'),
         r.plateNumber || '', 
         r.driverName || '',
-       formatEAT( r.quarryInTime || (r.createdAt|| '—')),
-       formatEAT( r.quarryOutTime || (r.updatedAt|| '—')),
+       formatEAT( r.weighInAt || r.quarryInTime || (r.createdAt|| '—')),
+       formatEAT( r.weighOutAt || r.quarryOutTime || (r.updatedAt|| '—')),
         r.weighOutGeoLocation?.address || r.weighOutLocation || r.quarryName || '—',
         r.operatorUsername || r.quarryOperator || '—',
       ];
@@ -302,15 +306,10 @@ export default function OperatorQuarryHistoryScreen() {
       </View>
 
       {/* Export Actions — CSV only */}
-      <View style={styles.exportRow}>
-        <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: '#2563EB' }]}
-          onPress={handleDownloadCSV}
-        >
-          <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.exportBtnText}>Download CSV</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity accessibilityRole="button" style={[styles.exportBtn, { backgroundColor: colors.primary }]} onPress={() => { void handleDownloadCSV(); }}>
+        <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+        <Text style={styles.exportBtnText}>Download history CSV</Text>
+      </TouchableOpacity>
 
       {/* Completed Submissions */}
       <SectionTitle

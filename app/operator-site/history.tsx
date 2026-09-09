@@ -845,7 +845,7 @@ export default function OperatorSiteHistoryScreen() {
                   >
                     {data.count} deliveries
                   </Text>
-                  <Text style={[styles.materialNet, { color: colors.primary }]}>
+                  <Text style={[styles.materialNet, { color: colors.primaryText }]}>
                     {data.totalNet.toFixed(1)}T
                   </Text>
                 </View>

@@ -104,7 +104,7 @@ export default function VendorTripsScreen() {
     >
       <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
         <View style={[styles.statChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="layers-outline" size={18} color={colors.primary} />
+          <Ionicons name="layers-outline" size={18} color={colors.primaryText} />
           <Text style={[styles.statValue, { color: colors.text }]}>{deliveries.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total</Text>
         </View>

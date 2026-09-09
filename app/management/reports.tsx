@@ -1,3 +1,4 @@
+import { readableTextColor } from '../../utils/contrast';
 import { useState, useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
@@ -333,12 +334,12 @@ export default function ReportsScreen() {
             <Ionicons
               name={cat.icon as any}
               size={14}
-              color={activeTab === cat.key ? '#FFFFFF' : cat.color}
+              color={readableTextColor(activeTab === cat.key ? '#FFFFFF' : cat.color, activeTab === cat.key ? cat.color : colors.surface)}
             />
             <Text
               style={[
                 styles.tabText,
-                { color: activeTab === cat.key ? '#FFFFFF' : cat.color },
+                { color: readableTextColor(activeTab === cat.key ? '#FFFFFF' : cat.color, activeTab === cat.key ? cat.color : colors.surface) },
               ]}
             >
               {cat.label}
@@ -362,11 +363,11 @@ export default function ReportsScreen() {
         activeOpacity={0.7}
       >
         {csvDownloading ? (
-          <ActivityIndicator color={currentCat.color} size="small" />
+          <ActivityIndicator color={readableTextColor(currentCat.color, colors.background)} size="small" />
         ) : (
-          <Ionicons name="document-outline" size={16} color={currentCat.color} />
+          <Ionicons name="document-outline" size={16} color={readableTextColor(currentCat.color, colors.background)} />
         )}
-        <Text style={[styles.csvBtnText, { color: currentCat.color }]}>
+        <Text style={[styles.csvBtnText, { color: readableTextColor(currentCat.color, colors.background) }]}>
           {csvDownloading ? 'Downloading...' : `Download ${currentCat.label} CSV`}
         </Text>
       </TouchableOpacity>

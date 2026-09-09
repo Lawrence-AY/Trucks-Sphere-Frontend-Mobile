@@ -6,7 +6,8 @@
  *   - Add User modal with role assignment (including fuel_operator)
  *   - Edit User modal (tap a user to edit)
  *   - Toggle user active/inactive (long press)
- *   - Back button
+ *   - Back button (top‑left)
+ *   - Floating Action Button for adding users
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -21,13 +22,13 @@ import {
   RefreshControl,
   Platform,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from '../../utils/router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
@@ -39,34 +40,15 @@ import api from '../../services/api';
 import { showAlert } from '../../utils/webAlert';
 import { MANAGEMENT_ROLE_OPTIONS } from '../../utils/access';
 import { getStrongPasswordError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
-import { ManagementSearchHeader } from '../../components/ManagementSearchHeader';
 
 const ROLE_OPTIONS = [
   ...MANAGEMENT_ROLE_OPTIONS,
-  { id: 'vendor', name: 'Vendor' },
   { id: 'operator_quarry', name: 'Operator Quarry' },
   { id: 'operator_site', name: 'Operator Site' },
   { id: 'operator_fuel', name: 'Fuel Operator' },
   { id: 'operator_warehouse', name: 'Warehouse Personnel' },
   { id: 'inspector', name: 'Material Inspector' },
 ];
-
-// Vendor accounts are created from their vendor profile, which supplies the
-// required vendor association. Keep the option available for editing existing
-// accounts, but do not offer an invalid role in the standalone Add User form.
-const ADD_USER_ROLE_OPTIONS = ROLE_OPTIONS.filter((role) => role.id !== 'vendor');
-
-// Legacy labels are retained only to recognise older persisted accounts; they
-// are intentionally never supplied to the user-creation role selector.
-/* Legacy role labels from pre-RBAC releases. Kept as a comment for migration reference only.
-  { id: 'super_admin', name: 'Super Admin — full system access' },
-  { id: 'management_edit', name: 'Management Edit — all management access except Master Data' },
-  { id: 'management_lite', name: 'Management Lite — fleet records, orders, and profile' },
-  { id: 'operator_quarry', name: 'Operator at Quarry' },
-  { id: 'operator_site', name: 'Operator at Site' },
-  { id: 'operator_fuel', name: 'Fuel Attendant' },
-];
-*/
 
 const QUARRY_LOCATION_OPTIONS = [
   'Hindi',
@@ -110,7 +92,7 @@ export default function UsersScreen() {
     displayName: '',
     username: '',
     email: '',
-    role: 'vendor',
+    role: 'admin',
     phone: '',
     newPassword: '',
     quarryLocation: '',
@@ -150,11 +132,17 @@ export default function UsersScreen() {
   }
 
   function updateEditForm(field: string, value: string) {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
-    if (editFormErrors[field]) {
+    if (field === 'username') return;
+    setEditForm((prev) => ({
+      ...prev,
+      [field]: value,
+      ...(field === 'displayName' && { username: generateUsernameFromDisplay(value) }),
+    }));
+    if (editFormErrors[field] || (field === 'displayName' && editFormErrors.username)) {
       setEditFormErrors((prev) => {
         const copy = { ...prev };
         delete copy[field];
+        if (field === 'displayName') delete copy.username;
         return copy;
       });
     }
@@ -214,7 +202,6 @@ export default function UsersScreen() {
       });
 
       const uname = result?.data?.user?.generatedUsername || generateUsernameFromDisplay(form.displayName);
-      // Reset form state first, then close modal
       setForm({ displayName: '', username: '', password: '', role: 'admin', phone: '', quarryLocation: '' });
       setGeneratedUsername('');
       setFormErrors({});
@@ -233,9 +220,9 @@ export default function UsersScreen() {
     setEditingUser(user);
     setEditForm({
       displayName: user.displayName || user.name || '',
-      username: user.username || '',
+      username: user.username || user.generatedUsername || generateUsernameFromDisplay(user.displayName || user.name || ''),
       email: user.email || '',
-      role: user.role || 'vendor',
+      role: user.role || 'admin',
       phone: user.phone || '',
       newPassword: '',
       quarryLocation: user.quarryLocation || '',
@@ -253,6 +240,7 @@ export default function UsersScreen() {
         displayName: editForm.displayName.trim(),
         name: editForm.displayName.trim(),
         username: editForm.username.trim(),
+        generatedUsername: editForm.username.trim(),
         role: editForm.role,
         phone: editForm.phone.trim(),
         quarryLocation: editForm.role === 'operator_quarry' ? editForm.quarryLocation : '',
@@ -347,7 +335,7 @@ export default function UsersScreen() {
     const q = search.toLowerCase();
     return (
       (u.displayName || u.name || '').toLowerCase().includes(q) ||
-      (u.username || '').toLowerCase().includes(q) ||
+      (u.username || u.generatedUsername || '').toLowerCase().includes(q) ||
       (u.email || '').toLowerCase().includes(q) ||
       (u.role || '').toLowerCase().includes(q)
     );
@@ -375,23 +363,11 @@ export default function UsersScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ManagementSearchHeader title="Users" search={search} onChangeSearch={setSearch} placeholder="Search users..." />
-      {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#1E293B" />
-        </TouchableOpacity>
-        <Text style={styles.backTitle}>Users</Text>
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: colors.primary }]}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Ionicons name="add" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+   
 
+      {/* ---------- User List ---------- */}
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 100 }]} // extra space for FAB
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {loading ? (
@@ -411,18 +387,19 @@ export default function UsersScreen() {
               >
                 <View style={styles.userCardLeft}>
                   <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
-                    <Text style={[styles.avatarText, { color: colors.primary }]}>
+                    <Text style={[styles.avatarText, { color: colors.primaryText }]}>
                       {(user.displayName || user.name || user.email || '?')[0].toUpperCase()}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.userNameRow}>
+                      {getRoleBadge(user.role)}
                       <Text style={[styles.userName, { color: colors.text }]}>
                         {user.displayName || user.name || 'Unknown'}
                       </Text>
-                      {user.username ? (
-                        <Text style={[styles.userUsername, { color: colors.primary }]}>
-                          @{user.username}
+                      {(user.username || user.generatedUsername) ? (
+                        <Text style={[styles.userUsername, { color: colors.primaryText }]}>
+                          @{user.username || user.generatedUsername}
                         </Text>
                       ) : null}
                       {user.isActive === false && (
@@ -430,10 +407,9 @@ export default function UsersScreen() {
                       )}
                     </View>
                     <Text style={[styles.userEmail, { color: colors.textMuted }]}>
-                      {user.email || 'No email'}
+                      {user.email || ''}
                     </Text>
                     <View style={styles.userMeta}>
-                      {getRoleBadge(user.role)}
                       {user.phone ? (
                         <Text style={[styles.userPhone, { color: colors.textMuted }]}>
                           {user.phone}
@@ -452,7 +428,7 @@ export default function UsersScreen() {
                     style={[styles.actionBtn, { backgroundColor: colors.primary + '15' }]}
                     onPress={() => handleEditClick(user)}
                   >
-                    <Ionicons name="create-outline" size={16} color={colors.primary} />
+                    <Ionicons name="create-outline" size={16} color={colors.primaryText} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
@@ -482,9 +458,28 @@ export default function UsersScreen() {
         )}
       </ScrollView>
 
-      {/* Add User Modal */}
+      {/* ---------- FAB ---------- */}
+      <TouchableOpacity
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+            bottom: insets.bottom + 24,
+          },
+        ]}
+        onPress={() => setShowAddModal(true)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      {/* ---------- Add User Modal ---------- */}
       <Modal visible={showAddModal} animationType="slide" transparent>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
           <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Add User</Text>
@@ -493,7 +488,11 @@ export default function UsersScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+            <ScrollView
+              contentContainerStyle={[styles.modalBody, { paddingBottom: 80 }]} // extra space for keyboard
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
               <Input
                 label="Full Name"
                 value={form.displayName}
@@ -538,7 +537,7 @@ export default function UsersScreen() {
               <Select
                 label="Role"
                 value={form.role}
-                options={ADD_USER_ROLE_OPTIONS}
+                options={ROLE_OPTIONS}
                 onSelect={(v) => updateForm('role', v)}
                 icon="shield-outline"
                 required
@@ -580,9 +579,13 @@ export default function UsersScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Edit User Modal */}
+      {/* ---------- Edit User Modal ---------- */}
       <Modal visible={showEditModal} animationType="slide" transparent>
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
           <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Edit User</Text>
@@ -591,7 +594,11 @@ export default function UsersScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+            <ScrollView
+              contentContainerStyle={[styles.modalBody, { paddingBottom: 80 }]}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
               <Input
                 label="Full Name"
                 value={editForm.displayName}
@@ -604,8 +611,9 @@ export default function UsersScreen() {
               <Input
                 label="Username"
                 value={editForm.username}
-                onChangeText={(v) => updateEditForm('username', v)}
-                placeholder="johndoe"
+                onChangeText={() => {}}
+                editable={false}
+                placeholder="Auto-generated from name"
                 icon="at-outline"
                 required
                 error={editFormErrors.username}
@@ -703,49 +711,60 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  backBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // ---------- Header ----------
+  header: {
     paddingHorizontal: Spacing.md,
-    paddingBottom: 8,
+    paddingBottom: 4,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E2E8F0',
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backTitle: {
-    fontSize: 17,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: '700',
-    color: '#1E293B',
-    marginLeft: 4,
     flex: 1,
+    marginLeft: 4,
   },
-  addBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  
+  // ---------- FAB ----------
+  fab: {
+    position: 'absolute',
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   content: {
     padding: Spacing.lg,
-    paddingBottom: Spacing['4xl'],
     gap: Spacing.md,
   },
   list: {
-    gap: Spacing.sm,
+    gap:0.1,
   },
   userCard: {
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.md,
-    gap: Spacing.sm,
+    padding: Spacing.sm,
+    gap: Spacing.xs,
   },
   userCardLeft: {
     flexDirection: 'row',
@@ -768,21 +787,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    flexWrap: 'wrap',
   },
   userName: {
     fontSize: 15,
     fontWeight: '700',
   },
   userId: {
-    fontSize: 10, marginTop: Spacing.xs,
+    fontSize: 10,
+    marginTop: Spacing.xs,
   },
   userEmail: {
-    fontSize: 12, marginTop: Spacing.xs,
+    fontSize: 12,
+    marginTop: Spacing.xs,
   },
   userMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm, marginTop: Spacing.xs,
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+    flexWrap: 'wrap',
   },
   userUsername: {
     fontSize: 13,
@@ -811,10 +835,11 @@ const styles = StyleSheet.create({
   },
   editHint: {
     fontSize: 12,
-    textAlign: 'center', marginTop: Spacing.xs,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
     fontStyle: 'italic',
   },
-  // Modal
+  // ---------- Modal ----------
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

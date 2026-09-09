@@ -44,7 +44,7 @@ export function StackScreen({
 
   const body = loading ? (
     <View style={styles.state} accessibilityLiveRegion="polite">
-      <ActivityIndicator size="large" color={colors.primary} />
+      <ActivityIndicator size="large" color={colors.primaryText} />
       <Text style={[styles.stateText, { color: colors.textSecondary }]}>Loading…</Text>
     </View>
   ) : error ? (

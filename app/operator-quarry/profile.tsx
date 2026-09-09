@@ -81,8 +81,8 @@ export default function OperatorQuarryProfileScreen() {
         {/* Profile Card */}
         <DataCard>
           <View style={{ alignItems: 'center', gap: Spacing.md }}>
-            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#1B2A4A18', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 28, fontWeight: '700', color: '#1B2A4A' }}>{(user?.displayName || 'Q').charAt(0).toUpperCase()}</Text>
+            <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 28, fontWeight: '700', color: colors.primaryText }}>{(user?.displayName || 'Q').charAt(0).toUpperCase()}</Text>
             </View>
             <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'Quarry Operator'}</Text>
      

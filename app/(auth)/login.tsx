@@ -56,7 +56,7 @@ export default function LoginScreen() {
         <Card mode="outlined" style={[styles.panel, { backgroundColor: colors.surface, borderColor: colors.border }]} contentStyle={styles.panelContent}>
          
           <View style={styles.brand}>
-            <Text variant="titleLarge" style={[styles.brandName, { color: colors.text }]}>TRUCK<Text style={[styles.brandAccent, { color: colors.primary }]}>SPHERE</Text></Text>
+            <Text variant="titleLarge" style={[styles.brandName, { color: colors.text }]}>TRUCK<Text style={[styles.brandAccent, { color: colors.primaryText }]}>SPHERE</Text></Text>
             <Text variant="bodyMedium" style={[styles.tagline, { color: colors.textSecondary }]}>Fleet operations</Text>
           </View>
 

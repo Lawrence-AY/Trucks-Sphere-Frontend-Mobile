@@ -72,8 +72,6 @@ export default function CreateMaterialScreen() {
     unitPrice: '',
     salesPrice: '',
     barcode: '',
-    weight: '',
-    volume: '',
     isWarehouseMaterial: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -113,7 +111,7 @@ export default function CreateMaterialScreen() {
     const newErrors: Record<string, string> = {};
     if (!form.name.trim()) newErrors.name = 'Material name is required';
     if (!form.isWarehouseMaterial && !form.category) newErrors.category = 'Category is required';
-    for (const field of ['unitPrice', 'salesPrice', 'weight', 'volume'] as const) {
+    for (const field of ['unitPrice', 'salesPrice'] as const) {
       if (!form.isWarehouseMaterial && form[field].trim() && (!Number.isFinite(Number(form[field])) || Number(form[field]) < 0)) {
         newErrors[field] = 'Enter a valid non-negative number';
       }
@@ -135,8 +133,6 @@ export default function CreateMaterialScreen() {
         description: form.description.trim() || undefined,
         unitPrice: form.unitPrice.trim() ? Number(form.unitPrice) : undefined,
         salesPrice: form.salesPrice.trim() ? Number(form.salesPrice) : undefined,
-        weight: form.weight.trim() ? Number(form.weight) : undefined,
-        volume: form.volume.trim() ? Number(form.volume) : undefined,
         properties: properties.length > 0 ? properties : undefined,
         } : {}),
         isWarehouseMaterial: form.isWarehouseMaterial,
@@ -147,7 +143,7 @@ export default function CreateMaterialScreen() {
       setForm({
         name: '', category: '', measurementType: '',
         description: '', unitPrice: '', salesPrice: '', barcode: '',
-        weight: '', volume: '', isWarehouseMaterial: false,
+        isWarehouseMaterial: false,
       });
       setProperties([]);
       setErrors({});
@@ -170,11 +166,11 @@ export default function CreateMaterialScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Create Material</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Create Material</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         
@@ -255,24 +251,7 @@ export default function CreateMaterialScreen() {
             keyboardType="numeric"
             error={errors.salesPrice}
           />
-          <Input
-            label="Weight (kg)"
-            value={form.weight}
-            onChangeText={(v) => updateField('weight', v)}
-            placeholder="Optional unit weight"
-            icon="barbell-outline"
-            keyboardType="numeric"
-            error={errors.weight}
-          />
-          <Input
-            label="Volume (m³)"
-            value={form.volume}
-            onChangeText={(v) => updateField('volume', v)}
-            placeholder="Optional unit volume"
-            icon="cube-outline"
-            keyboardType="numeric"
-            error={errors.volume}
-          />
+
           </>}
         </Card>
 
@@ -281,8 +260,8 @@ export default function CreateMaterialScreen() {
           <View style={styles.propertiesHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Properties</Text>
             <TouchableOpacity onPress={addProperty} style={styles.addPropBtn}>
-              <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-              <Text style={[styles.addPropText, { color: colors.primary }]}>Add Property</Text>
+              <Ionicons name="add-circle-outline" size={20} color={colors.primaryText} />
+              <Text style={[styles.addPropText, { color: colors.primaryText }]}>Add Property</Text>
             </TouchableOpacity>
           </View>
 

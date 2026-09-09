@@ -137,7 +137,7 @@ export default function VendorTrucksScreen() {
                 </Text>
               </View>
             </ResponsiveGrid>
-            {vehicle.securityFlag?.status === 'cleared' ? <Text style={styles.clearedLabel}>Unsuspended after security clearance</Text> : null}
+            {vehicle.securityFlag?.status === 'cleared' ? <Text style={[styles.clearedLabel, { color: colors.primaryText }]}>Unsuspended after security clearance</Text> : null}
           </DataCard>
         ))
       ) : (

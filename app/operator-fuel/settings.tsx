@@ -74,8 +74,8 @@ export default function OperatorFuelSettingsScreen() {
             <Text style={{ fontSize: 12, color: colors.textMuted, marginBottom: Spacing.xs}}>{PASSWORD_REQUIREMENTS}</Text>
             <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]} placeholder="Confirm new password" placeholderTextColor={colors.textMuted} value={confirmPw} onChangeText={setConfirmPw} secureTextEntry />
             <View style={{ flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs}}>
-              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#E2E8F0' }]} onPress={() => { setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw(''); }} disabled={updating}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1E293B' }}>Cancel</Text>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: colors.inputBg }]} onPress={() => { setPwModal(false); setCurrentPw(''); setNewPw(''); setConfirmPw(''); }} disabled={updating}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#F59E0B' }]} onPress={handlePasswordUpdate} disabled={updating}>
                 {updating ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFF' }}>Update</Text>}

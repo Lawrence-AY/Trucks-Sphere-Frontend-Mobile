@@ -1,3 +1,4 @@
+import { isPurchaseOrderOpen } from '../../utils/poMaterials';
 import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 import api from '../../services/api';
 import { useEffect, useMemo, useState } from 'react';
@@ -485,12 +486,7 @@ export default function OperatorSiteDashboardScreen() {
   const fabMatchingPOs = useMemo(() => {
     const term = fabPoSearch.trim().toLowerCase();
     return purchaseOrders
-      .filter((order) => !['completed', 'cancelled', 'archived'].includes(String(order.status || '').toLowerCase()))
-      .filter((order) => {
-        const ordered = Number(order.quantity || 0);
-        const allocated = Number(order.allocatedQuantity ?? order.quantityDelivered ?? order.deliveredQuantity ?? 0);
-        return Math.max(ordered - allocated, 0) > 0;
-      })
+      .filter(isPurchaseOrderOpen)
       .filter(
         (order) =>
           !term ||
@@ -974,10 +970,10 @@ export default function OperatorSiteDashboardScreen() {
                       <Ionicons
                         name="hand-left-outline"
                         size={12}
-                        color={colors.primary}
+                        color={colors.primaryText}
                       />
                       <Text
-                        style={[styles.tapHintText, { color: colors.primary }]}
+                        style={[styles.tapHintText, { color: colors.primaryText }]}
                       >
                         Tap to record Site Arrival Weight
                       </Text>
@@ -1005,7 +1001,7 @@ export default function OperatorSiteDashboardScreen() {
                     <Image source={{ uri: driverMap[item.driverId].photoURL }} style={styles.driverAvatarSmall} />
                   ) : (
                     <View style={[styles.driverAvatarSmall, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
-                      <Text style={{ fontSize: 10, fontWeight: '800', color: colors.primary }}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: colors.primaryText }}>
                         {(driverMap[item.driverId]?.name || item.driverName || 'D').charAt(0).toUpperCase()}
                       </Text>
                     </View>
@@ -1181,7 +1177,7 @@ export default function OperatorSiteDashboardScreen() {
                                      }}
                                    >
                                      <Text style={[styles.fabDropdownText, { color: colors.text }]}>{source}</Text>
-                                     {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                                     {active ? <Ionicons name="checkmark" size={16} color={colors.primaryText} /> : null}
                                    </TouchableOpacity>
                                  );
                                })
@@ -1215,7 +1211,7 @@ export default function OperatorSiteDashboardScreen() {
                                 setBankerOpenInputs((prev) => ({ ...prev, [item.id]: false }));
                               }}>
                               <Text style={[styles.fabDropdownText, { color: colors.text }]}>{group.name}</Text>
-                              {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                              {active ? <Ionicons name="checkmark" size={16} color={colors.primaryText} /> : null}
                             </TouchableOpacity>;
                             })}
                           </View>
@@ -1389,7 +1385,7 @@ export default function OperatorSiteDashboardScreen() {
                                 <Image source={{ uri: driver.photoURL }} style={styles.fabDriverPhoto} />
                               ) : (
                                 <View style={[styles.fabDriverPhoto, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
-                                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primary }}>
+                                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primaryText }}>
                                     {(driver.name || driver.fullName || 'D').charAt(0).toUpperCase()}
                                   </Text>
                                 </View>
@@ -1489,7 +1485,7 @@ export default function OperatorSiteDashboardScreen() {
                                 }}
                               >
                                 <Text style={[styles.fabDropdownText, { color: colors.text }]}>{source}</Text>
-                                {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                                {active ? <Ionicons name="checkmark" size={16} color={colors.primaryText} /> : null}
                               </TouchableOpacity>
                             );
                           })
@@ -1532,7 +1528,7 @@ export default function OperatorSiteDashboardScreen() {
                             const active = fabBanker === group.name;
                             return <TouchableOpacity key={group.name} style={[styles.fabDropdownItem, active && { backgroundColor: `${colors.primary}10` }]} onPress={() => { setFabBanker(group.name); setFabBankerOpen(false); }}>
                             <Text style={[styles.fabDropdownText, { color: colors.text }]}>{group.name}</Text>
-                            {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
+                            {active ? <Ionicons name="checkmark" size={16} color={colors.primaryText} /> : null}
                           </TouchableOpacity>;
                           })}
                         </View>
@@ -1559,7 +1555,7 @@ export default function OperatorSiteDashboardScreen() {
               {fabSelectedPo && (
                 <View style={[styles.fabDeliveryNote, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
                   <View style={styles.fabDeliveryNoteHeader}>
-                    <Ionicons name="document-attach-outline" size={19} color={colors.primary} />
+                    <Ionicons name="document-attach-outline" size={19} color={colors.primaryText} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.fabLabel, { color: colors.text, marginTop: Spacing.xs}]}>External Delivery Note</Text>
                       <Text style={[styles.fabNoteHelp, { color: colors.textMuted }]}>Optional — photograph a paper note or attach an image/PDF issued elsewhere.</Text>
@@ -1570,21 +1566,21 @@ export default function OperatorSiteDashboardScreen() {
                       style={[styles.fabNoteAction, { borderColor: colors.border, backgroundColor: colors.surface }]}
                       onPress={captureExternalDeliveryNote}
                     >
-                      <Ionicons name="camera-outline" size={16} color={colors.primary} />
+                      <Ionicons name="camera-outline" size={16} color={colors.primaryText} />
                       <Text style={[styles.fabNoteActionText, { color: colors.text }]}>Camera</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.fabNoteAction, { borderColor: colors.border, backgroundColor: colors.surface }]}
                       onPress={chooseExternalDeliveryNotePhoto}
                     >
-                      <Ionicons name="images-outline" size={16} color={colors.primary} />
+                      <Ionicons name="images-outline" size={16} color={colors.primaryText} />
                       <Text style={[styles.fabNoteActionText, { color: colors.text }]}>Gallery</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.fabNoteAction, { borderColor: colors.border, backgroundColor: colors.surface }]}
                       onPress={chooseExternalDeliveryNoteFile}
                     >
-                      <Ionicons name="attach-outline" size={16} color={colors.primary} />
+                      <Ionicons name="attach-outline" size={16} color={colors.primaryText} />
                       <Text style={[styles.fabNoteActionText, { color: colors.text }]}>File</Text>
                     </TouchableOpacity>
                   </View>

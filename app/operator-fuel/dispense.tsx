@@ -115,6 +115,11 @@ export default function FuelDispenseScreen() {
     [], // no external deps needed — we read store directly inside
   );
 
+  useEffect(() => {
+    const timer = setInterval(() => { void loadData(true); }, 30000);
+    return () => clearInterval(timer);
+  }, [loadData]);
+
   const loadFuelPrice = async () => {
     try {
       setFuelPrice(0);

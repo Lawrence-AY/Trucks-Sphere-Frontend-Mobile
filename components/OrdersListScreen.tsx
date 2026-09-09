@@ -67,6 +67,7 @@ export default function OrdersListScreen() {
   const selectedStatus = STATUS_OPTIONS.find(s => s.key === filter);
 
   const filtered = orders.filter((order) => {
+    if (["cancelled", "canceled"].includes(String(order.status || "").trim().toLowerCase())) return false;
     const s = search.toLowerCase();
     const matchesSearch = !search ||
       (order.poNumber || '').toLowerCase().includes(s) ||

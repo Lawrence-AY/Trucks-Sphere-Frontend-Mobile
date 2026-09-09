@@ -1,6 +1,11 @@
 export const Colors = {
   light: {
-    primary: '#0D3150',     
+    primary: '#0D3150',
+    primaryText: '#0D3150',
+    onAccent: '#06251A',
+    onSuccess: '#06251A',
+    onWarning: '#281800',
+    onDanger: '#350A0A',     
     primaryLight: '#E7F5FC',
     accent: '#25D366',      
     success: '#25D366',
@@ -29,7 +34,12 @@ export const Colors = {
     gradientEnd: '#0D3150',
   },
   dark: {
-    primary: '#0D3150',
+    primary: '#326EA9',
+    primaryText: '#93C5FD',
+    onAccent: '#06251A',
+    onSuccess: '#06251A',
+    onWarning: '#281800',
+    onDanger: '#350A0A',
     primaryLight: '#0D3150',
     accent: '#31E7D0',
     success: '#22C55E',
@@ -39,8 +49,8 @@ export const Colors = {
     surface: '#0D1B2B',
     text: '#F8FAFC',
     textSecondary: '#B6C7D8',
-    textMuted: '#7D92A7',
-    textTertiary: '#5E7287',
+    textMuted: '#A5B8CB',
+    textTertiary: '#A1B3C5',
     // Bottom navigation is read against the dark surface, so use brighter
     // semantic colors than the general-purpose brand/muted text colors.
     tabActive: '#60A5FA',

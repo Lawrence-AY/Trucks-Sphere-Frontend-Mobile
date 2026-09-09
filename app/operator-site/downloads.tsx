@@ -1,3 +1,4 @@
+import { ReportActions } from '../../components/ReportActions';
 import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 /**
  * Downloads Screen - Export reports, delivery orders, and receipts as PDF
@@ -366,8 +367,8 @@ export default function DownloadsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.backTitle}>Downloads</Text>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Downloads</Text>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
@@ -382,33 +383,12 @@ export default function DownloadsScreen() {
           ) : null}
         </View>
 
-        {DOWNLOAD_OPTIONS.map((option) => (
-          <TouchableOpacity
-            key={option.id}
-            style={[styles.optionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => handleDownload(option.id)}
-            disabled={!!loading}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.optionIcon, { backgroundColor: option.color + '15' }]}>
-              <Ionicons name={option.icon} size={28} color={option.color} />
-            </View>
-            <View style={styles.optionInfo}>
-              <Text style={[styles.optionTitle, { color: colors.text }]}>{option.title}</Text>
-              <Text style={[styles.optionDesc, { color: colors.textMuted }]}>{option.description}</Text>
-            </View>
-            {loading === option.id ? (
-              <ActivityIndicator size="small" color={option.color} />
-            ) : (
-              <Ionicons name="download-outline" size={22} color={colors.textMuted} />
-            )}
-          </TouchableOpacity>
-        ))}
+        <ReportActions categories={DOWNLOAD_OPTIONS.map(o => ({ key: o.id, label: o.title + ' PDF', icon: o.icon }))} busy={!!loading} onExport={handleDownload} />
 
         {/* Upload Section */}
         <Card>
           <View style={styles.uploadSection}>
-            <Ionicons name="cloud-upload-outline" size={28} color={colors.primary} />
+            <Ionicons name="cloud-upload-outline" size={28} color={colors.primaryText} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.uploadTitle, { color: colors.text }]}>Upload Documents</Text>
               <Text style={[styles.uploadDesc, { color: colors.textMuted }]}>

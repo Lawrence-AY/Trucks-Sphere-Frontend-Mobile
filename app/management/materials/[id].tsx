@@ -209,7 +209,7 @@ export default function MaterialDetailScreen() {
                   'text-outline'
                 }
                 size={16}
-                color={colors.primary}
+                color={colors.primaryText}
               />
               <Text style={[styles.propertyName, { color: colors.text }]}>
                 {prop.label || prop.name}
@@ -268,7 +268,7 @@ export default function MaterialDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Back to materials"
@@ -277,7 +277,7 @@ export default function MaterialDetailScreen() {
         >
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Material Details</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Material Details</Text>
       </View>
       <ScrollView
         contentContainerStyle={styles.content}

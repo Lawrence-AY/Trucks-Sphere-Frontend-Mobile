@@ -115,7 +115,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           <Ionicons
             name={isExpanded ? 'close' : 'search'}
             size={20}
-            color={colors.primary}
+            color={colors.primaryText}
           />
         </TouchableOpacity>
       </Animated.View>

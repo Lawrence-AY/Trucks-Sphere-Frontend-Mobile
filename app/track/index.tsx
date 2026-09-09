@@ -65,7 +65,7 @@ export function TrackingSessionScreen() {
         {/* Branding */}
         <View style={styles.branding}>
           <View style={[styles.brandIconCircle, { backgroundColor: colors.primary + '14' }]}>
-            <Ionicons name="radio" size={40} color={colors.primary} />
+            <Ionicons name="radio" size={40} color={colors.primaryText} />
           </View>
           <Text style={[styles.brandTitle, { color: colors.text }]}>
             TruckSphere Track
@@ -266,7 +266,7 @@ export default function TrackIndexRedirect() {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
           <View style={styles.branding}>
-            <View style={[styles.brandIconCircle, { backgroundColor: colors.primary + '14' }]}><Ionicons name="car-outline" size={40} color={colors.primary} /></View>
+            <View style={[styles.brandIconCircle, { backgroundColor: colors.primary + '14' }]}><Ionicons name="car-outline" size={40} color={colors.primaryText} /></View>
             <Text style={[styles.brandTitle, { color: colors.text }]}>TruckSphere Track</Text>
             <Text style={[styles.brandSub, { color: colors.textMuted }]}>Enter the vehicle registration number to track its active delivery.</Text>
           </View>

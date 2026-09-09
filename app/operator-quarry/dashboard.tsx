@@ -1,3 +1,4 @@
+import { isPurchaseOrderOpen } from '../../utils/poMaterials';
 import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 import { useMaterials } from '../../store/realtimeData';
 import { isWarehouseJob } from '../../utils/warehouse';
@@ -130,12 +131,7 @@ export default function OperatorQuarryDashboardScreen() {
       .filter((order) => !isWarehouseJob(order, materials))
       // An operator chooses the work order first. The job card then records
       // both that PO's quarry and the operator who created the job.
-      .filter((order) => !['completed', 'cancelled', 'archived'].includes(String(order.status || '').toLowerCase()))
-      .filter((order) => {
-        const ordered = Number(order.quantity ?? 0);
-        const allocated = Number(order.allocatedQuantity ?? order.quantityDelivered ?? order.deliveredQuantity ?? 0);
-        return Math.max(ordered - allocated, 0) > 0;
-      })
+      .filter(isPurchaseOrderOpen)
       .filter(
         (order) =>
           !term ||
@@ -314,7 +310,7 @@ export default function OperatorQuarryDashboardScreen() {
                         <Image source={{ uri: d.photoURL }} style={styles.queueDriverPhoto} />
                       ) : (
                         <View style={[styles.queueDriverPhoto, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
-                          <Text style={{ fontSize: 10, fontWeight: '800', color: colors.primary }}>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: colors.primaryText }}>
                             {(d?.name || d?.fullName || 'D').charAt(0).toUpperCase()}
                           </Text>
                         </View>
@@ -507,7 +503,7 @@ export default function OperatorQuarryDashboardScreen() {
                               <Image source={{ uri: driver.photoURL }} style={styles.modalDriverPhoto} />
                             ) : (
                               <View style={[styles.modalDriverPhoto, { backgroundColor: `${colors.primary}15`, alignItems: 'center', justifyContent: 'center' }]}>
-                                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primary }}>
+                                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.primaryText }}>
                                   {(driver.name || driver.fullName || 'D').charAt(0).toUpperCase()}
                                 </Text>
                               </View>

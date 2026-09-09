@@ -174,7 +174,7 @@ const Receipt: React.FC<ReceiptProps> = ({ visible, onClose, data }) => {
               <Text style={[styles.netLabel, { color: colors.text }]}>
                 NET WEIGHT
               </Text>
-              <Text style={[styles.netValue, { color: colors.primary }]}>
+              <Text style={[styles.netValue, { color: colors.primaryText }]}>
                 {data.netWeight.toFixed(1)} tonnes
               </Text>
             </View>
@@ -278,7 +278,7 @@ const Receipt: React.FC<ReceiptProps> = ({ visible, onClose, data }) => {
 
           {/* Thank you */}
           <View style={styles.thankYouArea}>
-            <Text style={[styles.thankYou, { color: colors.primary }]}>
+            <Text style={[styles.thankYou, { color: colors.primaryText }]}>
               Thank you!
             </Text>
             <Text style={[styles.footerText, { color: colors.textMuted }]}>

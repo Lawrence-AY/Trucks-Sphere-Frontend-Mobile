@@ -294,8 +294,8 @@ export default function AuditLogsScreen() {
               style={styles.viewMoreBtn}
               onPress={() => setDetailModal(item)}
             >
-              <Text style={[styles.viewMoreText, { color: colors.primary }]}>View Full Details</Text>
-              <Ionicons name="open-outline" size={14} color={colors.primary} />
+              <Text style={[styles.viewMoreText, { color: colors.primaryText }]}>View Full Details</Text>
+              <Ionicons name="open-outline" size={14} color={colors.primaryText} />
             </TouchableOpacity>
           </View>
         )}
@@ -405,7 +405,7 @@ export default function AuditLogsScreen() {
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.loadingMore}>
-              <ActivityIndicator size="small" color={colors.primary} />
+              <ActivityIndicator size="small" color={colors.primaryText} />
             </View>
           ) : null
         }
@@ -426,7 +426,7 @@ export default function AuditLogsScreen() {
                 {/* Summary */}
                 <Card>
                   <View style={styles.detailSummaryRow}>
-                    <Ionicons name={getEntityIcon(detailModal.entityType)} size={24} color={colors.primary} />
+                    <Ionicons name={getEntityIcon(detailModal.entityType)} size={24} color={colors.primaryText} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.detailTitle, { color: colors.text }]}>{detailModal.details}</Text>
                       <Text style={[styles.detailSubtitle, { color: colors.textMuted }]}>

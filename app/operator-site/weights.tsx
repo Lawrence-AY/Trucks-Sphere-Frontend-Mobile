@@ -123,6 +123,7 @@ function buildReceiptHtml(data: {
   quantityOrdered: number;
   quarryName: string;
   quarryOrigin?: string;
+  banker?: string;
   materialSource?: string;
   siteName: string;
   weightIn: number;
@@ -209,7 +210,8 @@ function buildReceiptHtml(data: {
         <div class="row"><span class="label">Vendor</span><span class="value">${e(vendorName) || 'N/A'}</span></div>
         <div class="row"><span class="label">Driver</span><span class="value">${e(driverName) || 'N/A'}</span></div>
         <div class="row"><span class="label">Truck Plate</span><span class="value">${e(plateNumber) || 'N/A'}</span></div>
-        <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${e(quarryOrigin || materialSource || quarryName) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Banker</span><span class="value">${e(data.banker) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Origin</span><span class="value">${e(quarryOrigin || materialSource || quarryName) || 'N/A'}</span></div>
         <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(siteName) || 'N/A'}</span></div>
       </div>
 
@@ -516,11 +518,12 @@ export default function OperatorSiteWeightsScreen() {
       materialName: grnData.materialName || '',
       quantityOrdered: grnData.quantityOrdered || 0,
       quarryName: grnData.quarryName || '',
-      quarryOrigin: formatCapturedGeoLocation(
+      quarryOrigin: ['operator_site', 'site_operator'].includes(String(grnData.createdBy?.role || grnData.createdBy || '').trim().toLowerCase()) ? grnData.materialSource || 'N/A' : formatCapturedGeoLocation(
         grnData.weighOutGeoLocation,
         grnData.weighOutLocation || grnData.quarryName || '',
       ),
       materialSource: grnData.materialSource || '',
+      banker: grnData.banker || '',
       siteName: grnData.siteName || '',
       lotNumber: grnData.storageLot || grnData.lotNumber || grnData.destinationLot || '',
       weightIn: siteWeighIn,
@@ -568,7 +571,8 @@ export default function OperatorSiteWeightsScreen() {
         ['Truck Plate', data.plateNumber],
         ['Material', data.materialName],
         ['Quantity Ordered', `${data.quantityOrdered} tonnes`],
-        ['Origin (Quarry)', data.quarryOrigin || data.materialSource || data.quarryName],
+        ['Banker', data.banker || 'N/A'],
+        ['Origin', data.quarryOrigin || data.materialSource || data.quarryName],
         ['Destination (Site)', data.siteName],
         ['Site Arrival Weight (Gross)', `${data.weightIn.toFixed(1)} T`],
         ['Weight Out (Tare)', `${data.weightOut.toFixed(1)} T`],
@@ -986,6 +990,7 @@ export default function OperatorSiteWeightsScreen() {
                 Delivery finalized successfully. GRN generated.
               </Text>
 
+              {grnData && <Text style={{ color: colors.text }}>Banker: {grnData.banker || 'N/A'}</Text>}
               {grnData && (
                 <View
                   style={[
@@ -1230,12 +1235,12 @@ export default function OperatorSiteWeightsScreen() {
                   <Ionicons
                     name="hand-left-outline"
                     size={12}
-                    color={colors.primary}
+                    color={colors.primaryText}
                   />
                   <Text
                     style={[
                       styles.tapHintText,
-                      { color: colors.primary },
+                      { color: colors.primaryText },
                     ]}
                   >
                     Tap to input Weight Out & finalize

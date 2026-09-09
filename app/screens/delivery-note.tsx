@@ -28,6 +28,8 @@ const escapeHtml = (str: string | null | undefined): string => {
 /* ---------- HTML builder (same as before, but now all data escaped) ---------- */
 function buildDeliveryNoteHtml(data: {
   isWarehouse?: boolean;
+  isCustomSite?: boolean;
+  materialSource?: string;
   jobId: string;
   poNumber: string;
   driverName: string;
@@ -54,6 +56,7 @@ function buildDeliveryNoteHtml(data: {
   } = data;
 
   const isWarehouse = Boolean(data.isWarehouse);
+  const isCustomSite = Boolean(data.isCustomSite);
   const e = escapeHtml;
   const geoLines = [weighOutGeoAddress, weighOutCity, weighOutTown].filter(Boolean);
   const geoText = geoLines.length > 0 ? geoLines.join(', ') : 'N/A';
@@ -115,7 +118,8 @@ function buildDeliveryNoteHtml(data: {
     <div class="row"><span class="label">Material</span><span class="value">${e(materialName) || 'N/A'}</span></div>
   </div>
 
-  ${!isWarehouse ? `<div class="section">
+  ${isCustomSite ? `<div class="section"><div class="section-title">Origin</div><div class="row"><span class="label">Material Source</span><span class="value">${e(data.materialSource) || 'N/A'}</span></div></div>` : ''}
+  ${!isWarehouse && !isCustomSite ? `<div class="section">
     <div class="section-title">Route & Geolocation</div>
     
     <div class="row"><span class="label">City / Town</span><span class="value">${e(quarryCityTown) || e(weighOutCity) || 'N/A'}</span></div>
@@ -127,7 +131,7 @@ function buildDeliveryNoteHtml(data: {
     <div class="row"><span class="label">Recorded By</span><span class="value">${e(quarryPersonnel) || 'N/A'}</span></div>
   </div>` : ''}
 
-  ${!isWarehouse && (weighInWeight || weighOutWeight || netWeight) ? `
+  ${!isWarehouse && !isCustomSite && (weighInWeight || weighOutWeight || netWeight) ? `
   <div class="section">
     <div class="section-title">Weight Record</div>
     <table>
@@ -254,6 +258,7 @@ export default function DeliveryNoteScreen() {
 
   const handleSearch = () => { loadData(searchJobId.trim()); };
 
+  const isCustomSite = ['operator_site', 'site_operator'].includes(String(delivery?.createdBy?.role || delivery?.createdBy || '').toLowerCase());
   const netWeight = delivery?.netWeight || (delivery?.weighInWeight && delivery?.weighOutWeight ? (delivery.weighInWeight - delivery.weighOutWeight).toFixed(1) : null);
   const capturedQuarrySource = formatCapturedGeoLocation(
     {
@@ -285,7 +290,8 @@ export default function DeliveryNoteScreen() {
       ['Truck', delivery.plateNumber || 'N/A'],
       ]),
       ['Materials on PO', materialsLabel],
-      ...(!isWarehouse ? [
+      ...(isCustomSite ? [['Origin', delivery.materialSource || 'N/A'], ['Material Source', delivery.materialSource || 'N/A']] : []),
+      ...(!isWarehouse && !isCustomSite ? [
       ['Weigh-Out (Location)', capturedQuarrySource || 'N/A'],
       ['Recorded By', quarryPersonnel || 'N/A'],
       ['City / Town', quarryCityTown || 'N/A'],
@@ -317,6 +323,8 @@ export default function DeliveryNoteScreen() {
     try {
       const pdfData = {
         isWarehouse,
+        isCustomSite,
+        materialSource: delivery.materialSource || '',
         jobId: delivery.jobId || '',
         poNumber: delivery.poNumber || '',
         driverName: delivery.driverName || '',
@@ -368,7 +376,7 @@ export default function DeliveryNoteScreen() {
             returnKeyType="search"
           />
           <TouchableOpacity onPress={handleSearch}>
-            <Ionicons name="arrow-forward-circle" size={22} color={colors.primary} />
+            <Ionicons name="arrow-forward-circle" size={22} color={colors.primaryText} />
           </TouchableOpacity>
         </View>
       )}
@@ -413,7 +421,8 @@ export default function DeliveryNoteScreen() {
               <Text style={styles.rSection}>MATERIAL</Text>
               <DNRow label="Materials on PO" value={materialsLabel} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
-              {!isWarehouse && <>
+              {isCustomSite && <><DNRow label="Origin" value={delivery.materialSource || 'N/A'} /><DNRow label="Material Source" value={delivery.materialSource || 'N/A'} /></>}
+              {!isWarehouse && !isCustomSite && <>
               <Text style={styles.rSection}>ROUTE </Text>
               <DNRow label="Weight out location" value={capturedQuarrySource || 'N/A'} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
@@ -435,7 +444,7 @@ export default function DeliveryNoteScreen() {
               )}
               </>}
               <Text style={styles.rBarcode}>||| ||| ||| ||| ||| ||| |||</Text>
-              <Text style={styles.rFooter}>{isWarehouse ? 'Warehouse Confirmation' : 'Quarry Operator Confirmation'}</Text>
+              <Text style={styles.rFooter}>{isWarehouse ? 'Warehouse Confirmation' : isCustomSite ? 'Site Operator Confirmation' : 'Quarry Operator Confirmation'}</Text>
               <Text style={styles.rThanks}>Thank you</Text>
             </View>
           </View>

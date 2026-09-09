@@ -86,7 +86,7 @@ export default function MaterialDetailsScreen() {
       <PageShell>
         <DataCard>
           <View style={styles.loadingRow}>
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={colors.primaryText} />
             <Text style={[styles.muted, { color: colors.textMuted }]}>Loading material...</Text>
           </View>
         </DataCard>

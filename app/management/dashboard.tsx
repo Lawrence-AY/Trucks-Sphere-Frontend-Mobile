@@ -1,3 +1,4 @@
+import { PurchaseOrderDeliveryAlerts } from '../../components/PurchaseOrderDeliveryVariance';
 import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -69,7 +70,7 @@ function ManagementDashboardContent() {
   }, [refresh]);
 
   const stats = useMemo(() => {
-    const nonBackorderDeliveries = deliveries.filter((item) => !item.isBackorder);
+    const nonBackorderDeliveries = deliveries.filter((item) => !item.isBackorder && normalizeJobStatus(item.status) !== 'CANCELLED');
     const activeTrips = nonBackorderDeliveries.filter((item) => isActiveJob(item.status));
     const deliveredTrips = nonBackorderDeliveries.filter((item) => {
       const status = normalizeJobStatus(item.status);
@@ -94,7 +95,7 @@ function ManagementDashboardContent() {
 
   const recentDeliveries = useMemo(() => {
     return [...deliveries]
-      .filter((item) => Boolean(item.driverId || item.driverName))
+      .filter((item) => Boolean(item.driverId || item.driverName || item.isWarehouseDelivery || item.warehouseJobId || item.deliveryOrigin === 'warehouse'))
       .sort(
         (a, b) =>
           new Date(b.updatedAt || b.createdAt).getTime() -
@@ -120,6 +121,7 @@ function ManagementDashboardContent() {
         />
       }
     >
+      <PurchaseOrderDeliveryAlerts />
       <View style={styles.metricGrid}>
         <ResponsiveGrid sideBySide style={styles.metricRow}>
           <MetricTile
@@ -129,7 +131,7 @@ function ManagementDashboardContent() {
             tone={colors.primary}
             compact
             emphasized
-            onPress={() => router.push("/management/trips" as any)}
+            onPress={() => router.push("/management/trips?scope=all" as any)}
           />
           <MetricTile
             icon="navigate-circle"
@@ -207,7 +209,7 @@ function ManagementDashboardContent() {
         title="Recent trips"
         action={
           <TouchableOpacity onPress={() => router.push("/management/active")}>
-            <Text style={[styles.link, { color: colors.primary }]}>
+            <Text style={[styles.link, { color: colors.primaryText }]}>
               View all
             </Text>
           </TouchableOpacity>

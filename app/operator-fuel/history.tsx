@@ -1,3 +1,4 @@
+import { ReportActions } from '../../components/ReportActions';
 import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -355,32 +356,7 @@ export default function FuelHistoryScreen() {
       )}
 
       {filtered.length > 0 && (
-        <View style={styles.exportRow}>
-          <TouchableOpacity
-            style={[styles.exportBtn, { backgroundColor: "#2563EB" }]}
-            onPress={handleDownloadCSV}
-            disabled={exporting !== null}
-          >
-            {exporting === "csv" ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
-            )}
-            <Text style={styles.exportBtnText}>CSV</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.exportBtn, { backgroundColor: "#1B2A4A" }]}
-            onPress={handlePrintPDF}
-            disabled={exporting !== null}
-          >
-            {exporting === "pdf" ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons name="print-outline" size={16} color="#FFFFFF" />
-            )}
-            <Text style={styles.exportBtnText}>Print</Text>
-          </TouchableOpacity>
-        </View>
+        <ReportActions categories={[{ key: 'csv', label: 'Fuel CSV' }, { key: 'pdf', label: 'Fuel PDF' }]} busy={exporting !== null} onExport={key => { void (key === 'csv' ? handleDownloadCSV() : handlePrintPDF()); }} />
       )}
 
       <SearchField

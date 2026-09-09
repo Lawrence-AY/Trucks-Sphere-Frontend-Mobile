@@ -4,8 +4,8 @@
  * Features:
  *   - Tab navigation between sections
  *   - Edit vendor details
- *   - View and manage drivers under this vendor
- *   - View and manage vehicles under this vendor
+ *   - View and manage drivers under this vendor with search
+ *   - View and manage vehicles under this vendor with search & status filter
  *   - View documents
  *   - View jobs and purchase orders
  *   - Performance metrics
@@ -18,9 +18,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
-  FlatList,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -39,6 +38,7 @@ import { vendorRepository } from '../../../services/repositories/VendorRepositor
 import { Vendor, Driver, Vehicle } from '../../../store/types';
 import { formatEAT } from '../../../utils/helpers';
 import { UserActionInfo } from '../../../components/UserActionInfo';
+import { PurchaseOrderMaterials } from '../../../components/PurchaseOrderMaterials';
 import { useAuthStore } from '../../../store/authStore';
 import { hasManagementPermission } from '../../../utils/access';
 
@@ -46,10 +46,9 @@ const VENDOR_TABS = [
   { name: 'overview', label: 'Overview', icon: 'information-circle-outline' as const },
   { name: 'drivers', label: 'Drivers', icon: 'people-outline' as const },
   { name: 'vehicles', label: 'Vehicles', icon: 'car-outline' as const },
-   
   { name: 'jobs', label: 'Jobs', icon: 'briefcase-outline' as const },
   { name: 'pos', label: 'Purchase Orders', icon: 'document-text-outline' as const },
- ];
+];
 
 export default function VendorDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -72,8 +71,6 @@ export default function VendorDetailScreen() {
     if (id) loadVendor();
   }, [id]);
 
-  // Auto-reload drivers and vehicles when screen regains focus
-  // (e.g. after creating a driver/vehicle and navigating back)
   useFocusEffect(
     useCallback(() => {
       if (id && vendor) {
@@ -155,67 +152,77 @@ export default function VendorDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Back Button */}
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Vendor Details</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Vendor Details</Text>
       </View>
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
-            <Text style={[styles.avatarText, { color: colors.primary }]}>
+            <Text style={[styles.avatarText, { color: colors.primaryText }]}>
               {vendor.companyName?.charAt(0)?.toUpperCase() || 'V'}
             </Text>
           </View>
           <View style={styles.headerInfo}>
-              <Text style={[styles.vendorName, { color: colors.text }]}>
-                {vendor.companyName || 'Unknown Vendor'}
-              </Text>
+            <Text style={[styles.vendorName, { color: colors.text }]}>
+              {vendor.companyName || 'Unknown Vendor'}
+            </Text>
+            <Text style={[styles.vendorId, { color: colors.textMuted }]}>
+              {vendor.vendorId || vendor.id} · {vendor.contactPerson || 'No contact'}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.xs }}>
               <Text style={[styles.vendorId, { color: colors.textMuted }]}>
-                {vendor.vendorId || vendor.id} · {vendor.contactPerson || 'No contact'}
+                {vendor.phone || ''}
               </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.xs}}>
-                 
-                <Text style={[styles.vendorId, { color: colors.textMuted }]}>
-                  {vendor.phone || ''}
-                </Text>
-              </View>
+            </View>
           </View>
         </View>
 
         {/* Action Buttons */}
-        {(canWriteVendors || canWriteDrivers || canWriteTrucks) && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.headerActions}>
-          {canWriteVendors && <Button
-            title="Edit"
-            onPress={() => router.push(`/management/vendors/edit/${vendor.id}` as any)}
-            variant="secondary"
-            size="sm"
-            icon="create-outline"
-          />}
-          {canWriteDrivers && <Button
-            title="Add Driver"
-            onPress={() => router.push(`/management/drivers/create?vendorId=${vendor.id}` as any)}
-            variant="secondary"
-            size="sm"
-            icon="person-add-outline"
-          />}
-          {canWriteTrucks && <Button
-            title="Add Vehicle"
-            onPress={() => router.push(`/management/vehicles/create?vendorId=${vendor.id}` as any)}
-            variant="secondary"
-            size="sm"
-            icon="car-outline"
-          />}
-          {canWriteVendors && <Button
-            title="Delete"
-            onPress={() => setShowDeleteConfirm(true)}
-            variant="danger"
-            size="sm"
-            icon="trash-outline"
-          />}
-        </ScrollView>}
+        {(canWriteVendors || canWriteDrivers || canWriteTrucks) && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.headerActions}>
+            {canWriteVendors && (
+              <Button
+                title="Edit"
+                onPress={() => router.push(`/management/vendors/edit/${vendor.id}` as any)}
+                variant="secondary"
+                size="sm"
+                icon="create-outline"
+              />
+            )}
+            {canWriteDrivers && (
+              <Button
+                title="Add Driver"
+                onPress={() => router.push(`/management/drivers/create?vendorId=${vendor.id}` as any)}
+                variant="secondary"
+                size="sm"
+                icon="person-add-outline"
+              />
+            )}
+            {canWriteTrucks && (
+              <Button
+                title="Add Vehicle"
+                onPress={() => router.push(`/management/vehicles/create?vendorId=${vendor.id}` as any)}
+                variant="secondary"
+                size="sm"
+                icon="car-outline"
+              />
+            )}
+            {canWriteVendors && (
+              <Button
+                title="Delete"
+                onPress={() => setShowDeleteConfirm(true)}
+                variant="danger"
+                size="sm"
+                icon="trash-outline"
+              />
+            )}
+          </ScrollView>
+        )}
       </View>
 
       {/* Tabs */}
@@ -223,23 +230,25 @@ export default function VendorDetailScreen() {
 
       {/* Tab Content */}
       <ScrollView contentContainerStyle={styles.tabContent}>
-        {activeTab === 'overview' && (
-          <OverviewTab vendor={vendor} colors={colors} />
-        )}
+        {activeTab === 'overview' && <OverviewTab vendor={vendor} colors={colors} />}
         {activeTab === 'drivers' && (
-          <DriversTab drivers={drivers} vendorId={vendor.id} colors={colors} canWrite={canWriteDrivers} />
+          <DriversTab
+            drivers={drivers}
+            vendorId={vendor.id}
+            colors={colors}
+            canWrite={canWriteDrivers}
+          />
         )}
         {activeTab === 'vehicles' && (
-          <VehiclesTab vehicles={vehicles} vendorId={vendor.id} colors={colors} canWrite={canWriteTrucks} />
+          <VehiclesTab
+            vehicles={vehicles}
+            vendorId={vendor.id}
+            colors={colors}
+            canWrite={canWriteTrucks}
+          />
         )}
-        
-        {activeTab === 'jobs' && (
-          <JobsTab vendorId={vendor.id} colors={colors} />
-        )}
-        {activeTab === 'pos' && (
-          <PurchaseOrdersTab vendorId={vendor.id} colors={colors} />
-        )}
-       
+        {activeTab === 'jobs' && <JobsTab vendorId={vendor.id} colors={colors} />}
+        {activeTab === 'pos' && <PurchaseOrdersTab vendorId={vendor.id} colors={colors} />}
       </ScrollView>
 
       <ConfirmDialog
@@ -289,21 +298,39 @@ function OverviewTab({ vendor, colors }: { vendor: Vendor; colors: any }) {
   );
 }
 
-// ─── Drivers Tab ───
+// ─── Drivers Tab (only search, no status filters) ───
 function DriversTab({ drivers, vendorId, colors, canWrite }: { drivers: Driver[]; vendorId: string; colors: any; canWrite: boolean }) {
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredDrivers = drivers.filter((driver) => {
+    const matchesSearch =
+      driver.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      driver.phone?.includes(searchQuery);
+    return matchesSearch;
+  });
+
   return (
-    <>
-      {canWrite && <Button
-        title="Add Driver"
-        onPress={() => router.push(`/management/drivers/create?vendorId=${vendorId}` as any)}
-        icon="person-add-outline"
-        size="sm"
-        style={{ marginBottom: Spacing.xs}}
-      />}
-      {drivers.length === 0 ? (
-        <EmptyState icon="people-outline" title="No drivers" subtitle="Add drivers to this vendor" />
+    <View>
+     
+
+      {canWrite && (
+        <Button
+          title="Add Driver"
+          onPress={() => router.push(`/management/drivers/create?vendorId=${vendorId}` as any)}
+          icon="person-add-outline"
+          size="sm"
+          style={{ marginBottom: 4 }}
+        />
+      )}
+
+      {filteredDrivers.length === 0 ? (
+        <EmptyState
+          icon="people-outline"
+          title="No drivers found"
+          subtitle={drivers.length === 0 ? 'Add drivers to this vendor' : 'Try adjusting your search'}
+        />
       ) : (
-        drivers.map((driver) => (
+        filteredDrivers.map((driver) => (
           <TouchableOpacity
             key={driver.id}
             style={[styles.listCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -319,30 +346,53 @@ function DriversTab({ drivers, vendorId, colors, canWrite }: { drivers: Driver[]
                 <Text style={[styles.listCardTitle, { color: colors.text }]}>{driver.fullName}</Text>
                 <Text style={[styles.listCardSub, { color: colors.textMuted }]}>{driver.phone}</Text>
               </View>
-               
+             
             </View>
           </TouchableOpacity>
         ))
       )}
-    </>
+    </View>
   );
 }
 
-// ─── Vehicles Tab ───
+// ─── Vehicles Tab (search + status filters) ───
 function VehiclesTab({ vehicles, vendorId, colors, canWrite }: { vehicles: Vehicle[]; vendorId: string; colors: any; canWrite: boolean }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  const filteredVehicles = vehicles.filter((vehicle) => {
+    const matchesSearch =
+      vehicle.registrationNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      vehicle.make?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      vehicle.model?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || vehicle.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   return (
-    <>
-      {canWrite && <Button
-        title="Add Vehicle"
-        onPress={() => router.push(`/management/vehicles/create?vendorId=${vendorId}` as any)}
-        icon="car-outline"
-        size="sm"
-        style={{ marginBottom: Spacing.xs}}
-      />}
-      {vehicles.length === 0 ? (
-        <EmptyState icon="car-outline" title="No vehicles" subtitle="Add vehicles to this vendor" />
+    <View>
+    
+
+     
+
+      {canWrite && (
+        <Button
+          title="Add Vehicle"
+          onPress={() => router.push(`/management/vehicles/create?vendorId=${vendorId}` as any)}
+          icon="car-outline"
+          size="sm"
+          style={{ marginBottom: 4 }}
+        />
+      )}
+
+      {filteredVehicles.length === 0 ? (
+        <EmptyState
+          icon="car-outline"
+          title="No vehicles found"
+          subtitle={vehicles.length === 0 ? 'Add vehicles to this vendor' : 'Try adjusting your filters'}
+        />
       ) : (
-        vehicles.map((vehicle) => (
+        filteredVehicles.map((vehicle) => (
           <TouchableOpacity
             key={vehicle.id}
             style={[styles.listCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -357,38 +407,19 @@ function VehiclesTab({ vehicles, vendorId, colors, canWrite }: { vehicles: Vehic
               <View style={{ flex: 1 }}>
                 <Text style={[styles.listCardTitle, { color: colors.text }]}>{vehicle.registrationNumber}</Text>
                 <Text style={[styles.listCardSub, { color: colors.textMuted }]}>
-                  {vehicle.make} {vehicle.model} ({vehicle.year})
+                  {vehicle.make} {vehicle.model}  
                 </Text>
               </View>
-              
+             
             </View>
           </TouchableOpacity>
         ))
       )}
-    </>
+    </View>
   );
 }
 
-// ─── Documents Tab ───
-function DocumentsTab({ documents, colors }: { documents: any[]; colors: any }) {
-  if (documents.length === 0) {
-    return <EmptyState icon="document-outline" title="No documents" subtitle="No documents uploaded yet" />;
-  }
-  return (
-    <>
-      {documents.map((doc, i) => (
-        <Card key={i}>
-          <View style={styles.fieldRow}>
-            <Ionicons name="document-outline" size={20} color={colors.primary} />
-            <Text style={[styles.fieldValue, { color: colors.text, marginLeft: Spacing.sm }]}>
-              {doc.name || `Document ${i + 1}`}
-            </Text>
-          </View>
-        </Card>
-      ))}
-    </>
-  );
-}
+
 
 // ─── Jobs Tab ───
 function JobsTab({ vendorId, colors }: { vendorId: string; colors: any }) {
@@ -435,7 +466,7 @@ function JobsTab({ vendorId, colors }: { vendorId: string; colors: any }) {
                 {job.materialName} - {job.quantityDispatched || job.quantityOrdered} {job.unit}
               </Text>
             </View>
-           </View>
+          </View>
         </TouchableOpacity>
       ))}
     </>
@@ -449,7 +480,7 @@ function PurchaseOrdersTab({ vendorId, colors }: { vendorId: string; colors: any
 
   useEffect(() => {
     loadPOs();
-  }, []);
+  }, [vendorId]);
 
   async function loadPOs() {
     try {
@@ -471,7 +502,7 @@ function PurchaseOrdersTab({ vendorId, colors }: { vendorId: string; colors: any
 
   return (
     <>
-      {pos.slice(0, 10).map((po: any) => (
+      {pos.map((po: any) => (
         <TouchableOpacity
           key={po.id}
           style={[styles.listCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -483,21 +514,18 @@ function PurchaseOrdersTab({ vendorId, colors }: { vendorId: string; colors: any
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.listCardTitle, { color: colors.text }]}>{po.poNumber || po.id.slice(0, 8)}</Text>
-              <Text style={[styles.listCardSub, { color: colors.textMuted }]}>
-                {po.materialName} - {po.quantity} {po.unit}
-              </Text>
+              <PurchaseOrderMaterials order={po} />
             </View>
-           </View>
+          </View>
         </TouchableOpacity>
       ))}
     </>
   );
 }
 
- 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    
   },
   backBar: {
     flexDirection: 'row',
@@ -528,7 +556,8 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md, marginBottom: Spacing.xs,
+    gap: Spacing.md,
+    marginBottom: Spacing.xs,
   },
   avatar: {
     width: 56,
@@ -559,8 +588,9 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
   },
   tabContent: {
-    padding: Spacing.md,
-    paddingBottom: Spacing['4xl'],
+    paddingHorizontal: Spacing.md,
+    paddingBottom: 0,
+    paddingTop: 0, // removed extra top padding
   },
   fieldRow: {
     flexDirection: 'row',
@@ -588,7 +618,8 @@ const styles = StyleSheet.create({
   listCard: {
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.md, marginBottom: Spacing.xs,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
   },
   listCardHeader: {
     flexDirection: 'row',
@@ -611,39 +642,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listCardSub: {
-    fontSize: 12, marginTop: Spacing.xs,
+    fontSize: 12,
+    marginTop: Spacing.xs,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700', marginBottom: Spacing.xs,
-  },
-  metricRow: {
+  searchBox: {
     flexDirection: 'row',
-    gap: Spacing.sm, marginBottom: Spacing.xs,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
-  metricCard: {
+  searchInput: {
     flex: 1,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+    fontSize: 15,
   },
-  metricValue: {
-    fontSize: 24,
-    fontWeight: '800',
+  filterChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    marginRight: Spacing.sm,
   },
-  metricLabel: {
-    fontSize: 12, marginTop: Spacing.xs,
-  },
-  alert: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderRadius: Radius.md,
-    padding: Spacing.md, marginTop: Spacing.xs,
-  },
-  alertText: {
+  filterChipText: {
     fontSize: 13,
     fontWeight: '600',
-    flex: 1,
   },
 });

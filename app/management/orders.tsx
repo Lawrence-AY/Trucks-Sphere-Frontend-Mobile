@@ -47,6 +47,7 @@ export default function ManagementOrdersScreen() {
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     return orders.filter((item: any) => {
+      if (["cancelled", "canceled"].includes(String(item.status || "").trim().toLowerCase())) return false;
       const matchesSearch = !query || [item.poNumber, item.vendorName, ...getPurchaseOrderMaterials(item).map((line) => line.materialName)]
         .some((v: any) => String(v || '').toLowerCase().includes(query));
       const matchesFilter = true;

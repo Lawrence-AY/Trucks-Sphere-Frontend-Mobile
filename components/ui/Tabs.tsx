@@ -27,7 +27,7 @@ export function Tabs({ tabs, activeTab, onTabChange }: TabsProps) {
         {tabs.map((tab) => {
           const active = tab.name === activeTab;
           const danger = tab.tone === 'danger';
-          const color = danger ? '#B91C1C' : active ? '#FFFFFF' : colors.textSecondary;
+          const color = active ? '#FFFFFF' : danger ? colors.danger : colors.textSecondary;
 
           return (
             <TouchableOpacity

@@ -1,0 +1,10 @@
+import { useState } from 'react';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../hooks/useTheme';
+export function ReportActions({ categories, busy, onExport }: { categories: { key: string; label: string; icon?: string }[]; busy?: boolean; onExport: (key: string) => void }) {
+ const colors = useTheme(); const [selected, setSelected] = useState(categories[0]?.key);
+ const category = categories.find(c => c.key === selected) || categories[0];
+ if (!category) return null;
+ return <View style={{ gap: 16, padding: 16 }}><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>{categories.map(c => <TouchableOpacity key={c.key} accessibilityRole="tab" accessibilityState={{ selected: c.key === category.key }} onPress={() => setSelected(c.key)} style={{ flexDirection: 'row', gap: 6, alignItems: 'center', padding: 12, borderRadius: 5, borderWidth: 1, borderColor: colors.primary, backgroundColor: c.key === category.key ? colors.primary : colors.surface }}><Ionicons name={(c.icon || 'document-text-outline') as any} size={16} color={c.key === category.key ? '#fff' : colors.text} /><Text style={{ color: c.key === category.key ? '#fff' : colors.text, fontWeight: '700' }}>{c.label}</Text></TouchableOpacity>)}</ScrollView><Text style={{ color: colors.text, fontSize: 17, fontWeight: '700' }}>{category.label}</Text><TouchableOpacity accessibilityRole="button" disabled={busy} onPress={() => onExport(category.key)} style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, padding: 14, borderWidth: 1, borderColor: colors.primary, borderRadius: 5, opacity: busy ? 0.5 : 1 }}>{busy ? <ActivityIndicator color={colors.text} /> : <Ionicons name="download-outline" size={18} color={colors.text} />}<Text style={{ color: colors.text, fontWeight: '700' }}>{busy ? 'Preparing...' : 'Download ' + category.label}</Text></TouchableOpacity></View>;
+}

@@ -108,7 +108,7 @@ export default function VendorDriversScreen() {
                 <Image source={{ uri: driver.photoURL }} style={styles.avatarImage} />
               ) : (
                 <View style={[styles.avatar, { backgroundColor: `${colors.primary}18` }]}>
-                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primary }}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: colors.primaryText }}>
                     {(driver.name || 'D').charAt(0).toUpperCase()}
                   </Text>
                 </View>
@@ -128,7 +128,7 @@ export default function VendorDriversScreen() {
             <ResponsiveGrid sideBySide style={[styles.statsRow, { borderTopColor: colors.border }]}>
            
               <View style={styles.miniStat}>
-                <Ionicons name="layers-outline" size={14} color={colors.primary} />
+                <Ionicons name="layers-outline" size={14} color={colors.primaryText} />
                 <Text style={[styles.miniStatText, { color: colors.textSecondary }]}>
                   {driver.totalTrips} trips
                 </Text>
@@ -141,7 +141,7 @@ export default function VendorDriversScreen() {
               </View>
             </ResponsiveGrid>
                        <DetailRow icon="id-card-outline" value={`National ID: ${driver.nationalId || 'N/A'}`} />
-          {driver.securityFlag?.status === 'cleared' ? <Text style={styles.clearedLabel}>Unsuspended after security clearance</Text> : null}
+          {driver.securityFlag?.status === 'cleared' ? <Text style={[styles.clearedLabel, { color: colors.primaryText }]}>Unsuspended after security clearance</Text> : null}
 
           </DataCard>
         ))

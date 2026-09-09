@@ -124,7 +124,7 @@ export function Select({
               item.id === value ? (
                 <List.Icon
                   icon="check"
-                  color={colors.primary}
+                  color={colors.primaryText}
                 />
               ) : null
             }

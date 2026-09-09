@@ -18,7 +18,7 @@ const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: 
   { label: 'Inspections', icon: 'clipboard-outline', route: '/inspector' },
   { label: 'History', icon: 'time-outline', route: '/inspector/history' },
   { label: 'Issues', icon: 'warning-outline', route: '/screens/issues' },
-  { label: 'Profile', icon: 'person-outline', route: '/screens/profile' },
+  { label: 'Profile', icon: 'person-outline', route: '/inspector/profile' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
 
@@ -46,6 +46,7 @@ export default function InspectorLayout() {
     <Tabs backBehavior="fullHistory" screenOptions={{ headerStyle: { backgroundColor: colors.surface }, headerTintColor: colors.text, headerShadowVisible: false, headerTitleStyle: { fontWeight: '700' }, headerRight, tabBarHideOnKeyboard: true, tabBarActiveTintColor: '#10B981', tabBarInactiveTintColor: colors.tabInactive, tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : { backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1, paddingBottom: Math.max(insets.bottom, 6) + 4, paddingTop: 6, height: 68 + Math.max(insets.bottom, 6) }, tabBarLabelStyle: { fontSize: 11, fontWeight: '600' } }}>
       <Tabs.Screen name="index" options={{ title: 'Inspection', tabBarLabel: 'Inspections', tabBarIcon: ({ color }) => <Ionicons name="clipboard-outline" size={22} color={color} /> }} />
       <Tabs.Screen name="history" options={{ title: 'Inspection History', tabBarLabel: 'History', tabBarIcon: ({ color }) => <Ionicons name="time-outline" size={22} color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ href: null, title: 'Profile' }} />
       <Tabs.Screen name="reports" options={{ href: null }} />
       <Tabs.Screen name="inspect/[id]" options={{ href: null, title: 'PO: ' + (getInspectorSelection()?.poNumber || 'Material Inspection'), headerLeft: () => <TouchableOpacity accessibilityLabel="Back to inspections" onPress={() => router.back()} style={styles.headerButton}><Ionicons name="arrow-back" size={23} color={colors.text} /></TouchableOpacity> }} />
     </Tabs>

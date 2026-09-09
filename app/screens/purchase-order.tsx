@@ -1,3 +1,5 @@
+import { PurchaseOrderDeliveryVariance } from '../../components/PurchaseOrderDeliveryVariance';
+import { getPurchaseOrderMaterials } from '../../utils/poMaterials';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, FlatList } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -11,10 +13,11 @@ import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
 function PORow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  const colors = useTheme();
   return (
     <View style={styles.rRow}>
-      <Text style={styles.rLabel}>{label}</Text>
-      <Text style={[styles.rValue, bold && { fontWeight: '700' }]}>{value}</Text>
+      <Text style={[styles.rLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.rValue, { color: colors.text }, bold && { fontWeight: '700' }]}>{value}</Text>
     </View>
   );
 }
@@ -277,13 +280,14 @@ export default function PurchaseOrderScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={styles.content}>
         {loading && <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>}
-        {error && !loading && <View style={styles.center}><Ionicons name="alert-circle-outline" size={48} color={colors.danger} /><Text style={{ fontSize: 14, color: colors.danger, textAlign: 'center', marginTop: Spacing.xs}}>{error}</Text><TouchableOpacity onPress={() => loadData(searchPo)} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.primary, fontWeight: '700' }}>Try again</Text></TouchableOpacity></View>}
+        {error && !loading && <View style={styles.center}><Ionicons name="alert-circle-outline" size={48} color={colors.danger} /><Text style={{ fontSize: 14, color: colors.danger, textAlign: 'center', marginTop: Spacing.xs}}>{error}</Text><TouchableOpacity onPress={() => loadData(searchPo)} style={[styles.retryBtn, { borderColor: colors.border }]}><Text style={{ color: colors.primaryText, fontWeight: '700' }}>Try again</Text></TouchableOpacity></View>}
         {!loading && order && (
           <View style={[styles.receipt, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.receiptHeader}><Ionicons name="document-text" size={28} color={colors.primary} /><Text style={[styles.receiptTitle, { color: colors.text }]}>PURCHASE ORDER</Text></View>
+            <View style={styles.receiptHeader}><Ionicons name="document-text" size={28} color={colors.primaryText} /><Text style={[styles.receiptTitle, { color: colors.text }]}>PURCHASE ORDER</Text></View>
             <View style={styles.receiptBody}>
               <Text style={[styles.rHead, { color: colors.text }]}>{order.poNumber}</Text>
-              <PORow label="Materials on PO" value={(Array.isArray(order.materials) && order.materials.length ? order.materials : [{ materialName: order.materialName, quantity: order.quantity, unit: order.unit }]).map(function (item: any) { return (item.materialName || 'Material') + (item.quantity != null ? ' (' + item.quantity + ' ' + (item.unit || '') + ')' : ''); }).join('\n')} />
+              <PORow label="Materials on PO" value={getPurchaseOrderMaterials(order).map(function (item: any) { return (item.materialName || 'Material') + (item.quantity != null ? ' (' + item.quantity + ' ' + (item.unit || '') + ')' : ''); }).join('\n')} />
+              <PurchaseOrderDeliveryVariance order={order} />
               <PORow label="Vendor" value={order.vendorName} />
               {!order.isWarehouseMaterial && <PORow label="Quantity" value={order.quantity + ' ' + order.unit} bold />}
               <PORow label="Created At" value={order.createdAt ? formatEAT(order.createdAt) : '-'} />

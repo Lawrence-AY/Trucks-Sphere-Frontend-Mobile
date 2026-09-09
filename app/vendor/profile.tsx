@@ -105,12 +105,12 @@ export default function VendorProfileScreen() {
               width: 72,
               height: 72,
               borderRadius: 36,
-              backgroundColor: '#1B2A4A18',
+              backgroundColor: colors.primaryLight,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Text style={{ fontSize: 28, fontWeight: '700', color: '#1B2A4A' }}>
+            <Text style={{ fontSize: 28, fontWeight: '700', color: colors.primaryText }}>
               {(user?.displayName || 'V').charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -196,8 +196,8 @@ export default function VendorProfileScreen() {
               style={[styles.editProfileBtn, { borderColor: colors.primary }]}
               onPress={() => setEditingProfile(true)}
             >
-              <Ionicons name="create-outline" size={16} color={colors.primary} />
-              <Text style={[styles.editProfileBtnText, { color: colors.primary }]}>Edit Profile</Text>
+              <Ionicons name="create-outline" size={16} color={colors.primaryText} />
+              <Text style={[styles.editProfileBtnText, { color: colors.primaryText }]}>Edit Profile</Text>
             </TouchableOpacity>
           </>
         )}

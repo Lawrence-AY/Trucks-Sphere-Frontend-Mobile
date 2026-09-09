@@ -1,3 +1,4 @@
+import { getTripMaterials, formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,7 +25,7 @@ import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { updateDeliveryOrder, fetchQuarries } from '../../services/api';
-import { useDeliveryOrders, useDrivers } from '../../store/realtimeData';
+import { useDeliveryOrders, useDrivers, usePurchaseOrders } from '../../store/realtimeData';
 import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
 import { useAuthStore } from '../../store/authStore';
 import { formatEAT } from '../../utils/helpers';
@@ -108,6 +109,7 @@ export default function OperatorQuarryWeighOutScreen() {
   const [activeJob, setActiveJob] = useState<any>(null);
   const [weightOut, setWeightOut] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const purchaseOrders = usePurchaseOrders();
   const [confirmVisible, setConfirmVisible] = useState(false);
 
   // ─── Delivery Note Modal ───
@@ -348,7 +350,7 @@ export default function OperatorQuarryWeighOutScreen() {
         driverName: activeJob.driverName || '',
         plateNumber: activeJob.plateNumber || '',
         vendorName: activeJob.vendorName || '',
-        materialName: activeJob.materialName || '',
+        materialName: formatPurchaseOrderMaterials({ materials: getTripMaterials(activeJob, purchaseOrders) }),
         quantityOrdered: activeJob.quantityOrdered || 0,
         quarryName: resolvedQuarryName || activeJob?.quarryName || 'Quarry',
         siteName: activeJob.siteName || '',
@@ -553,7 +555,7 @@ export default function OperatorQuarryWeighOutScreen() {
                 <Image source={{ uri: getDriverPhoto(activeJob) }} style={styles.driverPhoto} />
               ) : (
                 <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
-                  <Text style={[styles.driverInitial, { color: colors.primary }]}>
+                  <Text style={[styles.driverInitial, { color: colors.primaryText }]}>
                     {(activeJob.driverName || 'D').charAt(0).toUpperCase()}
                   </Text>
                 </View>
@@ -655,7 +657,7 @@ export default function OperatorQuarryWeighOutScreen() {
               </View>
               <Text style={[styles.sectionTitleStyle, { color: colors.text }]}>Location</Text>
               {locationLoading ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color={colors.primaryText} />
               ) : geoLocation ? (
                 <View style={[styles.photoStatusBadge, { backgroundColor: '#10B98115' }]}>
                   <Ionicons name="checkmark-circle" size={14} color="#10B981" />
@@ -699,8 +701,8 @@ export default function OperatorQuarryWeighOutScreen() {
                   style={[styles.retryLocationBtn, { borderColor: colors.primary }]}
                   onPress={captureLocation}
                 >
-                  <Ionicons name="refresh-outline" size={14} color={colors.primary} />
-                  <Text style={[styles.retryLocationText, { color: colors.primary }]}>Retry</Text>
+                  <Ionicons name="refresh-outline" size={14} color={colors.primaryText} />
+                  <Text style={[styles.retryLocationText, { color: colors.primaryText }]}>Retry</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -776,65 +778,71 @@ export default function OperatorQuarryWeighOutScreen() {
         <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => setConfirmVisible(false)}>
           <View style={styles.modalBackdrop}>
             <View style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={[styles.confirmIcon, { backgroundColor: '#7C3AED15' }]}>
-                <Ionicons name="shield-checkmark-outline" size={32} color="#7C3AED" />
-              </View>
-              <Text style={[styles.confirmTitle, { color: colors.text }]}>Confirm Submission</Text>
-              <Text style={[styles.confirmSub, { color: colors.textMuted }]}>
-                Please verify all details before finalizing this record. Job will move to history after submission.
-              </Text>
-              <View style={[styles.confirmSummary, { backgroundColor: colors.inputBg }]}>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Job ID</Text>
-                  <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.jobId}</Text>
+              <ScrollView style={styles.confirmScroll} contentContainerStyle={styles.confirmScrollContent} showsVerticalScrollIndicator>
+                <View style={[styles.confirmIcon, { backgroundColor: '#7C3AED15' }]}>
+                  <Ionicons name="shield-checkmark-outline" size={32} color="#7C3AED" />
                 </View>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver</Text>
-                  <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.driverName || 'N/A'}</Text>
-                </View>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Truck</Text>
-                  <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.plateNumber || 'N/A'}</Text>
-                </View>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Material</Text>
-                  <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.materialName || 'N/A'}</Text>
-                </View>
-                {geoLocation && (
+                <Text style={[styles.confirmTitle, { color: colors.text }]}>Confirm Submission</Text>
+                <Text style={[styles.confirmSub, { color: colors.textMuted }]}>
+                  Please verify all details before finalizing this record. Job will move to history after submission.
+                </Text>
+                <View style={[styles.confirmSummary, { backgroundColor: colors.inputBg }]}>
                   <View style={styles.confirmRow}>
-                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Location</Text>
-                    <Text style={[styles.confirmValue, { color: colors.text }]} numberOfLines={1}>{geoLocation.address}</Text>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Job ID</Text>
+                    <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.jobId}</Text>
                   </View>
-                )}
-                <View style={styles.confirmDivider} />
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Empty (Tare)</Text>
-                  <Text style={[styles.confirmValue, { color: '#2563EB', fontWeight: '800' }]}>{wIn.toFixed(1)} T</Text>
-                </View>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Loaded (Gross)</Text>
-                  <Text style={[styles.confirmValue, { color: '#7C3AED', fontWeight: '800' }]}>{parseFloat(weightOut).toFixed(1)} T</Text>
-                </View>
-                <View style={[styles.confirmDivider, { marginTop: Spacing.xs}]} />
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
-                  <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
-                    {(parseFloat(weightOut) - wIn).toFixed(1)} T
-                  </Text>
-                </View>
-                {driverPhotoURL && (
-                  <>
-                    <View style={styles.confirmDivider} />
-                    <View style={styles.confirmRow}>
-                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver Photo</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                        <Text style={[styles.confirmValue, { color: '#10B981' }]}>Attached</Text>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver</Text>
+                    <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.driverName || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Truck</Text>
+                    <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.plateNumber || 'N/A'}</Text>
+                  </View>
+                  <View>
+                    {getTripMaterials(activeJob, purchaseOrders).map((line, index) => (
+                      <View key={`${line.materialId || ''}-${index}`} style={styles.confirmRow}>
+                        <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Material {index + 1}</Text>
+                        <Text style={[styles.confirmValue, { color: colors.text, flex: 1 }]}>{line.materialName || line.productName || 'Material'}</Text>
                       </View>
+                    ))}
+                  </View>
+                  {geoLocation && (
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Location</Text>
+                      <Text style={[styles.confirmValue, { color: colors.text }]}>{geoLocation.address}</Text>
                     </View>
-                  </>
-                )}
-              </View>
+                  )}
+                  <View style={styles.confirmDivider} />
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Empty (Tare)</Text>
+                    <Text style={[styles.confirmValue, { color: '#2563EB', fontWeight: '800' }]}>{wIn.toFixed(1)} T</Text>
+                  </View>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Loaded (Gross)</Text>
+                    <Text style={[styles.confirmValue, { color: '#7C3AED', fontWeight: '800' }]}>{parseFloat(weightOut).toFixed(1)} T</Text>
+                  </View>
+                  <View style={[styles.confirmDivider, { marginTop: Spacing.xs}]} />
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
+                    <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
+                      {(parseFloat(weightOut) - wIn).toFixed(1)} T
+                    </Text>
+                  </View>
+                  {driverPhotoURL && (
+                    <>
+                      <View style={styles.confirmDivider} />
+                      <View style={styles.confirmRow}>
+                        <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver Photo</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                          <Text style={[styles.confirmValue, { color: '#10B981' }]}>Attached</Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </ScrollView>
               <View style={styles.confirmActions}>
                 <TouchableOpacity style={[styles.confirmCancelBtn, { borderColor: colors.border }]} onPress={() => setConfirmVisible(false)}>
                   <Text style={[styles.confirmCancelText, { color: colors.textSecondary }]}>Go Back</Text>
@@ -857,53 +865,55 @@ export default function OperatorQuarryWeighOutScreen() {
         >
           <View style={styles.modalBackdrop}>
             <View style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={[styles.confirmIcon, { backgroundColor: '#7C3AED15' }]}>
-                <Ionicons name="document-text" size={36} color="#7C3AED" />
-              </View>
-              <Text style={[styles.confirmTitle, { color: colors.text }]}>Delivery Note</Text>
-              <Text style={[styles.confirmSub, { color: colors.textMuted }]}>
-                Weigh-Out recorded successfully. Export or print the delivery note below.
-              </Text>
-
-              {deliveryNoteData && (
-                <View style={[styles.confirmSummary, { backgroundColor: colors.inputBg }]}>
-                  <View style={styles.confirmRow}>
-                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Job ID</Text>
-                    <Text style={[styles.confirmValue, { color: colors.text }]}>{deliveryNoteData.jobId}</Text>
-                  </View>
-                  <View style={styles.confirmRow}>
-                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver / Truck</Text>
-                    <Text style={[styles.confirmValue, { color: colors.text }]}>
-                      {deliveryNoteData.driverName} · {deliveryNoteData.plateNumber}
-                    </Text>
-                  </View>
-                  <View style={styles.confirmRow}>
-                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Material</Text>
-                    <Text style={[styles.confirmValue, { color: colors.text }]}>{deliveryNoteData.materialName}</Text>
-                  </View>
-                  <View style={styles.confirmDivider} />
-                  <View style={styles.confirmRow}>
-                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Tare (Empty)</Text>
-                    <Text style={[styles.confirmValue, { color: '#2563EB', fontWeight: '800' }]}>
-                      {deliveryNoteData.weighIn?.toFixed(1) || '0.0'} T
-                    </Text>
-                  </View>
-                  <View style={styles.confirmRow}>
-                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Gross (Loaded)</Text>
-                    <Text style={[styles.confirmValue, { color: '#7C3AED', fontWeight: '800' }]}>
-                      {deliveryNoteData.weighOut?.toFixed(1) || '0.0'} T
-                    </Text>
-                  </View>
-                  <View style={[styles.confirmDivider, { marginTop: Spacing.xs}]} />
-                  <View style={styles.confirmRow}>
-                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
-                    <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
-                      {deliveryNoteData.netWeight?.toFixed(1) || '0.0'} T
-                    </Text>
-                  </View>
+              <ScrollView style={styles.confirmScroll} contentContainerStyle={styles.confirmScrollContent} showsVerticalScrollIndicator>
+                <View style={[styles.confirmIcon, { backgroundColor: '#7C3AED15' }]}>
+                  <Ionicons name="document-text" size={36} color="#7C3AED" />
                 </View>
-              )}
+                <Text style={[styles.confirmTitle, { color: colors.text }]}>Delivery Note</Text>
+                <Text style={[styles.confirmSub, { color: colors.textMuted }]}>
+                  Weigh-Out recorded successfully. Export or print the delivery note below.
+                </Text>
 
+                {deliveryNoteData && (
+                  <View style={[styles.confirmSummary, { backgroundColor: colors.inputBg }]}>
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Job ID</Text>
+                      <Text style={[styles.confirmValue, { color: colors.text }]}>{deliveryNoteData.jobId}</Text>
+                    </View>
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver / Truck</Text>
+                      <Text style={[styles.confirmValue, { color: colors.text }]}>
+                        {deliveryNoteData.driverName} · {deliveryNoteData.plateNumber}
+                      </Text>
+                    </View>
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Material</Text>
+                      <Text style={[styles.confirmValue, { color: colors.text }]}>{deliveryNoteData.materialName}</Text>
+                    </View>
+                    <View style={styles.confirmDivider} />
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Tare (Empty)</Text>
+                      <Text style={[styles.confirmValue, { color: '#2563EB', fontWeight: '800' }]}>
+                        {deliveryNoteData.weighIn?.toFixed(1) || '0.0'} T
+                      </Text>
+                    </View>
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Gross (Loaded)</Text>
+                      <Text style={[styles.confirmValue, { color: '#7C3AED', fontWeight: '800' }]}>
+                        {deliveryNoteData.weighOut?.toFixed(1) || '0.0'} T
+                      </Text>
+                    </View>
+                    <View style={[styles.confirmDivider, { marginTop: Spacing.xs}]} />
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
+                      <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
+                        {deliveryNoteData.netWeight?.toFixed(1) || '0.0'} T
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+              </ScrollView>
               {/* Export Actions */}
               <View style={styles.grnExportSection}>
                 <Text style={[styles.grnExportTitle, { color: colors.textMuted }]}>
@@ -930,7 +940,7 @@ export default function OperatorQuarryWeighOutScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.confirmCancelBtn, { borderColor: colors.border }]}
+                style={[styles.confirmCancelBtn, { borderColor: colors.border, flex: 0 }]}
                 onPress={closeDeliveryNote}
               >
                 <Text style={[styles.confirmCancelText, { color: colors.textSecondary }]}>Done</Text>
@@ -942,7 +952,7 @@ export default function OperatorQuarryWeighOutScreen() {
           <InputAccessoryView nativeID="weigh-out-keyboard-accessory">
             <View style={[styles.keyboardAccessory, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
               <TouchableOpacity onPress={Keyboard.dismiss} style={styles.keyboardDoneButton}>
-                <Text style={[styles.keyboardDoneText, { color: colors.primary }]}>Done</Text>
+                <Text style={[styles.keyboardDoneText, { color: colors.primaryText }]}>Done</Text>
               </TouchableOpacity>
             </View>
           </InputAccessoryView>
@@ -971,7 +981,7 @@ export default function OperatorQuarryWeighOutScreen() {
                   <Image source={{ uri: getDriverPhoto(item) }} style={styles.driverPhoto} />
                 ) : (
                   <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
-                    <Text style={[styles.driverInitial, { color: colors.primary }]}>
+                    <Text style={[styles.driverInitial, { color: colors.primaryText }]}>
                       {(item.driverName || 'D').charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -984,8 +994,8 @@ export default function OperatorQuarryWeighOutScreen() {
                 <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>Empty Weight: {wInVal.toFixed(1)} T</Text>
               </View>
               <View style={[styles.tapHint, { backgroundColor: `${colors.primary}08` }]}>
-                <Ionicons name="hand-left-outline" size={12} color={colors.primary} />
-                <Text style={[styles.tapHintText, { color: colors.primary }]}>Tap to weigh out</Text>
+                <Ionicons name="hand-left-outline" size={12} color={colors.primaryText} />
+                <Text style={[styles.tapHintText, { color: colors.primaryText }]}>Tap to weigh out</Text>
               </View>
               <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
             </DataCard>
@@ -1062,21 +1072,23 @@ const styles = StyleSheet.create({
   driverPhoto: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   driverInitial: { fontSize: 12, fontWeight: '800' },
   // Modal styles
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'center', padding: Spacing.lg },
-  confirmDialog: { borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'center', alignItems: 'center', padding: Spacing.md },
+  confirmDialog: { width: '100%', maxWidth: 560, maxHeight: '92%', minHeight: 0, borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.md, overflow: 'hidden' },
+  confirmScroll: { flexShrink: 1, minHeight: 0 },
+  confirmScrollContent: { paddingBottom: Spacing.sm },
   confirmIcon: { width: 56, height: 56, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
   confirmTitle: { fontSize: 18, fontWeight: '800' },
   confirmSub: { fontSize: 13, marginTop: Spacing.xs, marginBottom: Spacing.xs},
   confirmSummary: { borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs},
-  confirmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
-  confirmLabel: { fontSize: 12, fontWeight: '600' },
-  confirmValue: { fontSize: 13, fontWeight: '700' },
+  confirmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.sm, paddingVertical: 4 },
+  confirmLabel: { fontSize: 12, fontWeight: '600', flexShrink: 0, maxWidth: '38%' },
+  confirmValue: { fontSize: 13, fontWeight: '700', flexShrink: 1, minWidth: 0, textAlign: 'right' },
   confirmDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.xs},
-  confirmActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs},
-  confirmCancelBtn: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
+  confirmActions: { flexDirection: 'row', flexWrap: 'wrap', flexShrink: 0, gap: Spacing.sm, marginTop: Spacing.xs},
+  confirmCancelBtn: { flex: 1, minWidth: 120, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
   confirmCancelText: { fontSize: 14, fontWeight: '700' },
-  confirmProceedBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm },
-  confirmProceedText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  confirmProceedBtn: { flex: 1, minWidth: 160, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm },
+  confirmProceedText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
   // Export section
   grnExportSection: { marginTop: Spacing.xs, marginBottom: Spacing.xs},
   grnExportTitle: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.xs},

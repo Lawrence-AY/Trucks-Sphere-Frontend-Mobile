@@ -83,11 +83,11 @@ export default function SitesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ManagementSearchHeader title="Sites" search={search} onChangeSearch={setSearch} placeholder="Search sites..." />
-      <View style={[styles.backBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#1E293B" />
         </TouchableOpacity>
-        <Text style={styles.backTitle}>Sites</Text>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Sites</Text>
       </View>
       <View style={styles.header}>
         <View style={styles.headerRow}>

@@ -632,16 +632,7 @@ export interface Permission {
   actions: ('create' | 'read' | 'update' | 'delete' | 'approve' | 'archive')[];
 }
 
-// ─── Master Data Summary ───
-export interface MasterDataSummary {
-  key: string;
-  label: string;
-  total: number;
-  active: number;
-  inactive: number;
-  icon: string;
-  route: string;
-}
+ 
 
 // ─── Auth State ───
 export interface AuthState {

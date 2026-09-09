@@ -26,7 +26,7 @@ export function EmptyState({
   return (
     <Surface style={[styles.container, { backgroundColor: 'transparent' }]} elevation={0}>
       <View style={[styles.iconWrap, { backgroundColor: `${colors.primary}14` }]}>
-        <Ionicons name={icon} size={40} color={colors.primary} />
+        <Ionicons name={icon} size={40} color={colors.primaryText} />
       </View>
       <Text variant="titleMedium" style={[styles.title, { color: colors.text }]}>{title}</Text>
       {subtitle ? <Text variant="bodyMedium" style={[styles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text> : null}

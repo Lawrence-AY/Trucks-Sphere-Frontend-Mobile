@@ -85,7 +85,7 @@ export default function OperatorQuarryMaterialsScreen() {
                   onPress={() => { setCategoryFilter(c.key); setDropdownOpen(false); }}
                 >
                   <Text style={{ color: colors.text, fontSize: 14, flex: 1 }} numberOfLines={1}>{c.label}</Text>
-                  {c.key === categoryFilter && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                  {c.key === categoryFilter && <Ionicons name="checkmark" size={16} color={colors.primaryText} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>

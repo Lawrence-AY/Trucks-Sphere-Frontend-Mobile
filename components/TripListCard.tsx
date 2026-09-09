@@ -1,4 +1,7 @@
+import { useFlagViewsStore } from '../store/flagViewsStore';
+import { useAuthStore } from '../store/authStore';
 import React from 'react';
+import { TripMaterials } from './TripMaterials';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
@@ -39,16 +42,16 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
         !securityFlagged && weightFlagged && { borderColor: '#DC2626', borderWidth: 1.5 },
         !siteFlagged && securityCleared && { borderColor: '#A78BFA', borderWidth: 1.5 },
       ]}
-      onPress={onPress}
+      onPress={() => { useFlagViewsStore.getState().markViewed(useAuthStore.getState().user?.uid || '', trip); onPress(); }}
     >
       <View style={styles.row}>
         {isWarehouse ? (
-          <Ionicons name="business-outline" size={28} color={colors.primary} />
+          <Ionicons name="business-outline" size={28} color={colors.primaryText} />
         ) : driverPhoto ? (
           <Image source={{ uri: driverPhoto }} style={styles.driverPhoto} />
         ) : !trip.driverId ? (
           <View style={[styles.driverPhoto, styles.driverPhotoFallback, { backgroundColor: colors.primaryLight }]}>
-            <Ionicons name="person-outline" size={20} color={colors.primary} />
+            <Ionicons name="person-outline" size={20} color={colors.primaryText} />
           </View>
         ) : null}
         <View style={styles.driverDetails}>
@@ -60,9 +63,7 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
           </Text>}
         </View>
         <View style={styles.materialDetails}>
-          <Text style={[styles.materialName, { color: colors.text }]} numberOfLines={1}>
-            {trip.materialName || 'Material'}
-          </Text>
+          <TripMaterials trip={trip} />
           <Text style={[styles.poReference, { color: colors.textMuted }]} numberOfLines={1}>
             PO: {String(trip.poNumber || '—').toUpperCase()}
           </Text>
@@ -84,10 +85,10 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
       {siteFlagReason ? (
         <View style={styles.flagReason}>
           <Ionicons name="warning-outline" size={14} color="#B45309" />
-          <Text style={styles.flagReasonText}>{siteFlagReason}</Text>
+          <Text style={[styles.flagReasonText, { color: colors.text }]}>{siteFlagReason}</Text>
         </View>
       ) : null}
-      {!siteFlagged && securityCleared ? <Text style={styles.clearedLabel}>Unflagged — fleet unsuspended</Text> : null}
+      {!siteFlagged && securityCleared ? <Text style={[styles.clearedLabel, { color: colors.primaryText }]}>Unflagged — fleet unsuspended</Text> : null}
       
       {bottomAction}
     </DataCard>
