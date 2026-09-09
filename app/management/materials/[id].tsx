@@ -303,7 +303,7 @@ export default function MaterialDetailScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.headerTitle, { color: colors.text }]}>{material.name}</Text>
               <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-                {material.isWarehouseMaterial ? 'Warehouse' : `${material.category || 'Other'} ? ${material.defaultUnit || material.measurementType || ''}`}
+                {material.isWarehouseMaterial ? 'Warehouse' : `${material.category || 'Other'} | ${material.defaultUnit || material.measurementType || ''}`}
               </Text>
             </View>
           </View>

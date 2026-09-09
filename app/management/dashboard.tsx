@@ -1,4 +1,3 @@
-import { PurchaseOrderDeliveryAlerts } from '../../components/PurchaseOrderDeliveryVariance';
 import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -121,7 +120,6 @@ function ManagementDashboardContent() {
         />
       }
     >
-      <PurchaseOrderDeliveryAlerts />
       <View style={styles.metricGrid}>
         <ResponsiveGrid sideBySide style={styles.metricRow}>
           <MetricTile
@@ -246,8 +244,8 @@ function ManagementDashboardContent() {
 }
 
 const styles = StyleSheet.create({
-  metricGrid: { gap: 2.5 },
-  metricRow: { flexDirection: "row", gap:2.5 },
+  metricGrid: { gap: 0 },
+  metricRow: { flexDirection: "row", gap:2 },
   recentTripList: { gap: 0.1 },
   link: { fontSize: 13, fontWeight: "900" },
   loadingText: { fontSize: 13, fontWeight: "700" },

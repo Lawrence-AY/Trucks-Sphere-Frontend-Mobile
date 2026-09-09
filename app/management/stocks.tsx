@@ -8,6 +8,7 @@ import { StackScreen } from '../../components/ui/StackScreen';
 import { DataCard } from '../../components/EnterpriseUI';
 import { useTheme } from '../../hooks/useTheme';
 
+
 export default function StocksUnavailable() { return <Redirect href="/management/dashboard" />; }
 
 function StocksScreen() {
@@ -53,12 +54,19 @@ function StocksScreen() {
     finally { savingRef.current = false; setLoading(false); }
   };
   const visible = rows.filter((r) => `${r.siteName} ${r.materialName} ${r.jobId} ${r.poNumber}`.toLowerCase().includes(search.toLowerCase()) && (!exceptions || r.excessQuantity > 0 || r.shortageQuantity > 0 || r.quarantinedQuantity > 0));
+  const balances = Object.values(visible.reduce((totals: Record<string, any>, row) => {
+    const key = JSON.stringify([row.siteId || row.siteName, row.materialId || row.materialName, row.unit]);
+    const total = totals[key] ||= { key, siteName: row.siteName, materialName: row.materialName, unit: row.unit, available: 0, damaged: 0 };
+    total.available += Number(row.remainingQuantity) || 0;
+    total.damaged += Number(row.quarantinedQuantity) || 0;
+    return totals;
+  }, {}));
   const values = visible.reduce((totals: Record<string, number>, r) => { if (r.remainingValue != null) totals[r.currency] = (totals[r.currency] || 0) + r.remainingValue; return totals; }, {});
   return <>
     <Stack.Screen options={{ title: 'Stocks', headerShown: false }} />
-    <StackScreen title="Site stocks" subtitle="Balances by receipt and unit" fallbackHref="/management/dashboard">
+    <StackScreen title="Site stocks" subtitle="Cumulative balances by site, material and unit" fallbackHref="/management/dashboard">
       <View style={{ gap: 12 }}>
-        <Text style={{ color: colors.textMuted }}>Available stock comes from passed inspections or completed site weigh-outs. Enter a unit cost to value each receipt. Unpriced stock is excluded from valuation totals.</Text>
+        <Text style={{ color: colors.textMuted }}>Available stock excludes damaged units and recorded usage. Subsequent shipments add to each material balance. Enter a unit cost to value each receipt. Unpriced stock is excluded from valuation totals.</Text>
         {rows.length > 0 ? <>
         <TextInput mode="outlined" label="Search site, product, PO or job" value={search} onChangeText={setSearch} />
         <Button onPress={() => setExceptions(!exceptions)}>{exceptions ? 'Show all stocks' : 'Show shortages, excess and quarantine'}</Button>
@@ -82,11 +90,12 @@ function StocksScreen() {
           {events.map((event) => <Text key={event.id} style={{ color: colors.textMuted }}>{event.createdAt} · {event.actorName} · {event.type} · {event.quantity} · {event.reason}</Text>)}
         </DataCard></ScrollView></KeyboardAvoidingView></Modal> : null}
         {!loading && !error && !visible.length ? <Text style={{ color: colors.textMuted }}>{rows.length ? 'No stocks match these filters.' : 'No stock records yet. Stocks appear automatically from app deliveries and site receipts.'}</Text> : null}
+        {balances.map((total) => <DataCard key={total.key}><Text style={{ color: colors.text, fontWeight: '700' }}>{total.materialName} ? {total.siteName}</Text><Text style={{ color: colors.text }}>Available: {Number(total.available.toFixed(6))} {total.unit} ? Damaged / quarantined: {Number(total.damaged.toFixed(6))}</Text></DataCard>)}
         {visible.map((r) => <DataCard key={r.id} onPress={() => open(r)}>
           <Text style={{ color: colors.text, fontWeight: '700' }}>{r.materialName} · {r.siteName}</Text>
           <Text style={{ color: colors.textMuted }}>{r.jobId} · {r.origin} · {r.receiptStatus}</Text>
           <Text style={{ color: colors.text }}>Sent: {r.dispatchedQuantity} · Inspected received: {r.receivedQuantity} {r.unit}</Text>
-          <Text style={{ color: colors.text }}>Used: {r.consumedQuantity} · Remaining: {r.remainingQuantity} {r.unit}</Text>
+          <Text style={{ color: colors.text }}>Damaged / quarantined: {r.quarantinedQuantity} ? Used: {r.consumedQuantity} · Remaining: {r.remainingQuantity} {r.unit}</Text>
           <Text style={{ color: colors.text }}>Value: {r.remainingValue == null ? 'Unpriced' : `${r.currency} ${r.remainingValue}`}</Text>
           <Text style={{ color: colors.textMuted }}>Accepted by: {r.acceptedBy || 'Pending'} · Inspector: {r.inspectorName || 'Pending'}</Text>
           {r.excessQuantity > 0 || r.shortageQuantity > 0 || r.quarantinedQuantity > 0 ? <Text style={{ color: colors.danger }}>Excess: {r.excessQuantity} · Shortage: {r.shortageQuantity} · Quarantined: {r.quarantinedQuantity} {r.unit}</Text> : null}

@@ -1,4 +1,3 @@
-import { PurchaseOrderDeliveryVariance } from './PurchaseOrderDeliveryVariance';
 import React from 'react';
 import { Text, View } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
@@ -16,6 +15,5 @@ export function PurchaseOrderMaterials({ order }: { order: any }) {
           ? ` · ${line.quantity}${line.unit ? ` ${line.unit}` : ''}` : ''}
       </Text>
     ))}
-    <PurchaseOrderDeliveryVariance order={order} />
   </View>;
 }

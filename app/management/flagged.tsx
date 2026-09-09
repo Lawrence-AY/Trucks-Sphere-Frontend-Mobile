@@ -1,3 +1,4 @@
+import { TripMaterials } from '../../components/TripMaterials';
 import { useFlagViewsStore } from '../../store/flagViewsStore';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -233,6 +234,8 @@ export default function FlaggedScreen() {
         <Text style={[styles.vendor, { color: colors.textMuted }]}>
           {item.vendorName || 'Vendor'}
         </Text>
+
+        <TripMaterials trip={item} />
 
         {/* Weight flag reason */}
         {weightFlagged && !securityCleared && (

@@ -755,7 +755,7 @@ export default function OperatorSiteDashboardScreen() {
             if (isWarehouseMaterial(item)) return <View key={item.id} style={{ padding: 16, marginBottom: 8, backgroundColor: colors.surface, borderRadius: 8 }}>
               <Text style={{ color: colors.text, fontWeight: '700' }}>{item.jobId || item.id}</Text>
               <Text style={{ color: colors.textMuted }}>{item.vendorName} ? Warehouse</Text>
-              {(item.materials?.length ? item.materials : [{ materialName: item.materialName, quantity: item.quantityOrdered, unit: item.unit }, ...(item.additionalItems || [])]).map((line: any, index: number) => <Text key={index} style={{ color: colors.text }}>{line.materialName} ? {line.quantity} {line.unit}</Text>)}
+              {(item.materials?.length ? item.materials : [{ materialName: item.materialName, quantity: item.quantityOrdered, unit: item.unit }, ...(item.additionalItems || [])]).map((line: any, index: number) => <Text key={index} style={{ color: colors.text }}>{line.materialName}: {line.quantity} {line.unit}</Text>)}
               {item.packagingPhotoURL ? <Image source={{ uri: item.packagingPhotoURL }} style={{ width: 120, height: 90, marginVertical: 8 }} /> : null}
               <TextInput value={denialReasons[item.id] || ''} onChangeText={(reason) => setDenialReasons((current) => ({ ...current, [item.id]: reason }))} placeholder="Reason if denying delivery" placeholderTextColor={colors.textMuted} multiline style={{ color: colors.text, borderColor: colors.border, borderWidth: 1, padding: 10, marginVertical: 8, borderRadius: 6 }} />
               <View style={{ flexDirection: 'row', gap: 8 }}>

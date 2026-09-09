@@ -37,6 +37,11 @@ export default function MaterialInspectionReportScreen() {
     const poMaterials = Array.isArray(job.materials) && job.materials.length
       ? job.materials
       : [{ materialId: job.materialId, materialName: job.materialName, quantity: job.quantityOrdered || job.quantityDispatched, unit: job.unit }];
+    if (receipts.length) return receipts.map((receipt: any) => {
+      const source = poMaterials.find((material: any) => receipt.materialId && String(material.materialId || material.id || '') === String(receipt.materialId))
+        || poMaterials.find((material: any) => receipt.materialName && material.materialName === receipt.materialName);
+      return { material: { ...source, materialId: receipt.materialId, materialName: receipt.materialName || source?.materialName, quantity: receipt.orderedQuantity ?? source?.quantity, unit: receipt.unit || source?.unit }, receipt };
+    });
     return poMaterials.map((material: any) => {
       const receipt = receipts.find((item: any) => String(item.materialId || '') === String(material.materialId || material.id || ''))
         || receipts.find((item: any) => item.materialName === material.materialName)
@@ -102,7 +107,7 @@ export default function MaterialInspectionReportScreen() {
         <Row label="Inspected At" value={inspection.inspectedAt ? formatEAT(inspection.inspectedAt) : '—'} colors={colors} />
       </View>
 
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>Materials on Purchase Order</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>Inspected materials</Text>
       {materials.map(({ material, receipt }: any, index: number) => {
         const result = receipt?.initialVisualInspection || (inspection.mrfNumber ? 'N/A' : 'Pending');
         const photoURLs = Array.isArray(receipt?.photoURLs) ? receipt.photoURLs.filter(Boolean) : [];

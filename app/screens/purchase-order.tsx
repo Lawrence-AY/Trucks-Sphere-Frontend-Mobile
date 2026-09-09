@@ -289,7 +289,7 @@ export default function PurchaseOrderScreen() {
               <PORow label="Materials on PO" value={getPurchaseOrderMaterials(order).map(function (item: any) { return (item.materialName || 'Material') + (item.quantity != null ? ' (' + item.quantity + ' ' + (item.unit || '') + ')' : ''); }).join('\n')} />
               <PurchaseOrderDeliveryVariance order={order} />
               <PORow label="Vendor" value={order.vendorName} />
-              {!order.isWarehouseMaterial && <PORow label="Quantity" value={order.quantity + ' ' + order.unit} bold />}
+              {!order.isWarehouseMaterial && getPurchaseOrderMaterials(order).length === 1 && <PORow label="Quantity" value={order.quantity + ' ' + order.unit} bold />}
               <PORow label="Created At" value={order.createdAt ? formatEAT(order.createdAt) : '-'} />
             </View>
           </View>

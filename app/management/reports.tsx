@@ -34,7 +34,6 @@ const FILTERS = [
   { key: 'month', label: 'Month' },
 ];
 const CATEGORIES = [
-  //{ key: 'stocks', label: 'Stocks', icon: 'layers-outline', color: '#0F766E' },
   { key: 'deliveries', label: 'Deliveries', icon: 'cube-outline', color: '#2563EB' },
   { key: 'fuel', label: 'Fuel', icon: 'water-outline', color: '#F59E0B' },
   { key: 'vendors', label: 'Vendors', icon: 'business-outline', color: '#8B5CF6' },

@@ -1,4 +1,3 @@
-import { PurchaseOrderDeliveryAlerts } from '../../../components/PurchaseOrderDeliveryVariance';
 import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
 import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -39,7 +38,6 @@ export function ManagementLiteDashboard() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}>
-      <PurchaseOrderDeliveryAlerts />
       <SectionTitle title="Fleet overview" />
       <Text style={[styles.intro, { color: colors.textMuted }]}>Manage your vendors, trucks, and drivers from one place.</Text>
       <ResponsiveGrid sideBySide style={styles.metricRow}>

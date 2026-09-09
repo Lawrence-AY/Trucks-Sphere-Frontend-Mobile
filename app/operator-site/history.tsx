@@ -293,7 +293,7 @@ export default function OperatorSiteHistoryScreen() {
         r.driverName || "",
         r.plateNumber || "",
         r.materialName || "",
-        r.storageLot || r.lotNumber || r.destinationLot || "â€”",
+        r.storageLot || r.lotNumber || r.destinationLot || "-",
         quarryNet != null ? quarryNet.toFixed(1) : "—",
         siteIn != null ? siteIn.toFixed(1) : "—",
         siteOut != null ? siteOut.toFixed(1) : "—",
@@ -338,7 +338,7 @@ export default function OperatorSiteHistoryScreen() {
       <Text style={{ color: colors.textMuted }}>Accepted: {formatEAT(item.warehouseAcceptedAt)}</Text>
       <Text style={{ color: colors.text }}>{normalizeJobStatus(item.status) === 'COMPLETED' ? 'Inspected' : 'Awaiting inspection'}</Text>
       {(item.materials || item.additionalItems || []).map((line: any, index: number) => (
-        <Text key={line.id || index} style={{ color: colors.text }}>{line.materialName || line.name || line.productName} ? {line.quantity ?? ''} {line.unit || ''}</Text>
+        <Text key={line.id || index} style={{ color: colors.text }}>{line.materialName || line.name || line.productName}: {line.quantity ?? ''} {line.unit || ''}</Text>
       ))}
     </View>
   );

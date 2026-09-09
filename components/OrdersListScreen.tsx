@@ -209,24 +209,6 @@ const OrderCard = ({ item, deliveries }: { item: any; deliveries: any[] }) => {
         </View>
       </View>
 
-      <View style={styles.progressRow}>
-        <ProgressStat label="Materials" value={String(getPurchaseOrderMaterials(item).length)} color={colors.text} />
-        <ProgressStat label="Trips" value={orderTrips.length.toString()} color={colors.text} />
-      </View>
-
-      {orderTrips.length > 0 && (
-        <View style={[styles.tripList, { borderTopColor: colors.borderLight }]}>
-          {orderTrips.slice(0, 3).map((trip) => (
-            <View key={trip.id} style={styles.tripRow}>
-              <Text style={[styles.tripText, { color: colors.text }]} numberOfLines={1}>{trip.driverName}</Text>
-              <Text style={[styles.tripText, { color: colors.textSecondary }]} numberOfLines={1}>{trip.plateNumber}</Text>
-            </View>
-          ))}
-          {orderTrips.length > 3 && (
-            <Text style={[styles.moreTrips, { color: colors.textMuted }]}>+{orderTrips.length - 3} more trips</Text>
-          )}
-        </View>
-      )}
     </TouchableOpacity>
   );
 };

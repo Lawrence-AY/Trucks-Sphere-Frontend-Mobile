@@ -1,4 +1,3 @@
-import { PurchaseOrderDeliveryAlerts } from '../../components/PurchaseOrderDeliveryVariance';
 import { TripMaterials } from '../../components/TripMaterials';
 import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useMemo, useState } from "react";
@@ -134,7 +133,6 @@ export default function VendorDashboardScreen() {
         />
       }
     >
-      <PurchaseOrderDeliveryAlerts />
       {/* Summary note: fuel authorization requests appear at the root vendor level (via _layout.tsx) */}
 
       <ResponsiveGrid sideBySide style={styles.metricRow}>

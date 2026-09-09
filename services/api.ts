@@ -130,7 +130,7 @@ async function backendRequest<T>(
   }
   // Creation allocates counters and writes records. It should
   // not be misreported as a failed delivery on slower LAN connections.
-  const timeout = method === 'post' && ['/api/purchase-orders', '/api/delivery-orders'].includes(url) ? 45000 : 10000;
+  const timeout = method === 'post' && ['/api/purchase-orders', '/api/delivery-orders', '/api/warehouse-jobs'].includes(url) ? 45000 : 10000;
   const sendRequest = (accessToken: string | null) => axios.request<T>({
     baseURL: API_BASE_URL,
     url,

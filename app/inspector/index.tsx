@@ -37,6 +37,7 @@ export default function InspectorScreen() {
   const [materialChecks, setMaterialChecks] = useState<Record<string, { result: '' | 'Pass' | 'Failed'; reason: string; deficiency: string }>>({});
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [receivedQuantities, setReceivedQuantities] = useState<Record<string, string>>({});
+  const [damagedQuantities, setDamagedQuantities] = useState<Record<string, string>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [confirmation, setConfirmation] = useState<{ mrfNumber: string; materialCount: number; jobId: string; poNumber: string; materialReceipts: any[]; inspectorName: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -73,6 +74,7 @@ export default function InspectorScreen() {
     // New inspections intentionally start blank; historical records retain
     // their captured values when opened for reference.
     setReceivedQuantities(Object.fromEntries(lines.map((line: any, index: number) => [String(line.materialId || index), form.mrfNumber ? String(form.materialReceipts?.find((receipt: any) => String(receipt.materialId || '') === String(line.materialId || ''))?.receivedQuantity ?? '') : ''])));
+    setDamagedQuantities(Object.fromEntries(lines.map((line: any, index: number) => [String(line.materialId || index), String(form.materialReceipts?.find((receipt: any) => String(receipt.materialId || '') === String(line.materialId || ''))?.damagedQuantity ?? '')])));
     setMaterialChecks(Object.fromEntries(lines.map((line: any, index: number) => {
       const receipt = form.materialReceipts?.find((item: any) => String(item.materialId || '') === String(line.materialId || '')) || {};
       const key = String(line.materialId || index);
@@ -100,11 +102,12 @@ export default function InspectorScreen() {
       'Photo and quantity required together',
       `${incompleteEvidence.materialName || 'This material'} needs both a captured photo and a received quantity (including 0), or neither.`,
     );
-    const materialReceipts = lines.map((line: any, index: number) => { const key = String(line.materialId || index); const check = materialChecks[key] || { result: '', reason: '', deficiency: '' }; return { materialId: line.materialId || String(index), materialName: line.materialName || 'Material', unit: line.unit || active.unit || '', orderedQuantity: Number(line.quantity || 0), receivedQuantity: Number(receivedQuantities[key] || 0), initialVisualInspection: check.result || 'Pending', failureReason: check.result === 'Failed' ? check.reason.trim() : '', deficiency: check.deficiency.trim() }; });
+    const materialReceipts = lines.map((line: any, index: number) => { const key = String(line.materialId || index); const check = materialChecks[key] || { result: '', reason: '', deficiency: '' }; return { materialId: line.materialId || String(index), materialName: line.materialName || 'Material', unit: line.unit || active.unit || '', orderedQuantity: Number(line.quantity || 0), receivedQuantity: Number(receivedQuantities[key] || 0), ...(isWarehouseJob(active) ? { damagedQuantity: check.result === 'Failed' ? Number(damagedQuantities[key] || 0) : 0 } : {}), initialVisualInspection: check.result || 'Pending', failureReason: check.result === 'Failed' ? check.reason.trim() : '', deficiency: check.deficiency.trim() }; });
     if (materialReceipts.some((line: any) => line.initialVisualInspection === 'Failed' && !line.failureReason)) return Alert.alert('Reason required', 'Enter a failure reason for every material marked Failed.');
     if (materialReceipts.some((line: any) => !Number.isFinite(line.receivedQuantity) || line.receivedQuantity < 0)) return Alert.alert('Invalid quantity', 'Enter a valid received quantity for every material.');
     if (active.isWarehouseDelivery && lines.some((line: any, index: number) => !String(receivedQuantities[String(line.materialId || index)] ?? '').trim())) return Alert.alert('Quantity required', 'Enter the actual received quantity for every warehouse product, including zero for missing items.');
     if (active.isWarehouseDelivery && materialReceipts.some((line: any) => !['Pass', 'Failed'].includes(line.initialVisualInspection))) return Alert.alert('Inspection required', 'Choose Pass or Failed for every warehouse product.');
+    if (isWarehouseJob(active) && materialReceipts.some((line: any, index: number) => !Number.isFinite(line.damagedQuantity) || line.damagedQuantity < 0 || line.damagedQuantity > line.receivedQuantity || (line.initialVisualInspection === 'Failed' && (!String(damagedQuantities[String(lines[index].materialId || index)] ?? '').trim() || (line.receivedQuantity > 0 && line.damagedQuantity === 0))))) return Alert.alert('Invalid damaged quantity', 'Enter the failed quantity, up to the total received. All remaining units must be usable.');
     setSaving(true);
     try {
       const inspection = await updateDeliveryOrder(active.id, { materialInspection: {
@@ -129,8 +132,8 @@ export default function InspectorScreen() {
     if (!confirmation) return;
     setPrinting(true);
     try {
-      const headers = ['MIF #', 'Job ID', 'PO #', 'Material', 'PO Qty', 'Received Qty', 'Unit', 'Result', 'Failure reason', 'Deficiency', 'Inspector'];
-      const rows = confirmation.materialReceipts.map((line: any) => [confirmation.mrfNumber, confirmation.jobId, confirmation.poNumber, line.materialName || '', String(line.orderedQuantity ?? ''), String(line.receivedQuantity ?? ''), line.unit || '', line.initialVisualInspection || 'Pending', line.failureReason || '', line.deficiency || '', confirmation.inspectorName]);
+      const headers = ['MIF #', 'Job ID', 'PO #', 'Material', 'PO Qty', 'Received Qty', 'Damaged Qty', 'Available Qty', 'Unit', 'Result', 'Failure reason', 'Deficiency', 'Inspector'];
+      const rows = confirmation.materialReceipts.map((line: any) => [confirmation.mrfNumber, confirmation.jobId, confirmation.poNumber, line.materialName || '', String(line.orderedQuantity ?? ''), String(line.receivedQuantity ?? ''), String(line.damagedQuantity ?? ''), String(line.damagedQuantity != null ? line.receivedQuantity - line.damagedQuantity : line.initialVisualInspection === 'Pass' ? line.receivedQuantity : 0), line.unit || '', line.initialVisualInspection || 'Pending', line.failureReason || '', line.deficiency || '', confirmation.inspectorName]);
       await sharePdfAsFile(`Material Inspection Form - ${confirmation.mrfNumber}`, buildHtmlContent(headers, rows, 'Material Inspection Form'));
     } catch (error: any) { Alert.alert('Print error', error?.message || 'Could not create the PDF.'); }
     finally { setPrinting(false); }
@@ -159,6 +162,7 @@ export default function InspectorScreen() {
       <Text style={{ color: colors.textMuted, fontSize: 12 }}>Initial visual inspection</Text>
       <View style={styles.choiceRow}>{(['Pass','Failed'] as const).map((value) => <TouchableOpacity key={value} onPress={() => setMaterialChecks((current) => ({ ...current, [key]: { ...(current[key] || { reason: '', deficiency: '' }), result: value } }))} style={[styles.choice, { borderColor: materialChecks[key]?.result === value ? (value === 'Pass' ? '#10B981' : '#EF4444') : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: materialChecks[key]?.result === value ? (value === 'Pass' ? '#10B981' : '#EF4444') : colors.text }}>{value}</Text></TouchableOpacity>)}</View>
       {materialChecks[key]?.result === 'Failed' ? <><Text style={{ color: colors.textMuted, fontSize: 12 }}>Failure reason *</Text><TextInput value={materialChecks[key]?.reason || ''} onChangeText={(value) => setMaterialChecks((current) => ({ ...current, [key]: { ...(current[key] || { result: 'Failed', deficiency: '' }), reason: value } }))} multiline style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]} placeholder="Describe why this material failed" placeholderTextColor={colors.textMuted}/></> : null}
+      {isWarehouseJob(active) && materialChecks[key]?.result === 'Failed' ? <><Text style={{ color: colors.textMuted }}>Damaged / failed quantity *</Text><TextInput accessibilityLabel="Damaged quantity" keyboardType="decimal-pad" value={damagedQuantities[key] || ''} onChangeText={(value) => setDamagedQuantities((current) => ({ ...current, [key]: value }))} style={[styles.qtyInput, { color: colors.text, borderColor: colors.border }]} placeholder="Enter failed units" placeholderTextColor={colors.textMuted}/><Text style={{ color: colors.textMuted }}>Available after inspection: {Math.max(0, Number(receivedQuantities[key] || 0) - Number(damagedQuantities[key] || 0))} {line.unit || ''}. All remaining units must be usable.</Text></> : null}
       <Text style={{ color: colors.textMuted, fontSize: 12 }}>Deficiency (if any)</Text><TextInput value={materialChecks[key]?.deficiency || ''} onChangeText={(value) => setMaterialChecks((current) => ({ ...current, [key]: { ...(current[key] || { result: '', reason: '' }), deficiency: value } }))} multiline style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]} placeholder="Material-specific deficiency" placeholderTextColor={colors.textMuted}/>
     
       <View style={styles.captureRow}><TouchableOpacity onPress={() => { void capturePhoto(key); }} style={[styles.materialPhoto, { borderColor: colors.border }]}>{photos[key] ? <Image source={{ uri: photos[key] }} style={styles.materialPreview}/> : <><Ionicons name="camera-outline" size={17} color={colors.textMuted}/><Text style={{ color: colors.textMuted, fontSize: 12 }}>Capture photo</Text></>}</TouchableOpacity><View style={{ flex: 1 }}>

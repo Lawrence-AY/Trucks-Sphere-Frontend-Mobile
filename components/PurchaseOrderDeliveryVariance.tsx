@@ -3,17 +3,21 @@ import { router } from 'expo-router';
 import { useTheme } from '../hooks/useTheme';
 import { usePurchaseOrders } from '../store/realtimeData';
 
-type DeliveryTotal = { unit: string; orderedQuantity: number; deliveredQuantity: number; variance: number; overDelivered: boolean };
+type DeliveryTotal = { materialId?: string; materialName?: string; unit: string; orderedQuantity: number; deliveredQuantity: number; variance: number; overDelivered: boolean };
 const format = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 6 });
 
 function Totals({ totals }: { totals: DeliveryTotal[] }) {
   const colors = useTheme();
   return <View style={{ gap: 4 }}>
-    {totals.map((total) => <View key={total.unit} style={{ gap: 3 }}>
-      <Text style={{ color: colors.text }}>Delivered: {format(total.deliveredQuantity)} / Ordered: {format(total.orderedQuantity)} {total.unit}</Text>
-      <Text style={{ color: total.overDelivered ? colors.danger : colors.textMuted, fontWeight: '700' }}>
+    {totals.map((total) => <View key={`${total.materialId || total.materialName || "total"}:${total.unit}`} style={{ gap: 3 }}>
+      {total.materialName ? <Text style={{ color: colors.text, fontWeight: '700' }}>{total.materialName}</Text> : null}
+        <Text>
+           Ordered: {format(total.orderedQuantity)} {total.unit}</Text>
+      <Text style={{ color: colors.text }}>Delivered: {format(total.deliveredQuantity)} 
+          </Text>
+      {total.deliveredQuantity !== 0 ? <Text style={{ color: total.overDelivered ? colors.danger : colors.textMuted, fontWeight: '700' }}>
         Delivery variance: {total.variance > 0 ? '+' : ''}{format(total.variance)} {total.unit}{total.overDelivered ? ' (over-delivered)' : ''}
-      </Text>
+      </Text> : null}
     </View>)}
   </View>;
 }
@@ -21,8 +25,11 @@ function Totals({ totals }: { totals: DeliveryTotal[] }) {
 export function PurchaseOrderDeliveryVariance({ order }: { order: any }) {
   const orders = usePurchaseOrders();
   const current = orders.find((item) => item.id === order?.id) || order;
-  const totals = current?.deliverySummary?.totals;
-  return totals?.length ? <View style={{ marginVertical: 8 }}><Totals totals={totals} /></View> : null;
+  const colors = useTheme();
+  const summary = current?.deliverySummary;
+  const totals = summary?.materials?.length ? summary.materials : summary?.totals;
+  const unmatched = summary?.materials?.length && summary.totals?.some((total: DeliveryTotal) => Math.abs(total.deliveredQuantity - summary.materials.filter((line: DeliveryTotal) => line.unit === total.unit).reduce((sum: number, line: DeliveryTotal) => sum + line.deliveredQuantity, 0)) > 0.000001);
+  return totals?.length ? <View style={{ marginVertical: 8, gap: 6 }}>{!summary?.materials?.length ? <Text style={{ color: colors.textMuted }}>Combined totals by unit | material breakdown pending.</Text> : null}<Totals totals={totals} />{unmatched ? <><Text style={{ color: colors.danger }}>Some completed deliveries could not be matched to a PO material. Material figures exclude those quantities; combined totals follow.</Text><Totals totals={summary.totals} /></> : null}</View> : null;
 }
 
 /** PO summaries are computed server-side from all linked trips, without pagination. */
