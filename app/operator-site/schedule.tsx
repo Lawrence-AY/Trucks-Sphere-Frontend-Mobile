@@ -70,6 +70,18 @@ const isWarehouseMaterial = (job: any, materialSource = '') =>
   String(job?.deliveryOrigin || '').trim().toLowerCase() === 'warehouse' ||
   String(materialSource || job?.materialSource || '').trim().toLowerCase() === 'warehouse';
 
+const isUploadedWarehouseDelivery = (job: any) =>
+  isWarehouseMaterial(job) &&
+  (String(job?.workflowType || '').trim().toLowerCase() === 'bulk_upload' ||
+    String(job?.goodsDeliveryNoteSource || '').trim().toLowerCase() === 'spreadsheet' ||
+    Boolean(job?.goodsDeliveryNoteFileName));
+
+function warehouseProductLines(job: any) {
+  return job?.materials?.length
+    ? job.materials
+    : [{ materialName: job?.materialName, description: job?.description, quantity: job?.quantityOrdered, unit: job?.unit }, ...(job?.additionalItems || [])];
+}
+
 type CapturedDeliveryNote = UploadFile & {
   displayName: string;
 };
@@ -106,6 +118,7 @@ export default function OperatorSiteDashboardScreen() {
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
   const [denialReasons, setDenialReasons] = useState<Record<string, string>>({});
   const [submitErrors, setSubmitErrors] = useState<Record<string, string>>({});
+  const [selectedWarehouseDelivery, setSelectedWarehouseDelivery] = useState<any | null>(null);
 
   // ─── Success modal for Phase 1 completion ───
   const [successModalVisible, setSuccessModalVisible] = useState(false);
@@ -214,13 +227,13 @@ export default function OperatorSiteDashboardScreen() {
       // The clear action changes this state, so they reappear here immediately
       // after unsuspension without a separate client-side transition.
       if (d.securityFlag?.status === 'flagged' || d.isFlagged === true) return false;
-      if (isWarehouseMaterial(d)) return !d.warehouseAcceptedAt && !d.warehouseDeniedAt && Boolean(d.packagingPhotoURL);
+      if (isWarehouseMaterial(d)) return !d.warehouseAcceptedAt && !d.warehouseDeniedAt;
       if (d.siteWeighOutWeight != null) return false;
       // Exclude jobs that already have site arrival recorded — they belong on Weights tab
       if (d.siteWeighInWeight != null || d.siteArrivalWeight != null || status === 'SITE_WEIGHED_IN') return false;
       // Must have been weighed at quarry (has both weigh in and weigh out weights)
       const hasQuarryWeights = d.weighInWeight != null && d.weighOutWeight != null;
-      const isSubmittedWarehouseDelivery = Boolean(d.isWarehouseDelivery && d.packagingPhotoURL) && ['DISPATCHED', 'IN_TRANSIT', 'ARRIVED_AT_SITE'].includes(status);
+      const isSubmittedWarehouseDelivery = Boolean(d.isWarehouseDelivery) && ['DISPATCHED', 'IN_TRANSIT', 'ARRIVED_AT_SITE'].includes(status);
       return hasQuarryWeights || isSubmittedWarehouseDelivery;
     }),
     [deliveries],
@@ -752,10 +765,30 @@ export default function OperatorSiteDashboardScreen() {
           </DataCard>
         ) : filtered.length ? (
           filtered.slice(0, 30).map((item) => {
+            if (isUploadedWarehouseDelivery(item)) return (
+              <DataCard key={item.id}>
+                <TouchableOpacity activeOpacity={0.75} onPress={() => setSelectedWarehouseDelivery(item)} style={styles.cardHeaderTouchable}>
+                  <View style={styles.cardHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId || item.id}</Text>
+                      <Text style={[styles.poText, { color: colors.textMuted }]}>{item.poNumber || 'Warehouse shipment'}</Text>
+                    </View>
+                  </View>
+                  <DetailRow icon="location-outline" value="Origin: Warehouse" />
+                  <DetailRow icon="business-outline" value={`Vendor: ${item.vendorName || 'N/A'}`} />
+                  <DetailRow icon="cube-outline" value={`${warehouseProductLines(item).length} product${warehouseProductLines(item).length === 1 ? '' : 's'} dispatched`} />
+                  <View style={[styles.tapHint, { backgroundColor: `${colors.primary}08` }]}>
+                    <Ionicons name="document-text-outline" size={12} color={colors.primaryText} />
+                    <Text style={[styles.tapHintText, { color: colors.primaryText }]}>Tap to preview products and accept or deny</Text>
+                  </View>
+                </TouchableOpacity>
+              </DataCard>
+            );
+
             if (isWarehouseMaterial(item)) return <View key={item.id} style={{ padding: 16, marginBottom: 8, backgroundColor: colors.surface, borderRadius: 8 }}>
               <Text style={{ color: colors.text, fontWeight: '700' }}>{item.jobId || item.id}</Text>
-              <Text style={{ color: colors.textMuted }}>{item.vendorName} ? Warehouse</Text>
-              {(item.materials?.length ? item.materials : [{ materialName: item.materialName, quantity: item.quantityOrdered, unit: item.unit }, ...(item.additionalItems || [])]).map((line: any, index: number) => <Text key={index} style={{ color: colors.text }}>{line.materialName}: {line.quantity} {line.unit}</Text>)}
+              <Text style={{ color: colors.textMuted }}>{item.vendorName} - Warehouse</Text>
+              {warehouseProductLines(item).map((line: any, index: number) => <Text key={index} style={{ color: colors.text }}>{line.materialName}: {line.quantity} {line.unit}</Text>)}
               {item.packagingPhotoURL ? <Image source={{ uri: item.packagingPhotoURL }} style={{ width: 120, height: 90, marginVertical: 8 }} /> : null}
               <TextInput value={denialReasons[item.id] || ''} onChangeText={(reason) => setDenialReasons((current) => ({ ...current, [item.id]: reason }))} placeholder="Reason if denying delivery" placeholderTextColor={colors.textMuted} multiline style={{ color: colors.text, borderColor: colors.border, borderWidth: 1, padding: 10, marginVertical: 8, borderRadius: 6 }} />
               <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -1289,6 +1322,62 @@ export default function OperatorSiteDashboardScreen() {
       </PageShell>
 
       {/* ─── FAB: Register Unscheduled Arrival ─── */}
+      <Modal visible={Boolean(selectedWarehouseDelivery)} transparent animationType="slide" onRequestClose={() => setSelectedWarehouseDelivery(null)}>
+        <View style={styles.uploadedWarehouseBackdrop}>
+          <View style={[styles.uploadedWarehouseSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.cardHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.jobId, { color: colors.text }]}>{selectedWarehouseDelivery?.jobId || selectedWarehouseDelivery?.id}</Text>
+                <Text style={[styles.poText, { color: colors.textMuted }]}>Origin: Warehouse</Text>
+                <Text style={[styles.poText, { color: colors.textMuted }]}>Vendor: {selectedWarehouseDelivery?.vendorName || 'N/A'}</Text>
+              </View>
+              <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.inputBg }]} onPress={() => setSelectedWarehouseDelivery(null)}>
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            {selectedWarehouseDelivery ? (
+              <>
+                <ScrollView style={styles.uploadedWarehouseProducts} nestedScrollEnabled>
+                  {warehouseProductLines(selectedWarehouseDelivery).map((line: any, index: number) => (
+                    <View key={`${selectedWarehouseDelivery.id}-${index}`} style={[styles.uploadedWarehouseRow, index ? { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth } : null]}>
+                      <Text style={[styles.uploadedWarehouseName, { color: colors.text }]}>{line.description || line.materialName || 'Unnamed product'}</Text>
+                      <Text style={[styles.uploadedWarehouseMeta, { color: colors.textMuted }]}>{line.quantity} {line.unit || 'tonnes'} - MRF {line.mrfNo || '-'}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+                <TextInput value={denialReasons[selectedWarehouseDelivery.id] || ''} onChangeText={(reason) => setDenialReasons((current) => ({ ...current, [selectedWarehouseDelivery.id]: reason }))} placeholder="Reason if denying delivery" placeholderTextColor={colors.textMuted} multiline style={[styles.uploadedWarehouseReason, { color: colors.text, borderColor: colors.border }]} />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity disabled={submitting[selectedWarehouseDelivery.id]} style={{ flex: 1, backgroundColor: colors.primary, padding: 12, borderRadius: 6, opacity: submitting[selectedWarehouseDelivery.id] ? 0.5 : 1 }} onPress={async () => {
+                    setSubmitting((current) => ({ ...current, [selectedWarehouseDelivery.id]: true }));
+                    try {
+                      const { data: accepted } = await api.post('/api/delivery-orders/' + encodeURIComponent(selectedWarehouseDelivery.id) + '/accept-warehouse', {});
+                      useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', accepted);
+                      setDeliveries((current) => current.map((entry) => entry.id === selectedWarehouseDelivery.id ? { ...entry, ...accepted } : entry));
+                      setSelectedWarehouseDelivery(null);
+                      Alert.alert('Delivery accepted', 'The delivery is now awaiting inspection.');
+                    } catch (error: any) { Alert.alert('Unable to accept delivery', error?.message || 'Please try again.'); }
+                    finally { setSubmitting((current) => ({ ...current, [selectedWarehouseDelivery.id]: false })); }
+                  }}><Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>{submitting[selectedWarehouseDelivery.id] ? 'Accepting...' : 'Accept delivery'}</Text></TouchableOpacity>
+                  <TouchableOpacity disabled={submitting[selectedWarehouseDelivery.id]} style={{ flex: 1, backgroundColor: colors.danger, padding: 12, borderRadius: 6, opacity: submitting[selectedWarehouseDelivery.id] ? 0.5 : 1 }} onPress={async () => {
+                    const reason = (denialReasons[selectedWarehouseDelivery.id] || '').trim();
+                    if (!reason) return Alert.alert('Reason required', 'Enter a reason for denying this delivery.');
+                    setSubmitting((current) => ({ ...current, [selectedWarehouseDelivery.id]: true }));
+                    try {
+                      const { data: denied } = await api.post('/api/delivery-orders/' + encodeURIComponent(selectedWarehouseDelivery.id) + '/deny-warehouse', { reason });
+                      useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', denied);
+                      setDeliveries((current) => current.map((entry) => entry.id === selectedWarehouseDelivery.id ? { ...entry, ...denied } : entry));
+                      setSelectedWarehouseDelivery(null);
+                      Alert.alert('Delivery denied', 'The denial has been recorded for the vendor and management.');
+                    } catch (error: any) { Alert.alert('Unable to deny delivery', error?.message || 'Please try again.'); }
+                    finally { setSubmitting((current) => ({ ...current, [selectedWarehouseDelivery.id]: false })); }
+                  }}><Text style={{ color: '#fff', textAlign: 'center', fontWeight: '700' }}>Deny delivery</Text></TouchableOpacity>
+                </View>
+              </>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
       <TouchableOpacity
         style={[styles.fabBtn, { backgroundColor: colors.primary }]}
         onPress={() => { loadFabData(); setFabVisible(true); }}
@@ -1957,6 +2046,13 @@ const styles = StyleSheet.create({
   lotInputField: { flex: 1, height: 46, fontSize: 14, fontWeight: '700' },
   // FAB Button
   fabBtn: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
+  uploadedWarehouseBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
+  uploadedWarehouseSheet: { maxHeight: '84%', borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, borderBottomWidth: 0, padding: Spacing.lg },
+  uploadedWarehouseProducts: { maxHeight: 320, marginVertical: Spacing.md },
+  uploadedWarehouseRow: { paddingVertical: 9 },
+  uploadedWarehouseName: { fontSize: 13, fontWeight: '800' },
+  uploadedWarehouseMeta: { fontSize: 12, marginTop: 3 },
+  uploadedWarehouseReason: { minHeight: 74, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.sm, marginBottom: Spacing.sm, textAlignVertical: 'top' },
   // FAB Modal
   fabModalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.42)', justifyContent: 'flex-end' },
   fabSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, height: '90%', minHeight: 0 },
