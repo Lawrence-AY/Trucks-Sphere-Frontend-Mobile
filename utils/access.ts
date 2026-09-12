@@ -119,10 +119,10 @@ const MANAGEMENT_ROUTE_ACCESS: Array<{ prefix: string; roles: ManagementRole[] }
   { prefix: '/management/active', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/materials', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/purchase-orders/edit', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
-  { prefix: '/management/vendors/create', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE] },
-  { prefix: '/management/vendors/edit', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE] },
-  { prefix: '/management/drivers/create', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE] },
-  { prefix: '/management/vehicles/create', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE] },
+  { prefix: '/management/vendors/create', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE, MANAGEMENT_ROLES.ADMIN] },
+  { prefix: '/management/vendors/edit', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE, MANAGEMENT_ROLES.ADMIN] },
+  { prefix: '/management/drivers/create', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE, MANAGEMENT_ROLES.ADMIN] },
+  { prefix: '/management/vehicles/create', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/purchase-orders', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, MANAGEMENT_ROLES.ADMIN_LITE] },
   { prefix: '/management/orders', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, MANAGEMENT_ROLES.ADMIN_LITE] },
   { prefix: '/management/vendors', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, MANAGEMENT_ROLES.ADMIN_LITE] },
@@ -165,9 +165,9 @@ export type ManagementPermission =
   | 'settings.manage';
 
 const PERMISSIONS: Record<ManagementPermission, ManagementRole[]> = {
-  'vendors.write': [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE],
-  'trucks.write': [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE],
-  'drivers.write': [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE],
+  'vendors.write': [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, MANAGEMENT_ROLES.ADMIN_LITE],
+  'trucks.write': [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, MANAGEMENT_ROLES.ADMIN_LITE],
+  'drivers.write': [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, MANAGEMENT_ROLES.ADMIN_LITE],
   'purchaseOrders.create': [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, MANAGEMENT_ROLES.ADMIN_LITE],
   'purchaseOrders.edit': [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN],
   'users.manage': [MANAGEMENT_ROLES.SUPER_ADMIN],

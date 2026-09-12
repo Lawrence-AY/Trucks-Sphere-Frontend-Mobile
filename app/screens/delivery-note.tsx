@@ -47,6 +47,11 @@ function buildDeliveryNoteHtml(data: {
   weighOutCity?: string;
   weighOutTown?: string;
   timestamp: string;
+  warehouseRows?: Array<{ description?: string; materialName?: string; quantity?: any; unit?: string; source?: string; mrfNo?: string; additionalNotes?: string }>;
+  goodsDeliveryNoteFileName?: string;
+  goodsDeliveryNoteSource?: string;
+  workflowType?: string;
+  dispatchedToSiteAt?: string;
 }): string {
   const {
     jobId, poNumber, driverName, plateNumber, vendorName,
@@ -58,6 +63,7 @@ function buildDeliveryNoteHtml(data: {
   const isWarehouse = Boolean(data.isWarehouse);
   const isCustomSite = Boolean(data.isCustomSite);
   const e = escapeHtml;
+  const warehouseRows = data.warehouseRows || [];
   const geoLines = [weighOutGeoAddress, weighOutCity, weighOutTown].filter(Boolean);
   const geoText = geoLines.length > 0 ? geoLines.join(', ') : 'N/A';
 
@@ -103,6 +109,7 @@ function buildDeliveryNoteHtml(data: {
     <div class="section-title">Document Details</div>
     <div class="row"><span class="label">Delivery Note #</span><span class="value">${e(jobId)}</span></div>
     <div class="row"><span class="label">Purchase Order</span><span class="value">${e(poNumber) || 'N/A'}</span></div>
+    ${isWarehouse && data.goodsDeliveryNoteFileName ? `<div class="row"><span class="label">Source File</span><span class="value">${e(data.goodsDeliveryNoteFileName)}</span></div>` : ''}
     <div class="row"><span class="label">Date Created</span><span class="value">${e(timestamp)}</span></div>
   </div>
 
@@ -115,7 +122,13 @@ function buildDeliveryNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Material</div>
-    <div class="row"><span class="label">Material</span><span class="value">${e(materialName) || 'N/A'}</span></div>
+    ${isWarehouse && warehouseRows.length ? `
+    <table>
+      <tr><th>Description</th><th>Quantity</th><th>Unit</th><th>Source</th><th>MRF No.</th><th>Notes</th></tr>
+      ${warehouseRows.map((line) => `<tr><td>${e(line.description || line.materialName)}</td><td>${e(String(line.quantity ?? ''))}</td><td>${e(line.unit || '')}</td><td>${e(line.source || 'Warehouse')}</td><td>${e(line.mrfNo || '')}</td><td>${e(line.additionalNotes || '')}</td></tr>`).join('')}
+    </table>
+    ` : `<div class="row"><span class="label">Material</span><span class="value">${e(materialName) || 'N/A'}</span></div>`}
+    ${isWarehouse ? `<div class="row"><span class="label">Dispatched To Site</span><span class="value">${e(data.dispatchedToSiteAt) || 'N/A'}</span></div>` : ''}
   </div>
 
   ${isCustomSite ? `<div class="section"><div class="section-title">Origin</div><div class="row"><span class="label">Material Source</span><span class="value">${e(data.materialSource) || 'N/A'}</span></div></div>` : ''}
@@ -277,6 +290,11 @@ export default function DeliveryNoteScreen() {
     : [{ materialName: delivery?.materialName, quantity: delivery?.quantityOrdered || delivery?.quantityDispatched, unit: delivery?.unit }])
     .map((item: any) => `${item?.materialName || 'Material'}${item?.quantity != null ? ` (${item.quantity} ${item.unit || ''})` : ''}`)
     .join('\n') || 'N/A';
+  const warehouseRows = isWarehouse
+    ? (Array.isArray(delivery?.materials) && delivery.materials.length
+      ? delivery.materials
+      : [{ materialName: delivery?.materialName, description: delivery?.description, quantity: delivery?.quantityOrdered || delivery?.quantityDispatched, unit: delivery?.unit }, ...(delivery?.additionalItems || [])])
+    : [];
 
   const exportHeaders = ['Field', 'Value'];
   const getExportRows = () => {
@@ -290,6 +308,20 @@ export default function DeliveryNoteScreen() {
       ['Truck', delivery.plateNumber || 'N/A'],
       ]),
       ['Materials on PO', materialsLabel],
+      ...(isWarehouse ? [
+        ['Workflow', delivery.workflowType || 'N/A'],
+        ['Source File', delivery.goodsDeliveryNoteFileName || 'Manual entry'],
+        ['File Source', delivery.goodsDeliveryNoteSource || 'N/A'],
+        ['Dispatched To Site', formatEAT(delivery.dispatchedToSiteAt || delivery.submittedAt || delivery.createdAt)],
+        ...warehouseRows.flatMap((line: any, index: number) => [
+          [`Item ${index + 1} Description`, line.description || line.materialName || ''],
+          [`Item ${index + 1} Quantity`, String(line.quantity ?? '')],
+          [`Item ${index + 1} Unit`, line.unit || ''],
+          [`Item ${index + 1} Source`, line.source || 'Warehouse'],
+          [`Item ${index + 1} MRF No.`, line.mrfNo || ''],
+          [`Item ${index + 1} Notes`, line.additionalNotes || ''],
+        ]),
+      ] : []),
       ...(isCustomSite ? [['Origin', delivery.materialSource || 'N/A'], ['Material Source', delivery.materialSource || 'N/A']] : []),
       ...(!isWarehouse && !isCustomSite ? [
       ['Weigh-Out (Location)', capturedQuarrySource || 'N/A'],
@@ -342,6 +374,11 @@ export default function DeliveryNoteScreen() {
         weighOutCity: delivery?.weighOutGeoLocation?.city || geoCity || '',
         weighOutTown: delivery?.weighOutGeoLocation?.town || geoTown || '',
         timestamp: formatEAT(delivery.createdAt) || new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' }),
+        warehouseRows,
+        goodsDeliveryNoteFileName: delivery.goodsDeliveryNoteFileName || '',
+        goodsDeliveryNoteSource: delivery.goodsDeliveryNoteSource || '',
+        workflowType: delivery.workflowType || '',
+        dispatchedToSiteAt: formatEAT(delivery.dispatchedToSiteAt || delivery.submittedAt || delivery.createdAt),
       };
       const html = buildDeliveryNoteHtml(pdfData);
 
@@ -408,6 +445,7 @@ export default function DeliveryNoteScreen() {
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <DNRow label="Delivery Note #" value={delivery.jobId} bold />
               <DNRow label="Purchase Order" value={delivery.poNumber} />
+              {isWarehouse && delivery.goodsDeliveryNoteFileName ? <DNRow label="Source File" value={delivery.goodsDeliveryNoteFileName} /> : null}
               <DNRow label="Date Created" value={formatEAT(delivery.createdAt)} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>PARTIES</Text>
@@ -419,7 +457,19 @@ export default function DeliveryNoteScreen() {
               {isWarehouse && <DNRow label="Origin" value="Warehouse" />}
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>MATERIAL</Text>
-              <DNRow label="Materials on PO" value={materialsLabel} />
+              {isWarehouse && (
+                <>
+                  {warehouseRows.length ? warehouseRows.map((line: any, index: number) => (
+                    <View key={`${delivery.id || delivery.jobId}-${index}`} style={styles.warehouseLine}>
+                      <Text style={styles.warehouseLineTitle}>{line.description || line.materialName || `Item ${index + 1}`}</Text>
+                      <Text style={styles.warehouseLineMeta}>{line.quantity ?? ''} {line.unit || ''} | Source: {line.source || 'Warehouse'} | MRF: {line.mrfNo || '-'}</Text>
+                      {line.additionalNotes ? <Text style={styles.warehouseLineMeta}>Notes: {line.additionalNotes}</Text> : null}
+                    </View>
+                  )) : <DNRow label="Materials on PO" value={materialsLabel} />}
+                  <DNRow label="Dispatched To Site" value={formatEAT(delivery.dispatchedToSiteAt || delivery.submittedAt || delivery.createdAt)} />
+                </>
+              )}
+              {!isWarehouse && <DNRow label="Materials on PO" value={materialsLabel} />}
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               {isCustomSite && <><DNRow label="Origin" value={delivery.materialSource || 'N/A'} /><DNRow label="Material Source" value={delivery.materialSource || 'N/A'} /></>}
               {!isWarehouse && !isCustomSite && <>
@@ -521,6 +571,9 @@ const styles = StyleSheet.create({
   rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: Spacing.xs},
   rFooter: { textAlign: 'center', fontSize: 14, color: '#999', marginTop: Spacing.xs},
   rThanks: { textAlign: 'center', fontSize: 14, color: '#666', marginTop: Spacing.xs, fontStyle: 'italic' },
+  warehouseLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#DDD', paddingVertical: Spacing.xs },
+  warehouseLineTitle: { fontSize: 13, fontWeight: '700', color: '#333' },
+  warehouseLineMeta: { fontSize: 12, color: '#666', marginTop: 2 },
   actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs},
   actionBtn: {
     flex: 1,

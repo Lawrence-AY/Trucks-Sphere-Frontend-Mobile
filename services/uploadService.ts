@@ -181,11 +181,11 @@ async function uploadFile(
   // 400 {"error":"No file provided"}.
   if (Platform.OS === 'web' && (fileUri.startsWith('blob:') || fileUri.startsWith('data:'))) {
     const blob: Blob = await fetch(fileUri).then((r) => r.blob());
-    formData.append('file', blob, fileName);
+    formData.append(fileFieldName, blob, fileName);
   } else {
     // Native (iOS / Android): React Native's networking layer understands
     // { uri, name, type } and will stream the file from disk.
-    formData.append('file', {
+    formData.append(fileFieldName, {
       uri: fileUri,
       name: fileName,
       type: mimeType,

@@ -328,6 +328,28 @@ export default function OperatorSiteHistoryScreen() {
   /* ─── Render: Detail Modal ─── */
 
 
+  const getWarehouseItems = (item: any) => item.materials || item.additionalItems || [];
+
+  const renderWarehouseReceiptSummary = (item: any) => {
+    const warehouseItems = getWarehouseItems(item);
+    const totalItems = Number.isFinite(Number(item.itemCount)) && Number(item.itemCount) > 0
+      ? Number(item.itemCount)
+      : warehouseItems.length;
+
+    return (
+      <View style={{ gap: Spacing.sm }}>
+        <Text style={[styles.tableJobId, { color: colors.text }]}>{item.jobId}</Text>
+        {item.receiptNoteId ? <Text style={{ color: colors.text }}>Receipt Note: {item.receiptNoteId}</Text> : null}
+        <Text style={{ color: colors.textMuted }}>{item.poNumber || 'No PO'} ? Warehouse</Text>
+        <Text style={{ color: colors.text }}>{item.vendorName || ''}</Text>
+        <Text style={{ color: colors.text }}>Accepted by: {item.warehouseAcceptedByName || item.warehouseAcceptedByUid || 'Unknown'}</Text>
+        <Text style={{ color: colors.textMuted }}>Accepted: {formatEAT(item.warehouseAcceptedAt)}</Text>
+        <Text style={{ color: colors.text }}>{normalizeJobStatus(item.status) === 'COMPLETED' ? 'Inspected' : 'Awaiting inspection'}</Text>
+        <Text style={{ color: colors.text, fontWeight: '700' }}>Total materials shipped: {totalItems}</Text>
+      </View>
+    );
+  };
+
   const renderWarehouseReceipt = (item: any) => (
     <View style={{ gap: Spacing.sm }}>
       <Text style={[styles.tableJobId, { color: colors.text }]}>{item.jobId}</Text>
@@ -337,7 +359,7 @@ export default function OperatorSiteHistoryScreen() {
       <Text style={{ color: colors.text }}>Accepted by: {item.warehouseAcceptedByName || item.warehouseAcceptedByUid || 'Unknown'}</Text>
       <Text style={{ color: colors.textMuted }}>Accepted: {formatEAT(item.warehouseAcceptedAt)}</Text>
       <Text style={{ color: colors.text }}>{normalizeJobStatus(item.status) === 'COMPLETED' ? 'Inspected' : 'Awaiting inspection'}</Text>
-      {(item.materials || item.additionalItems || []).map((line: any, index: number) => (
+      {getWarehouseItems(item).map((line: any, index: number) => (
         <Text key={line.id || index} style={{ color: colors.text }}>{line.materialName || line.name || line.productName}: {line.quantity ?? ''} {line.unit || ''}</Text>
       ))}
     </View>
@@ -957,7 +979,7 @@ export default function OperatorSiteHistoryScreen() {
         </DataCard>
       ) : completedRecords.length ? (
         completedRecords.map((item) => {
-          if (item.warehouseAcceptedAt) return <DataCard key={item.id} onPress={() => openDetail(item)}>{renderWarehouseReceipt(item)}</DataCard>;
+          if (item.warehouseAcceptedAt) return <DataCard key={item.id} onPress={() => openDetail(item)}>{renderWarehouseReceiptSummary(item)}</DataCard>;
           const quarryNet =
             item.netWeight ??
             (item.weighInWeight != null && item.weighOutWeight != null

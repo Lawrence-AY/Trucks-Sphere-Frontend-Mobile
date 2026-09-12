@@ -39,6 +39,17 @@ const PUBLIC_ERROR_MESSAGES: Record<string, string> = {
   WAREHOUSE_PURCHASE_ORDER_CANCELLED: 'This purchase order is cancelled. Select an active order.',
   WAREHOUSE_VENDOR_REQUIRED: 'The purchase order vendor could not be found. Update the purchase order vendor and try again.',
   WAREHOUSE_POMAT_REQUIRED: 'The purchase order material needs a valid material number before dispatch.',
+  WAREHOUSE_PREVIEW_FILE_REQUIRED: 'Select a CSV or Excel file to preview.',
+  WAREHOUSE_PREVIEW_FILE_INVALID: 'Select a CSV or Excel .xlsx file.',
+  WAREHOUSE_PREVIEW_FILE_TOO_LARGE: 'The spreadsheet is too large. Upload a file under 2 MB.',
+  WAREHOUSE_PREVIEW_UPLOAD_INVALID: 'The spreadsheet upload could not be read. Please try again.',
+  WAREHOUSE_PREVIEW_ROWS_REQUIRED: 'No shipment rows were found in the spreadsheet.',
+  WAREHOUSE_PREVIEW_COLUMN_REQUIRED: 'The spreadsheet is missing a required warehouse column.',
+  WAREHOUSE_PREVIEW_SOURCE_REQUIRED: 'Missing required column: Source',
+  WAREHOUSE_PREVIEW_DESCRIPTION_REQUIRED: 'Missing required column: Description',
+  WAREHOUSE_PREVIEW_QUANTITY_REQUIRED: 'Missing required column: Quantity',
+  WAREHOUSE_PREVIEW_UNIT_REQUIRED: 'Missing required column: Unit',
+  WAREHOUSE_PREVIEW_MRF_NO_REQUIRED: 'Missing required column: MRF No.',
   HTTP_400: 'The information provided is invalid. Please check it and try again.',
   HTTP_401:
     'Invalid username or password. Please check your details and try again.',
@@ -476,6 +487,54 @@ export async function createWarehouseJob(payload: any): Promise<any> {
     await backendRequest('post', '/api/warehouse-jobs', payload),
     payload,
   );
+}
+
+export type WarehouseShipmentPreviewRow = {
+  rowNumber: number;
+  status: 'READY' | 'INVALID';
+  code: string;
+  label: string;
+  item: {
+    productName: string;
+    quantity: string;
+    unit: string;
+    source: string;
+    mrfNo: string;
+    additionalNotes: string;
+    sourceData?: Record<string, string>;
+  };
+};
+
+export type WarehouseShipmentPreview = {
+  headers: string[];
+  counts: { total: number; ready: number; invalid: number };
+  rows: WarehouseShipmentPreviewRow[];
+};
+
+export async function previewWarehouseShipmentFile(asset: { uri: string; name?: string | null; mimeType?: string | null }): Promise<WarehouseShipmentPreview> {
+  const token = await getStoredToken();
+  const formData = new FormData();
+  const name = asset.name || 'warehouse-shipment.csv';
+  if (Platform.OS === 'web') {
+    const file = await fetch(asset.uri).then((response) => response.blob());
+    formData.append('file', file, name);
+  } else {
+    formData.append('file', {
+      uri: asset.uri,
+      name,
+      type: asset.mimeType || 'text/csv',
+    } as any);
+  }
+  try {
+    const response = await axios.post<WarehouseShipmentPreview>('/api/warehouse-jobs/preview', formData, {
+      baseURL: API_BASE_URL,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      timeout: 45000,
+    });
+    return response.data;
+  } catch (error) {
+    throw toPublicError(error);
+  }
 }
 
 export async function fetchUsers(params?: {

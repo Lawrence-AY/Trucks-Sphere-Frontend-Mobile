@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { fetchWarehouseJobs } from '../../services/api';
@@ -8,6 +8,7 @@ import { Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { WarehouseJob } from '../../store/types';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
+import { formatEAT } from '../../utils/helpers';
 
 const FILTERS = [
   { id: 'today', label: 'Today' },
@@ -20,6 +21,37 @@ function poReference(job: WarehouseJob) {
   return job.poNumber || String(job.warehouseReference || '').split('/').slice(0, 2).join('/');
 }
 
+function shipmentLocation(job: any) {
+  return job.location || job.siteName || job.deliveryLocation || 'Warehouse';
+}
+
+function shipmentCompany(job: any) {
+  return job.companyName || job.vendorName || 'N/A';
+}
+
+function shipmentTimestamp(job: WarehouseJob) {
+  return job.warehouseAcceptedAt || job.dispatchedToSiteAt || job.submittedAt || job.updatedAt || job.createdAt;
+}
+
+function shipmentOperator(job: WarehouseJob) {
+  return job.createdByName || job.warehouseAcceptedByName || String(job.createdBy || '').trim() || 'N/A';
+}
+
+function totalDispatchedItems(job: WarehouseJob) {
+  if (Number.isFinite(Number(job.itemCount)) && Number(job.itemCount) > 0) return Number(job.itemCount);
+  return (job.items || []).length;
+}
+
+function originatingWarehouse(job: any) {
+  return job.sourceWarehouse || job.warehouseName || job.goodsDeliveryNoteSource || job.deliveryOrigin || 'Warehouse';
+}
+
+function statusLabel(status?: string) {
+  if (status === 'INSPECTED') return 'Completed';
+  if (status === 'ACCEPTED') return 'Accepted';
+  return 'Submitted';
+}
+
 export default function WarehouseHistoryScreen() {
   const colors = useTheme();
   const user = useAuthStore((state) => state.user);
@@ -28,6 +60,7 @@ export default function WarehouseHistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [filter, setFilter] = useState<HistoryFilter>('today');
+  const [selectedShipment, setSelectedShipment] = useState<WarehouseJob | null>(null);
 
   const load = useCallback(async () => {
     const records = await fetchWarehouseJobs();
@@ -43,22 +76,26 @@ export default function WarehouseHistoryScreen() {
     if (filter === 'today') start.setHours(0, 0, 0, 0);
     if (filter === 'week') start.setDate(now.getDate() - 6);
     if (filter === 'month') start.setMonth(now.getMonth() - 1);
-    return myJobs.filter((job) => job.submittedAt && new Date(job.submittedAt) >= start);
+    return myJobs.filter((job) => {
+      const date = shipmentTimestamp(job);
+      return date && new Date(date) >= start;
+    });
   }, [filter, myJobs]);
   const downloadCsv = async () => {
     setDownloading(true);
     try {
       await shareCsvAsFile('Warehouse_Shipment_History', buildCsvContent(
-        ['Job ID', 'Purchase Order', 'Vendor', 'Receipt Status', 'Accepted At', 'Accepted By', 'Products', 'Submitted At'],
+        ['Job ID', 'Purchase Order', 'Vendor', 'Status', 'Timestamp', 'Operator', 'Total Dispatched Items', 'Originating Warehouse', 'Products'],
         filteredJobs.map((job) => [
           job.jobId,
           poReference(job),
           job.vendorName,
           job.status,
-          job.warehouseAcceptedAt || '',
-          job.warehouseAcceptedByName || '',
+          shipmentTimestamp(job) || '',
+          shipmentOperator(job),
+          String(totalDispatchedItems(job)),
+          originatingWarehouse(job),
           (job.items || []).map((item) => `${item.materialName} (${item.quantity} ${item.unit})`).join('; '),
-          job.submittedAt || '',
         ]),
       ));
     } catch (error: any) {
@@ -100,14 +137,86 @@ export default function WarehouseHistoryScreen() {
           </>
         }
         renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
-            <Text style={[styles.reference, { color: colors.textMuted }]}>{poReference(item)}</Text>
-<View style={styles.detail}><Ionicons name="checkmark-circle-outline" size={15} color={colors.textMuted} /><Text style={[styles.detailText, { color: colors.text }]}>{item.status === 'INSPECTED' ? 'Inspected' : item.status === 'ACCEPTED' ? 'Awaiting inspection' : 'Awaiting site acceptance'}</Text></View>
-            <Text style={[styles.date, { color: colors.textMuted }]}>{item.submittedAt ? new Date(item.submittedAt).toLocaleString() : 'Submitted'}</Text>
-          </View>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => setSelectedShipment(item)}
+          >
+            <View style={styles.cardHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
+                <Text style={[styles.reference, { color: colors.textMuted }]}>{poReference(item)}</Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}>
+                <Ionicons name="checkmark-circle-outline" size={13} color="#10B981" />
+                <Text style={styles.statusBadgeText}>{statusLabel(item.status)}</Text>
+              </View>
+            </View>
+            <View style={styles.tableRow}>
+              <View style={styles.tableCell}>
+                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Timestamp</Text>
+                <Text style={[styles.tableValue, { color: colors.text }]}>{formatEAT(shipmentTimestamp(item)) || 'N/A'}</Text>
+              </View>
+              <View style={styles.tableCell}>
+                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Operator</Text>
+                <Text style={[styles.tableValue, { color: colors.text }]}>{shipmentOperator(item)}</Text>
+              </View>
+            </View>
+            <View style={styles.tableRow}>
+              <View style={styles.tableCell}>
+                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Items</Text>
+                <Text style={[styles.tableValue, { color: colors.text }]}>{totalDispatchedItems(item)} dispatched</Text>
+              </View>
+              <View style={styles.tableCell}>
+                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Origin</Text>
+                <Text style={[styles.tableValue, { color: colors.text }]}>{originatingWarehouse(item)}</Text>
+              </View>
+            </View>
+            <View style={styles.tapHint}>
+              <Text style={[styles.date, { color: colors.textMuted }]}>Tap to view full delivery details</Text>
+              <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
+            </View>
+          </TouchableOpacity>
         )}
       />
+      <Modal visible={Boolean(selectedShipment)} transparent animationType="slide" onRequestClose={() => setSelectedShipment(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.detailSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.cardHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.jobId, { color: colors.text }]}>{selectedShipment?.jobId}</Text>
+                <Text style={[styles.reference, { color: colors.textMuted }]}>{selectedShipment ? poReference(selectedShipment) : ''}</Text>
+              </View>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedShipment(null)}>
+                <Ionicons name="close" size={23} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            {selectedShipment ? (
+              <ScrollView style={styles.detailScroll}>
+                <View style={styles.auditGrid}>
+                  <Text style={[styles.auditText, { color: colors.text }]}>Job ID: {selectedShipment.jobId}</Text>
+                  <Text style={[styles.auditText, { color: colors.text }]}>Timestamp: {formatEAT(shipmentTimestamp(selectedShipment)) || 'N/A'}</Text>
+                  <Text style={[styles.auditText, { color: colors.text }]}>Operator: {shipmentOperator(selectedShipment)}</Text>
+                  <Text style={[styles.auditText, { color: colors.text }]}>Total dispatched items: {totalDispatchedItems(selectedShipment)}</Text>
+                  <Text style={[styles.auditText, { color: colors.text }]}>Originating warehouse: {originatingWarehouse(selectedShipment)}</Text>
+                  <Text style={[styles.auditText, { color: colors.text }]}>Location: {shipmentLocation(selectedShipment)}</Text>
+                  <Text style={[styles.auditText, { color: colors.text }]}>Company: {shipmentCompany(selectedShipment)}</Text>
+                  <Text style={[styles.auditText, { color: colors.text }]}>Received by: {selectedShipment.warehouseAcceptedByName || 'Pending site acceptance'}</Text>
+                  <Text style={[styles.auditText, { color: colors.text }]}>Source file: {(selectedShipment as any).goodsDeliveryNoteFileName || 'Manual entry'}</Text>
+                </View>
+                <View style={[styles.productsBlock, { borderTopColor: colors.border }]}>
+                  {(selectedShipment.items || []).map((line: any, index) => (
+                    <View key={`${selectedShipment.id}-${index}`} style={[styles.productRow, index ? { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth } : null]}>
+                      <Text style={[styles.productName, { color: colors.text }]}>{line.description || line.materialName}</Text>
+                      <Text style={[styles.productMeta, { color: colors.textMuted }]}>{line.quantity} {line.unit || 'tonnes'} - MRF {line.mrfNo || '-'}</Text>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -118,14 +227,32 @@ const styles = StyleSheet.create({
   list: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing['3xl'] },
   empty: { flexGrow: 1, padding: Spacing.md },
   card: { borderWidth: 1, borderRadius: Radius.lg, padding: Spacing.md },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   jobId: { fontSize: 15, fontWeight: '800' },
   reference: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs},
   detail: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: Spacing.xs},
   detailText: { fontSize: 13, fontWeight: '600' },
   date: { fontSize: 11, marginTop: Spacing.xs},
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: Radius.full, paddingHorizontal: 8, paddingVertical: 4 },
+  statusBadgeText: { color: '#10B981', fontSize: 11, fontWeight: '800' },
+  tableRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm },
+  tableCell: { flex: 1 },
+  tableLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', marginBottom: 3 },
+  tableValue: { fontSize: 13, fontWeight: '700' },
+  tapHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xs },
   downloadButton: { minHeight: 42, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, marginBottom: Spacing.xs},
   downloadText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   filterRow: { gap: Spacing.sm, paddingBottom: Spacing.sm },
   filterChip: { borderWidth: 1, borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
   filterText: { fontSize: 12, fontWeight: '800' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.45)' },
+  detailSheet: { maxHeight: '86%', borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, borderBottomWidth: 0, padding: Spacing.md },
+  closeButton: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  detailScroll: { marginTop: Spacing.sm },
+  auditGrid: { gap: 6, paddingBottom: Spacing.sm },
+  auditText: { fontSize: 13, fontWeight: '600' },
+  productsBlock: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: Spacing.sm, paddingTop: Spacing.sm },
+  productRow: { paddingVertical: 8 },
+  productName: { fontSize: 13, fontWeight: '800' },
+  productMeta: { fontSize: 12, marginTop: 2 },
 });

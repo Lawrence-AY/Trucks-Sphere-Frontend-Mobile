@@ -15,20 +15,31 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { createWarehouseJob, fetchDeliveryOrders, fetchMaterials, fetchPurchaseOrders, fetchVendors, fetchWarehouseJobs } from '../../services/api';
+import { createWarehouseJob, fetchDeliveryOrders, fetchMaterials, fetchPurchaseOrders, fetchVendors, fetchWarehouseJobs, previewWarehouseShipmentFile } from '../../services/api';
 import { uploadWarehousePackagingPhoto, type UploadFile } from '../../services/uploadService';
 import { Driver, Material, PurchaseOrder, Vehicle, Vendor, WarehouseJob } from '../../store/types';
 import { useAuthStore } from '../../store/authStore';
 import { isActiveJob } from '../../utils/jobStatus';
 import { normalizeRole } from '../../utils/access';
 
-type DraftLine = { id: string; productName: string; quantity: string; unit: string };
+type DraftLine = { id: string; productName: string; quantity: string; unit: string; source?: string; mrfNo?: string; additionalNotes?: string; sourceData?: Record<string, string> };
 type PackagingPhoto = UploadFile & { displayName: string };
+type DispatchMethod = 'purchase_order' | 'file_upload';
+const REQUIRED_CSV_COLUMNS = ['Description', 'Quantity', 'Unit', 'MRF No.', 'Additional Notes'];
+const SPREADSHEET_MIME_TYPES = [
+  'text/csv',
+  'application/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+];
 const UNIT_OPTIONS = [
   { id: 'tonnes', name: 'Tonnes' },
   { id: 'kilograms', name: 'Kilograms' },
@@ -59,9 +70,14 @@ export default function WarehouseQueueScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [dispatchMethod, setDispatchMethod] = useState<DispatchMethod>('purchase_order');
   const [purchaseOrderId, setPurchaseOrderId] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([makeLine()]);
+  const [csvFileName, setCsvFileName] = useState('');
+  const [csvPreviewError, setCsvPreviewError] = useState('');
+  const [csvPreviewOpen, setCsvPreviewOpen] = useState(true);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [packagingPhoto, setPackagingPhoto] = useState<PackagingPhoto | null>(null);
   const [uploadingPhotoJobId, setUploadingPhotoJobId] = useState<string | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -97,7 +113,7 @@ export default function WarehouseQueueScreen() {
   const todaysJobs = useMemo(() => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-    return visibleJobs.filter((job) => job.submittedAt && new Date(job.submittedAt) >= startOfToday);
+    return visibleJobs.filter((job: any) => !job.dispatchedToSiteAt && job.submittedAt && new Date(job.submittedAt) >= startOfToday);
   }, [visibleJobs]);
   const selectedPurchaseOrder = purchaseOrders.find((order) => order.id === purchaseOrderId);
   const warehouseMaterialIds = useMemo(
@@ -116,9 +132,14 @@ export default function WarehouseQueueScreen() {
   );
 
   const resetSheet = () => {
+    setDispatchMethod('purchase_order');
     setPurchaseOrderId('');
     setVendorId('');
     setLines([makeLine()]);
+    setCsvFileName('');
+    setCsvPreviewError('');
+    setCsvPreviewOpen(true);
+    setCsvHeaders([]);
     setPackagingPhoto(null);
   };
 
@@ -136,6 +157,42 @@ export default function WarehouseQueueScreen() {
 
   const updateLine = (id: string, changes: Partial<DraftLine>) => {
     setLines((current) => current.map((line) => line.id === id ? { ...line, ...changes } : line));
+  };
+
+  const selectSpreadsheet = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: SPREADSHEET_MIME_TYPES,
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled) return;
+      const asset = result.assets?.[0];
+      if (!asset || !/\.(csv|xlsx)$/i.test(asset.name || '')) {
+        Alert.alert('Spreadsheet upload', 'Select a CSV or Excel .xlsx file.');
+        return;
+      }
+
+      setDispatchMethod('file_upload');
+      setCsvFileName(asset.name || 'warehouse-delivery.csv');
+      const preview = await previewWarehouseShipmentFile(asset);
+      const previewLines = preview.rows.map((row, index) => ({
+        id: `upload-${Date.now()}-${index}`,
+        productName: row.item.productName,
+        quantity: row.item.quantity,
+        unit: row.item.unit || 'tonnes',
+        source: row.item.source,
+        mrfNo: row.item.mrfNo,
+        additionalNotes: row.item.additionalNotes,
+        sourceData: row.item.sourceData,
+      }));
+      setLines(previewLines);
+      setCsvHeaders(preview.headers || []);
+      setCsvPreviewOpen(true);
+      setCsvPreviewError(preview.counts.invalid ? 'Review the preview: every row needs a description and quantity greater than zero.' : '');
+    } catch (error: any) {
+      Alert.alert('Spreadsheet upload', error?.message || 'Could not preview this file.');
+    }
   };
 
   const capturePackagingPhoto = async () => {
@@ -210,15 +267,18 @@ export default function WarehouseQueueScreen() {
     }
   };
 
+  const hasValidShipmentLines = lines.length > 0 &&
+    lines.every((line) => line.productName.trim() && Number.isFinite(Number(line.quantity)) && Number(line.quantity) > 0);
   const canSubmit = Boolean(
-    purchaseOrderId && vendorId && packagingPhoto &&
-    lines.length > 0 &&
-    lines.every((line) => line.productName.trim() && line.unit.trim() && Number.isFinite(Number(line.quantity)) && Number(line.quantity) > 0),
+    purchaseOrderId &&
+    hasValidShipmentLines &&
+    !csvPreviewError &&
+    (dispatchMethod === 'file_upload' || packagingPhoto),
   );
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      Alert.alert('Complete the submission', 'Choose the purchase order, packaging photo, and product quantities.');
+      Alert.alert('Complete the submission', 'Choose the purchase order and confirm each product has a description and quantity greater than zero.');
       return;
     }
 
@@ -227,34 +287,38 @@ export default function WarehouseQueueScreen() {
       const job = await createWarehouseJob({
         purchaseOrderId,
         vendorId,
-        items: lines.map((line) => ({ productName: line.productName.trim(), quantity: Number(line.quantity), unit: line.unit.trim() })),
+        workflowType: dispatchMethod === 'file_upload' ? 'bulk_upload' : 'manual_purchase_order',
+        goodsDeliveryNoteSource: dispatchMethod === 'file_upload' ? 'spreadsheet' : 'manual',
+        goodsDeliveryNoteFileName: csvFileName,
+        goodsDeliveryNoteHeaders: csvHeaders,
+        items: lines.map((line) => ({
+          productName: line.productName.trim(),
+          quantity: Number(line.quantity),
+          unit: line.unit.trim() || 'tonnes',
+          source: String(line.source || 'Warehouse').trim(),
+          description: line.productName.trim(),
+          mrfNo: String(line.mrfNo || '').trim(),
+          additionalNotes: String(line.additionalNotes || '').trim(),
+          sourceData: line.sourceData || {},
+        })),
         createdByUid: user?.uid || '',
         createdByName: user?.displayName || user?.email || '',
       }) as WarehouseJob;
-      let submittedJob = job;
-      let packagingUploadFailed = false;
-      if (packagingPhoto) {
-        try {
-          const uploaded = await uploadWarehousePackagingPhoto(job.id, packagingPhoto);
-          submittedJob = {
-            ...job,
-            packagingPhotoURL: uploaded.photoURL,
-            packagingPhotoFileName: packagingPhoto.name,
-          };
-        } catch {
-          // The delivery order is already submitted to the site. Avoid a
-          // second submission that would create a duplicate delivery.
-          packagingUploadFailed = true;
-        }
+      let completedJob = job;
+      if (packagingPhoto && dispatchMethod === 'purchase_order') {
+        const uploaded = await uploadWarehousePackagingPhoto(job.id, packagingPhoto);
+        completedJob = {
+          ...job,
+          packagingPhotoURL: uploaded.photoURL,
+          packagingPhotoFileName: packagingPhoto.name,
+        };
       }
-      setJobs((current) => [submittedJob, ...current]);
+      setJobs((current) => current.filter((entry) => entry.id !== completedJob.id));
       setSheetVisible(false);
       resetSheet();
       Alert.alert(
         'Warehouse delivery submitted',
-        packagingUploadFailed
-          ? `${job.jobId}\nThe delivery was submitted to the Site Schedule, but the packaging photo was not saved.`
-          : `${job.jobId}\nThe delivery is now on the Site Schedule for acceptance, then inspection.`,
+        `${job.jobId}\nThe delivery is now on the Site Schedule for acceptance, then inspection.`,
       );
     } catch (error: any) {
       Alert.alert('Could not submit delivery', error?.message || 'Please try again.');
@@ -271,13 +335,6 @@ export default function WarehouseQueueScreen() {
 
   const renderJob = ({ item }: { item: WarehouseJob }) => (
     <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={styles.jobHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.jobId, { color: colors.text }]}>{item.jobId}</Text>
-          <Text style={[styles.reference, { color: colors.textMuted }]}>Purchase order: {purchaseOrderReference(item)}</Text>
-        </View>
-       
-      </View>
 
       <View style={styles.assignmentRow}>
         <Ionicons name="business-outline" size={16} color={colors.textMuted} />
@@ -293,16 +350,7 @@ export default function WarehouseQueueScreen() {
             <Text style={styles.photoHintText}>View photo</Text>
           </View>
         </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={[styles.missingPhotoButton, { borderColor: '#D97706', backgroundColor: '#FEF3C7' }]}
-          disabled={uploadingPhotoJobId === item.id}
-          onPress={() => attachMissingPackagingPhoto(item)}
-        >
-          {uploadingPhotoJobId === item.id ? <ActivityIndicator color="#B45309" /> : <Ionicons name="camera-outline" size={17} color="#B45309" />}
-          <Text style={styles.missingPhotoText}>{uploadingPhotoJobId === item.id ? 'Attaching photo...' : 'Add required packaging photo'}</Text>
-        </TouchableOpacity>
-      )}
+      ) : null}
 
       <View style={[styles.items, { borderTopColor: colors.border }]}>
         {(expandedProductJobIds.has(item.id) ? item.items : item.items.slice(0, 1)).map((line, index) => (
@@ -378,6 +426,43 @@ export default function WarehouseQueueScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
+              <View style={styles.methodRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.methodOption,
+                    { borderColor: dispatchMethod === 'purchase_order' ? colors.primary : colors.border, backgroundColor: dispatchMethod === 'purchase_order' ? colors.primary : colors.inputBg },
+                  ]}
+                  onPress={() => {
+                    setDispatchMethod('purchase_order');
+                    setCsvFileName('');
+                    setCsvPreviewError('');
+                    setCsvPreviewOpen(true);
+                    setCsvHeaders([]);
+                    setLines([makeLine()]);
+                  }}
+                >
+                  <Ionicons name="document-text-outline" size={18} color={dispatchMethod === 'purchase_order' ? '#FFFFFF' : colors.primaryText} />
+                  <Text style={[styles.methodText, { color: dispatchMethod === 'purchase_order' ? '#FFFFFF' : colors.text }]}>Warehouse purchase order</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.methodOption,
+                    { borderColor: dispatchMethod === 'file_upload' ? colors.primary : colors.border, backgroundColor: dispatchMethod === 'file_upload' ? colors.primary : colors.inputBg },
+                  ]}
+                  onPress={() => {
+                    setDispatchMethod('file_upload');
+                    setPackagingPhoto(null);
+                    setCsvPreviewError('');
+                    setCsvPreviewOpen(true);
+                    setCsvHeaders([]);
+                    setLines([]);
+                  }}
+                >
+                  <Ionicons name="cloud-upload-outline" size={18} color={dispatchMethod === 'file_upload' ? '#FFFFFF' : colors.primaryText} />
+                  <Text style={[styles.methodText, { color: dispatchMethod === 'file_upload' ? '#FFFFFF' : colors.text }]}>CSV or Excel upload</Text>
+                </TouchableOpacity>
+              </View>
+
               <Select
                 nativeModal
                 label="Warehouse purchase order"
@@ -394,23 +479,58 @@ export default function WarehouseQueueScreen() {
                 placeholder="Select a warehouse-material order"
               />
 
-
-              <View style={styles.productsHeader}>
-                <View>
-                  <Text style={[styles.productsTitle, { color: colors.text }]}>Products</Text>
-                  <Text style={[styles.productsSubtitle, { color: colors.textMuted }]}>Add every product in this delivery.</Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.addProductButton, { borderColor: colors.primary }]}
-                  onPress={() => setLines((current) => [...current, makeLine()])}
-                >
-                  <Ionicons name="add" size={17} color={colors.primaryText} />
-                  <Text style={[styles.addProductText, { color: colors.primaryText }]}>Add product</Text>
+              {dispatchMethod === 'file_upload' ? (
+                <TouchableOpacity style={[styles.csvButton, { borderColor: colors.border, backgroundColor: colors.inputBg }]} onPress={selectSpreadsheet}>
+                  <Ionicons name="cloud-upload-outline" size={22} color={colors.primaryText} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.csvTitle, { color: colors.text }]}>{csvFileName || 'Upload CSV or Excel file'}</Text>
+                    <Text style={[styles.csvSubtitle, { color: colors.textMuted }]}>{REQUIRED_CSV_COLUMNS.join(', ')}</Text>
+                  </View>
                 </TouchableOpacity>
-              </View>
+              ) : null}
 
-              {lines.map((line) => (
-                <View key={line.id} style={[styles.lineCard, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
+              {dispatchMethod === 'file_upload' && csvFileName ? (
+                <View style={[styles.csvPreview, { borderColor: csvPreviewError ? '#DC2626' : colors.border }]}>
+                  <TouchableOpacity style={styles.csvPreviewToggle} onPress={() => setCsvPreviewOpen((open) => !open)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.csvPreviewTitle, { color: csvPreviewError ? '#DC2626' : colors.text }]}>
+                        {csvPreviewError || `${lines.length} item${lines.length === 1 ? '' : 's'} ready for confirmation`}
+                      </Text>
+                      <Text style={[styles.csvPreviewMeta, { color: colors.textMuted }]}>Tap to {csvPreviewOpen ? 'collapse' : 'review'} parsed shipment lines</Text>
+                    </View>
+                    <Ionicons name={csvPreviewOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
+                  {csvPreviewOpen ? (
+                    <ScrollView style={styles.csvPreviewList} nestedScrollEnabled>
+                      {lines.map((line, index) => (
+                        <View key={line.id} style={[styles.csvPreviewRow, index ? { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth } : null]}>
+                          <Text style={[styles.csvPreviewName, { color: colors.text }]} numberOfLines={2}>{line.productName || 'No description'}</Text>
+                          <Text style={[styles.csvPreviewMeta, { color: colors.textMuted }]} numberOfLines={1}>{line.source || 'Warehouse'} - {line.quantity || 0} {line.unit || 'tonnes'} - MRF {line.mrfNo || '-'}</Text>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {dispatchMethod === 'purchase_order' ? (
+                <>
+                  <View style={styles.productsHeader}>
+                    <View>
+                      <Text style={[styles.productsTitle, { color: colors.text }]}>Products</Text>
+                      <Text style={[styles.productsSubtitle, { color: colors.textMuted }]}>Add every product in this delivery.</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.addProductButton, { borderColor: colors.primary }]}
+                      onPress={() => setLines((current) => [...current, makeLine()])}
+                    >
+                      <Ionicons name="add" size={17} color={colors.primaryText} />
+                      <Text style={[styles.addProductText, { color: colors.primaryText }]}>Add product</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {lines.map((line) => (
+                    <View key={line.id} style={[styles.lineCard, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
                   {lines.length > 1 ? (
                     <TouchableOpacity
                       accessibilityLabel="Remove product"
@@ -421,12 +541,19 @@ export default function WarehouseQueueScreen() {
                     </TouchableOpacity>
                   ) : null}
                   <Input
-                    label="Product name"
+                    label="Description"
                     value={line.productName}
                     onChangeText={(productName) => updateLine(line.id, { productName })}
                     icon="cube-outline"
                     required
-                    placeholder="Type the product name"
+                    placeholder="Type the product description"
+                  />
+                  <Input
+                    label="Source"
+                    value={line.source || ''}
+                    onChangeText={(source) => updateLine(line.id, { source })}
+                    icon="git-branch-outline"
+                    placeholder="Material source"
                   />
                   <ResponsiveGrid style={styles.assignmentGrid}>
                     <View style={styles.assignmentField}>
@@ -453,48 +580,62 @@ export default function WarehouseQueueScreen() {
                       />
                     </View>
                   </ResponsiveGrid>
-                </View>
-              ))}
-
-              <View style={[styles.packagingSection, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                <View style={styles.packagingHeader}>
-                  <View style={styles.packagingTitleRow}>
-                    <View style={[styles.packagingIcon, { backgroundColor: `${colors.primary}15` }]}>
-                      <Ionicons name="camera-outline" size={21} color={colors.primaryText} />
+                  <Input
+                    label="MRF No."
+                    value={line.mrfNo || ''}
+                    onChangeText={(mrfNo) => updateLine(line.id, { mrfNo })}
+                    icon="receipt-outline"
+                    placeholder="MRF number"
+                  />
+                  <Input
+                    label="Additional Notes"
+                    value={line.additionalNotes || ''}
+                    onChangeText={(additionalNotes) => updateLine(line.id, { additionalNotes })}
+                    icon="document-text-outline"
+                    placeholder="Optional notes"
+                  />
                     </View>
-                    <Text style={[styles.packagingTitle, { color: colors.text }]}>Packaging photo</Text>
+                  ))}
+
+                  <View style={[styles.packagingSection, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
+                    <View style={styles.packagingHeader}>
+                      <View style={styles.packagingTitleRow}>
+                        <View style={[styles.packagingIcon, { backgroundColor: colors.surface }]}>
+                          <Ionicons name="camera-outline" size={20} color={colors.primaryText} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.packagingTitle, { color: colors.text }]}>Dispatch photo</Text>
+                          <Text style={[styles.packagingSubtitle, { color: colors.textMuted }]}>Attach a shipment image from camera or gallery.</Text>
+                        </View>
+                      </View>
+                    </View>
+                    {packagingPhoto ? (
+                      <Image source={{ uri: packagingPhoto.uri }} style={styles.packagingLargePreview} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.packagingLargePreview, styles.photoPlaceholder, { backgroundColor: colors.surface }]}>
+                        <Ionicons name="image-outline" size={28} color={colors.textMuted} />
+                        <Text style={[styles.photoPlaceholderText, { color: colors.textMuted }]}>No photo attached</Text>
+                      </View>
+                    )}
+                    <View style={styles.packagingActions}>
+                      <TouchableOpacity style={[styles.packagingButton, { borderColor: colors.border }]} onPress={capturePackagingPhoto}>
+                        <Ionicons name="camera-outline" size={17} color={colors.primaryText} />
+                        <Text style={[styles.packagingButtonText, { color: colors.primaryText }]}>Take a photo</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.packagingButton, { borderColor: colors.border }]} onPress={choosePackagingPhoto}>
+                        <Ionicons name="images-outline" size={17} color={colors.primaryText} />
+                        <Text style={[styles.packagingButtonText, { color: colors.primaryText }]}>Upload Image</Text>
+                      </TouchableOpacity>
+                      {packagingPhoto ? (
+                        <TouchableOpacity style={[styles.packagingRemoveButton, { borderColor: '#DC2626' }]} onPress={() => setPackagingPhoto(null)}>
+                          <Ionicons name="trash-outline" size={17} color="#DC2626" />
+                          <Text style={[styles.packagingButtonText, { color: '#DC2626' }]}>Remove</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
                   </View>
-                  <View style={[styles.photoStatusBadge, { backgroundColor: packagingPhoto ? '#10B98115' : '#EF444415' }]}>
-                    <Ionicons name={packagingPhoto ? 'checkmark-circle' : 'alert-circle'} size={14} color={packagingPhoto ? '#10B981' : '#EF4444'} />
-                    <Text style={[styles.photoStatusText, { color: packagingPhoto ? '#10B981' : '#EF4444' }]}>{packagingPhoto ? 'Captured' : 'Required'}</Text>
-                  </View>
-                </View>
-                <Text style={[styles.packagingSubtitle, { color: colors.textMuted }]}>Take a photo or upload an image of the product packaging before submitting the shipment.</Text>
-                {packagingPhoto ? (
-                  <Image source={{ uri: packagingPhoto.uri }} style={styles.packagingLargePreview} resizeMode="cover" />
-                ) : (
-                  <View style={[styles.packagingLargePreview, styles.photoPlaceholder, { backgroundColor: colors.inputBg }]}>
-                    <Ionicons name="camera-outline" size={44} color={colors.textMuted} />
-                    <Text style={[styles.photoPlaceholderText, { color: colors.textMuted }]}>No photo captured</Text>
-                  </View>
-                )}
-                <View style={styles.packagingActions}>
-                  <TouchableOpacity accessibilityRole="button" accessibilityLabel="Upload shipment image" style={[styles.packagingButton, { backgroundColor: colors.inputBg, borderColor: colors.border }]} onPress={() => { void choosePackagingPhoto().catch((error) => Alert.alert('Image selection failed', error?.message || 'Please try again.')); }}>
-                    <Ionicons name="image-outline" size={20} color={colors.primaryText} />
-                    <Text style={[styles.packagingButtonText, { color: colors.primaryText }]}>{packagingPhoto ? 'Replace image' : 'Upload image'}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.packagingButton, { backgroundColor: packagingPhoto ? '#10B98115' : colors.inputBg, borderColor: packagingPhoto ? '#10B98133' : colors.border }]} onPress={capturePackagingPhoto}>
-                    <Ionicons name="camera-outline" size={20} color={packagingPhoto ? '#10B981' : colors.primary} />
-                    <Text style={[styles.packagingButtonText, { color: packagingPhoto ? '#10B981' : colors.primary }]}>{packagingPhoto ? 'Retake photo' : 'Take photo'}</Text>
-                  </TouchableOpacity>
-                  {packagingPhoto ? (
-                    <TouchableOpacity style={[styles.packagingRemoveButton, { backgroundColor: '#EF444415', borderColor: '#EF444433' }]} onPress={() => setPackagingPhoto(null)}>
-                      <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                      <Text style={[styles.packagingButtonText, { color: '#EF4444' }]}>Remove</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              </View>
+                </>
+              ) : null}
 
               <TouchableOpacity
                 style={[styles.submitButton, { backgroundColor: canSubmit && !saving ? colors.primary : colors.border }]}
@@ -533,6 +674,8 @@ const styles = StyleSheet.create({
   reference: { fontSize: 12, marginTop: Spacing.xs},
   status: { borderRadius: Radius.full, paddingHorizontal: 9, paddingVertical: 5 },
   statusText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
+  grnButton: { minHeight: 34, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  grnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   assignmentRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.xs},
   assignmentText: { fontSize: 13, fontWeight: '600', marginRight: Spacing.sm },
   items: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: Spacing.xs, paddingTop: Spacing.sm, gap: 6 },
@@ -541,7 +684,7 @@ const styles = StyleSheet.create({
   itemQuantity: { fontSize: 12, fontWeight: '700' },
   readMoreButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: Spacing.xs, paddingVertical: 3 },
   readMoreText: { fontSize: 12, fontWeight: '800' },
-  fab: { position: 'absolute', right: 22, bottom: 26, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', elevation: 7, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 5 },
+  fab: { position: 'absolute', right: 22, bottom: 26, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', elevation: 7, boxShadow: '0px 3px 5px rgba(0,0,0,0.25)' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.5)' },
   sheet: { width: '100%', maxWidth: 960, alignSelf: 'center', maxHeight: '92%', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0 },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md, padding: Spacing.lg, paddingBottom: Spacing.sm },
@@ -554,6 +697,19 @@ const styles = StyleSheet.create({
   assignmentGrid: { flexDirection: 'row', gap: Spacing.sm },
   assignmentField: { flex: 1 },
   busyAssignmentText: { color: '#B45309', fontSize: 12, fontWeight: '700', marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  methodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.xs },
+  methodOption: { flex: 1, flexBasis: '45%', minHeight: 46, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  methodText: { fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  csvButton: { minHeight: 72, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs },
+  csvTitle: { fontSize: 14, fontWeight: '800' },
+  csvSubtitle: { fontSize: 11, lineHeight: 16, marginTop: 3 },
+  csvPreview: { borderWidth: 1, borderRadius: Radius.md, padding: Spacing.sm, marginBottom: Spacing.xs },
+  csvPreviewToggle: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  csvPreviewTitle: { fontSize: 12, fontWeight: '800' },
+  csvPreviewList: { maxHeight: 280, marginTop: Spacing.xs },
+  csvPreviewRow: { paddingVertical: 7 },
+  csvPreviewName: { fontSize: 13, fontWeight: '800' },
+  csvPreviewMeta: { fontSize: 11, marginTop: 2 },
   productsHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.md, marginTop: Spacing.xs, marginBottom: Spacing.xs},
   productsTitle: { fontSize: 17, fontWeight: '800' },
   productsSubtitle: { fontSize: 12, marginTop: Spacing.xs},

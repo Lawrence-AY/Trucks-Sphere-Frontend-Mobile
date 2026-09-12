@@ -277,11 +277,17 @@ export interface WarehouseJobItem {
   materialName: string;
   quantity: number;
   unit: string;
+  source?: string;
+  description?: string;
+  mrfNo?: string;
+  additionalNotes?: string;
+  sourceData?: Record<string, string>;
 }
 
 export interface WarehouseJob extends AuditTrail {
   id: string;
   deliveryOrderId: string;
+  receiptNoteId?: string;
   jobId: string;
   warehouseReference: string;
   pomatReference: string;
@@ -300,6 +306,11 @@ export interface WarehouseJob extends AuditTrail {
   warehouseAcceptedAt?: string | null;
   warehouseAcceptedByName?: string;
   submittedAt: string;
+  workflowType?: 'bulk_upload' | 'manual_purchase_order';
+  goodsDeliveryNoteSource?: string;
+  goodsDeliveryNoteFileName?: string;
+  goodsDeliveryNoteHeaders?: string[];
+  dispatchedToSiteAt?: string;
   packagingPhotoURL?: string;
   packagingPhotoCapturedAt?: string;
   packagingPhotoFileName?: string;
