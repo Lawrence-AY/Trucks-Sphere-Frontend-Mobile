@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Spacing } from '../constants/theme';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { isManagementRole, managementHomeRoute } from '../utils/access';
 
 const LOADING_MESSAGES = [
@@ -14,6 +14,7 @@ const LOADING_MESSAGES = [
 ];
 
 export default function IndexScreen() {
+  const useNativeDriver = Platform.OS !== 'web';
   const { isAuthenticated, isLoading } = useAuthStore();
   const [messageIndex, setMessageIndex] = useState(0);
   const truckX = useRef(new Animated.Value(-120)).current;
@@ -29,8 +30,8 @@ export default function IndexScreen() {
 
     Animated.loop(
       Animated.sequence([
-        Animated.timing(smoke, { toValue: 1, duration: 1200, useNativeDriver: true }),
-        Animated.timing(smoke, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(smoke, { toValue: 1, duration: 1200, useNativeDriver }),
+        Animated.timing(smoke, { toValue: 0, duration: 500, useNativeDriver }),
       ])
     ).start();
 
@@ -39,7 +40,7 @@ export default function IndexScreen() {
         toValue: 42,
         duration: 2600,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver,
       }),
       Animated.timing(progress, {
         toValue: 1,
@@ -50,8 +51,8 @@ export default function IndexScreen() {
       Animated.sequence([
         Animated.delay(1450),
         Animated.parallel([
-          Animated.timing(logoOpacity, { toValue: 1, duration: 650, useNativeDriver: true }),
-          Animated.spring(logoScale, { toValue: 1, friction: 7, tension: 70, useNativeDriver: true }),
+          Animated.timing(logoOpacity, { toValue: 1, duration: 650, useNativeDriver }),
+          Animated.spring(logoScale, { toValue: 1, friction: 7, tension: 70, useNativeDriver }),
         ]),
       ]),
     ]).start();
@@ -79,6 +80,7 @@ export default function IndexScreen() {
         case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
         case 'inspector': router.replace('/inspector' as any); break;
         case 'operator_warehouse': router.replace('/warehouse' as any); break;
+        case 'storeman': router.replace('/store-account' as any); break;
         default: router.replace('/management/dashboard' as any);
       }
     }, 900);

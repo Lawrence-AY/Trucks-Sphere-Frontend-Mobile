@@ -26,7 +26,7 @@ import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { jobRepository } from '../../services/repositories/JobRepository';
-import { Job } from '../../store/types';
+import { Job } from '@/store/types';
 
 const STATUS_SECTIONS = [
   { key: 'dispatch', label: 'Pending Dispatch', statuses: ['draft', 'assigned', 'ready'], icon: 'time-outline' as const },

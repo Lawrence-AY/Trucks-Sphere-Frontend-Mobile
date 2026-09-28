@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { Spacing } from '../../constants/theme';
 import { CommandHeader, DataCard, DetailRow, PageShell, SectionTitle } from '../../components/EnterpriseUI';
 import { getRoleLabel } from '../../utils/helpers';

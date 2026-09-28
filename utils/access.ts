@@ -22,7 +22,7 @@ export const MANAGEMENT_ROLE_OPTIONS = [
   { id: MANAGEMENT_ROLES.ADMIN_LITE, name: 'Admin Lite' },
 ] as const;
 
-const ROLE_ALIASES: Record<string, ManagementRole> = {
+const ROLE_ALIASES: Record<string, string> = {
   superadmin: MANAGEMENT_ROLES.SUPER_ADMIN,
   super_admin: MANAGEMENT_ROLES.SUPER_ADMIN,
   admin: MANAGEMENT_ROLES.ADMIN,
@@ -32,6 +32,11 @@ const ROLE_ALIASES: Record<string, ManagementRole> = {
   adminlite: MANAGEMENT_ROLES.ADMIN_LITE,
   admin_lite: MANAGEMENT_ROLES.ADMIN_LITE,
   management_lite: MANAGEMENT_ROLES.ADMIN_LITE,
+  storeman: 'storeman',
+  store_keeper: 'storeman',
+  storekeeper: 'storeman',
+  warehouse_operator: 'operator_warehouse',
+  'operator-warehouse': 'operator_warehouse',
 };
 
 export function normalizeRole(role?: string): string {
@@ -60,6 +65,7 @@ export function homeRouteForRole(role?: string): string {
     case 'operator_quarry': return '/operator-quarry/dashboard';
     case 'operator_fuel': return '/operator-fuel/dispense';
     case 'operator_warehouse': return '/warehouse';
+    case 'storeman': return '/store-account';
     case 'inspector': return '/inspector';
     default: return '/(auth)/login';
   }
@@ -74,6 +80,7 @@ const ALL_AUTHENTICATED_ROLES = [
   'operator_quarry',
   'operator_fuel',
   'operator_warehouse',
+  'storeman',
   'inspector',
 ];
 
@@ -81,7 +88,8 @@ const ALL_AUTHENTICATED_ROLES = [
 const SPECIAL_ROUTE_ACCESS: Array<{ prefix: string; roles: string[] }> = [
   { prefix: '/operations/jobs', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/operations', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
-  { prefix: '/warehouse', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, 'operator_warehouse'] },
+  { prefix: '/warehouse', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, 'operator_warehouse', 'storeman'] },
+  { prefix: '/store-account', roles: ['storeman'] },
   { prefix: '/vendor', roles: ['vendor'] },
   { prefix: '/operator-site', roles: ['operator_site'] },
   { prefix: '/operator-quarry', roles: ['operator_quarry'] },

@@ -36,10 +36,10 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { purchaseOrderRepository } from '../../../services/repositories/PurchaseOrderRepository';
-import { PurchaseOrder } from '../../../store/types';
+import { PurchaseOrder } from '@/store/types';
 import { formatEAT, formatNumber } from '../../../utils/helpers';
 import { StackScreen } from '../../../components/ui/StackScreen';
-import { useAuthStore } from '../../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { hasManagementPermission } from '../../../utils/access';
 
 const BASE_PO_TABS = [

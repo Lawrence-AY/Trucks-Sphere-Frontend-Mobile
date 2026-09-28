@@ -31,7 +31,7 @@ import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
 import { materialRepository } from '../../../services/repositories/MaterialRepository';
 import { showAlertWithCallback } from '../../../utils/webAlert';
-import { MaterialCategory, MeasurementUnit, MaterialProperty } from '../../../store/types';
+import { MaterialCategory, MeasurementUnit } from '@/store/types';
 
 const CATEGORIES: { id: MaterialCategory; name: string }[] = [
   { id: 'Aggregates', name: 'Aggregates' },
@@ -39,7 +39,7 @@ const CATEGORIES: { id: MaterialCategory; name: string }[] = [
   { id: 'Cement', name: 'Cement' },
   { id: 'Liquid', name: 'Liquid' },
   { id: 'Blocks', name: 'Blocks' },
- 
+  { id: 'Other', name: 'Other' },
 ];
 
 const MEASUREMENT_UNITS: { id: MeasurementUnit; name: string }[] = [
@@ -53,13 +53,6 @@ const MEASUREMENT_UNITS: { id: MeasurementUnit; name: string }[] = [
   { id: 'Kilograms', name: 'Kilograms' },
 ];
 
-const PROPERTY_TYPES = [
-  { id: 'text', name: 'Text' },
-  { id: 'number', name: 'Number' },
-  { id: 'select', name: 'Select (Dropdown)' },
-  { id: 'boolean', name: 'Boolean (Yes/No)' },
-];
-
 export default function CreateMaterialScreen() {
   const colors = useTheme();
   const insets = useSafeAreaInsets();
@@ -69,13 +62,10 @@ export default function CreateMaterialScreen() {
     category: '' as string,
     measurementType: '' as string,
     description: '',
-    unitPrice: '',
-    salesPrice: '',
     barcode: '',
     isWarehouseMaterial: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [properties, setProperties] = useState<MaterialProperty[]>([]);
 
   function updateField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -88,34 +78,11 @@ export default function CreateMaterialScreen() {
     }
   }
 
-  function addProperty() {
-    setProperties((prev) => [
-      ...prev,
-      { name: '', label: '', type: 'text', required: false, options: [] },
-    ]);
-  }
-
-  function updateProperty(index: number, field: string, value: any) {
-    setProperties((prev) => {
-      const copy = [...prev];
-      copy[index] = { ...copy[index], [field]: value };
-      return copy;
-    });
-  }
-
-  function removeProperty(index: number) {
-    setProperties((prev) => prev.filter((_, i) => i !== index));
-  }
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!form.name.trim()) newErrors.name = 'Material name is required';
     if (!form.isWarehouseMaterial && !form.category) newErrors.category = 'Category is required';
-    for (const field of ['unitPrice', 'salesPrice'] as const) {
-      if (!form.isWarehouseMaterial && form[field].trim() && (!Number.isFinite(Number(form[field])) || Number(form[field]) < 0)) {
-        newErrors[field] = 'Enter a valid non-negative number';
-      }
-    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -131,9 +98,6 @@ export default function CreateMaterialScreen() {
         category: form.category as MaterialCategory,
         ...(form.measurementType ? { measurementType: form.measurementType as MeasurementUnit } : {}),
         description: form.description.trim() || undefined,
-        unitPrice: form.unitPrice.trim() ? Number(form.unitPrice) : undefined,
-        salesPrice: form.salesPrice.trim() ? Number(form.salesPrice) : undefined,
-        properties: properties.length > 0 ? properties : undefined,
         } : {}),
         isWarehouseMaterial: form.isWarehouseMaterial,
         status: 'active',
@@ -142,10 +106,9 @@ export default function CreateMaterialScreen() {
       materialRepository.invalidateCache();
       setForm({
         name: '', category: '', measurementType: '',
-        description: '', unitPrice: '', salesPrice: '', barcode: '',
+        description: '', barcode: '',
         isWarehouseMaterial: false,
       });
-      setProperties([]);
       setErrors({});
       await showAlertWithCallback('Material created', 'Material created successfully.', () => router.back());
     } catch (err: any) {
@@ -189,7 +152,6 @@ export default function CreateMaterialScreen() {
           <View style={[styles.warehouseOption, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.warehouseOptionTitle, { color: colors.text }]}>Warehouse reference material</Text>
-              <Text style={[styles.warehouseOptionText, { color: colors.textMuted }]}>Use this custom MAT as the fixed reference for warehouse jobs.</Text>
             </View>
             <Switch
               value={form.isWarehouseMaterial}
@@ -233,89 +195,9 @@ export default function CreateMaterialScreen() {
             multiline
             numberOfLines={3}
           />
-          <Input
-            label="Purchase Cost (KES)"
-            value={form.unitPrice}
-            onChangeText={(v) => updateField('unitPrice', v)}
-            placeholder="Optional cost per unit"
-            icon="cash-outline"
-            keyboardType="numeric"
-            error={errors.unitPrice}
-          />
-          <Input
-            label="Sales Price (KES)"
-            value={form.salesPrice}
-            onChangeText={(v) => updateField('salesPrice', v)}
-            placeholder="Optional selling price per unit"
-            icon="pricetag-outline"
-            keyboardType="numeric"
-            error={errors.salesPrice}
-          />
-
           </>}
         </Card>
 
-        {/* Dynamic Properties */}
-        {!form.isWarehouseMaterial && <View style={styles.propertiesSection}>
-          <View style={styles.propertiesHeader}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Properties</Text>
-            <TouchableOpacity onPress={addProperty} style={styles.addPropBtn}>
-              <Ionicons name="add-circle-outline" size={20} color={colors.primaryText} />
-              <Text style={[styles.addPropText, { color: colors.primaryText }]}>Add Property</Text>
-            </TouchableOpacity>
-          </View>
-
-          {properties.length === 0 ? (
-            <Text style={[styles.noProps, { color: colors.textMuted }]}>
-              No custom properties defined. Properties will be auto-suggested based on category.
-            </Text>
-          ) : (
-            properties.map((prop, index) => (
-              <Card key={index}>
-                <View style={styles.propRow}>
-                  <View style={{ flex: 1 }}>
-                    <Input
-                      label="Property Name"
-                      value={prop.name}
-                      onChangeText={(v) => updateProperty(index, 'name', v)}
-                      placeholder="e.g. diameter"
-                    />
-                  </View>
-                  <TouchableOpacity onPress={() => removeProperty(index)} style={styles.removeProp}>
-                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-
-                <ResponsiveGrid minItemWidth={280} maxColumns={2}>
-<Select
-                  label="Type"
-                  value={prop.type}
-                  options={PROPERTY_TYPES}
-                  onSelect={(v) => updateProperty(index, 'type', v)}
-                  icon="options-outline"
-                />
-
-                <Input
-                  label="Display Label"
-                  value={prop.label}
-                  onChangeText={(v) => updateProperty(index, 'label', v)}
-                  placeholder="e.g. Diameter"
-                />
-</ResponsiveGrid>
-                {prop.type === 'select' && (
-                  <Input
-                    label="Options (comma separated)"
-                    value={prop.options?.join(', ') || ''}
-                    onChangeText={(v) => updateProperty(index, 'options', v.split(',').map((s) => s.trim()))}
-                    placeholder="e.g. 8mm, 10mm, 12mm"
-                  />
-                )}
-              </Card>
-            ))
-          )}
-        </View>
-
-        }
         <View style={styles.actions}>
           <Button
             title="Cancel"

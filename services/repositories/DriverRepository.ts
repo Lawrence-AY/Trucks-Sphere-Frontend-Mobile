@@ -5,7 +5,7 @@
  */
 
 import { BaseRepository } from './BaseRepository';
-import { Driver } from '../../store/types';
+import { Driver } from '@/store/types';
 import api from '../api';
 import { getStoredToken } from '../database';
 

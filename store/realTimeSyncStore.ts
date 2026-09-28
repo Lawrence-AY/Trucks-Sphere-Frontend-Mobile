@@ -630,3 +630,5 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
     set({ collections: {} });
   },
 }));
+
+export default null;

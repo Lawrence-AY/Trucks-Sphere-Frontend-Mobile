@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacit
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, HelperText, Text, TextInput } from 'react-native-paper';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme, useThemeMode } from '../../hooks/useTheme';
 import { isManagementRole, managementHomeRoute, normalizeRole } from '../../utils/access';
@@ -32,6 +32,7 @@ export default function LoginScreen() {
       case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
       case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
       case 'operator_warehouse': router.replace('/warehouse' as any); break;
+      case 'storeman': router.replace('/store-account' as any); break;
       default: router.replace('/management/dashboard' as any);
     }
   }, [isAuthenticated]);

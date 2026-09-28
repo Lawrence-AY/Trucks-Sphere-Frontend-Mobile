@@ -10,7 +10,7 @@
  */
 
 import { BaseRepository } from './BaseRepository';
-import { Job, JobStatus } from '../../store/types';
+import { Job, JobStatus } from '@/store/types';
 import api from '../api';
 import { getStoredToken } from '../database';
 

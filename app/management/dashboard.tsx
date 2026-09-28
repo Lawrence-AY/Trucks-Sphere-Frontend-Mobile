@@ -10,9 +10,9 @@ import {
 import { router } from "expo-router";
 import { useTheme } from "../../hooks/useTheme";
 import { Spacing } from "../../constants/theme";
-import { useAuthStore } from "../../store/authStore";
-import { useRealtimeCollection } from "../../store/realtimeData";
-import { useRealTimeSyncStore } from "../../store/realTimeSyncStore";
+import { useAuthStore } from "@/store/authStore";
+import { useRealtimeCollection } from "@/store/realtimeData";
+import { useRealTimeSyncStore } from "@/store/realTimeSyncStore";
 import { isActiveJob, normalizeJobStatus } from "../../utils/jobStatus";
 import { MANAGEMENT_ROLES, normalizeRole } from "../../utils/access";
 import { ManagementLiteDashboard } from "./lite";

@@ -63,6 +63,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
         role: backendUser.role || 'admin',
         phone: backendUser.phone || '',
         vendorId: backendUser.vendorId || undefined,
+        quarryOperatorType: backendUser.quarryOperatorType || 'general',
         quarryId: backendUser.quarryId || undefined,
         quarryLocation: backendUser.quarryLocation || undefined,
         siteId: backendUser.siteId || undefined,
@@ -138,3 +139,5 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   clearError: () => set({ error: null }),
 }));
+
+export default null;

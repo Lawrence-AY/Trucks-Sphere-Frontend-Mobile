@@ -32,7 +32,7 @@ import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
 import api from '../../../services/api';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
-import { Vendor } from '../../../store/types';
+import { Vendor } from '@/store/types';
 import { generateStrongPassword, getStrongPasswordError, PASSWORD_REQUIREMENTS } from '../../../utils/passwordPolicy';
 
 const STATUS_OPTIONS = [
@@ -84,6 +84,15 @@ export default function CreateVendorScreen() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [generatedUsername, setGeneratedUsername] = useState('');
+  const [kraChecking, setKraChecking] = useState(false);
+  const [kraVerifiedName, setKraVerifiedName] = useState('');
+  const [kraEnabled, setKraEnabled] = useState(false);
+
+  useEffect(() => {
+    api.get<{ kraEnabled?: boolean }>('/api/feature-flags')
+      .then(({ data }) => setKraEnabled(data.kraEnabled === true))
+      .catch(() => setKraEnabled(false));
+  }, []);
 
   useEffect(() => {
     const contactPerson = form.contactPerson.trim();
@@ -119,6 +128,22 @@ export default function CreateVendorScreen() {
         return copy;
       });
     }
+  }
+
+  async function validateKraPin() {
+    const kraPin = form.kraPin.trim();
+    if (!kraPin) return;
+    setKraChecking(true);
+    try {
+      const response = await api.post<{ companyName?: string }>('/api/vendors/validate-kra-pin', { kraPin });
+      const companyName = String(response.data.companyName || '').trim();
+      setKraVerifiedName(companyName);
+      if (companyName && !form.companyName.trim()) updateField('companyName', companyName);
+      setErrors((current) => { const next = { ...current }; delete next.kraPin; return next; });
+    } catch (error: any) {
+      setKraVerifiedName('');
+      setErrors((current) => ({ ...current, kraPin: error?.response?.data?.error || error?.message || 'KRA PIN could not be validated' }));
+    } finally { setKraChecking(false); }
   }
 
   function suggestStrongPassword() {
@@ -228,6 +253,7 @@ export default function CreateVendorScreen() {
         accountStatus: 'active',
       });
       setGeneratedUsername('');
+      setKraVerifiedName('');
       Alert.alert('Success', confirmation, [
         { text: 'View Vendors', onPress: () => router.back() },
       ]);
@@ -259,9 +285,28 @@ export default function CreateVendorScreen() {
 
         <Card>
           <ResponsiveGrid minItemWidth={280} maxColumns={2}>
-<Input
+          <Input
+            label={kraChecking ? 'KRA PIN (checking...)' : 'KRA PIN'}
+            value={form.kraPin}
+            onChangeText={(v) => { setKraVerifiedName(''); updateField('kraPin', v.toUpperCase()); }}
+            onBlur={validateKraPin}
+            placeholder="e.g. P051234567Z"
+            icon="document-text-outline"
+            error={errors.kraPin}
+          />
+          <TouchableOpacity
+            onPress={validateKraPin}
+            disabled={kraChecking || !form.kraPin.trim()}
+            style={[styles.kraVerifyButton, { backgroundColor: kraChecking || !form.kraPin.trim() ? colors.border : colors.primary }]}
+          >
+            <Ionicons name={kraChecking ? 'sync-outline' : 'checkmark-circle-outline'} size={18} color="#fff" />
+            <Text style={styles.kraVerifyText}>{kraChecking ? 'Checking KRA PIN…' : 'Verify KRA PIN'}</Text>
+          </TouchableOpacity>
+          {kraVerifiedName ? <Text style={{ color: '#059669', marginBottom: Spacing.sm }}>KRA taxpayer: {kraVerifiedName}</Text> : null}
+          <Input
             label="Company Name"
             value={form.companyName}
+            editable={!(kraEnabled && kraVerifiedName)}
             onChangeText={(v) => updateField('companyName', v)}
             placeholder="e.g. Swift Logistics Ltd"
             icon="business-outline"
@@ -293,13 +338,6 @@ export default function CreateVendorScreen() {
             onChangeText={(v) => updateField('address', v)}
             placeholder="e.g. Industrial Area, Nairobi"
             icon="location-outline"
-          />
-          <Input
-            label="KRA PIN"
-            value={form.kraPin}
-            onChangeText={(v) => updateField('kraPin', v)}
-            placeholder="e.g. P051234567Z"
-            icon="document-text-outline"
           />
           <Input
             label="Registration Number"
@@ -522,6 +560,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
+  kraVerifyButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 8, paddingVertical: 11, marginBottom: Spacing.sm },
+  kraVerifyText: { color: '#FFFFFF', fontWeight: '800' },
   header: { marginBottom: Spacing.xs},
   title: { fontSize: 24, fontWeight: '800' },
   subtitle: { fontSize: 14, marginTop: Spacing.xs},

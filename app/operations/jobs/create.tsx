@@ -35,7 +35,7 @@ import { jobRepository } from '../../../services/repositories/JobRepository';
 import { purchaseOrderRepository } from '../../../services/repositories/PurchaseOrderRepository';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
-import { PurchaseOrder, Driver, Vehicle } from '../../../store/types';
+import { PurchaseOrder, Driver, Vehicle } from '@/store/types';
 
 export default function CreateJobScreen() {
   const colors = useTheme();
@@ -51,11 +51,13 @@ export default function CreateJobScreen() {
     quantity: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
 
   // Derived from selected PO
   const selectedPO = pos.find((p) => p.id === form.purchaseOrderId);
   const filteredDrivers = drivers.filter((d) => d.vendorId === selectedPO?.vendorId && d.availability);
   const filteredVehicles = vehicles.filter((v) => v.vendorId === selectedPO?.vendorId && v.status === 'active');
+  const poMaterials: any[] = selectedPO?.materials?.length ? selectedPO.materials : selectedPO ? [{ materialId: selectedPO.materialId, materialName: selectedPO.materialName, quantity: selectedPO.quantity, unit: selectedPO.unit }] : [];
 
   useEffect(() => {
     loadData();
@@ -81,6 +83,7 @@ export default function CreateJobScreen() {
     // Clear dependent fields when PO changes
     if (field === 'purchaseOrderId') {
       setForm((prev) => ({ ...prev, driverId: '', vehicleId: '', quantity: '' }));
+      setSelectedMaterialIds([]);
     }
     if (errors[field]) {
       setErrors((prev) => {
@@ -96,6 +99,7 @@ export default function CreateJobScreen() {
     if (!form.purchaseOrderId) newErrors.purchaseOrderId = 'Purchase Order is required';
     if (!form.driverId) newErrors.driverId = 'Driver is required';
     if (!form.vehicleId) newErrors.vehicleId = 'Vehicle is required';
+    if (poMaterials.length > 1 && !selectedMaterialIds.length) newErrors.materials = 'Select at least one material for this dispatch';
     if (!form.quantity || isNaN(Number(form.quantity)) || Number(form.quantity) <= 0) {
       newErrors.quantity = 'Valid quantity is required';
     }
@@ -110,6 +114,7 @@ export default function CreateJobScreen() {
     try {
       const driver = drivers.find((d) => d.id === form.driverId);
       const vehicle = vehicles.find((v) => v.id === form.vehicleId);
+      const dispatchMaterials = poMaterials.filter((line) => poMaterials.length === 1 || selectedMaterialIds.includes(String(line.materialId)));
 
       await jobRepository.create({
         purchaseOrderId: form.purchaseOrderId,
@@ -122,6 +127,7 @@ export default function CreateJobScreen() {
         plateNumber: vehicle?.registrationNumber || '',
         materialId: selectedPO?.materialId || '',
         materialName: selectedPO?.materialName || '',
+        materials: dispatchMaterials,
         quantityOrdered: parseFloat(form.quantity),
         quantityDispatched: parseFloat(form.quantity),
         unit: selectedPO?.unit || '',
@@ -132,7 +138,7 @@ export default function CreateJobScreen() {
         status: 'draft',
         isDelayed: false,
         hasWeightDiscrepancy: false,
-      });
+      } as any);
 
       setForm({ purchaseOrderId: '', driverId: '', vehicleId: '', quantity: '' });
       setErrors({});
@@ -194,6 +200,7 @@ export default function CreateJobScreen() {
               </Text>
             </View>
           )}
+          {poMaterials.length > 1 && <View style={{ marginTop: 10, gap: 8 }}><Text style={[styles.poInfoText, { color: colors.text, fontWeight: '800' }]}>Materials included in this dispatch</Text>{poMaterials.map((line: any, index: number) => { const materialId = String(line.materialId || index); const checked = selectedMaterialIds.includes(materialId); return <TouchableOpacity key={materialId} onPress={() => setSelectedMaterialIds((current) => checked ? current.filter((value) => value !== materialId) : [...current, materialId])} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Ionicons name={checked ? 'checkbox' : 'square-outline'} size={20} color={checked ? colors.primary : colors.textMuted} /><Text style={{ color: colors.text }}>{line.materialName || 'Material'} · {line.quantity ?? ''} {line.unit || ''}</Text></TouchableOpacity>; })}{errors.materials ? <Text style={{ color: colors.danger }}>{errors.materials}</Text> : null}</View>}
         </Card>
 
         <Card style={{ marginTop: Spacing.xs}}>

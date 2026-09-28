@@ -10,7 +10,7 @@ import { Spacing, Radius } from '../../constants/theme';
 import { fetchPurchaseOrders, fetchDeliveryOrders, fetchVendors, fetchMaterials } from '../../services/api';
 import { formatEAT, generatePONumber } from '../../utils/helpers';
 import api from '../../services/api';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 
 function PORow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   const colors = useTheme();

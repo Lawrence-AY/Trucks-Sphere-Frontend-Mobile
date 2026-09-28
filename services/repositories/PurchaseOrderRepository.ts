@@ -10,7 +10,7 @@
  */
 
 import { BaseRepository } from './BaseRepository';
-import { PurchaseOrder } from '../../store/types';
+import { PurchaseOrder } from '@/store/types';
 import api from '../api';
 import { getStoredToken } from '../database';
 

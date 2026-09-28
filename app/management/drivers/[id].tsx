@@ -34,12 +34,12 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { DetailRow } from '../../../components/EnterpriseUI';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
-import { useDeliveryOrders } from '../../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../../store/realTimeSyncStore';
-import { Driver, Vendor, Job } from '../../../store/types';
+import { useDeliveryOrders } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
+import { Driver, Vendor, Job } from '@/store/types';
 import { formatEAT } from '../../../utils/helpers';
 import { UserActionInfo } from '../../../components/UserActionInfo';
-import { useAuthStore } from '../../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { hasManagementPermission } from '../../../utils/access';
 
 const DRIVER_TABS = [

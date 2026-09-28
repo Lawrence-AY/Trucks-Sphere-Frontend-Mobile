@@ -77,7 +77,7 @@ export async function uploadDriverPhoto(driverId: string, fileUri: string): Prom
   return uploadFile(
     `driver-photo/${driverId}`,
     fileUri,
-    'photo',
+    'file',
     `driver-${driverId}`
   );
 }

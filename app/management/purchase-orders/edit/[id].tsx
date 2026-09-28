@@ -33,7 +33,7 @@ import { LoadingSkeleton } from '../../../../components/ui/LoadingSkeleton';
 import { purchaseOrderRepository } from '../../../../services/repositories/PurchaseOrderRepository';
 import { vendorRepository } from '../../../../services/repositories/VendorRepository';
 import { materialRepository } from '../../../../services/repositories/MaterialRepository';
-import { PurchaseOrder, Vendor, Material } from '../../../../store/types';
+import { PurchaseOrder, Vendor, Material } from '@/store/types';
 
 export default function EditPurchaseOrderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

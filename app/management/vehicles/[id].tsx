@@ -29,7 +29,7 @@ import { Tabs } from '../../../components/ui/Tabs';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
-import { Vehicle } from '../../../store/types';
+import { Vehicle } from '@/store/types';
 import { UserActionInfo } from '../../../components/UserActionInfo';
 
 const VEHICLE_TABS = [
@@ -67,6 +67,23 @@ export default function VehicleDetailScreen() {
     vehicleRepository.invalidateCache();
     await loadVehicle();
     setRefreshing(false);
+  }
+
+  function confirmDelete() {
+    if (!vehicle) return;
+    Alert.alert('Delete vehicle?', `This will permanently remove ${vehicle.registrationNumber || 'this vehicle'}.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await vehicleRepository.delete(vehicle.id);
+          vehicleRepository.invalidateCache();
+          Alert.alert('Deleted', 'Vehicle deleted successfully.');
+          router.back();
+        } catch (error: any) {
+          Alert.alert('Unable to delete vehicle', error?.response?.data?.message || 'Please try again.');
+        }
+      } },
+    ]);
   }
 
   function renderDetails() {
@@ -173,11 +190,15 @@ export default function VehicleDetailScreen() {
 
         </View>
 
-        <Tabs
-          tabs={VEHICLE_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
+        <View style={styles.tabActionRow}>
+          <View style={{ flex: 1 }}>
+            <Tabs tabs={VEHICLE_TABS} activeTab={activeTab} onTabChange={setActiveTab} />
+          </View>
+          <TouchableOpacity style={[styles.deleteAction, { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }]} onPress={confirmDelete} accessibilityRole="button" accessibilityLabel="Delete vehicle">
+            <Ionicons name="trash-outline" size={18} color="#DC2626" />
+            <Text style={styles.deleteActionText}>Delete</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={{ marginTop: Spacing.xs}}>
           {activeTab === 'details' && renderDetails()}
@@ -207,6 +228,25 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tabActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  deleteAction: {
+    minHeight: 42,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  deleteActionText: {
+    color: '#DC2626',
+    fontWeight: '800',
+    fontSize: 12,
   },
   backTitle: {
     fontSize: 17,

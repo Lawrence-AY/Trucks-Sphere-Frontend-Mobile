@@ -32,10 +32,10 @@ import {
   updateDeliveryOrder,
 } from '../../services/api';
 import { uploadDeliveryNote, type UploadFile } from '../../services/uploadService';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { canControlStatusBarAppearance } from '../../utils/statusBar';
-import { useDeliveryOrders, useMaterials } from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useDeliveryOrders, useMaterials } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { formatEAT, generateId, generateJobKey } from '../../utils/helpers';
 import { normalizeJobStatus } from '../../utils/jobStatus';
 import {
@@ -227,7 +227,9 @@ export default function OperatorSiteDashboardScreen() {
       // The clear action changes this state, so they reappear here immediately
       // after unsuspension without a separate client-side transition.
       if (d.securityFlag?.status === 'flagged' || d.isFlagged === true) return false;
-      if (isWarehouseMaterial(d)) return !d.warehouseAcceptedAt && !d.warehouseDeniedAt;
+      // Warehouse deliveries bypass the site operator completely. They are
+      // accepted, inspected, and received from the Storeman workflow.
+      if (isWarehouseMaterial(d)) return false;
       if (d.siteWeighOutWeight != null) return false;
       // Exclude jobs that already have site arrival recorded — they belong on Weights tab
       if (d.siteWeighInWeight != null || d.siteArrivalWeight != null || status === 'SITE_WEIGHED_IN') return false;
@@ -638,16 +640,21 @@ export default function OperatorSiteDashboardScreen() {
   };
 
   const handleFabSubmit = async () => {
-    if (!fabSelectedPo) return;
+    const rejectSubmit = (message: string) => {
+      setFabSubmitError(message);
+    };
+
+    if (!fabSelectedPo) return rejectSubmit('Select a purchase order first.');
     const weightInNum = parseFloat(fabWeightIn);
-    if (isNaN(weightInNum) || weightInNum <= 0) return;
-    if (!fabLotNumber.trim()) return;
-    if (!fabMaterialSource.trim()) return;
+    if (isNaN(weightInNum) || weightInNum <= 0) return rejectSubmit('Enter a valid site arrival weight greater than zero.');
+    if (!fabLotNumber.trim()) return rejectSubmit('Enter the storage lot.');
+    if (!fabMaterialSource.trim()) return rejectSubmit('Select the material source.');
     const fabIsWarehouseMaterial = isWarehouseMaterial(null, fabMaterialSource);
-    if (!fabIsWarehouseMaterial && !fabBanker.trim()) return;
+    if (!fabIsWarehouseMaterial && !fabBanker.trim()) return rejectSubmit('Enter the banker for this material.');
     const hasValidDriver =  fabSelectedDriver;
     const hasValidVehicle = fabSelectedVehicle;
-    if (!hasValidDriver || !hasValidVehicle) return;
+    if (!hasValidDriver) return rejectSubmit('Select a driver.');
+    if (!hasValidVehicle) return rejectSubmit('Select a vehicle.');
 
     const now = new Date().toISOString();
     setFabSubmitting(true);

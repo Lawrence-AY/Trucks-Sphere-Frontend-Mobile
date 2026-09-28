@@ -5,12 +5,12 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { usePurchaseOrders } from '../../store/realtimeData';
+import { usePurchaseOrders } from '@/store/realtimeData';
 import { fetchMaterials } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { DataCard, DetailRow, EmptyState, PageShell, SectionTitle } from '../../components/EnterpriseUI';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { hasManagementPermission } from '../../utils/access';
 import { ManagementSearchHeader } from '../../components/ManagementSearchHeader';
 
@@ -31,7 +31,7 @@ export default function ManagementOrdersScreen() {
 
   const orders = usePurchaseOrders();
 
-  // Refresh purchase orders when screen comes into focus
+  // Refresh orders when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       refresh('purchaseOrders');
@@ -64,7 +64,7 @@ export default function ManagementOrdersScreen() {
 
   return (
     <View style={styles.shell}>
-      <ManagementSearchHeader title="Orders" search={search} onChangeSearch={setSearch} placeholder="Search PO, vendor, material..." />
+      <ManagementSearchHeader title="Orders" search={search} onChangeSearch={setSearch} placeholder="Search order, vendor, material..." />
       <PageShell
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
@@ -106,7 +106,7 @@ export default function ManagementOrdersScreen() {
           )}
         </View>
 
-        <SectionTitle title={`${filtered.length} purchase orders`} />
+        <SectionTitle title={`${filtered.length} orders`} />
 
         {filtered.length > 0 ? (
           <View style={styles.orderList}>
@@ -129,7 +129,7 @@ export default function ManagementOrdersScreen() {
       </PageShell> 
 
       {canCreatePurchaseOrder && (
-        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => router.push('/management/purchase-orders/create' as any)} activeOpacity={0.85} accessibilityLabel="Create purchase order">
+        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => router.push('/management/purchase-orders/create' as any)} activeOpacity={0.85} accessibilityLabel="Create order">
           <Ionicons name="add" size={28} color="#FFFFFF" />
         </TouchableOpacity>
       )}

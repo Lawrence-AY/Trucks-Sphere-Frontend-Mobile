@@ -7,8 +7,8 @@ import { useTheme } from '../../../hooks/useTheme';
 import { Radius, Spacing } from '../../../constants/theme';
 import { Button } from '../../../components/ui/Button';
 import { MetricTile, PageShell, SectionTitle } from '../../../components/EnterpriseUI';
-import { useRealtimeCollection } from '../../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../../store/realTimeSyncStore';
+import { useRealtimeCollection } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 
 const modules = [
   { title: 'Vendors', subtitle: 'View registered vendors', icon: 'business-outline', route: '/management/vendors', createRoute: '/management/vendors/create', createLabel: 'Add vendor' },

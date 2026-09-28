@@ -32,8 +32,8 @@ import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
-import { useRealtimeCollection } from '../../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../../store/realTimeSyncStore';
+import { useRealtimeCollection } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 
 const VEHICLE_TYPES = [
   { id: 'tipper', name: 'Tipper Truck' },

@@ -5,7 +5,7 @@
  */
 
 import { BaseRepository } from './BaseRepository';
-import { Material } from '../../store/types';
+import { Material } from '@/store/types';
 import api from '../api';
 import { getStoredToken } from '../database';
 

@@ -40,6 +40,7 @@ import api from '../../services/api';
 import { showAlert } from '../../utils/webAlert';
 import { MANAGEMENT_ROLE_OPTIONS } from '../../utils/access';
 import { getStrongPasswordError, PASSWORD_REQUIREMENTS } from '../../utils/passwordPolicy';
+import { useVendors } from '@/store/realtimeData';
 
 const ROLE_OPTIONS = [
   ...MANAGEMENT_ROLE_OPTIONS,
@@ -47,6 +48,7 @@ const ROLE_OPTIONS = [
   { id: 'operator_site', name: 'Operator Site' },
   { id: 'operator_fuel', name: 'Fuel Operator' },
   { id: 'operator_warehouse', name: 'Warehouse Personnel' },
+  { id: 'storeman', name: 'Storekeeper' },
   { id: 'inspector', name: 'Material Inspector' },
 ];
 
@@ -80,9 +82,12 @@ export default function UsersScreen() {
     role: 'admin',
     phone: '',
     quarryLocation: '',
+    quarryOperatorType: 'general',
+    vendorId: '',
   });
   const [generatedUsername, setGeneratedUsername] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const vendors = useVendors();
 
   // Edit User Modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -96,6 +101,8 @@ export default function UsersScreen() {
     phone: '',
     newPassword: '',
     quarryLocation: '',
+    quarryOperatorType: 'general',
+    vendorId: '',
   });
   const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
 
@@ -168,6 +175,7 @@ export default function UsersScreen() {
     if (!form.phone.trim()) errors.phone = 'Phone number is required';
     if (!form.role) errors.role = 'Role is required';
     if (form.role === 'operator_quarry' && !form.quarryLocation) errors.quarryLocation = 'Quarry station is required';
+    if (form.role === 'operator_quarry' && form.quarryOperatorType === 'vendor' && !form.vendorId) errors.vendorId = 'Vendor is required';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -179,6 +187,7 @@ export default function UsersScreen() {
     else if (!/^[a-zA-Z0-9_]+$/.test(editForm.username)) errors.username = 'Letters, numbers & underscores only';
     if (!editForm.role) errors.role = 'Role is required';
     if (editForm.role === 'operator_quarry' && !editForm.quarryLocation) errors.quarryLocation = 'Quarry station is required';
+    if (editForm.role === 'operator_quarry' && editForm.quarryOperatorType === 'vendor' && !editForm.vendorId) errors.vendorId = 'Vendor is required';
     setEditFormErrors(errors);
     return Object.keys(errors).length === 0;
   }
@@ -199,10 +208,12 @@ export default function UsersScreen() {
         role: form.role,
         phone: form.phone.trim(),
         quarryLocation: form.role === 'operator_quarry' ? form.quarryLocation : '',
+        quarryOperatorType: form.role === 'operator_quarry' ? form.quarryOperatorType : '',
+        vendorId: form.role === 'operator_quarry' && form.quarryOperatorType === 'vendor' ? form.vendorId : '',
       });
 
       const uname = result?.data?.user?.generatedUsername || generateUsernameFromDisplay(form.displayName);
-      setForm({ displayName: '', username: '', password: '', role: 'admin', phone: '', quarryLocation: '' });
+      setForm({ displayName: '', username: '', password: '', role: 'admin', phone: '', quarryLocation: '', quarryOperatorType: 'general', vendorId: '' });
       setGeneratedUsername('');
       setFormErrors({});
       setShowAddModal(false);
@@ -226,6 +237,8 @@ export default function UsersScreen() {
       phone: user.phone || '',
       newPassword: '',
       quarryLocation: user.quarryLocation || '',
+      quarryOperatorType: user.quarryOperatorType || 'general',
+      vendorId: user.vendorId || '',
     });
     setEditFormErrors({});
     setShowEditModal(true);
@@ -244,6 +257,8 @@ export default function UsersScreen() {
         role: editForm.role,
         phone: editForm.phone.trim(),
         quarryLocation: editForm.role === 'operator_quarry' ? editForm.quarryLocation : '',
+        quarryOperatorType: editForm.role === 'operator_quarry' ? editForm.quarryOperatorType : '',
+        vendorId: editForm.role === 'operator_quarry' && editForm.quarryOperatorType === 'vendor' ? editForm.vendorId : '',
       });
       showAlert('Success', 'User updated successfully');
       setShowEditModal(false);
@@ -355,6 +370,7 @@ export default function UsersScreen() {
       operator_site: { variant: 'warning', label: 'Site Op' },
       operator_fuel: { variant: 'success', label: 'Fuel Op' },
       operator_warehouse: { variant: 'purple', label: 'Warehouse' },
+      storeman: { variant: 'purple', label: 'Storekeeper' },
       inspector: { variant: 'success', label: 'Inspector' },
     };
     const c = config[role] || { variant: 'default' as any, label: role };
@@ -545,6 +561,9 @@ export default function UsersScreen() {
                 nativeModal
               />
               {form.role === 'operator_quarry' && (
+                <>
+                <Select label="Quarry operator type" value={form.quarryOperatorType} options={[{ id: 'general', name: 'General Quarry Operator' }, { id: 'vendor', name: 'Supplier/Vendor Operator' }]} onSelect={(v) => updateForm('quarryOperatorType', v)} icon="people-outline" required nativeModal />
+                {form.quarryOperatorType === 'vendor' && <Select label="Assigned vendor" value={form.vendorId} options={vendors.map((vendor: any) => ({ id: vendor.id || vendor.vendorId, name: vendor.companyName || vendor.name || vendor.businessName || vendor.id }))} onSelect={(v) => updateForm('vendorId', v)} icon="business-outline" required error={formErrors.vendorId} placeholder="Choose vendor..." nativeModal />}
                 <Select
                   label="Stationed at"
                   value={form.quarryLocation}
@@ -556,6 +575,7 @@ export default function UsersScreen() {
                   placeholder="Choose quarry location..."
                   nativeModal
                 />
+                </>
               )}
             </ScrollView>
 
@@ -647,6 +667,9 @@ export default function UsersScreen() {
                 nativeModal
               />
               {editForm.role === 'operator_quarry' && (
+                <>
+                <Select label="Quarry operator type" value={editForm.quarryOperatorType} options={[{ id: 'general', name: 'General Quarry Operator' }, { id: 'vendor', name: 'Supplier/Vendor Operator' }]} onSelect={(v) => updateEditForm('quarryOperatorType', v)} icon="people-outline" required nativeModal />
+                {editForm.quarryOperatorType === 'vendor' && <Select label="Assigned vendor" value={editForm.vendorId} options={vendors.map((vendor: any) => ({ id: vendor.id || vendor.vendorId, name: vendor.companyName || vendor.name || vendor.businessName || vendor.id }))} onSelect={(v) => updateEditForm('vendorId', v)} icon="business-outline" required error={editFormErrors.vendorId} placeholder="Choose vendor..." nativeModal />}
                 <Select
                   label="Stationed at"
                   value={editForm.quarryLocation}
@@ -658,6 +681,7 @@ export default function UsersScreen() {
                   placeholder="Choose quarry location..."
                   nativeModal
                 />
+                </>
               )}
               <Text style={[styles.editHint, { color: colors.textMuted }]}>
                 Use the action buttons on the user card to activate, deactivate, or delete users.

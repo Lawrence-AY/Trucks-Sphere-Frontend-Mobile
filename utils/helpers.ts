@@ -132,6 +132,9 @@ export function getRoleLabel(role: string): string {
     fuel_operator: 'Fuel Operator',
     vendor: 'Vendor',
     driver: 'Driver',
+    storeman: 'Storeman',
+    store_keeper: 'Storeman',
+    storekeeper: 'Storeman',
   };
   return labels[role] || role;
 }

@@ -1,6 +1,6 @@
 import { Colors } from '../constants/theme';
 import { useColorScheme } from 'react-native';
-import { useThemeStore, type ThemeMode } from '../store/themeStore';
+import { useThemeStore, type ThemeMode } from '@/store/themeStore';
 
 export type ThemePreference = {
   mode: ThemeMode;

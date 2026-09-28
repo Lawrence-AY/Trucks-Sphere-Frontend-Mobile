@@ -1,5 +1,5 @@
 import { TripMaterials } from '../../components/TripMaterials';
-import { useFlagViewsStore } from '../../store/flagViewsStore';
+import { useFlagViewsStore } from '@/store/flagViewsStore';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,9 +17,9 @@ import { useFocusEffect } from 'expo-router';
 import { clearTrackingFlag, fetchTrackingFlags } from '../../services/api';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { useAuthStore } from '../../store/authStore';
-import { useDeliveryOrders } from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useAuthStore } from '@/store/authStore';
+import { useDeliveryOrders } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { formatEAT } from '../../utils/helpers';
 import { isDeliveryFlagged, isSiteWeightFlagged, getDeliveryFlagReason } from '../../utils/siteFlags';
 

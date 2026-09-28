@@ -1,6 +1,6 @@
 import { isPurchaseOrderOpen } from '../../utils/poMaterials';
 import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
-import { useMaterials } from '../../store/realtimeData';
+import { useMaterials } from '@/store/realtimeData';
 import { isWarehouseJob } from '../../utils/warehouse';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -26,14 +26,14 @@ import {
   createDeliveryOrder,
   fetchPurchaseOrders,
 } from '../../services/api';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import {
   useDeliveryOrders,
   useDrivers,
   usePurchaseOrders,
   useVehicles,
-} from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+} from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { formatEAT, generateId, generateJobKey } from '../../utils/helpers';
 import { isActiveJob, normalizeJobStatus } from '../../utils/jobStatus';
 import {
@@ -102,6 +102,8 @@ export default function OperatorQuarryDashboardScreen() {
   const operatorUid = user?.uid || '';
   const operatorQuarryId = (user as any)?.quarryId || '';
   const operatorQuarryLocation = (user as any)?.quarryLocation || '';
+  const operatorType = (user as any)?.quarryOperatorType || 'general';
+  const operatorVendorId = (user as any)?.vendorId || '';
 
   const operatorDeliveries = useMemo(() => {
     return deliveries.filter((delivery: any) =>
@@ -124,11 +126,18 @@ export default function OperatorQuarryDashboardScreen() {
 
   const matchingPurchaseOrders = useMemo(() => {
     const term = poSearch.trim().toLowerCase();
+    const assignedVendor = String(operatorVendorId || '').trim().toUpperCase();
     const orders = [...freshPurchaseOrders, ...purchaseOrders].filter(
       (order, index, items) => items.findIndex((item) => item.id === order.id) === index,
     );
     return orders
       .filter((order) => !isWarehouseJob(order, materials))
+      .filter((order) => {
+        if (operatorType !== 'vendor') return true;
+        const storedVendor = String(order.vendorId || order.vendor?.id || order.vendor?.vendorId || '').trim().toUpperCase();
+        const poVendor = String(order.poNumber || '').match(/\/\s*(V\d+)\s*$/i)?.[1]?.toUpperCase() || '';
+        return storedVendor === assignedVendor || poVendor === assignedVendor;
+      })
       // An operator chooses the work order first. The job card then records
       // both that PO's quarry and the operator who created the job.
       .filter(isPurchaseOrderOpen)
@@ -138,7 +147,7 @@ export default function OperatorQuarryDashboardScreen() {
           order.poNumber?.toLowerCase().includes(term) ||
           order.vendorName?.toLowerCase().includes(term),
       );
-  }, [poSearch, purchaseOrders, freshPurchaseOrders, materials]);
+  }, [poSearch, purchaseOrders, freshPurchaseOrders, materials, operatorType, operatorVendorId]);
 
   const vendorDrivers = useMemo(() => {
     if (!selectedPo) return [];

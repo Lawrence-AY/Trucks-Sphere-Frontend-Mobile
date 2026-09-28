@@ -14,7 +14,7 @@ import {
 } from '../../components/EnterpriseUI';
 import { Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { fetchDeliveryOrders, fetchMaterials, fetchPurchaseOrders } from '../../services/api';
 import { formatEAT, normalizeVendorId } from '../../utils/helpers';
 

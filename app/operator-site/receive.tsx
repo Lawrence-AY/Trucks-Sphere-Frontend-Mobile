@@ -18,9 +18,9 @@ import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchQuarries, updateDeliveryOrder } from '../../services/api';
-import { useAuthStore } from '../../store/authStore';
-import { useDeliveryOrders } from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useAuthStore } from '@/store/authStore';
+import { useDeliveryOrders } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { formatEAT } from '../../utils/helpers';
 import {
   DataCard,

@@ -30,7 +30,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { driverRepository } from '../../../services/repositories/DriverRepository';
 import api, { fetchVendors } from '../../../services/api';
-import { useAuthStore } from '../../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { hasManagementPermission } from '../../../utils/access';
 import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 

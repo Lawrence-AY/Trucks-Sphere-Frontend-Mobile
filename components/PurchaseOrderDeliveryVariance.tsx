@@ -1,7 +1,7 @@
 import { Text, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from '../hooks/useTheme';
-import { usePurchaseOrders } from '../store/realtimeData';
+import { usePurchaseOrders } from '@/store/realtimeData';
 
 type DeliveryTotal = { materialId?: string; materialName?: string; unit: string; orderedQuantity: number; deliveredQuantity: number; variance: number; overDelivered: boolean };
 const format = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 6 });

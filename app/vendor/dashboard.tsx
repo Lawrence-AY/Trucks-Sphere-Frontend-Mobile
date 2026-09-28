@@ -6,9 +6,9 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 import { Spacing } from "../../constants/theme";
-import { useAuthStore } from "../../store/authStore";
-import { useRealtimeCollection } from "../../store/realtimeData";
-import { useRealTimeSyncStore } from "../../store/realTimeSyncStore";
+import { useAuthStore } from "@/store/authStore";
+import { useRealtimeCollection } from "@/store/realtimeData";
+import { useRealTimeSyncStore } from "@/store/realTimeSyncStore";
 import { formatEAT, normalizeVendorId } from "../../utils/helpers";
 import {
   DataCard,

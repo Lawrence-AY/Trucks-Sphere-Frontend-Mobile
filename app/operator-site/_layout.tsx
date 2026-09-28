@@ -1,4 +1,4 @@
-import { useFlagViewsStore, flagViewKey } from '../../store/flagViewsStore';
+import { useFlagViewsStore, flagViewKey } from '@/store/flagViewsStore';
 import { isDeliveryFlagged } from '../../utils/siteFlags';
 import { useCallback, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
@@ -17,13 +17,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { getRoleLabel } from '../../utils/helpers';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { useResolvedIssuesCount } from '../../hooks/useResolvedIssuesCount';
-import { useDeliveryOrders } from '../../store/realtimeData';
+import { useDeliveryOrders } from '@/store/realtimeData';
 
 const BOTTOM_TABS = ['schedule', 'weights', 'history'];
 // These routes are opened from visible screens but are not primary tab destinations.

@@ -30,10 +30,10 @@ import { Badge } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
-import { Vendor } from '../../../store/types';
+import { Vendor } from '@/store/types';
 import { fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../../services/api';
 import api from '../../../services/api';
-import { useAuthStore } from '../../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { hasManagementPermission } from '../../../utils/access';
 import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 

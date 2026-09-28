@@ -9,11 +9,11 @@
  */
 
 import { BaseRepository } from './BaseRepository';
-import { Vendor, Driver, Vehicle } from '../../store/types';
+import { Vendor, Driver, Vehicle } from '@/store/types';
 import api from '../api';
 import { getStoredToken } from '../database';
 import { collectionCache } from '../cache/CollectionCache';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 
 class VendorRepository extends BaseRepository<Vendor> {
   constructor() {

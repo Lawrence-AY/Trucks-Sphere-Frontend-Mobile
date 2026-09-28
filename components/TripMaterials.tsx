@@ -1,4 +1,4 @@
-import { usePurchaseOrders } from '../store/realtimeData';
+import { usePurchaseOrders } from '@/store/realtimeData';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';

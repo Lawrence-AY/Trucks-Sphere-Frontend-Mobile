@@ -25,12 +25,11 @@ import {
   fetchFuelRecords,
   requestFuelAuthorization,
   verifyFuelAuthorization,
-  checkJobFuelStatus,
 } from "../../services/api";
 import { normalizeJobStatus } from "../../utils/jobStatus";
-import { useAuthStore } from "../../store/authStore";
-import { useFuelDispenseStore } from "../../store/fuelDispenseStore";
-import type { FlowStep } from "../../store/fuelDispenseStore";
+import { useAuthStore } from "@/store/authStore";
+import { useFuelDispenseStore } from "@/store/fuelDispenseStore";
+import type { FlowStep } from "@/store/fuelDispenseStore";
 import { generateFuelRecordId } from "../../utils/helpers";
 import { DataCard, EmptyState, PageShell } from "../../components/EnterpriseUI";
 import { uploadFuelPumpPhoto } from "../../services/uploadService";
@@ -66,6 +65,7 @@ export default function FuelDispenseScreen() {
   const [fuelRecords, setFuelRecords] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [completedJobSearch, setCompletedJobSearch] = useState("");
 
   // Fuel price from management
   const [fuelPrice, setFuelPrice] = useState<number>(0);
@@ -90,17 +90,14 @@ export default function FuelDispenseScreen() {
           fetchFuelRecords(),
         ]);
 
-        // Read completedJobIds directly from store to avoid stale closure
-        const completedIds = useFuelDispenseStore.getState().completedJobIds;
         setDeliveries(
           (deliveryData || []).filter(
             (d: any) => {
-              const jobId = d.jobId || d.id;
               const finalizedAtSite = ["SITE_WEIGHED_OUT", "COMPLETED"].includes(
                 normalizeJobStatus(d.status),
               );
               const warehouse = d.isWarehouseDelivery || [d.deliveryOrigin, d.materialSource].some((value) => String(value || '').trim().toLowerCase() === 'warehouse');
-              return !warehouse && finalizedAtSite && !completedIds.includes(jobId);
+              return !warehouse && finalizedAtSite;
             },
           ),
         );
@@ -180,14 +177,20 @@ export default function FuelDispenseScreen() {
   const completedDeliveries = useMemo(() => {
     return deliveries.filter((d) => {
       const jobId = d.jobId || d.id;
-      const hasExistingFuel = getJobFuelAmount(jobId) > 0;
-      return (
-        Boolean(jobId) &&
-        !store.isJobCompleted(jobId) &&
-        !hasExistingFuel
-      );
+      return Boolean(jobId);
     });
   }, [deliveries, store.completedJobIds, fuelRecords]);
+
+  const filteredCompletedDeliveries = useMemo(() => {
+    const query = completedJobSearch.trim().toLowerCase();
+    if (!query) return completedDeliveries;
+    return completedDeliveries.filter((job: any) => {
+      const rn = job.receiptNoteId || job.receiptNote || "";
+      return [job.jobId, job.id, rn, job.driverName, job.plateNumber, job.vendorName]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [completedDeliveries, completedJobSearch]);
 
   // =========================== FAB Flow ===================================
 
@@ -213,24 +216,6 @@ export default function FuelDispenseScreen() {
     setPumpPhotoURL(null);
     setPumpPhotoUploading(false);
     const jobId = job.jobId || job.id;
-
-    // Double-check if job has already been fueled (backend check)
-    try {
-      const status = await checkJobFuelStatus(jobId);
-      if (status.fueled) {
-        showToast(
-          "error",
-          "Already Fueled",
-          `Job ${jobId} has already been fueled. Select a different job.`,
-        );
-        store.markJobCompleted(jobId);
-        loadData();
-        return;
-      }
-    } catch {
-      // If backend check fails, allow the flow to continue
-      // The local completedJobIds check will still prevent double-dispensing
-    }
 
     store.setActiveJob(job);
     store.setFlowFuelAmount("");
@@ -271,6 +256,12 @@ export default function FuelDispenseScreen() {
         vendorName: store.activeJob.vendorName || "Unknown Vendor",
         vendorPhone,
         driverId: store.activeJob.driverId,
+        driverCode:
+          store.activeJob.baseDriverCode ||
+          store.activeJob.driverCode ||
+          store.activeJob.driverCodeId ||
+          store.activeJob.driverId ||
+          "",
         driverName: store.activeJob.driverName || "Unknown Driver",
         driverPhone,
         vehicleId: store.activeJob.vehicleId || store.activeJob.id,
@@ -334,13 +325,18 @@ export default function FuelDispenseScreen() {
     store.setAuthVerifying(true);
     try {
       const result = await verifyFuelAuthorization(store.authId, code, true);
-      if (result?.status !== "authorized" && result?.authorized !== true) {
+      if (result?.authorized !== true && result?.status !== "authorized") {
         throw new Error(
           result?.message || "Authorization PIN verification failed.",
         );
       }
 
+      // Auth PIN is the PIN sent to and entered by the vendor.
       store.setAuthCode(code);
+      // The attendant should only see the three-digit suffix to append.
+      // Keep the full GIR active code out of the operator-facing UI.
+      const appendedCode = String(result?.fuelCode || result?.girDriverCode || '').slice(-3);
+      store.setGirDriverCode(appendedCode || null);
       store.setAuthStatus("authorized");
       store.setOtpModalVisible(false);
       store.setOtpInput("");
@@ -352,6 +348,7 @@ export default function FuelDispenseScreen() {
       );
 
       // Auto-advance to form step
+      // Advance only after the successful response has been applied.
       store.setFlowStep("form");
     } catch (error: any) {
       const message =
@@ -425,11 +422,7 @@ export default function FuelDispenseScreen() {
 
   // After authorization, enter fuel amount and dispense
   const handleFlowSubmit = async () => {
-    const amount = parseFloat(store.flowFuelAmount);
-    if (isNaN(amount) || amount <= 0) {
-      showToast("error", "Invalid Amount", "Please enter a valid fuel amount.");
-      return;
-    }
+    const amount = 0;
     if (!store.activeJob) {
       showToast("error", "No Job", "No completed job selected.");
       return;
@@ -451,25 +444,14 @@ export default function FuelDispenseScreen() {
       return;
     }
 
-    // Safety check: ensure job hasn't already been completed
     const jobId = store.activeJob.jobId || store.activeJob.id;
-    if (store.isJobCompleted(jobId)) {
-      showToast(
-        "error",
-        "Already Fueled",
-        `Job ${jobId} has already been fueled and is no longer available.`,
-      );
-      store.closeFlow();
-      loadData();
-      return;
-    }
 
     store.setSubmitting(true);
     try {
       const fuelId = generateFuelRecordId();
 
       // Create the fuel record
-      await createFuelRecord({
+      const createdFuel = await createFuelRecord({
         fuelId,
         jobId,
         deliveryOrderId: store.activeJob.id,
@@ -490,19 +472,21 @@ export default function FuelDispenseScreen() {
         dispensedAt: new Date().toISOString(),
         authorizationId: store.authId,
         authorizationCode: store.authCode,
+        otp: store.girDriverCode || store.authCode,
         pumpPhotoURL,
       });
+      const girVolume = Number(createdFuel?.fuelAmount ?? createdFuel?.quantity ?? createdFuel?.litres);
+      store.setGirFuelAmount(Number.isFinite(girVolume) && girVolume > 0 ? girVolume : null);
 
       // A fuel record is the source of truth for completed dispensing. The
       // legacy delivery-order `/fueled` endpoint is not available to the fuel
       // operator and would report a false 403 after a successful fuel record.
       store.markJobCompleted(jobId);
 
-      const authCodeRef = store.authCode || "N/A";
       showToast(
         "success",
         "Fuel Dispensed",
-        `${amount.toFixed(1)} litres recorded as ${fuelId}. Auth PIN: ${authCodeRef}. Job card removed from completed jobs.`,
+        `${amount.toFixed(1)} litres recorded as ${fuelId}. Job card removed from completed jobs.`,
       );
 
       setPumpPhotoUri(null);
@@ -604,6 +588,8 @@ export default function FuelDispenseScreen() {
         visible={store.flowVisible}
         transparent
         animationType="slide"
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
         onRequestClose={() =>
           store.otpModalVisible
             ? store.setOtpModalVisible(false)
@@ -680,29 +666,45 @@ export default function FuelDispenseScreen() {
               )}
             </View>
 
+            <KeyboardAvoidingView
+              style={{ flex: 1, minHeight: 0 }}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+            >
             <ScrollView
+              style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ gap: Spacing.md }}
-              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ gap: Spacing.md, paddingBottom: Spacing.xl }}
+              keyboardShouldPersistTaps="always"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              nestedScrollEnabled
             >
               {/* ============ STEP 1: Completed Jobs List ============ */}
               {store.flowStep === "list" && (
                 <>
-                  {completedDeliveries.length ? (
-                    completedDeliveries.map((job) => {
+                  <View style={{ marginBottom: Spacing.xs }}>
+                    <TextInput
+                      value={completedJobSearch}
+                      onChangeText={setCompletedJobSearch}
+                      placeholder="Search job, RN, driver, truck or vendor"
+                      placeholderTextColor={colors.textMuted}
+                      style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+                      autoCapitalize="none"
+                      returnKeyType="search"
+                    />
+                  </View>
+                  {filteredCompletedDeliveries.length ? (
+                    filteredCompletedDeliveries.map((job) => {
                       const jobId = job.jobId || job.id;
-                      const existingFuel = getJobFuelAmount(jobId);
-                      const isCompleted = store.isJobCompleted(jobId);
+                      const existingFuel = 0;
+                      const isCompleted = false;
                       return (
                         <TouchableOpacity
                           key={job.id}
                           style={[
                             styles.jobSelectCard,
                             {
-                              borderColor: isCompleted
-                                ? "#10B98130"
-                                : colors.border,
-                              opacity: isCompleted ? 0.5 : 1,
+                              borderColor: colors.border,
                             },
                           ]}
                           onPress={() => {
@@ -1071,9 +1073,10 @@ export default function FuelDispenseScreen() {
                               textAlign: "center",
                             }}
                           >
-                            The vendor has authorized fuel dispensing. Please
-                            enter fuel amount below.
+                            The vendor has authorized fuel dispensing. Share the temporary code below with the driver, then proceed. GIR/FMS will provide the fuel volume.
                           </Text>
+                          {store.girDriverCode ? <Text style={{ fontSize: 14, fontWeight: "700", color: colors.textMuted, textAlign: "center", marginTop: 12 }}>APPEND CODE</Text> : null}
+                          {store.girDriverCode ? <Text style={{ fontSize: 30, fontWeight: "900", letterSpacing: 5, color: "#2563EB", textAlign: "center", marginVertical: 8 }}>{store.girDriverCode}</Text> : null}
                           <TouchableOpacity
                             style={[
                               styles.submitBtn,
@@ -1087,7 +1090,7 @@ export default function FuelDispenseScreen() {
                               color="#FFFFFF"
                             />
                             <Text style={styles.submitBtnText}>
-                              Enter Fuel Amount
+                              Proceed to Fueling
                             </Text>
                           </TouchableOpacity>
                         </>
@@ -1350,6 +1353,7 @@ export default function FuelDispenseScreen() {
                     </View>
                   )}
 
+                  {false && <>
                   {/* Fuel amount input */}
                   <View
                     style={[
@@ -1412,7 +1416,9 @@ export default function FuelDispenseScreen() {
                     </View>
                   </View>
 
-                  {/* Fuel price info */}
+                  </>}
+
+                  {/* Fuel volume is supplied by GIR/FMS after dispensing. */}
                   {store.flowFuelAmount && fuelPrice > 0 ? (
                     <View
                       style={{ marginTop: Spacing.xs,
@@ -1446,6 +1452,41 @@ export default function FuelDispenseScreen() {
                           maximumFractionDigits: 2,
                         })}
                       </Text>
+                    </View>
+                  ) : null}
+
+                  {/* GIR/FMS driver code — keep immediately above the evidence photo. */}
+                  {store.girDriverCode || store.girFuelAmount != null ? (
+                    <View
+                      style={{
+                        marginBottom: Spacing.md,
+                        padding: Spacing.md,
+                        borderRadius: Radius.lg,
+                        borderWidth: 2,
+                        borderColor: '#2563EB',
+                        backgroundColor: '#2563EB10',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '700' }}>
+                        APPEND CODE — SHARE WITH DRIVER
+                      </Text>
+                      <Text style={{ color: '#2563EB', fontSize: 32, fontWeight: '900', letterSpacing: 6, marginTop: 4 }}>
+                        {store.girDriverCode}
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
+                        Enter/share this appended code with the driver
+                      </Text>
+                      {store.girFuelAmount != null ? (
+                        <View style={{ alignItems: 'center', marginTop: Spacing.sm }}>
+                          <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>
+                            GIR/FMS FUEL VOLUME
+                          </Text>
+                          <Text style={{ color: '#10B981', fontSize: 22, fontWeight: '900', marginTop: 2 }}>
+                            {store.girFuelAmount.toFixed(1)} L
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                   ) : null}
 
@@ -1583,6 +1624,7 @@ export default function FuelDispenseScreen() {
                 </>
               )}
             </ScrollView>
+            </KeyboardAvoidingView>
           </View>
 
             {store.otpModalVisible && (
@@ -1706,14 +1748,18 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.md,
   },
 
   // Flow sheet
   flowSheet: {
-    maxHeight: "92%",
+    height: "82%",
+    width: "100%",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
@@ -1767,6 +1813,14 @@ const styles = StyleSheet.create({
   },
 
   // Job select card
+  searchInput: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    fontSize: 14,
+  },
+
   jobSelectCard: {
     flexDirection: "row",
     alignItems: "center",

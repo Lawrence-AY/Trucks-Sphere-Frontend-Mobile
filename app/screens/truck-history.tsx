@@ -5,8 +5,8 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
-import { useDeliveryOrders, useVehicles, useVendors, useDrivers } from '../../store/realtimeData';
-import { useAuthStore } from '../../store/authStore';
+import { useDeliveryOrders, useVehicles, useVendors, useDrivers } from '@/store/realtimeData';
+import { useAuthStore } from '@/store/authStore';
 import { normalizeVendorId, formatEAT } from '../../utils/helpers';
 
 /**

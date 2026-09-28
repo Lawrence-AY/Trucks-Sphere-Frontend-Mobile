@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Spacing, Radius } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
 import { requestAccountDeletion } from '../services/api';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { showAlert, showAlertWithCallback, showConfirm } from '../utils/webAlert';
 
 const DELETION_SUPPORT_EMAIL = 'support@trucksphere.app';
@@ -45,8 +45,7 @@ export function AccountDeletionRequest() {
       </View>
       <Text style={[styles.description, { color: colors.textMuted }]}>Your sign-in credentials and Truck Sphere profile are deleted after a 21-day recovery period. Signing in before that date cancels the request.</Text>
       <Text style={[styles.description, { color: colors.textMuted }]}>Delivery, weighbridge, fuel, and audit records may be retained when required for contractual, tax, safety, or legal obligations. Retained records do not keep your account active or allow sign-in.</Text>
-      <Text style={[styles.supportText, { color: colors.textMuted }]}>Questions about deletion or retained records: {DELETION_SUPPORT_EMAIL}</Text>
-      <TouchableOpacity
+       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Schedule account deletion"
         disabled={submitting}

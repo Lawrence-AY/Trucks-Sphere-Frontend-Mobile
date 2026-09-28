@@ -31,7 +31,7 @@ import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { materialRepository } from '../../../services/repositories/MaterialRepository';
-import { Material, MaterialCategory } from '../../../store/types';
+import { Material, MaterialCategory } from '@/store/types';
 import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 
 const CATEGORIES: MaterialCategory[] = ['Aggregates', 'Steel', 'Cement', 'Liquid', 'Blocks', 'Other', 'Warehouse'];
