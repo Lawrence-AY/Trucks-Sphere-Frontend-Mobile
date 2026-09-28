@@ -5,7 +5,7 @@
  */
 
 import { BaseRepository } from './BaseRepository';
-import { Vehicle } from '../../store/types';
+import { Vehicle } from '@/store/types';
 import api from '../api';
 import { getStoredToken } from '../database';
 

@@ -13,3 +13,5 @@ export const useFlagViewsStore = create(persist<{ viewed: Record<string, boolean
 })) }));
 
 export { flagViewKey } from '../utils/siteFlags';
+
+export default null;

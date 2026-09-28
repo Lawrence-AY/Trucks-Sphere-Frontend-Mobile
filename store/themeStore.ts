@@ -38,3 +38,5 @@ export const useThemeStore = create<ThemeStore>((set) => ({
     await hydrationPromise;
   },
 }));
+
+export default null;

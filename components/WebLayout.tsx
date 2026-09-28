@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname } from 'expo-router';
 import Sidebar from './Sidebar';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '../hooks/useTheme';
 
 const AUTH_ROUTES = ['/(auth)', '/login', '/auth'];

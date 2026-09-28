@@ -43,7 +43,7 @@ import { vendorRepository } from '../../../services/repositories/VendorRepositor
 import api from '../../../services/api';
 import { uploadDriverPhoto } from '../../../services/uploadService';
 import { collectionCache } from '../../../services/cache/CollectionCache';
-import { Vendor } from '../../../store/types';
+import { Vendor } from '@/store/types';
 
 export default function CreateDriverScreen() {
   const params = useLocalSearchParams<{ vendorId?: string; id?: string }>();
@@ -57,6 +57,7 @@ export default function CreateDriverScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [iprsEnabled, setIprsEnabled] = useState(false);
   const [form, setForm] = useState({
     vendorId: params.vendorId || '',
     firstName: '',
@@ -71,6 +72,11 @@ export default function CreateDriverScreen() {
     status: 'active' as string,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  useEffect(() => {
+    api.get<{ iprsEnabled?: boolean }>('/api/feature-flags')
+      .then(({ data }) => setIprsEnabled(data.iprsEnabled === true))
+      .catch(() => setIprsEnabled(false));
+  }, []);
   // A late result for an earlier spelling must never overwrite a corrected name.
   const identityCheckVersion = useRef(0);
   const saveAttemptVersion = useRef(0);
@@ -88,6 +94,30 @@ export default function CreateDriverScreen() {
     // Reload the repository cache as soon as that write completes.
     void loadVendors();
   }), []);
+
+  useEffect(() => {
+    if (isEditMode) return;
+    const nationalId = form.nationalId.trim();
+    if (!nationalId) return;
+    const requestVersion = ++identityCheckVersion.current;
+    const timer = setTimeout(async () => {
+      try {
+        const response = await api.post<{ firstName?: string; surname?: string }>('/api/drivers/lookup-identity', { nationalId });
+        if (requestVersion !== identityCheckVersion.current) return;
+        if (response.data.firstName || response.data.surname) {
+          setForm((prev) => ({
+            ...prev,
+            firstName: response.data.firstName || prev.firstName,
+            surname: response.data.surname || prev.surname,
+          }));
+          setErrors((prev) => { const next = { ...prev }; delete next.firstName; delete next.surname; return next; });
+        }
+      } catch {
+        // Final save still performs the authoritative IPRS verification.
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [form.nationalId, isEditMode]);
 
   async function loadDriver(id: string) {
     try {
@@ -316,6 +346,7 @@ export default function CreateDriverScreen() {
     // Prevent a pending availability/IPRS check from continuing into creation.
     saveAttemptVersion.current += 1;
     identityCheckVersion.current += 1;
+    resetForm();
     router.back();
   }
 
@@ -357,80 +388,23 @@ export default function CreateDriverScreen() {
             placeholder="Select vendor..."
           />
 
-          {/* Photo Upload */}
-          <View style={styles.photoSectionCard}>
-            <View style={styles.photoSectionHeader}>
-              <View style={[styles.photoSectionIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name="camera-outline" size={20} color={colors.primaryText} />
-              </View>
-              <Text style={[styles.photoSectionTitle, { color: colors.text }]}>Driver Photo</Text>
-              {displayPhotoUri ? (
-                <View style={[styles.photoStatusBadge, { backgroundColor: '#10B98115' }]}>
-                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                  <Text style={[styles.photoStatusText, { color: '#10B981' }]}>Ready</Text>
-                </View>
-              ) : (
-                <View style={[styles.photoStatusBadge, { backgroundColor: colors.textMuted + '20' }]}>
-                  <Text style={[styles.photoStatusText, { color: colors.textMuted }]}>Optional</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.photoSectionSub, { color: colors.textMuted }]}>
-              Capture or select a photo of the driver for identification.
-            </Text>
-            {displayPhotoUri ? (
-              <View style={styles.photoPreviewWrap}>
-                <Image source={{ uri: displayPhotoUri }} style={styles.photoPreviewLarge} resizeMode="cover" />
-                {uploadingPhoto && (
-                  <View style={styles.photoPreviewOverlay}>
-                    <ActivityIndicator size="large" color="#FFFFFF" />
-                    <Text style={styles.photoPreviewOverlayText}>Uploading...</Text>
-                  </View>
-                )}
-              </View>
-            ) : (
-              <View style={[styles.photoPreviewWrap, styles.photoPreviewPlaceholder]}>
-                <Ionicons name="person-outline" size={48} color={colors.textMuted} />
-                <Text style={[styles.photoPlaceholderText, { color: colors.textMuted }]}>No photo selected</Text>
-              </View>
-            )}
-            <View style={styles.photoActionsRow}>
-              <TouchableOpacity
-                style={[styles.photoBtnFull, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
-                onPress={handleTakePhoto}
-                disabled={uploadingPhoto}
-              >
-                <Ionicons name="camera-outline" size={20} color={displayPhotoUri ? '#10B981' : colors.primary} />
-                <Text style={[styles.photoBtnText, { color: displayPhotoUri ? '#10B981' : colors.primary }]}>
-                  {displayPhotoUri ? 'Retake Photo' : 'Take Photo'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.photoBtnFull, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
-                onPress={handlePickPhoto}
-                disabled={uploadingPhoto}
-              >
-                <Ionicons name="images-outline" size={20} color={colors.primaryText} />
-                <Text style={[styles.photoBtnText, { color: colors.primaryText }]}>Gallery</Text>
-              </TouchableOpacity>
-            </View>
-            {photoUri && (
-              <TouchableOpacity
-                style={[styles.photoRemoveBtn, { borderColor: '#FECACA' }]}
-                onPress={() => setPhotoUri(null)}
-                disabled={uploadingPhoto}
-              >
-                <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                <Text style={[styles.photoRemoveText, { color: '#EF4444' }]}>Remove Photo</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <Input
+            label="National ID"
+            value={form.nationalId}
+            editable={!isEditMode}
+            onChangeText={(v) => updateField('nationalId', v)}
+            placeholder="e.g. 12345678"
+            icon="card-outline"
+            keyboardType="numeric"
+            required
+            error={errors.nationalId}
+          />
 
           <ResponsiveGrid minItemWidth={280} maxColumns={2}>
-<Input
+          <Input
             label="First Name"
             value={form.firstName}
-            editable={!isEditMode}
+            editable={!iprsEnabled}
             onChangeText={(v) => updateField('firstName', v)}
             placeholder="Enter first name"
             icon="person-outline"
@@ -440,7 +414,7 @@ export default function CreateDriverScreen() {
           <Input
             label="Surname"
             value={form.surname}
-            editable={!isEditMode}
+            editable={!iprsEnabled}
             onChangeText={(v) => updateField('surname', v)}
             placeholder="Enter surname"
             icon="person-outline"
@@ -466,17 +440,6 @@ export default function CreateDriverScreen() {
             keyboardType="email-address"
           />
           <Input
-            label="National ID"
-            value={form.nationalId}
-            editable={!isEditMode}
-            onChangeText={(v) => updateField('nationalId', v)}
-            placeholder="e.g. 12345678"
-            icon="card-outline"
-            keyboardType="numeric"
-            required
-            error={errors.nationalId}
-          />
-          <Input
             label="License Number"
             value={form.licenseNumber}
             onChangeText={(v) => updateField('licenseNumber', v)}
@@ -500,6 +463,40 @@ export default function CreateDriverScreen() {
             icon="calendar-outline"
           />
 </ResponsiveGrid>
+
+          {/* Photo Upload */}
+          <View style={styles.photoSectionCard}>
+            <View style={styles.photoSectionHeader}>
+              <View style={[styles.photoSectionIcon, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name="camera-outline" size={20} color={colors.primaryText} />
+              </View>
+              <Text style={[styles.photoSectionTitle, { color: colors.text }]}>Driver Photo</Text>
+              {displayPhotoUri ? (
+                <View style={[styles.photoStatusBadge, { backgroundColor: '#10B98115' }]}>
+                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                  <Text style={[styles.photoStatusText, { color: '#10B981' }]}>Ready</Text>
+                </View>
+              ) : (
+                <View style={[styles.photoStatusBadge, { backgroundColor: colors.textMuted + '20' }]}>
+                  <Text style={[styles.photoStatusText, { color: colors.textMuted }]}>Optional</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.photoSectionSub, { color: colors.textMuted }]}>Capture or select a photo of the driver for identification.</Text>
+            {displayPhotoUri ? (
+              <View style={styles.photoPreviewWrap}>
+                <Image source={{ uri: displayPhotoUri }} style={styles.photoPreviewLarge} resizeMode="cover" />
+                {uploadingPhoto && <View style={styles.photoPreviewOverlay}><ActivityIndicator size="large" color="#FFFFFF" /><Text style={styles.photoPreviewOverlayText}>Uploading...</Text></View>}
+              </View>
+            ) : (
+              <View style={[styles.photoPreviewWrap, styles.photoPreviewPlaceholder]}><Ionicons name="person-outline" size={48} color={colors.textMuted} /><Text style={[styles.photoPlaceholderText, { color: colors.textMuted }]}>No photo selected</Text></View>
+            )}
+            <View style={styles.photoActionsRow}>
+              <TouchableOpacity style={[styles.photoBtnFull, { backgroundColor: colors.inputBg, borderColor: colors.border }]} onPress={handleTakePhoto} disabled={uploadingPhoto}><Ionicons name="camera-outline" size={20} color={displayPhotoUri ? '#10B981' : colors.primary} /><Text style={[styles.photoBtnText, { color: displayPhotoUri ? '#10B981' : colors.primary }]}>{displayPhotoUri ? 'Retake Photo' : 'Take Photo'}</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.photoBtnFull, { backgroundColor: colors.inputBg, borderColor: colors.border }]} onPress={handlePickPhoto} disabled={uploadingPhoto}><Ionicons name="images-outline" size={20} color={colors.primaryText} /><Text style={[styles.photoBtnText, { color: colors.primaryText }]}>Gallery</Text></TouchableOpacity>
+            </View>
+            {photoUri && <TouchableOpacity style={[styles.photoRemoveBtn, { borderColor: '#FECACA' }]} onPress={() => setPhotoUri(null)} disabled={uploadingPhoto}><Ionicons name="trash-outline" size={18} color="#EF4444" /><Text style={[styles.photoRemoveText, { color: '#EF4444' }]}>Remove Photo</Text></TouchableOpacity>}
+          </View>
         </Card>
 
         <View style={styles.actions}>

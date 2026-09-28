@@ -1,5 +1,5 @@
-import { useFlagViewsStore } from '../store/flagViewsStore';
-import { useAuthStore } from '../store/authStore';
+import { useFlagViewsStore } from '@/store/flagViewsStore';
+import { useAuthStore } from '@/store/authStore';
 import React from 'react';
 import { TripMaterials } from './TripMaterials';
 import { Image, StyleSheet, Text, View } from 'react-native';

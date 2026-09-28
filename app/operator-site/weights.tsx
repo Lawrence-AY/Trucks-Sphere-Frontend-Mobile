@@ -20,9 +20,9 @@ import * as Print from 'expo-print';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { fetchQuarries, updateDeliveryOrder } from '../../services/api';
-import { useAuthStore } from '../../store/authStore';
-import { useDeliveryOrders } from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useAuthStore } from '@/store/authStore';
+import { useDeliveryOrders } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { getNextId } from '../../services/counter';
@@ -321,7 +321,7 @@ export default function OperatorSiteWeightsScreen() {
     let filtered = deliveries.filter(
       (d) =>
         !['cancelled', 'completed', 'delivered'].includes(d.status) &&
-        !d.isWarehouseDelivery && d.deliveryOrigin !== 'warehouse' && d.siteWeighOutWeight == null &&
+        d.siteWeighOutWeight == null &&
         (d.siteWeighInWeight != null || d.siteArrivalWeight != null || d.status === 'weighed_in' || d.status === 'site_in'),
     );
     // Apply data isolation for operator-site role
@@ -622,6 +622,9 @@ export default function OperatorSiteWeightsScreen() {
                 <Text style={[styles.jobCardTitle, { color: colors.text }]}>
                   {activeJob.jobId}
                 </Text>
+                {(activeJob.receiptNoteId || activeJob.receiptNote) ? (
+                  <Text style={[styles.jobPo, { color: '#10B981', fontWeight: '800' }]}>RN: {activeJob.receiptNoteId || activeJob.receiptNote}</Text>
+                ) : null}
                 <Text style={[styles.jobPo, { color: colors.textMuted }]}>
                   {activeJob.poNumber || 'No PO'}
                 </Text>

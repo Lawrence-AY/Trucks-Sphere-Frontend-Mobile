@@ -73,6 +73,8 @@ export function useRealtimeCollection(
   }, [snapshot]);
 }
 
+export default null;
+
 // ============================================================
 // Convenience hooks for each collection
 // ============================================================

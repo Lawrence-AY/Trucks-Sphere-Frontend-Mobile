@@ -496,47 +496,19 @@ export async function shareCsvAsFile(title: string, csvContent: string): Promise
 }
 
 /**
- * Share a PDF file using expo-print + expo-sharing + new expo-file-system API.
- * Generates PDF from HTML and shares as actual .pdf.
- * Falls back to plain text Share.share on failure.
+ * Print a PDF document from HTML. Do not fall back to sharing the raw HTML:
+ * on mobile that displays the markup instead of printing the document.
  */
 export async function sharePdfAsFile(title: string, htmlContent: string): Promise<void> {
   const safeName = title.replace(/[^a-zA-Z0-9_-]/g, '_');
   const fileName = `${safeName}.pdf`;
 
   try {
-    if (Platform.OS === 'web') {
-      await Print.printAsync({ html: htmlContent, width: 595, height: 842 });
-      return;
-    }
-
-    const { uri } = await Print.printToFileAsync({ html: htmlContent, width: 595, height: 842, base64: false });
-
-    // Copy generated PDF to cache with friendly name
-    const pdfFile = new File(Paths.cache, fileName);
-    const tempFile = new File(uri);
-    await tempFile.copy(pdfFile);
-
-    const canShare = await ExpoSharing.isAvailableAsync();
-    if (canShare) {
-      await ExpoSharing.shareAsync(pdfFile.uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: title,
-        UTI: 'com.adobe.pdf',
-      });
-    } else {
-      await Share.share({ message: htmlContent, title });
-    }
+    // printAsync opens the native print sheet on iOS/Android and the browser
+    // print dialog on web. It prevents the HTML source from being shown.
+    await Print.printAsync({ html: htmlContent, width: 595, height: 842 });
   } catch (e: any) {
-    if (e?.message !== 'User did not share' && e?.message !== 'CANCELED') {
-      try {
-        await Share.share({ message: htmlContent, title });
-      } catch (_: any) {
-        if (_?.message !== 'User did not share') {
-          Alert.alert('Export Error', _?.message || 'Failed to share PDF');
-        }
-      }
-    }
+    if (e?.message !== 'User did not share' && e?.message !== 'CANCELED') Alert.alert('Print Error', e?.message || `Could not print ${fileName}`);
   }
 }
 

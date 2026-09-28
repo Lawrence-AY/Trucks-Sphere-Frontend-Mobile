@@ -23,7 +23,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { Card } from '../../components/ui/Card';
 import { fetchDeliveryOrders } from '../../services/api';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import * as Print from 'expo-print';
 import { formatEAT } from '../../utils/helpers';
 

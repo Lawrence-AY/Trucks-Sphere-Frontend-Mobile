@@ -22,8 +22,8 @@ import {
   useMaterials,
   usePurchaseOrders,
   useFuelRecords,
-} from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+} from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { downloadReportExcel, downloadCategoryCSV } from '../../services/api';
 import { PageShell, SectionTitle } from '../../components/EnterpriseUI';
 
@@ -45,6 +45,7 @@ const CATEGORIES = [
   { key: 'warehouse', label: 'Warehouse', icon: 'cube-outline', color: '#7C3AED' },
   { key: 'siteOps', label: 'Site Ops', icon: 'business-outline', color: '#059669' },
   { key: 'inspections', label: 'Inspections', icon: 'clipboard-outline', color: '#0F766E' },
+  { key: 'storeActivity', label: 'Store Activity', icon: 'archive-outline', color: '#7C3AED' },
 ];
 
 function withinTimeframe(dateStr: string, flt: string): boolean {
@@ -204,6 +205,12 @@ export default function ReportsScreen() {
         pending: fDel.filter((d: any) => (d.materialInspection?.materialReceipts || []).some((line: any) => (line.initialVisualInspection || 'Pending') === 'Pending')).length,
         preview: fDel.filter((d: any) => d.materialInspection?.mrfNumber).slice(0, 5),
       },
+      storeActivity: {
+        total: fDel.reduce((sum: number, d: any) => sum + (d.materialInspection?.materialReceipts?.length || 0), 0),
+        passed: fDel.reduce((sum: number, d: any) => sum + (d.materialInspection?.materialReceipts || []).filter((line: any) => line.initialVisualInspection === 'Pass').length, 0),
+        failed: fDel.reduce((sum: number, d: any) => sum + (d.materialInspection?.materialReceipts || []).filter((line: any) => line.initialVisualInspection === 'Failed').length, 0),
+        preview: fDel.filter((d: any) => d.materialInspection?.materialReceipts?.length),
+      },
       fuelByJob,
     };
   }, [deliveries, drivers, vehicles, vendors, materials, purchaseOrders, fuelRecords, filter]);
@@ -348,6 +355,7 @@ export default function ReportsScreen() {
       </ScrollView>
 
       <SectionTitle title={`${currentCat.label}`} />
+      {activeTab === 'storeActivity' ? <View style={{ gap: 8, marginBottom: 12 }}>{(d.preview || []).flatMap((job: any) => (job.materialInspection?.materialReceipts || []).map((line: any, index: number) => <View key={`${job.id}-${index}`} style={{ padding: 12, borderRadius: Radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}><Text style={{ color: colors.text, fontWeight: '800' }}>{job.jobId || job.id} · {job.poNumber || job.purchaseOrderId || 'No PO'}</Text><Text style={{ color: colors.textMuted }}>{line.materialName || job.materialName} · Qty: {line.receivedQuantity ?? '—'} {line.unit || ''}</Text><Text style={{ color: colors.textMuted }}>Inspector: {job.materialInspection?.inspectorName || '—'} · {new Date(job.materialInspection?.inspectedAt || job.updatedAt).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })}</Text><Text style={{ color: line.initialVisualInspection === 'Failed' ? '#DC2626' : '#059669', fontWeight: '700' }}>{line.initialVisualInspection || 'Pending'}{line.failureReason || line.deficiency ? ` · ${line.failureReason || line.deficiency}` : ''}</Text></View>))}</View> : null}
 
       <TouchableOpacity
         style={[
@@ -433,6 +441,14 @@ function renderCategoryCards(tab: string, d: any, colors: any, m: any) {
       return (
         <>
           <MetricCard icon="checkmark-circle-outline" label="Dispatched" value={d.completed ?? 0} color="#10B981" />
+        </>
+      );
+    case 'storeActivity':
+      return (
+        <>
+          <MetricCard icon="archive-outline" label="Receipts" value={d.total ?? 0} color="#7C3AED" />
+          <MetricCard icon="checkmark-circle-outline" label="Passed" value={d.passed ?? 0} color="#10B981" />
+          <MetricCard icon="close-circle-outline" label="Failed" value={d.failed ?? 0} color="#DC2626" />
         </>
       );
     case 'siteOps':

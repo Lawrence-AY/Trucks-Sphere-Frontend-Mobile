@@ -3,11 +3,11 @@ import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { formatEAT, normalizeVendorId } from '../../utils/helpers';
 import { isActiveJob, normalizeJobStatus } from '../../utils/jobStatus';
-import { useRealtimeCollection } from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useRealtimeCollection } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import {
   DataCard,
   DetailRow,

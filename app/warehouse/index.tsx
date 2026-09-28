@@ -24,8 +24,8 @@ import { Select } from '../../components/ui/Select';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { createWarehouseJob, fetchDeliveryOrders, fetchMaterials, fetchPurchaseOrders, fetchVendors, fetchWarehouseJobs, previewWarehouseShipmentFile } from '../../services/api';
 import { uploadWarehousePackagingPhoto, type UploadFile } from '../../services/uploadService';
-import { Driver, Material, PurchaseOrder, Vehicle, Vendor, WarehouseJob } from '../../store/types';
-import { useAuthStore } from '../../store/authStore';
+import { Driver, Material, PurchaseOrder, Vehicle, Vendor, WarehouseJob } from '@/store/types';
+import { useAuthStore } from '@/store/authStore';
 import { isActiveJob } from '../../utils/jobStatus';
 import { normalizeRole } from '../../utils/access';
 
@@ -442,7 +442,7 @@ export default function WarehouseQueueScreen() {
                   }}
                 >
                   <Ionicons name="document-text-outline" size={18} color={dispatchMethod === 'purchase_order' ? '#FFFFFF' : colors.primaryText} />
-                  <Text style={[styles.methodText, { color: dispatchMethod === 'purchase_order' ? '#FFFFFF' : colors.text }]}>Warehouse purchase order</Text>
+                  <Text style={[styles.methodText, { color: dispatchMethod === 'purchase_order' ? '#FFFFFF' : colors.text }]}>Warehouse order</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
@@ -465,7 +465,7 @@ export default function WarehouseQueueScreen() {
 
               <Select
                 nativeModal
-                label="Warehouse purchase order"
+                label="Warehouse delivery order"
                 value={purchaseOrderId}
                 options={warehousePurchaseOrders
                   .map((order) => ({

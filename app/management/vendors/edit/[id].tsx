@@ -29,8 +29,8 @@ import { Button } from '../../../../components/ui/Button';
 import { ConfirmDialog } from '../../../../components/ui/ConfirmDialog';
 import { LoadingSkeleton } from '../../../../components/ui/LoadingSkeleton';
 import { vendorRepository } from '../../../../services/repositories/VendorRepository';
-import { Vendor } from '../../../../store/types';
-import { useAuthStore } from '../../../../store/authStore';
+import { Vendor } from '@/store/types';
+import { useAuthStore } from '@/store/authStore';
 import { MANAGEMENT_ROLES, normalizeRole } from '../../../../utils/access';
 
 export default function EditVendorScreen() {

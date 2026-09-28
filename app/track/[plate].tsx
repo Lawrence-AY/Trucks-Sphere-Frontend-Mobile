@@ -26,10 +26,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { fetchPublicTrackingByPlate, recordSecurityTrackingDecision } from '../../services/api';
+import { fetchPublicTrackingByPlate, recordSecurityTrackingDecision, selectSecurityTrackingVehicle } from '../../services/api';
 import { getItem, removeItem } from '../../services/database';
 import { Colors, Spacing, Radius } from '../../constants/theme';
 import { canControlStatusBarAppearance } from '../../utils/statusBar';
+import * as ImagePicker from 'expo-image-picker';
 
 const TRACK_SESSION_KEY = 'user_track';
 const LEGACY_TRACK_SESSION_KEY = 'track_session';
@@ -71,7 +72,7 @@ type PageState =
 
 export default function PublicTrackingScreen() {
   const { plate } = useLocalSearchParams<{ plate: string }>();
-  const [securitySession, setSecuritySession] = useState<{ id: string; token: string; plate: string } | null>(null);
+  const [securitySession, setSecuritySession] = useState<{ id: string; token: string; plate: string; securityLocation?: string } | null>(null);
   const [searchPlate, setSearchPlate] = useState((plate || '').toUpperCase());
   const [state, setState] = useState<PageState>(
     plate ? { kind: 'loading' } : { kind: 'expired', message: 'Enter a vehicle registration number to track.' }
@@ -82,6 +83,9 @@ export default function PublicTrackingScreen() {
   const [showFlagOptions, setShowFlagOptions] = useState(false);
   const [decisionBusy, setDecisionBusy] = useState(false);
   const [decisionMessage, setDecisionMessage] = useState('');
+  const [securityPage, setSecurityPage] = useState<1 | 2>(1);
+  const [photosCaptured, setPhotosCaptured] = useState(false);
+  const [capturedPhotoUri, setCapturedPhotoUri] = useState('');
 
   useEffect(() => {
     void Promise.all([getItem(TRACK_SESSION_KEY), getItem(LEGACY_TRACK_SESSION_KEY)]).then(([raw, legacyRaw]) => {
@@ -89,6 +93,7 @@ export default function PublicTrackingScreen() {
         const session = raw ? JSON.parse(raw) : legacyRaw ? JSON.parse(legacyRaw) : null;
         if (!session?.id || !session?.token) return router.replace('/session' as any);
         setSecuritySession(session);
+        setPhotosCaptured(session.photosCaptured === true);
       } catch { router.replace('/session' as any); }
     });
   }, []);
@@ -145,6 +150,24 @@ export default function PublicTrackingScreen() {
       trackByPlate(p);
     }
   }, [plate, trackByPlate, securitySession]);
+
+  const captureSecurityPhoto = async () => {
+    if (securitySession?.securityLocation?.toLowerCase() !== 'gate') {
+      setDecisionMessage('Driver photo capture is only available at the gate.');
+      return;
+    }
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) return setDecisionMessage('Camera permission is required to capture the driver and truck.');
+    const captured = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (captured.canceled || !captured.assets?.[0]?.uri || !securitySession) return;
+    try {
+      await selectSecurityTrackingVehicle(securitySession.id, securitySession.token, securitySession.plate, true);
+      setCapturedPhotoUri(captured.assets[0].uri);
+      setPhotosCaptured(true);
+      setSecuritySession((current) => current ? { ...current, photosCaptured: true } : current);
+      setDecisionMessage('');
+    } catch (error: any) { setDecisionMessage(error?.response?.data?.error || 'Unable to save the security photo capture.'); }
+  };
 
   const submitDecision = async (outcome: 'verified' | 'flagged') => {
     const resolvedFlagReason = selectedFlagReason === 'Other' ? flagReason.trim() : selectedFlagReason;
@@ -405,7 +428,7 @@ export default function PublicTrackingScreen() {
           </View>
         ) : null}
 
-        {/* ─── Dispatch Proof Card ─── */}
+        {/* ─── Dispatch Proof / Geolocation Card ─── */}
         <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
           <View style={styles.cardHead}>
             <View style={[styles.cardHeadIcon, { backgroundColor: '#FFF7ED' }]}>
@@ -449,12 +472,25 @@ export default function PublicTrackingScreen() {
           ) : null}
         </View>
 
-        {!hasSecurityFlag && !decisionMessage ? (
+        <View style={styles.pagination}><TouchableOpacity disabled={securityPage === 1} onPress={() => setSecurityPage(1)} style={[styles.pageButton, { borderColor: border, opacity: securityPage === 1 ? 0.4 : 1 }]}><Text style={{ color: text }}>Back</Text></TouchableOpacity><Text style={{ color: textMut }}>Step {securityPage} of 2</Text><TouchableOpacity disabled={securityPage === 2} onPress={() => setSecurityPage(2)} style={[styles.pageButton, { backgroundColor: primary, opacity: securityPage === 2 ? 0.4 : 1 }]}><Text style={{ color: '#fff' }}>Next</Text></TouchableOpacity></View>
+
+        {securityPage === 2 ? <>
+          <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+            <Text style={[styles.cardTitle, { color: text }]}>Driver and Truck Capture</Text>
+            <Text style={{ color: textSec, marginTop: 8 }}>{securitySession?.securityLocation?.toLowerCase() === 'gate' ? 'Capture a photo of the incoming driver and truck before making a security decision.' : 'Driver photo capture is not available at this location.'}</Text>
+            {securitySession?.securityLocation?.toLowerCase() === 'gate' ? <TouchableOpacity onPress={captureSecurityPhoto} style={[styles.captureButton, { backgroundColor: primary }]}>
+              <Ionicons name="camera-outline" size={18} color="#fff" />
+              <Text style={styles.decisionButtonText}>{photosCaptured ? 'Retake driver and truck photo' : 'Capture driver and truck photo'}</Text>
+            </TouchableOpacity> : null}
+            {capturedPhotoUri ? <Image source={{ uri: capturedPhotoUri }} style={[styles.capturedPreview, { borderColor: border }]} /> : null}
+          </View>
+        { !hasSecurityFlag && !decisionMessage ? (
           <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
             <Text style={[styles.cardTitle, { color: text }]}>Security Decision</Text>
+            {!photosCaptured && securitySession?.securityLocation?.toLowerCase() === 'gate' ? <Text style={{ color: textMut, marginTop: 8 }}>Capture the driver and truck photo before accepting or flagging this vehicle.</Text> : null}
             <View style={styles.decisionActions}>
-              <TouchableOpacity disabled={decisionBusy} onPress={() => submitDecision('verified')} style={[styles.decisionButton, { backgroundColor: colors.success }]}><Text style={styles.decisionButtonText}>Accept</Text></TouchableOpacity>
-              <TouchableOpacity disabled={decisionBusy} onPress={() => setShowFlagOptions((visible) => !visible)} style={[styles.decisionButton, { backgroundColor: colors.danger }]}><Text style={styles.decisionButtonText}>Flag</Text></TouchableOpacity>
+              <TouchableOpacity disabled={decisionBusy || (securitySession?.securityLocation?.toLowerCase() === 'gate' && !photosCaptured)} onPress={() => submitDecision('verified')} style={[styles.decisionButton, { backgroundColor: colors.success }]}><Text style={styles.decisionButtonText}>Accept</Text></TouchableOpacity>
+              <TouchableOpacity disabled={decisionBusy || (securitySession?.securityLocation?.toLowerCase() === 'gate' && !photosCaptured)} onPress={() => setShowFlagOptions((visible) => !visible)} style={[styles.decisionButton, { backgroundColor: colors.danger }]}><Text style={styles.decisionButtonText}>Flag</Text></TouchableOpacity>
             </View>
             {showFlagOptions ? <>
               <Text style={[styles.flagPrompt, { color: textSec }]}>Select a reason for flagging</Text>
@@ -469,11 +505,12 @@ export default function PublicTrackingScreen() {
             </> : null}
           </View>
         ) : <View style={[styles.card, { backgroundColor: '#ECFDF5', borderColor: colors.success }]}><Text style={[styles.cardTitle, { color: colors.success }]}>{decisionMessage}</Text></View>}
+        </> : null}
 
-        <View style={styles.footer}>
+        {securityPage === 2 ? <View style={styles.footer}>
           <Ionicons name="lock-closed-outline" size={14} color={textMut} />
           <Text style={[styles.footerText, { color: textMut }]}>This tracking link will automatically expire upon delivery.</Text>
-        </View>
+        </View> : null}
         <View style={{ height: 40 }} />
       </ScrollView>
 
@@ -503,6 +540,10 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: Spacing['4xl'] },
+  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
+  pageButton: { borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  captureButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Radius.md, padding: 12, marginTop: Spacing.md },
+  capturedPreview: { width: 120, height: 120, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.md, alignSelf: 'center' },
 
   /* ─── Header ─── */
   header: {

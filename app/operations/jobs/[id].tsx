@@ -31,7 +31,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { jobRepository } from '../../../services/repositories/JobRepository';
-import { Job } from '../../../store/types';
+import { Job } from '@/store/types';
  import { JobDocuments } from '../../../components/JobDocuments';
 import { normalizeJobStatus } from '../../../utils/jobStatus';
 import { getSiteWeightFlagReason, isSiteWeightFlagged } from '../../../utils/siteFlags';
@@ -129,6 +129,10 @@ export default function JobDetailScreen() {
   function renderOverview() {
     if (!job) return null;
     const siteFlagged = isSiteWeightFlagged(job);
+    const isWarehouseJob = Boolean(
+      (job as any).isWarehouseDelivery ||
+      String((job as any).deliveryOrigin || (job as any).materialSource || '').trim().toLowerCase() === 'warehouse'
+    );
     return (
       <View>
         <Card style={siteFlagged ? { borderColor: colors.danger, borderWidth: 1.5 } : undefined}>
@@ -159,7 +163,7 @@ export default function JobDetailScreen() {
         
         </Card>
 
-        <Card style={{ marginTop: Spacing.xs}}>
+        {!isWarehouseJob && <Card style={{ marginTop: Spacing.xs}}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Assignment</Text>
           <View style={styles.detailRow}>
             <Ionicons name="person-outline" size={18} color={colors.textMuted} />
@@ -174,7 +178,7 @@ export default function JobDetailScreen() {
             </Text>
           </View>
         
-        </Card>
+        </Card>}
 
         <JobDocuments
           job={job}

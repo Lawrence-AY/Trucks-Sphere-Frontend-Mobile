@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { getRoleLabel } from '../../utils/helpers';
@@ -158,14 +158,16 @@ export default function ManagementLayout() {
   const drawerSections = useMemo(() => {
     const sections = getManagementNavigation(role);
     return [
-      ...sections,
+      ...sections
+        .map((section) => ({ ...section, items: section.items.filter((item) => !visibleBottomTabs.includes(item.route)) }))
+        .filter((section) => section.items.length > 0),
       {
         title: 'Session',
         icon: 'log-out-outline' as keyof typeof Ionicons.glyphMap,
         items: [{ label: 'Logout', icon: 'log-out-outline' as keyof typeof Ionicons.glyphMap, route: '__logout__' }],
       },
     ];
-  }, [role]);
+  }, [role, visibleBottomTabs]);
 
   const toggleMenu = useCallback(() => {
     if (menuOpen) {
@@ -240,7 +242,7 @@ export default function ManagementLayout() {
             'roles': 'Roles',
             
             'vendors': 'Vendors',
-            'purchase-orders': 'Purchase Orders',
+            'purchase-orders': 'Orders',
             'vehicles': 'Vehicles',
             'materials/[id]': 'Material Details',
             'materials/edit/[id]': 'Edit Material',

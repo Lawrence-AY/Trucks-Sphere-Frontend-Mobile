@@ -29,7 +29,7 @@ import { vehicleRepository } from '../services/repositories/VehicleRepository';
 import { materialRepository } from '../services/repositories/MaterialRepository';
 import { purchaseOrderRepository } from '../services/repositories/PurchaseOrderRepository';
 import { jobRepository } from '../services/repositories/JobRepository';
-import { SearchResult } from '../store/types';
+import { SearchResult } from '@/store/types';
 
 interface SearchGroup {
   title: string;

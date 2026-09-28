@@ -25,9 +25,9 @@ import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { updateDeliveryOrder, fetchQuarries } from '../../services/api';
-import { useDeliveryOrders, useDrivers, usePurchaseOrders } from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
-import { useAuthStore } from '../../store/authStore';
+import { useDeliveryOrders, useDrivers, usePurchaseOrders } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
+import { useAuthStore } from '@/store/authStore';
 import { formatEAT } from '../../utils/helpers';
 import { isActiveJob } from '../../utils/jobStatus';
 import { uploadDriverPhotoWeighOut } from '../../services/uploadService';
@@ -120,6 +120,7 @@ export default function OperatorQuarryWeighOutScreen() {
   const [driverPhotoUri, setDriverPhotoUri] = useState<string | null>(null);
   const [driverPhotoUploading, setDriverPhotoUploading] = useState(false);
   const [driverPhotoURL, setDriverPhotoURL] = useState<string | null>(null);
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
 
   // ─── Location State ───
   const [geoLocation, setGeoLocation] = useState<{
@@ -182,6 +183,8 @@ export default function OperatorQuarryWeighOutScreen() {
     setWeightOut('');
     setDriverPhotoUri(null);
     setDriverPhotoURL(job.driverPhotoURL || null);
+    const tripMaterials = getTripMaterials(job, purchaseOrders);
+    setSelectedMaterialIds(tripMaterials.length === 1 ? [String(tripMaterials[0].materialId || 0)] : []);
     setGeoLocation(null);
     setSelectedQuarryId((user as any)?.quarryId || job.quarryId || '');
     await captureLocation();
@@ -193,6 +196,7 @@ export default function OperatorQuarryWeighOutScreen() {
     setSubmitting(false);
     setDriverPhotoUri(null);
     setDriverPhotoURL(null);
+    setSelectedMaterialIds([]);
     setGeoLocation(null);
   };
 
@@ -274,6 +278,11 @@ export default function OperatorQuarryWeighOutScreen() {
       Alert.alert('Invalid Weight', 'Loaded weight must be higher than empty weight.');
       return;
     }
+    const tripMaterials = getTripMaterials(activeJob, purchaseOrders);
+    if (tripMaterials.length > 1 && !selectedMaterialIds.length) {
+      Alert.alert('Material selection required', 'Select the material or materials loaded onto this truck before capturing the driver photo.');
+      return;
+    }
     if (!driverPhotoURL) {
       Alert.alert('Driver Photo Required', 'Please capture the driver\'s photo before submitting.');
       return;
@@ -315,6 +324,8 @@ export default function OperatorQuarryWeighOutScreen() {
         weighOutByName: user?.displayName || user?.name || 'Quarry Operator',
         status: 'DISPATCHED',
         updatedAt: now,
+        materials: getTripMaterials(activeJob, purchaseOrders).filter((line: any, index: number) => getTripMaterials(activeJob, purchaseOrders).length === 1 || selectedMaterialIds.includes(String(line.materialId || index))),
+        dispatchedMaterialIds: selectedMaterialIds,
       };
       if (driverPhotoURL) {
         updatePayload.driverPhotoURL = driverPhotoURL;
@@ -562,7 +573,7 @@ export default function OperatorQuarryWeighOutScreen() {
               )}
               <DetailRow value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
             </View>
-            <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
+          {getTripMaterials(activeJob, purchaseOrders).map((line: any, index: number) => <DetailRow key={`${line.materialId || index}`} icon="cube-outline" value={`${line.materialName || line.productName || 'Material'}`} />)}
             <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
             <DetailRow icon="location-outline" value={`Origin: ${(geoLocation as any)?.city || (geoLocation as any)?.town || (geoLocation as any)?.district || geoLocation?.address || activeJob.quarryName || 'Quarry'}`} />
             
@@ -578,6 +589,12 @@ export default function OperatorQuarryWeighOutScreen() {
               </View>
             </View>
           </View>
+
+          {getTripMaterials(activeJob, purchaseOrders).length > 1 ? <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.sectionHeader}><Ionicons name="cube-outline" size={22} color={colors.primary} /><Text style={[styles.sectionTitleStyle, { color: colors.text }]}>Materials loaded on this trip</Text></View>
+            <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Select every material actually loaded before capturing the driver photo.</Text>
+            {getTripMaterials(activeJob, purchaseOrders).map((line: any, index: number) => { const id = String(line.materialId || index); const selected = selectedMaterialIds.includes(id); return <TouchableOpacity key={id} onPress={() => setSelectedMaterialIds((current) => selected ? current.filter((value) => value !== id) : [...current, id])} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 }}><Ionicons name={selected ? 'checkbox' : 'square-outline'} size={22} color={selected ? colors.primary : colors.textMuted} /><Text style={{ color: colors.text, flex: 1 }}>{line.materialName || line.productName || 'Material'}</Text></TouchableOpacity>; })}
+          </View> : null}
 
           <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.sectionHeader}>

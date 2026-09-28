@@ -16,8 +16,8 @@ import { Searchbar } from 'react-native-paper';
 import { ManagementHeaderMenuButton } from '../../components/management/ManagementMenuContext';
 import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
-import { useDeliveryOrders, useDrivers, useMaterials } from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
+import { useDeliveryOrders, useDrivers, useMaterials } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { formatEAT } from '../../utils/helpers';
 import { isActiveJob } from '../../utils/jobStatus';
 import {

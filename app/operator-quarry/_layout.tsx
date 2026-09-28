@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { Spacing, Radius } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { getRoleLabel } from '../../utils/helpers';

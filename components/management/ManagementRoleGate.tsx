@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { router } from 'expo-router';
 import { View } from 'react-native';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { MANAGEMENT_ROLES, managementHomeRoute, normalizeRole } from '../../utils/access';
 
 /** Prevents a direct URL from opening another management account's folder. */

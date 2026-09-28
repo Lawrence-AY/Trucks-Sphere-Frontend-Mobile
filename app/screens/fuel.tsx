@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 import { Spacing } from "../../constants/theme";
 import { fetchFuelRecords } from "../../services/api";
-import { useAuthStore } from "../../store/authStore";
+import { useAuthStore } from "@/store/authStore";
 import { formatEAT, normalizeVendorId } from "../../utils/helpers";
 import {
   DataCard,

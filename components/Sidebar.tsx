@@ -12,12 +12,12 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { useTheme, useThemeMode } from '../hooks/useTheme';
 import { Spacing } from '../constants/theme';
 import { getRoleLabel } from '../utils/helpers';
 import { showConfirm } from '../utils/webAlert';
-import type { UserRole } from '../store/types';
+import type { UserRole } from '@/store/types';
 import { isManagementRole, managementHomeRoute, normalizeRole } from '../utils/access';
 import { getManagementNavigation } from '../utils/managementNavigation';
 import { ThemeToggle } from './ThemeToggle';
@@ -47,7 +47,7 @@ const ROLE_SECTIONS: NavSection[] = [
       { label: 'Trips', icon: 'layers-outline', route: '/vendor/trips', roles: ['vendor'], activeRoutes: ['/vendor/trips'] },
       { label: 'Drivers', icon: 'people-outline', route: '/vendor/drivers', roles: ['vendor'], activeRoutes: ['/vendor/drivers'] },
       { label: 'Trucks', icon: 'car-outline', route: '/vendor/trucks', roles: ['vendor'], activeRoutes: ['/vendor/trucks'] },
-      { label: 'Purchase Orders', icon: 'document-text-outline', route: '/vendor/orders', roles: ['vendor'], activeRoutes: ['/vendor/orders'] },
+      { label: 'Orders', icon: 'document-text-outline', route: '/vendor/orders', roles: ['vendor'], activeRoutes: ['/vendor/orders'] },
       { label: 'Materials', icon: 'cube-outline', route: '/vendor/materials', roles: ['vendor'], activeRoutes: ['/vendor/materials'] },
       { label: 'Profile', icon: 'person-outline', route: '/vendor/profile', roles: ['vendor'], activeRoutes: ['/vendor/profile'] },
       { label: 'Reports', icon: 'bar-chart-outline', route: '/vendor/reports', roles: ['vendor'], activeRoutes: ['/vendor/reports'] },
@@ -66,6 +66,10 @@ const ROLE_SECTIONS: NavSection[] = [
       { label: 'Dispense Fuel', icon: 'water-outline', route: '/operator-fuel/dispense', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/dispense'] },
       { label: 'History', icon: 'time-outline', route: '/operator-fuel/history', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/history'] },
       { label: 'Profile', icon: 'person-outline', route: '/operator-fuel/profile', roles: ['operator_fuel'], activeRoutes: ['/operator-fuel/profile'] },
+      { label: 'Receiving', icon: 'cube-outline', route: '/store-account', roles: ['storeman'], activeRoutes: ['/store-account'], exactActive: true },
+      { label: 'History', icon: 'time-outline', route: '/store-account/history', roles: ['storeman'], activeRoutes: ['/store-account/history'] },
+      { label: 'Profile', icon: 'person-outline', route: '/store-account/profile', roles: ['storeman'], activeRoutes: ['/store-account/profile'] },
+      { label: 'Inventory', icon: 'layers-outline', route: '/store-account/inventory', roles: ['storeman'], activeRoutes: ['/store-account/inventory'] },
     ],
   },
   {
@@ -177,6 +181,9 @@ export default function Sidebar({ drawerMode = false, onNavigate }: SidebarProps
               break;
             case 'inspector':
               handleNav('/inspector');
+              break;
+            case 'storeman':
+              handleNav('/store-account');
               break;
             default:
               handleNav('/(auth)/login');
@@ -434,6 +441,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, marginVertical: Spacing.xs,
   },
   logoutBtn: {
+    marginTop: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

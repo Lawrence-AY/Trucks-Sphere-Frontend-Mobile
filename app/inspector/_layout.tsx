@@ -4,7 +4,7 @@ import { ActivityIndicator, Animated, Modal, Platform, Pressable, ScrollView, St
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '../../hooks/useTheme';
 import { ThemeToggle } from '../../components/ThemeToggle';
 import { Spacing, Radius } from '../../constants/theme';

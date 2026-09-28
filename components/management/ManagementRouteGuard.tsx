@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect } from 'react';
 import { router, usePathname } from 'expo-router';
 import { View } from 'react-native';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { canAccessRoute, homeRouteForRole } from '../../utils/access';
 
 // Tracking access uses its own security session and must never be routed

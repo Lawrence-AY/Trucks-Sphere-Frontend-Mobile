@@ -7,10 +7,10 @@ import { useTheme } from '../../hooks/useTheme';
 import { Spacing, Radius } from '../../constants/theme';
 import { fetchDeliveryOrders, fetchPurchaseOrders, updateDeliveryOrder } from '../../services/api';
 import { uploadInspectionPhoto } from '../../services/uploadService';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { getInspectorSelection, setInspectorSelection } from '../../utils/inspectorSelection';
-import { buildHtmlContent, sharePdfAsFile } from '../../utils/exportData';
-import { useDeliveryOrders } from '../../store/realtimeData';
+import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
+import { useDeliveryOrders } from '@/store/realtimeData';
 import { isWarehouseJob } from '../../utils/warehouse';
 import { isAwaitingInspection } from '../../utils/inspection';
 
@@ -26,6 +26,12 @@ const materialLines = (job: any, purchaseOrders: any[] = []) => {
 const materialList = (job: any, purchaseOrders: any[] = []) => materialLines(job, purchaseOrders)
   .map((item: any) => `${item.materialName || 'Material'}${item.quantity != null ? ` — ${item.quantity} ${item.unit || ''}` : ''}`).join('\n');
 
+const isBulkMaterial = (job: any, line: any) => {
+  const text = [job?.materialName, job?.materialType, job?.materialCategory, line?.materialName, line?.materialType, line?.materialCategory].filter(Boolean).join(' ').toLowerCase();
+  return job?.isCountable === false || job?.countable === false || ['bulk', 'unbagged', 'murram', 'ballast', 'aggregate', 'cement'].some((term) => text.includes(term));
+};
+const BULK_QUALITY_METRICS = ['Material identity / grade verified', 'No contamination or foreign material', 'Acceptable moisture and physical condition'];
+
 export default function InspectorScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
@@ -35,6 +41,7 @@ export default function InspectorScreen() {
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [active, setActive] = useState<any>(null);
   const [materialChecks, setMaterialChecks] = useState<Record<string, { result: '' | 'Pass' | 'Failed'; reason: string; deficiency: string }>>({});
+  const [qualityChecks, setQualityChecks] = useState<Record<string, Record<string, boolean>>>({});
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [receivedQuantities, setReceivedQuantities] = useState<Record<string, string>>({});
   const [damagedQuantities, setDamagedQuantities] = useState<Record<string, string>>({});
@@ -44,6 +51,7 @@ export default function InspectorScreen() {
   const [savedJobId, setSavedJobId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [openingJobId, setOpeningJobId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     const requestedId = id || jobId;
@@ -103,6 +111,13 @@ export default function InspectorScreen() {
       `${incompleteEvidence.materialName || 'This material'} needs both a captured photo and a received quantity (including 0), or neither.`,
     );
     const materialReceipts = lines.map((line: any, index: number) => { const key = String(line.materialId || index); const check = materialChecks[key] || { result: '', reason: '', deficiency: '' }; return { materialId: line.materialId || String(index), materialName: line.materialName || 'Material', unit: line.unit || active.unit || '', orderedQuantity: Number(line.quantity || 0), receivedQuantity: Number(receivedQuantities[key] || 0), ...(isWarehouseJob(active) ? { damagedQuantity: check.result === 'Failed' ? Number(damagedQuantities[key] || 0) : 0 } : {}), initialVisualInspection: check.result || 'Pending', failureReason: check.result === 'Failed' ? check.reason.trim() : '', deficiency: check.deficiency.trim() }; });
+    const incompleteQuality = lines.find((line: any, index: number) => {
+      const key = String(line.materialId || index);
+      const result = materialChecks[key]?.result;
+      return isBulkMaterial(active, line) && result !== 'Failed' && BULK_QUALITY_METRICS.some((metric) => !qualityChecks[key]?.[metric]);
+    });
+    if (incompleteQuality) return Alert.alert('Quality checklist required', 'Clear every bulk-material quality parameter before saving the inspection.');
+    materialReceipts.forEach((receipt: any, index: number) => { const line = lines[index]; receipt.qualityChecks = isBulkMaterial(active, line) ? (qualityChecks[String(line.materialId || index)] || {}) : {}; });
     if (materialReceipts.some((line: any) => line.initialVisualInspection === 'Failed' && !line.failureReason)) return Alert.alert('Reason required', 'Enter a failure reason for every material marked Failed.');
     if (materialReceipts.some((line: any) => !Number.isFinite(line.receivedQuantity) || line.receivedQuantity < 0)) return Alert.alert('Invalid quantity', 'Enter a valid received quantity for every material.');
     if (active.isWarehouseDelivery && lines.some((line: any, index: number) => !String(receivedQuantities[String(line.materialId || index)] ?? '').trim())) return Alert.alert('Quantity required', 'Enter the actual received quantity for every warehouse product, including zero for missing items.');
@@ -138,14 +153,21 @@ export default function InspectorScreen() {
     } catch (error: any) { Alert.alert('Print error', error?.message || 'Could not create the PDF.'); }
     finally { setPrinting(false); }
   };
+  const exportInspectionCsv = async () => {
+    if (!confirmation) return;
+    const headers = ['MIF #', 'Job ID', 'PO #', 'Material', 'PO Qty', 'Received Qty', 'Damaged Qty', 'Available Qty', 'Unit', 'Result', 'Failure reason', 'Deficiency', 'Inspector'];
+    const rows = confirmation.materialReceipts.map((line: any) => [confirmation.mrfNumber, confirmation.jobId, confirmation.poNumber, line.materialName || '', String(line.orderedQuantity ?? ''), String(line.receivedQuantity ?? ''), String(line.damagedQuantity ?? ''), String(line.damagedQuantity != null ? line.receivedQuantity - line.damagedQuantity : line.initialVisualInspection === 'Pass' ? line.receivedQuantity : 0), line.unit || '', line.initialVisualInspection || 'Pending', line.failureReason || '', line.deficiency || '', confirmation.inspectorName]);
+    try { await shareCsvAsFile(`Material Inspection Form - ${confirmation.mrfNumber}`, buildCsvContent(headers, rows)); } catch (error: any) { Alert.alert('Export error', error?.message || 'Could not create the CSV.'); }
+  };
 
   const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
   if (!active) return <ScrollView style={[styles.page, { backgroundColor: colors.background }]} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void refresh(); }} tintColor={colors.accent} />}>
-     {jobs.map((job) => <TouchableOpacity key={job.id} disabled={openingJobId === job.id} onPress={() => { if (openingJobId) return; setOpeningJobId(job.id); setInspectorSelection(job); router.push(`/inspector/inspect/${encodeURIComponent(job.id)}` as any); setTimeout(() => setOpeningJobId(null), 1000); }} 
+     <TextInput value={search} onChangeText={setSearch} placeholder="Search dispatch, job, material, driver or lot" placeholderTextColor={colors.textMuted} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]} />
+     {jobs.filter((job) => !search.trim() || [job.jobId, job.driverName, job.plateNumber, job.materialName, job.storageLot, job.lotNumber, job.destinationLot].some((value) => String(value || '').toLowerCase().includes(search.trim().toLowerCase()))).map((job) => <TouchableOpacity key={job.id} disabled={openingJobId === job.id} onPress={() => { if (openingJobId) return; setOpeningJobId(job.id); setInspectorSelection(job); router.push(`/inspector/inspect/${encodeURIComponent(job.id)}` as any); setTimeout(() => setOpeningJobId(null), 1000); }} 
      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, openingJobId === job.id && { opacity: .65 }]}>
       <Text style={[styles.jobId, { color: colors.text }]}>{job.jobId}</Text>
       <Text style={{ color: colors.textMuted }}>{isWarehouseJob(job) ? 'Warehouse delivery' : `${job.driverName || 'Unassigned'} · ${job.plateNumber || 'N/A'}`}</Text>
-      <Text style={[styles.materials, { color: colors.text }]}>{materialList(job, purchaseOrders)}</Text>
+      <Text style={[styles.materials, { color: colors.text }]}>{materialList(job, purchaseOrders)}</Text><Text style={{ color: colors.textMuted }}>Lot: {job.storageLot || job.lotNumber || job.destinationLot || 'Not assigned yet'}</Text>
       <Text style={{ color: job.materialInspection?.mrfNumber ? '#059669' : '#B45309', fontWeight: '700' }}>{job.materialInspection?.mrfNumber ? `${job.materialInspection.mrfNumber} — completed` : 'Inspection pending'}</Text>
     </TouchableOpacity>)}
     {!jobs.length && <Text style={{ color: colors.textMuted }}>No arrivals are awaiting inspection.</Text>}
@@ -155,10 +177,11 @@ export default function InspectorScreen() {
 
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Text style={[styles.jobId, { color: colors.text }]}>{active.jobId}</Text>
+      <Text style={{ color: colors.textMuted, marginTop: 4 }}>Site lot: {active.storageLot || active.lotNumber || active.destinationLot || 'Not assigned yet'}</Text>
       <Text style={[styles.materials, { color: colors.text }]}>{materialList(active, purchaseOrders)}</Text></View>
     <Text style={[styles.label, { color: colors.text }]}>Material inspections</Text>
     <View style={styles.materialList}>{activeMaterialLines.map((line: any, index: number) => { const key = String(line.materialId || index); return <View key={key} style={[styles.materialInput, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-      <Text style={{ color: colors.text, fontWeight: '700' }}>{line.materialName || 'Material'}</Text>
+      <Text style={{ color: colors.text, fontWeight: '700' }}>{line.materialName || 'Material'}</Text>{isBulkMaterial(active, line) ? <View style={{ gap: 6, marginTop: 4 }}><Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>Bulk material quality checklist</Text>{BULK_QUALITY_METRICS.map((metric) => <TouchableOpacity key={metric} onPress={() => setQualityChecks((current) => ({ ...current, [key]: { ...(current[key] || {}), [metric]: !current[key]?.[metric] } }))} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Ionicons name={qualityChecks[key]?.[metric] ? 'checkbox' : 'square-outline'} size={20} color={qualityChecks[key]?.[metric] ? '#059669' : colors.textMuted} /><Text style={{ color: colors.text }}>{metric}</Text></TouchableOpacity>)}</View> : null}
       <Text style={{ color: colors.textMuted, fontSize: 12 }}>Initial visual inspection</Text>
       <View style={styles.choiceRow}>{(['Pass','Failed'] as const).map((value) => <TouchableOpacity key={value} onPress={() => setMaterialChecks((current) => ({ ...current, [key]: { ...(current[key] || { reason: '', deficiency: '' }), result: value } }))} style={[styles.choice, { borderColor: materialChecks[key]?.result === value ? (value === 'Pass' ? '#10B981' : '#EF4444') : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: materialChecks[key]?.result === value ? (value === 'Pass' ? '#10B981' : '#EF4444') : colors.text }}>{value}</Text></TouchableOpacity>)}</View>
       {materialChecks[key]?.result === 'Failed' ? <><Text style={{ color: colors.textMuted, fontSize: 12 }}>Failure reason *</Text><TextInput value={materialChecks[key]?.reason || ''} onChangeText={(value) => setMaterialChecks((current) => ({ ...current, [key]: { ...(current[key] || { result: 'Failed', deficiency: '' }), reason: value } }))} multiline style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]} placeholder="Describe why this material failed" placeholderTextColor={colors.textMuted}/></> : null}
@@ -173,7 +196,7 @@ export default function InspectorScreen() {
   <Modal visible={Boolean(confirmation)} transparent animationType="fade" onRequestClose={() => setConfirmation(null)}>
     <View style={styles.confirmBackdrop}><View style={[styles.confirmCard,{backgroundColor:colors.surface,borderColor:colors.border}]}>
       <View style={styles.confirmIcon}><Ionicons name="checkmark" size={34} color="#fff"/></View>
-      <Text style={[styles.confirmTitle,{color:colors.text}]}>Inspection saved</Text><Text style={{color:colors.textMuted,textAlign:'center'}}>{confirmation?.mrfNumber} has been created with {confirmation?.materialCount} material record{confirmation?.materialCount===1?'':'s'}.</Text><TouchableOpacity onPress={() => { void printInspectionPdf(); }} disabled={printing} style={[styles.confirmButton,styles.printButton,{opacity:printing ? .6 : 1}]}><Ionicons name="print-outline" size={18} color="#fff"/><Text style={styles.saveText}>{printing?'Preparing PDF…':'Print PDF'}</Text></TouchableOpacity><TouchableOpacity onPress={() => { setConfirmation(null); router.replace('/inspector/history' as any); }} style={styles.confirmButton}><Text style={styles.saveText}>View history</Text></TouchableOpacity><TouchableOpacity onPress={() => { setConfirmation(null); setActive(null); router.replace('/inspector' as any); }} style={styles.confirmButton}><Text style={styles.saveText}>Go back</Text></TouchableOpacity><TouchableOpacity onPress={() => setConfirmation(null)} style={styles.confirmButton}><Text style={styles.saveText}>Stay here</Text></TouchableOpacity></View></View></Modal>
+      <Text style={[styles.confirmTitle,{color:colors.text}]}>Inspection submitted</Text><Text style={{color:colors.textMuted,textAlign:'center'}}>The inspection was saved successfully. You can now print or export the inspection documents.</Text><View style={{ flexDirection: 'row', gap: 10, width: '100%', marginTop: 12 }}><TouchableOpacity onPress={() => { void printInspectionPdf(); }} disabled={printing} style={[styles.confirmButton,styles.printButton,{flex:1,opacity:printing ? .6 : 1}]}><Ionicons name="print-outline" size={18} color="#fff"/><Text style={styles.saveText}>{printing?'Preparing PDF…':'Print PDF'}</Text></TouchableOpacity><TouchableOpacity onPress={() => { void exportInspectionCsv(); }} style={[styles.confirmButton,{flex:1,backgroundColor:'#2563EB'}]}><Ionicons name="download-outline" size={18} color="#fff"/><Text style={styles.saveText}>Export CSV</Text></TouchableOpacity></View><TouchableOpacity onPress={() => { setConfirmation(null); setActive(null); }} style={[styles.confirmButton,{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,marginTop:10}]}><Text style={{color:colors.text,fontWeight:'800'}}>Done</Text></TouchableOpacity></View></View></Modal>
   </ScrollView></KeyboardAvoidingView>;
 }
 const styles = StyleSheet.create({ page:{flex:1}, content:{padding: Spacing.md,paddingTop:0,

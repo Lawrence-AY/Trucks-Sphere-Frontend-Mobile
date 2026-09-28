@@ -141,7 +141,9 @@ async function backendRequest<T>(
   }
   // Creation allocates counters and writes records. It should
   // not be misreported as a failed delivery on slower LAN connections.
-  const timeout = method === 'post' && ['/api/purchase-orders', '/api/delivery-orders', '/api/warehouse-jobs'].includes(url) ? 45000 : 10000;
+  const timeout = url === '/api/auth/login' || url === '/api/auth/refresh'
+    ? 30000
+    : method === 'post' && ['/api/purchase-orders', '/api/delivery-orders', '/api/warehouse-jobs'].includes(url) ? 45000 : 10000;
   const sendRequest = (accessToken: string | null) => axios.request<T>({
     baseURL: API_BASE_URL,
     url,
@@ -489,6 +491,26 @@ export async function createWarehouseJob(payload: any): Promise<any> {
   );
 }
 
+export async function fetchStocks(): Promise<any[]> {
+  return backendRequest<any>('get', '/api/stocks').then((data) => Array.isArray(data) ? data : data?.items || data?.data || []);
+}
+
+export async function fetchStockMovements(stockId: string): Promise<any[]> {
+  return backendRequest<any>('get', `/api/stocks/${stockId}/movements`).then((data) => Array.isArray(data) ? data : data?.items || data?.data || []);
+}
+
+export async function recordStockMovement(stockId: string, payload: { type: 'receipt' | 'usage'; quantity: number; reason: string }): Promise<any> {
+  return backendRequest<any>('post', `/api/stocks/${stockId}/movements`, { ...payload, requestId: `${Date.now()}${Math.random().toString(36).slice(2, 10)}` });
+}
+
+export async function acceptWarehouseDelivery(id: string): Promise<any> {
+  return unwrapOne(await backendRequest('post', `/api/delivery-orders/${id}/accept-warehouse`), {});
+}
+
+export async function rejectWarehouseDelivery(id: string, reason: string): Promise<any> {
+  return unwrapOne(await backendRequest('post', `/api/delivery-orders/${id}/deny-warehouse`, { reason }), {});
+}
+
 export type WarehouseShipmentPreviewRow = {
   rowNumber: number;
   status: 'READY' | 'INVALID';
@@ -821,8 +843,8 @@ export async function startSecurityTrackingSession(securityCode: string, locatio
   return response.data;
 }
 
-export async function selectSecurityTrackingVehicle(sessionId: string, token: string, plateNumber: string): Promise<any> {
-  const response = await axios.post(`${API_BASE_URL}/api/track/sessions/${encodeURIComponent(sessionId)}/vehicle`, { token, plateNumber }, { timeout: 8000, headers: { 'Content-Type': 'application/json' } });
+export async function selectSecurityTrackingVehicle(sessionId: string, token: string, plateNumber: string, photosCaptured = false): Promise<any> {
+  const response = await axios.post(`${API_BASE_URL}/api/track/sessions/${encodeURIComponent(sessionId)}/vehicle`, { token, plateNumber, photosCaptured }, { timeout: 8000, headers: { 'Content-Type': 'application/json' } });
   return response.data;
 }
 

@@ -22,7 +22,7 @@ import { Button } from '../../../components/ui/Button';
 import { purchaseOrderRepository } from '../../../services/repositories/PurchaseOrderRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { materialRepository } from '../../../services/repositories/MaterialRepository';
-import { Material, Vendor } from '../../../store/types';
+import { Material, Vendor } from '@/store/types';
 import { previewPurchaseOrderNumber } from '../../../services/api';
 import { showAlert } from '../../../utils/webAlert';
 
@@ -83,10 +83,10 @@ export default function CreatePurchaseOrderScreen() {
       return;
     }
 
-    previewPurchaseOrderNumber(vendorId)
+    previewPurchaseOrderNumber(vendorId, lines[0]?.materialId)
       .then(setPoNumber)
       .catch(() => setPoNumber(''));
-  }, [vendorId]);
+  }, [vendorId, lines[0]?.materialId, materials]);
 
   function updateLine(
     index: number,

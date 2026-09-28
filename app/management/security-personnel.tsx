@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect, useRouter, Stack } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Button, TextInput } from 'react-native-paper';
 import api from '../../services/api';
 import { StackScreen } from '../../components/ui/StackScreen';
@@ -15,6 +15,7 @@ type SecurityPerson = {
   securityCode: string;
   isActive: boolean;
 };
+const SECURITY_LOCATIONS = ['gate', 'checkpoint 1', 'checkpoint 2', 'checkpoint 3'];
 
 export default function SecurityPersonnelScreen() {
   const colors = useTheme();
@@ -23,6 +24,7 @@ export default function SecurityPersonnelScreen() {
   const [people, setPeople] = useState<SecurityPerson[]>([]);
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
+  const [showLocationOptions, setShowLocationOptions] = useState(false);
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -136,13 +138,19 @@ export default function SecurityPersonnelScreen() {
                 mode="outlined"
                 disabled={saving}
               />
-              <TextInput
-                label="Assigned location"
-                value={location}
-                onChangeText={setLocation}
-                mode="outlined"
-                disabled={saving}
-              />
+              <Pressable onPress={() => setShowLocationOptions((visible) => !visible)} disabled={saving}>
+                <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 14, backgroundColor: colors.inputBg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ color: location ? colors.text : colors.textMuted, textTransform: 'capitalize' }}>{location || 'Assigned location'}</Text>
+                  <Text style={{ color: colors.textMuted }}>{showLocationOptions ? '▲' : '▼'}</Text>
+                </View>
+              </Pressable>
+              {showLocationOptions ? <View style={{ gap: 6 }}>
+                {SECURITY_LOCATIONS.map((option) => (
+                  <Pressable key={option} onPress={() => { setLocation(option); setShowLocationOptions(false); }} disabled={saving} style={{ padding: 10, borderRadius: 6, backgroundColor: location === option ? colors.primary + '22' : colors.inputBg }}>
+                    <Text style={{ color: colors.text, textTransform: 'capitalize' }}>{option}</Text>
+                  </Pressable>
+                ))}
+              </View> : null}
               <TextInput
                 label="Phone (optional)"
                 value={phone}

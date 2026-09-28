@@ -12,9 +12,9 @@ import { useTheme } from '../../hooks/useTheme';
 import { Radius, Spacing } from '../../constants/theme';
 import { formatEAT } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
-import { useDeliveryOrders } from '../../store/realtimeData';
-import { useRealTimeSyncStore } from '../../store/realTimeSyncStore';
-import { useAuthStore } from '../../store/authStore';
+import { useDeliveryOrders } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
+import { useAuthStore } from '@/store/authStore';
 import {
   DataCard,
   EmptyState,

@@ -12,9 +12,11 @@ import { vendorOptions as buildVendorOptions } from '../../../utils/vendorOption
  */
 
 import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
+  Alert,
   StyleSheet,
   FlatList,
   TouchableOpacity,
@@ -33,7 +35,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { vehicleRepository } from '../../../services/repositories/VehicleRepository';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
-import { Vehicle, Vendor } from '../../../store/types';
+import { Vehicle, Vendor } from '@/store/types';
 import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
 
 export default function VehiclesListScreen() {
@@ -49,6 +51,11 @@ export default function VehiclesListScreen() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useFocusEffect(React.useCallback(() => {
+    vehicleRepository.invalidateCache();
+    void loadData();
+  }, []));
 
   async function loadData() {
     try {
@@ -114,6 +121,29 @@ export default function VehiclesListScreen() {
     return (insExp !== null && insExp < now) || (inspExp !== null && inspExp < now);
   }
 
+  function confirmDelete(vehicle: Vehicle) {
+    const registration = vehicle.registrationNumber || 'this vehicle';
+    Alert.alert(
+      'Delete vehicle?',
+      `This will permanently remove ${registration}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await vehicleRepository.delete(vehicle.id);
+              setVehicles((current) => current.filter((item) => item.id !== vehicle.id));
+            } catch (error: any) {
+              Alert.alert('Unable to delete vehicle', error?.response?.data?.message || 'Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   function renderVehicle({ item }: { item: Vehicle }) {
     const expired = isComplianceExpired(item);
     return (
@@ -149,7 +179,7 @@ export default function VehiclesListScreen() {
             )}
           </View>
         </View>
-        <View style={styles.vehicleMeta}>
+          <View style={styles.vehicleMeta}>
           <View style={styles.metaItem}>
             <Ionicons name="scale-outline" size={14} color={colors.textMuted} />
             <Text style={[styles.metaText, { color: colors.textMuted }]}>
@@ -164,7 +194,16 @@ export default function VehiclesListScreen() {
               </Text>
             </View>
           )}
-        </View>
+          </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${item.registrationNumber || 'vehicle'}`}
+            onPress={() => confirmDelete(item)}
+            style={styles.deleteButton}
+            hitSlop={8}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.danger || '#DC2626'} />
+          </TouchableOpacity>
       </TouchableOpacity>
     );
   }
@@ -349,5 +388,10 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
+  },
+  deleteButton: {
+    alignSelf: 'flex-end',
+    padding: 4,
+    marginTop: Spacing.xs,
   },
 });

@@ -17,6 +17,7 @@ export type UserRole =
   | 'operator_site'
   | 'operator_fuel'
   | 'operator_warehouse'
+  | 'storeman'
   | 'inspector'
   | 'vendor';
 
@@ -87,6 +88,7 @@ export interface User extends AuditTrail {
   phone?: string;
   photoURL?: string;
   vendorId?: string;
+  quarryOperatorType?: 'general' | 'vendor';
   quarryId?: string;
   quarryLocation?: string;
   siteId?: string;
@@ -283,6 +285,8 @@ export interface WarehouseJobItem {
   additionalNotes?: string;
   sourceData?: Record<string, string>;
 }
+
+export default null;
 
 export interface WarehouseJob extends AuditTrail {
   id: string;

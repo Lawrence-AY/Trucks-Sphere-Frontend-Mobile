@@ -5,9 +5,9 @@ import { Stack, router } from 'expo-router';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar, StyleSheet } from 'react-native';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { useTheme, useThemeMode } from '../hooks/useTheme';
-import { useThemeStore } from '../store/themeStore';
+import { useThemeStore } from '@/store/themeStore';
 import Toast from 'react-native-toast-message';
 import WebLayout from '../components/WebLayout';
 import WebAlerts from '../components/WebAlerts';
@@ -79,6 +79,7 @@ export default function RootLayout() {
             <Stack.Screen name="operator-fuel" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="operator-quarry" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="warehouse" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+            <Stack.Screen name="store-account" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="inspector" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="screens" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="session" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />

@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { isManagementRole, normalizeRole } from '../../utils/access';
 import { Radius, Spacing } from '../../constants/theme';
 import { useTheme, useThemeMode } from '../../hooks/useTheme';
@@ -21,7 +21,7 @@ export default function WarehouseLayout() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const showManagementBackButton = isManagementRole(user?.role) && router.canGoBack();
-  const isWarehouseOperator = normalizeRole(user?.role) === 'operator_warehouse';
+  const isWarehouseOperator = ['operator_warehouse', 'storeman'].includes(normalizeRole(user?.role));
   const closeMenu = () => setMenuVisible(false);
   const goTo = (route: '/warehouse' | '/warehouse/history' | '/warehouse/reports' | '/warehouse/profile') => {
     closeMenu();
