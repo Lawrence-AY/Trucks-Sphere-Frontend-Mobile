@@ -1,3 +1,4 @@
+import { SearchField } from '../../components/EnterpriseUI';
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
@@ -6,7 +7,7 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchVehicles } from '../../services/api';
 
 export default function TrucksScreen() {
@@ -16,21 +17,17 @@ export default function TrucksScreen() {
   const [trucks, setTrucks] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[Trucks] Fetching vehicles from backend...');
     fetchVehicles().then(data => {
-      console.log('[Trucks] Vehicles loaded:', data.length, 'items', data);
       setTrucks(data);
-    }).catch(err => console.error('[Trucks] Failed to load vehicles:', err));
+    }).catch(() => {});
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchVehicles().then(data => {
-      console.log('[Trucks] Vehicles refreshed:', data.length, 'items');
       setTrucks(data);
       setRefreshing(false);
     }).catch(err => {
-      console.error('[Trucks] Refresh failed:', err);
       setRefreshing(false);
     });
   };
@@ -42,21 +39,7 @@ export default function TrucksScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by plate or model..."
-          placeholderTextColor={colors.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
-      </View>
+      <SearchField title="Trucks" icon="bus-outline" value={search} onChangeText={setSearch} placeholder="Search by plate or model..." />
 
       <FlatList
         data={filtered}
@@ -122,22 +105,22 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: Spacing.lg, marginTop: Spacing.md,
+    marginHorizontal: Spacing.lg, marginTop: Spacing.xs,
     borderRadius: Radius.md, borderWidth: 1,
-    paddingHorizontal: Spacing.md, height: 44, gap: Spacing.sm,
+    paddingHorizontal: Spacing.md, height: 44, gap: Gap,
   },
   searchInput: { flex: 1, fontSize: 14 },
   list: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing['4xl'] },
-  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.sm },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs},
   plateBadge: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: Radius.sm },
   plateText: { fontSize: 14, fontWeight: '800', letterSpacing: 1 },
-  cardBody: { gap: 6 },
+  cardBody: { gap: Gap},
   modelText: { fontSize: 15, fontWeight: '600' },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: Gap},
   detailText: { fontSize: 13 },
   badge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radius.full },
   badgeText: { fontSize: 11, fontWeight: '600' },
-  empty: { alignItems: 'center', marginTop: 60 },
-  emptyText: { fontSize: 15, marginTop: Spacing.md },
+  empty: { alignItems: 'center', marginTop: Spacing.xs},
+  emptyText: { fontSize: 15, marginTop: Spacing.xs},
 });

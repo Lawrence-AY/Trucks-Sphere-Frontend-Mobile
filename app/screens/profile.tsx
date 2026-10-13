@@ -1,9 +1,9 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
 
 export default function ProfileScreen() {
@@ -75,37 +75,35 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   profileCard: {
     borderRadius: Radius.lg, borderWidth: 1,
-    padding: Spacing['2xl'], alignItems: 'center',
-    marginBottom: Spacing.lg,
+    padding: Spacing['2xl'], alignItems: 'center', marginBottom: Spacing.xs,
   },
   avatar: {
     width: 72, height: 72, borderRadius: 36,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: Spacing.md,
+    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs,
   },
   avatarText: { fontSize: 24, fontWeight: '800' },
   name: { fontSize: 20, fontWeight: '700' },
-  email: { fontSize: 13, marginTop: 4 },
+  email: { fontSize: 14, marginTop: Spacing.xs },
+ 
   roleBadge: {
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs,
-    borderRadius: Radius.full, marginTop: Spacing.md,
+    borderRadius: Radius.full, marginTop: Spacing.xs,
   },
   roleText: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   menuCard: {
-    borderRadius: Radius.lg, borderWidth: 1,
-    marginBottom: Spacing.lg, overflow: 'hidden',
+    borderRadius: Radius.lg, borderWidth: 1, marginBottom: Spacing.xs, overflow: 'hidden',
   },
   menuItem: {
     flexDirection: 'row', alignItems: 'center',
-    padding: Spacing.lg, gap: Spacing.md,
+    padding: Spacing.lg, gap: Gap,
     borderBottomWidth: 1,
   },
   menuLabel: { flex: 1, fontSize: 15 },
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     borderRadius: Radius.lg, borderWidth: 1,
-    padding: Spacing.lg, gap: Spacing.sm,
+    padding: Spacing.lg, gap: Gap,
   },
   logoutText: { fontSize: 15, fontWeight: '600' },
-  version: { fontSize: 12, textAlign: 'center', marginTop: Spacing.xl },
+  version: { fontSize: 12, textAlign: 'center', marginTop: Spacing.xs},
 });

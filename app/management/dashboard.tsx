@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
+import { useCallback, useMemo, useState } from "react";
 import {
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -7,31 +9,25 @@ import {
   View,
 } from "react-native";
 import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
-import { Spacing } from "../../constants/theme";
-import { useAuthStore } from "../../store/authStore";
-import {
-  fetchDeliveryOrders,
-  fetchDrivers,
-  fetchPurchaseOrders,
-  fetchVehicles,
-  fetchVendors,
-  fetchFuelRecords,
-} from "../../services/api";
-import { formatEAT } from "../../utils/helpers";
+import { Gap, Spacing } from "../../constants/theme";
+import { useAuthStore } from "@/store/authStore";
+import { useRealtimeCollection } from "@/store/realtimeData";
+import { useRealTimeSyncStore } from "@/store/realTimeSyncStore";
+import { isActiveJob, normalizeJobStatus } from "../../utils/jobStatus";
+import { MANAGEMENT_ROLES, normalizeRole } from "../../utils/access";
+import { ManagementLiteDashboard } from "./lite";
 import {
   DataCard,
-  DetailRow,
   EmptyState,
   MetricTile,
   PageShell,
   SectionTitle,
 } from "../../components/EnterpriseUI";
+import { TripListCard } from "../../components/TripListCard";
 
 function isDelayed(item: any) {
-  if (["delivered", "completed", "cancelled"].includes(item.status))
-    return false;
+  if (!isActiveJob(item.status)) return false;
   const changedAt = new Date(
     item.updatedAt || item.createdAt || Date.now(),
   ).getTime();
@@ -39,72 +35,67 @@ function isDelayed(item: any) {
 }
 
 export default function ManagementDashboardScreen() {
+  const user = useAuthStore((state) => state.user);
+
+  if (normalizeRole(user?.role) === MANAGEMENT_ROLES.LITE) {
+    return <ManagementLiteDashboard />;
+  }
+
+  return <ManagementDashboardContent />;
+}
+
+function ManagementDashboardContent() {
   const colors = useTheme();
-  const { user } = useAuthStore();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
 
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
-  const [fuelRecords, setFuelRecords] = useState<any[]>([]);
 
-  const loadData = async () => {
+  // Use realtime sync hooks — same pattern proven everywhere else
+  const { data: deliveries, loading: deliveriesLoading, error: deliveriesError } = useRealtimeCollection("deliveryOrders");
+  const { data: drivers, error: driversError } = useRealtimeCollection("drivers");
+  const { data: vehicles, error: vehiclesError } = useRealtimeCollection("vehicles");
+  const { data: vendors, error: vendorsError } = useRealtimeCollection("vendors");
+  const { data: fuelRecords, error: fuelError } = useRealtimeCollection("fuelRecords");
+
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      const [
-        driverData,
-        vehicleData,
-        orderData,
-        deliveryData,
-        vendorData,
-        fuelData,
-      ] = await Promise.all([
-        fetchDrivers(),
-        fetchVehicles(),
-        fetchPurchaseOrders(),
-        fetchDeliveryOrders(),
-        fetchVendors(),
-        fetchFuelRecords(),
-      ]);
-      setDrivers(driverData || []);
-      setVehicles(vehicleData || []);
-      setDeliveries(deliveryData || []);
-      setVendors(vendorData || []);
-      setFuelRecords(fuelData || []);
-    } catch (error) {
-      console.error("Management dashboard error:", error);
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
+    await Promise.all([
+      refresh('deliveryOrders'),
+      refresh('drivers'),
+      refresh('vehicles'),
+      refresh('vendors'),
+      refresh('fuelRecords'),
+    ]);
+    setRefreshing(false);
+  }, [refresh]);
 
   const stats = useMemo(() => {
-    const activeTrips = deliveries.filter(
-      (item) => !["delivered", "completed", "cancelled"].includes(item.status),
-    );
-    const deliveredTrips = deliveries.filter((item) =>
-      ["delivered", "completed"].includes(item.status),
-    );
+    const nonBackorderDeliveries = deliveries.filter((item) => !item.isBackorder && normalizeJobStatus(item.status) !== 'CANCELLED');
+    const activeTrips = nonBackorderDeliveries.filter((item) => isActiveJob(item.status));
+    const deliveredTrips = nonBackorderDeliveries.filter((item) => {
+      const status = normalizeJobStatus(item.status);
+      return ["SITE_WEIGHED_OUT", "COMPLETED"].includes(status);
+    });
+    const delayedTrips = nonBackorderDeliveries.filter(isDelayed).length;
     return {
-      totalTrips: deliveries.length,
+      totalTrips: nonBackorderDeliveries.length,
       activeTrips: activeTrips.length,
       delivered: deliveredTrips.length,
-      delayed: deliveries.filter(isDelayed).length,
+      delayed: delayedTrips,
       totalVendors: vendors.length,
       totalDrivers: drivers.length,
       totalVehicles: vehicles.length,
     };
   }, [deliveries, drivers, vehicles, vendors]);
 
+  const totalFuelDispensed = useMemo(
+    () => fuelRecords.reduce((s, r) => s + (r.fuelAmount || 0), 0),
+    [fuelRecords],
+  );
+
   const recentDeliveries = useMemo(() => {
     return [...deliveries]
+      .filter((item) => Boolean(item.driverId || item.driverName || item.isWarehouseDelivery || item.warehouseJobId || item.deliveryOrigin === 'warehouse'))
       .sort(
         (a, b) =>
           new Date(b.updatedAt || b.createdAt).getTime() -
@@ -113,154 +104,129 @@ export default function ManagementDashboardScreen() {
       .slice(0, 4);
   }, [deliveries]);
 
-  // Fuel stats
-  const totalFuelDispensed = useMemo(
-    () => fuelRecords.reduce((s, r) => s + (r.fuelAmount || 0), 0),
-    [fuelRecords],
+  const driverPhotos = useMemo(
+    () => new Map(drivers.map((driver: any) => [String(driver.id || '').trim(), driver.photoURL || driver.photoUrl || ''])),
+    [drivers],
   );
 
-  const recentFuelRecords = useMemo(() => {
-    return [...fuelRecords]
-      .sort(
-        (a, b) =>
-          new Date(b.dispensedAt || b.createdAt).getTime() -
-          new Date(a.dispensedAt || a.createdAt).getTime(),
-      )
-      .slice(0, 5);
-  }, [fuelRecords]);
+  const dashboardError = deliveriesError || driversError || vehiclesError || vendorsError || fuelError;
 
   return (
     <PageShell
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={loadData}
+          onRefresh={handleRefresh}
           tintColor={colors.primary}
         />
       }
     >
       <View style={styles.metricGrid}>
-        <View style={styles.metricRow}>
+        <ResponsiveGrid sideBySide maxColumns={2} style={styles.metricRow}>
           <MetricTile
             icon="trail-sign"
             label="Total trips"
             value={stats.totalTrips}
             tone={colors.primary}
-            onPress={() => router.push("/management/active")}
+            compact
+            emphasized
+            onPress={() => router.push("/management/trips?scope=all" as any)}
           />
           <MetricTile
             icon="navigate-circle"
             label="Active trips"
             value={stats.activeTrips}
             tone={colors.accent}
+            compact
+            emphasized
             onPress={() => router.push("/management/active")}
           />
-        </View>
-        <View style={styles.metricRow}>
           <MetricTile
             icon="checkmark-done-circle"
             label="Delivered"
             value={stats.delivered}
             tone={colors.success}
+            compact
+            emphasized
+            onPress={() => router.push("/management/trips" as any)}
           />
           <MetricTile
             icon="alert-circle"
             label="Delayed"
             value={stats.delayed}
             tone={stats.delayed ? colors.danger : colors.success}
+            compact
+            emphasized
+            onPress={() => router.push("/management/active" as any)}
           />
-        </View>
-        <View style={styles.metricRow}>
           <MetricTile
             icon="briefcase"
             label="Vendors"
             value={stats.totalVendors}
             tone={colors.warning}
+            compact
+            emphasized
+            onPress={() => router.push("/management/vendors" as any)}
           />
           <MetricTile
             icon="people"
             label="Drivers"
             value={stats.totalDrivers}
-            tone={colors.primary}
-            onPress={() => router.push("/management/drivers")}
+            tone={colors.badgeSite}
+            compact
+            emphasized
+            onPress={() => router.push("/management/drivers" as any)}
           />
           <MetricTile
             icon="car"
             label="Vehicles"
             value={stats.totalVehicles}
             tone={colors.accent}
+            compact
+            emphasized
             onPress={() => router.push("/management/trucks")}
           />
-        </View>
-        <View style={styles.metricRow}>
           <MetricTile
             icon="water"
             label="Fuel Dispensed"
             value={`${totalFuelDispensed.toFixed(1)}L`}
-            tone="#F59E0B"
+            tone={colors.badgeVendor}
+            compact
+            emphasized
             onPress={() => router.push("/management/fuel" as any)}
           />
-          <MetricTile
-            icon="receipt"
-            label="Fuel Records"
-            value={fuelRecords.length}
-            tone="#8B5CF6"
-            onPress={() => router.push("/screens/fuel" as any)}
-          />
-        </View>
+        </ResponsiveGrid>
       </View>
 
       <SectionTitle
         title="Recent trips"
         action={
           <TouchableOpacity onPress={() => router.push("/management/active")}>
-            <Text style={[styles.link, { color: colors.primary }]}>
+            <Text style={[styles.link, { color: colors.primaryText }]}>
               View all
             </Text>
           </TouchableOpacity>
         }
       />
-      {loading ? (
+      {deliveriesLoading && !recentDeliveries.length ? (
         <DataCard>
           <Text style={[styles.loadingText, { color: colors.textMuted }]}>
             Loading operational feed...
           </Text>
         </DataCard>
+      ) : dashboardError && !recentDeliveries.length ? (
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Unable to load dashboard data"
+          subtitle={Platform.OS === 'web' ? undefined : 'Pull down to retry. If this continues, check the API connection.'}
+        />
       ) : recentDeliveries.length ? (
-        recentDeliveries.map((item) => (
-          <DataCard
-            key={item.id}
-            onPress={() => router.push(`/screens/job-details?id=${item.jobId}`)}
-          >
-            <View style={styles.deliveryHead}>
-              <View>
-                <Text style={[styles.deliveryId, { color: colors.text }]}>
-                  {item.poNumber || "Unlinked PO"}
-                </Text>
-                <Text
-                  style={[styles.deliveryMeta, { color: colors.textMuted }]}
-                >
-                  {item.jobId}
-                </Text>
-              </View>
-            </View>
-            <DetailRow
-              icon="person-outline"
-              value={`${item.driverName || "Unassigned"} - ${item.plateNumber || "No vehicle"}`}
-            />
-            <DetailRow
-              icon="cube-outline"
-              value={`${item.materialName || "Material"} `}
-            />
-            <DetailRow
-              icon="navigate-outline"
-              value={`${item.quarryName || "Origin"} to ${item.siteName || "Destination"}`}
-            />
-            <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
-              {formatEAT(item.updatedAt || item.createdAt)}
-            </Text>
-          </DataCard>
-        ))
+        <View style={styles.recentTripList}>
+        {recentDeliveries.map((item) => {
+          const driverPhoto = driverPhotos.get(String(item.driverId || '').trim());
+          return <TripListCard key={item.id} trip={item} driverPhoto={driverPhoto} onPress={() => router.push(`/operations/jobs/${item.id}` as any)} />;
+        })}
+        </View>
       ) : (
         <EmptyState
           icon="checkmark-circle-outline"
@@ -268,134 +234,14 @@ export default function ManagementDashboardScreen() {
           subtitle="All visible delivery activity is currently settled."
         />
       )}
-
-      {/* Recent Fuel Records Section */}
-      {recentFuelRecords.length > 0 && (
-        <>
-          <SectionTitle
-            title="Recent Fuel Dispensed"
-            action={
-              <TouchableOpacity
-                onPress={() => router.push("/screens/fuel" as any)}
-              >
-                <Text style={[styles.link, { color: colors.primary }]}>
-                  View all
-                </Text>
-              </TouchableOpacity>
-            }
-          />
-          {recentFuelRecords.map((item) => {
-            const authCode =
-              item.authorizationCode || item.authorizationId || "";
-            return (
-              <DataCard key={item.id}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 2,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "800",
-                        color: "#F59E0B",
-                      }}
-                    >
-                      {item.fuelId || item.id || item.jobId}
-                    </Text>
-                    {authCode ? (
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                          marginTop: 2,
-                        }}
-                      >
-                        <Ionicons
-                          name="key-outline"
-                          size={11}
-                          color="#8B5CF6"
-                        />
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            fontWeight: "600",
-                            color: "#8B5CF6",
-                            fontFamily: "monospace",
-                          }}
-                        >
-                          Auth PIN: {authCode}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <View
-                    style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 4,
-                      borderRadius: 20,
-                      backgroundColor: "#F59E0B15",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "800",
-                        color: "#F59E0B",
-                      }}
-                    >
-                      {item.fuelAmount?.toFixed(1)} L
-                    </Text>
-                  </View>
-                </View>
-                <DetailRow
-                  icon="person-outline"
-                  value={`${item.driverName || "N/A"} · ${item.plateNumber || "N/A"}`}
-                />
-                <DetailRow
-                  icon="business-outline"
-                  value={`Vendor: ${item.vendorName || "N/A"}`}
-                />
-                {item.totalCost ? (
-                  <DetailRow
-                    icon="cash-outline"
-                    value={`KES ${item.totalCost?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                  />
-                ) : null}
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: colors.textTertiary,
-                    marginTop: Spacing.sm,
-                  }}
-                >
-                  Dispensed: {formatEAT(item.dispensedAt || item.createdAt)}
-                </Text>
-              </DataCard>
-            );
-          })}
-        </>
-      )}
     </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  metricGrid: { gap: Spacing.sm },
-  metricRow: { flexDirection: "row", gap: Spacing.xs },
+  metricGrid: { gap: Gap},
+  metricRow: { gap: Gap},
+  recentTripList: { gap: Gap},
   link: { fontSize: 13, fontWeight: "900" },
   loadingText: { fontSize: 13, fontWeight: "700" },
-  deliveryHead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: Spacing.xs,
-  },
-  deliveryId: { fontSize: 16, fontWeight: "900" },
-  deliveryMeta: { fontSize: 12, marginTop: 0.1, fontWeight: "700" },
-  timestamp: { fontSize: 11, fontWeight: "700" },
 });

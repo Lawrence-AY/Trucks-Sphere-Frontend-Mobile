@@ -1,38 +1,191 @@
-// Generate unique IDs
-export function generateId(): string {
-  const timestamp = Date.now().toString(36);
-  const randomPart = Math.random().toString(36).substring(2, 10);
-  const randomPart2 = Math.random().toString(36).substring(2, 6);
-  return `${timestamp}-${randomPart}-${randomPart2}`.toUpperCase();
-}
+/**
+ * Helper utilities for TruckSphere
+ */
 
-// Pad numeric IDs to 3 digits: "1" -> "001", "V1" -> "V001", "V01" -> "V001"
-export function padToThree(id: string): string {
-  const stripped = id.replace(/^[VvDdTtJj]/, '').replace(/[^0-9]/g, '');
-  const num = parseInt(stripped, 10);
-  if (isNaN(num)) return stripped.padStart(3, '0');
-  return String(num).padStart(3, '0');
+/**
+ * Format a date string to East African Time (EAT, UTC+3)
+ */
+export function formatEAT(dateStr: any): string {
+  try {
+    if (dateStr == null || dateStr === '') return '';
+    const value = typeof dateStr?.toDate === 'function' ? dateStr.toDate()
+      : typeof dateStr?.seconds === 'number' ? dateStr.seconds * 1000 : dateStr;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return typeof dateStr === 'string' ? dateStr : '';
+    return date.toLocaleDateString('en-KE', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Africa/Nairobi',
+      timeZoneName: 'short',
+    });
+  } catch {
+    return typeof dateStr === 'string' ? dateStr : '';
+  }
 }
 
 /**
- * Normalize vendor ID to consistent format e.g. "v1" → "V001", "1" → "V001", "V1" → "V001"
- * Useful for matching vendor IDs that may come from different sources (old mock data vs new counter IDs).
+ * Format a date to relative time (e.g., "2 hours ago")
  */
-export function normalizeVendorId(raw: any): string {
-  if (!raw && raw !== 0) return '';
-  const str = String(raw).trim();
-  if (!str) return '';
-  // Match pattern: optional V/v prefix followed by digits, e.g. "V001", "v1", "1", "V01"
-  const match = str.match(/^([Vv]?)(\d+)$/);
-  if (match) {
-    const num = parseInt(match[2], 10);
-    return `V${String(num).padStart(3, '0')}`;
+export function formatRelativeTime(dateStr: string): string {
+  try {
+    const now = Date.now();
+    const date = new Date(dateStr).getTime();
+    const diff = now - date;
+
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return formatEAT(dateStr);
+  } catch {
+    return dateStr;
   }
-  return str.toUpperCase();
 }
 
-// Extract type prefix: V, D, T, J
-function typePrefix(id: string): 'V' | 'D' | 'T' | 'J' {
+/**
+ * Format a number with commas
+ */
+export function formatNumber(num: number): string {
+  return num.toLocaleString('en-KE');
+}
+
+/**
+ * Format weight/quantity
+ */
+export function formatQuantity(value: number, unit: string = 'Tonnes'): string {
+  return `${formatNumber(value)} ${unit}`;
+}
+
+/**
+ * Generate a unique ID (for optimistic updates)
+ */
+export function generateTempId(): string {
+  return `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Truncate text with ellipsis
+ */
+export function truncate(text: string, maxLength: number = 50): string {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
+}
+
+/**
+ * Get initials from a name
+ */
+export function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((n) => n.charAt(0))
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+}
+
+/**
+ * Status color mapping
+ */
+export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  active: { bg: '#D1FAE5', text: '#065F46' },
+  inactive: { bg: '#FEF3C7', text: '#92400E' },
+  suspended: { bg: '#FEE2E2', text: '#991B1B' },
+  draft: { bg: '#F3F4F6', text: '#6B7280' },
+  approved: { bg: '#DBEAFE', text: '#1E40AF' },
+  in_progress: { bg: '#EDE9FE', text: '#5B21B6' },
+  completed: { bg: '#D1FAE5', text: '#065F46' },
+  cancelled: { bg: '#FEE2E2', text: '#991B1B' },
+  archived: { bg: '#F3F4F6', text: '#6B7280' },
+  on_trip: { bg: '#DBEAFE', text: '#1E40AF' },
+  delayed: { bg: '#FEF3C7', text: '#92400E' },
+};
+
+// ─── Legacy helper aliases (for backward compatibility) ───
+
+export function getStatusColor(status: string): string {
+  return STATUS_COLORS[status]?.text || '#6B7280';
+}
+
+export function formatStatus(status: string): string {
+  return status?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) || 'Unknown';
+}
+
+export function getRoleLabel(role: string): string {
+  const labels: Record<string, string> = {
+    superadmin: 'Super Admin',
+    super_admin: 'Super Admin',
+    admin: 'Admin',
+    adminlite: 'Admin Lite',
+    management: 'Admin',
+    management_edit: 'Admin',
+    management_lite: 'Admin Lite',
+    operator_quarry: 'Quarry Operator',
+    operator_site: 'Site Operator',
+    operator_fuel: 'Fuel Operator',
+    inspector: 'Material Inspector',
+    quarry_operator: 'Quarry Operator',
+    site_operator: 'Site Operator',
+    fuel_operator: 'Fuel Operator',
+    vendor: 'Vendor',
+    driver: 'Driver',
+    storeman: 'Storeman',
+    store_keeper: 'Storeman',
+    storekeeper: 'Storeman',
+  };
+  return labels[role] || role;
+}
+
+export function formatDate(dateStr: string): string {
+  return formatEAT(dateStr);
+}
+
+export function formatTime(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-KE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Africa/Nairobi',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+export function formatDateTime(dateStr: string): string {
+  return formatEAT(dateStr);
+}
+
+export function formatWeight(weight: number, unit: string = 'Tonnes'): string {
+  return `${formatNumber(weight)} ${unit}`;
+}
+
+export function formatCurrency(amount: number): string {
+  return `KES ${formatNumber(amount)}`;
+}
+
+export function normalizeVendorId(id?: string): string {
+  return (id || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+}
+
+export function generateId(): string {
+  return generateTempId();
+}
+
+function padToThree(id: string): string {
+  const num = id.replace(/^[VvDdTtJj]/, '').replace(/[^0-9]/g, '');
+  const parsed = parseInt(num, 10);
+  return isNaN(parsed) ? num.padStart(3, '0') : String(parsed).padStart(3, '0');
+}
+
+function classifyId(id: string): string {
   const upper = id.toUpperCase();
   if (upper.startsWith('V')) return 'V';
   if (upper.startsWith('D')) return 'D';
@@ -40,303 +193,84 @@ function typePrefix(id: string): 'V' | 'D' | 'T' | 'J' {
   return 'J';
 }
 
-// Sequential job counter per PO (in-memory; resets on app restart)
-const jobSeqMap: Record<string, number> = {};
-function nextJobSeq(poNumber: string): number {
-  if (!jobSeqMap[poNumber]) jobSeqMap[poNumber] = 0;
-  jobSeqMap[poNumber]++;
-  return jobSeqMap[poNumber];
-}
-
-// Generate job ID: POMAT###/V###/D###/T###/J#### (sequential per PO)
-export function generateJobId(
-  poNumber: string,
-  materialId?: string,
-  vendorId?: string,
-  driverId?: string,
-  vehicleId?: string
-): string {
-  const cleanVendorId = vendorId ? `${typePrefix(vendorId)}${padToThree(vendorId)}` : 'V###';
-  const cleanDriverId = driverId ? `${typePrefix(driverId)}${padToThree(driverId)}` : 'D###';
-  const cleanVehicleId = vehicleId ? `${typePrefix(vehicleId)}${padToThree(vehicleId)}` : 'T###';
-  const jobSeq = nextJobSeq(poNumber);
-  return `${poNumber}/${cleanDriverId}/${cleanVehicleId}/J${String(jobSeq).padStart(4, '0')}`;
-}
-
-// Generate PO number: POMAT###/V### (padded to 3 digits)
-export function generatePONumber(materialId: string, vendorId: string): string {
-  const cleanMatId = materialId
-    .replace(/^MAT/i, '')
-    .replace(/[^0-9]/g, '')
-    .padStart(3, '0');
-  const cleanVendorId = padToThree(vendorId);
-  return `POMAT${cleanMatId}/V${cleanVendorId}`;
-}
-
-// Generate site delivery reference: POMAT###/V###/D###/T###/J####/S####
-export function generateSiteRef(jobId: string): string {
-  const siteSeq = nextJobSeq(`SITE_${jobId}`);
-  return `${jobId}/S${String(siteSeq).padStart(4, '0')}`;
-}
-
-// Generate receipt note ID: POMAT###/V###/D###/T###/J####/RN###
-export function generateReceiptNoteId(jobId: string): string {
-  const rnSeq = nextJobSeq(`RN_${jobId}`);
-  return `${jobId}/RN${String(rnSeq).padStart(3, '0')}`;
-}
-
-// Generate fuel record ID: POMAT###/V###/D###/T###/J####/F###
-export function generateFuelRecordId(jobId: string): string {
-  const fSeq = nextJobSeq(`F_${jobId}`);
-  return `${jobId}/F${String(fSeq).padStart(3, '0')}`;
+/**
+ * Normalize a poNumber to its base form by stripping any vendor segment
+ * that may already be appended (e.g., "POMAT003/V001" → "POMAT003").
+ * This prevents duplication when the vendorId is also passed separately.
+ */
+function normalizePoNumber(poNumber: string): string {
+  // Strip any trailing /V### segment from the poNumber
+  return poNumber.replace(/\/[Vv]\d+$/, '');
 }
 
 /**
- * Generate receipt note ID using backend sequential counter.
- * Format: POMAT###/V###/D###/T###/J####/RN###
- * The RN### part comes from the backend Firestore atomic counter.
+ * Generate the job key (base identifier without the J number).
+ * Format: POMAT###/V###/D###/T###
+ * e.g. "POMAT003/V001/D004/T010"
+ *
+ * The poNumber may already contain a vendor suffix (e.g. "POMAT003/V001").
+ * This is automatically stripped to prevent duplicate vendor segments.
+ *
+ * The final J number (e.g., /J0004) is ALWAYS assigned by the backend
+ * via the jobIdService to guarantee one shared sequential counter per
+ * Purchase Order across all quarries and sites.
  */
-export async function generateReceiptNoteIdAsync(jobId: string): Promise<string> {
-  try {
-    const { getNextId } = require('../services/counter');
-    const rnSuffix = await getNextId();
-    return `${jobId}/RN${rnSuffix.padStart(3, '0')}`;
-  } catch {
-    // Fallback to in-memory sequential
-    return generateReceiptNoteId(jobId);
-  }
+export function generateJobKey(poNumber: string, materialId: string, vendorId: string, driverId: string, vehicleId: string): string {
+  const basePo = normalizePoNumber(poNumber);
+  const vendorPrefix = classifyId(vendorId);
+  const vendorNum = padToThree(vendorId);
+  const driverPrefix = classifyId(driverId);
+  const driverNum = padToThree(driverId);
+  const vehiclePrefix = classifyId(vehicleId);
+  const vehicleNum = padToThree(vehicleId);
+  return `${basePo}/${vendorPrefix}${vendorNum}/${driverPrefix}${driverNum}/${vehiclePrefix}${vehicleNum}`;
 }
 
-// Format currency (no KES prefix)
-export function formatCurrency(amount: number | null | undefined): string {
-  if (amount == null || isNaN(amount)) return '0.00';
-  return amount.toLocaleString('en-KE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+/**
+ * @deprecated Use generateJobKey() instead. The backend now owns job numbering.
+ * Kept for backward compatibility with any legacy callers.
+ */
+export function generateJobId(poNumber: string, materialId: string, vendorId: string, driverId: string, vehicleId: string): string {
+  return generateJobKey(poNumber, materialId, vendorId, driverId, vehicleId);
 }
 
-// Format weight
-export function formatWeight(weight: number, unit: string = 'tonnes'): string {
-  return `${weight.toFixed(1)} ${unit}`;
+export function generatePONumber(): string {
+  // PO numbers are generated server-side as POMAT### via counterService
+  return '';
 }
 
-// Format date in EAT (East Africa Time, UTC+3)
-export function formatDate(
-  dateStr: string | Date,
-  options?: Intl.DateTimeFormatOptions
-): string {
-  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-  const defaultOptions: Intl.DateTimeFormatOptions = {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    ...options,
-  };
-  return date.toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi', ...defaultOptions });
+export function generateReceiptNoteId(jobId?: string): string {
+  return jobId ? `${jobId}/RN` : `RN-${Date.now().toString(36).toUpperCase()}`;
 }
 
-// Format time in EAT
-export function formatTime(dateStr: string | Date): string {
-  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-  return date.toLocaleTimeString('en-KE', {
-    timeZone: 'Africa/Nairobi',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+export function generateFuelRecordId(): string {
+  return `FUEL-${Date.now().toString(36).toUpperCase()}`;
 }
 
-// Format datetime in EAT
-export function formatDateTime(dateStr: string | Date): string {
-  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
-  return `${formatDate(date)} ${formatTime(date)}`;
+export function generateReceiptText(_data?: Record<string, unknown>): string {
+  return `Receipt #${Date.now().toString(36).toUpperCase()}`;
 }
 
-// Format date in EAT with full format: "26 Jun 2026, 08:30 AM"
-export function formatEAT(dateString: string | Date): string {
-  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-  return date.toLocaleString('en-KE', {
-    timeZone: 'Africa/Nairobi',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
-
-// Get initials from name
-export function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-// Truncate text
-export function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength - 3) + '...';
-}
-
-// Debounce function
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: ReturnType<typeof setTimeout> | null = null;
+export function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...args: Parameters<T>) => void {
+  let timer: ReturnType<typeof setTimeout>;
   return (...args: Parameters<T>) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
   };
 }
 
-// Get status color
-export function getStatusColor(status: string): string {
-  const colors: Record<string, string> = {
-    active: '#10B981',
-    inactive: '#94A3B8',
-    suspended: '#EF4444',
-    pending: '#F59E0B',
-    approved: '#3B82F6',
-    in_progress: '#8B5CF6',
-    completed: '#10B981',
-    cancelled: '#EF4444',
-    delivered: '#10B981',
-    delayed: '#EF4444',
-    assigned: '#3B82F6',
-    at_quarry: '#8B5CF6',
-    loaded: '#10B981',
-    in_transit_to_site: '#F59E0B',
-    waiting: '#94A3B8',
-    weighing_in: '#3B82F6',
-    loading: '#F59E0B',
-    weighing_out: '#8B5CF6',
-    arrived: '#3B82F6',
-    received: '#10B981',
-    confirmed: '#059669',
-    scheduled: '#F59E0B',
-    in_maintenance: '#F59E0B',
-    out_of_service: '#EF4444',
-  };
-  return colors[status] || '#94A3B8';
-}
-
-// Format status label
-export function formatStatus(status: string): string {
-  return status
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-// Calculate net weight
-export function calculateNetWeight(
-  weighIn: number,
-  weighOut: number
-): number {
-  return Math.round((weighIn - weighOut) * 100) / 100;
-}
-
-// Generate receipt text (for sharing)
-export function generateReceiptText(data: {
-  stationName: string;
-  jobId: string;
-  plateNumber: string;
-  driverName: string;
-  materialName: string;
-  weighIn: number;
-  weighOut: number;
-  netWeight: number;
-  timestamp: string;
-  operatorName: string;
-  location: string;
-}): string {
-  return `
-╔════════════════════════════╗
-║    ${data.stationName}
-╠════════════════════════════╣
-║ WEIGHMENT RECEIPT
-║ ─────────────────────────
-║ Job ID: ${data.jobId}
-║ Plate:  ${data.plateNumber}
-║ Driver: ${data.driverName}
-║ ─────────────────────────
-║ Material: ${data.materialName}
-║ Weigh In:  ${data.weighIn.toFixed(1)} tonnes
-║ Weigh Out: ${data.weighOut.toFixed(1)} tonnes
-║ ─────────────────────────
-║ NET:      ${data.netWeight.toFixed(1)} tonnes
-║ ─────────────────────────
-║ Operator: ${data.operatorName}
-║ Location: ${data.location}
-║ ${data.timestamp}
-║ ─────────────────────────
-║ [BARCODE: ${data.jobId}]
-║
-║      Thank you!
-╚════════════════════════════╝
-  `.trim();
-}
-
-// Get role label
-export function getRoleLabel(role: string): string {
-  const labels: Record<string, string> = {
-    admin: 'Admin',
-    management: 'Management',
-    operator_quarry: 'Quarry Operator',
-    operator_site: 'Site Operator',
-    operator_fuel: 'Fuel Operator',
-    vendor: 'Vendor',
-  };
-  return labels[role] || role;
-}
-
-// Checkpoint type display config
-export interface CheckpointConfig {
-  icon: string;
-  label: string;
-  color: string;
-}
-
-export const checkpointConfig: Record<string, CheckpointConfig> = {
-  origin: { icon: 'home', label: 'Origin', color: '#1B2A4A' },
-  weigh_in: { icon: 'arrow-down-circle', label: 'Weigh-In', color: '#3B82F6' },
-  weigh_out: { icon: 'arrow-up-circle', label: 'Weigh-Out', color: '#8B5CF6' },
-  arrived_site: { icon: 'location', label: 'Weigh in Site in', color: '#3B82F6' },
-  received: { icon: 'checkmark-circle', label: 'Received', color: '#10B981' },
-};
-
-// Journey flow order (defines the canonical sequence)
-export const JOURNEY_STEPS: { type: string; label: string; icon: string; color: string }[] = [
-  { type: 'origin', label: 'Origin', icon: 'home', color: '#1B2A4A' },
-  { type: 'weigh_in', label: 'Weigh-In', icon: 'arrow-down-circle', color: '#3B82F6' },
-  { type: 'weigh_out', label: 'Weigh-Out', icon: 'arrow-up-circle', color: '#8B5CF6' },
-  { type: 'arrived_site', label: 'Weigh in Site in', icon: 'location', color: '#3B82F6' },
-  { type: 'received', label: 'Received', icon: 'checkmark-circle', color: '#10B981' },
+export const JOURNEY_STEPS = [
+  'Draft',
+  'Assigned',
+  'Ready',
+  'Loading',
+  'Quarry In',
+  'Quarry Out',
+  'In Transit',
+  'Site In',
+  'Offloading',
+  'Site Out',
+  'Receipt Uploaded',
+  'Reconciliation',
+  'Completed',
 ];
-
-// Checkpoint type enum
-export type CheckpointType = 'origin' | 'weigh_in' | 'weigh_out' | 'arrived_site' | 'received';
-
-/** Determine the current step index based on completed checkpoints */
-export function getCurrentStepIndex(checkpoints: { type: string; }[]): number {
-  const completedTypes = new Set(checkpoints.map(cp => cp.type));
-  for (let i = JOURNEY_STEPS.length - 1; i >= 0; i--) {
-    if (completedTypes.has(JOURNEY_STEPS[i].type)) return i + 1;
-  }
-  return 0;
-}
-
-export interface Checkpoint {
-  id: string;
-  deliveryOrderId: string;
-  jobId: string;
-  type: CheckpointType;
-  timestamp: string;
-  location: string;
-  notes?: string;
-}

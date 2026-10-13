@@ -1,0 +1,700 @@
+/**
+ * Public Tracking Page
+ *
+ * Renders a read-only tracking dashboard for a delivery in transit.
+ * This page is publicly accessible — no authentication required.
+ *
+ * URL format: /track/KAA123B (vehicle registration number)
+ */
+
+import { useEffect, useState, useCallback, useRef } from 'react';
+import {
+  ActivityIndicator,
+  useWindowDimensions,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { fetchPublicTrackingByPlate, recordSecurityTrackingDecision, selectSecurityTrackingVehicle } from '../../services/api';
+import { getItem, removeItem } from '../../services/database';
+import { Colors, Gap, Radius, Spacing } from '../../constants/theme';
+import { canControlStatusBarAppearance } from '../../utils/statusBar';
+
+const TRACK_SESSION_KEY = 'user_track';
+const LEGACY_TRACK_SESSION_KEY = 'track_session';
+const FLAG_REASON_OPTIONS = [
+  'Driver identity could not be verified',
+  'Truck registration does not match',
+  'Cargo or document discrepancy',
+  'Unsafe condition',
+  'Other',
+];
+
+function formatEAT(isoString?: string): string {
+  if (!isoString) return '—';
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleString('en-KE', {
+      timeZone: 'Africa/Nairobi',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return isoString;
+  }
+}
+
+function openMaps(lat?: number, lng?: number) {
+  if (lat == null || lng == null) return;
+  Linking.openURL(`https://www.google.com/maps?q=${lat},${lng}`).catch(() => {});
+}
+
+type PageState =
+  | { kind: 'loading' }
+  | { kind: 'active'; data: any }
+  | { kind: 'expired'; message: string }
+  | { kind: 'error'; message: string };
+
+export default function PublicTrackingScreen() {
+  const { plate } = useLocalSearchParams<{ plate: string }>();
+  const [securitySession, setSecuritySession] = useState<{ id: string; token: string; plate: string; securityLocation?: string; expiresAt?: string } | null>(null);
+  const [searchPlate, setSearchPlate] = useState((plate || '').toUpperCase());
+  const [state, setState] = useState<PageState>(
+    plate ? { kind: 'loading' } : { kind: 'expired', message: 'Enter a vehicle registration number to track.' }
+  );
+  const [photoFullscreen, setPhotoFullscreen] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
+  const [selectedFlagReason, setSelectedFlagReason] = useState('');
+  const [showFlagOptions, setShowFlagOptions] = useState(false);
+  const [decisionBusy, setDecisionBusy] = useState(false);
+  const [decisionMessage, setDecisionMessage] = useState('');
+  const [decisionError, setDecisionError] = useState('');
+  const [driverPhoto, setDriverPhoto] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  const atGate = securitySession?.securityLocation?.trim().toLowerCase() === 'gate';
+  const captureDriverPhoto = async () => {
+    setCapturing(true);
+    setDecisionError('');
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) { setDecisionError('Allow camera access to capture the driver photo.'); return; }
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.75 });
+      if (!result.canceled && result.assets?.[0]) setDriverPhoto(result.assets[0]);
+    } catch { setDecisionError('Unable to open the camera. Please try again.'); }
+    finally { setCapturing(false); }
+  };
+
+  const [securityPage, setSecurityPage] = useState<1 | 2>(1);
+  const { width: windowWidth } = useWindowDimensions();
+  const [slideWidth, setSlideWidth] = useState(windowWidth);
+  const slidesRef = useRef<ScrollView>(null);
+  const goToStep = (step: 1 | 2) => {
+    setSecurityPage(step);
+    slidesRef.current?.scrollTo({ x: (step - 1) * slideWidth, animated: true });
+  };
+  useEffect(() => {
+    slidesRef.current?.scrollTo({ x: (securityPage - 1) * slideWidth, animated: false });
+  }, [slideWidth]);
+
+  useEffect(() => {
+    void Promise.all([getItem(TRACK_SESSION_KEY), getItem(LEGACY_TRACK_SESSION_KEY)]).then(([raw, legacyRaw]) => {
+      try {
+        const session = raw ? JSON.parse(raw) : legacyRaw ? JSON.parse(legacyRaw) : null;
+        if (!session?.id || !session?.token || typeof session.securityLocation !== 'string') return router.replace('/session' as any);
+        if (!(Date.parse(session.expiresAt) > Date.now())) {
+          void Promise.all([removeItem(TRACK_SESSION_KEY), removeItem(LEGACY_TRACK_SESSION_KEY)]);
+          return router.replace('/session?expired=1' as any);
+        }
+        setSecuritySession(session);
+      } catch { router.replace('/session' as any); }
+    });
+  }, []);
+
+  const trackByPlate = useCallback(async (plateNum: string, isBackgroundRefresh = false) => {
+    const clean = (plateNum || '').trim().toUpperCase();
+    if (!clean || clean.length < 3) {
+      setState({ kind: 'expired', message: 'Enter a valid vehicle registration number (min 3 chars).' });
+      return;
+    }
+    // Only show loading indicator on explicit search, not background refresh
+    if (!isBackgroundRefresh) {
+      setState({ kind: 'loading' });
+      setDriverPhoto(null);
+      setDecisionError('');
+      setDecisionMessage('');
+      setSecurityPage(1);
+    }
+    try {
+      const data = await fetchPublicTrackingByPlate(clean);
+      setState({ kind: 'active', data });
+    } catch (err: any) {
+      // The tracking API wraps Axios errors and exposes statusCode.
+      // Handle session rejection before suppressing background refresh errors.
+      if (err?.statusCode === 403 || err?.response?.status === 403) {
+        setSecuritySession(null);
+        setState({ kind: 'loading' });
+        await Promise.all([removeItem(TRACK_SESSION_KEY), removeItem(LEGACY_TRACK_SESSION_KEY)]);
+        router.replace('/session' as any);
+        return;
+      }
+      // On background refresh, keep current data if fetch fails temporarily
+      if (isBackgroundRefresh) return;
+
+      // Network / CORS failure — show as connection error, not "expired"
+      if (err?.isNetworkError) {
+        setState({ kind: 'error', message: err.message });
+        return;
+      }
+
+      // Server returned a tracking-specific error (404, expired, etc.)
+      if (err?.isTrackingError) {
+        const isExpired = err.errorCode === 'TRACKING_EXPIRED';
+        if (isExpired) {
+          setState({ kind: 'expired', message: err.message });
+        } else {
+          // TRACKING_NOT_FOUND or other server errors
+          setState({ kind: 'expired', message: err.message });
+        }
+        return;
+      }
+
+      // Generic fallback (should not normally be reached)
+      setState({ kind: 'error', message: err?.message || 'An unexpected error occurred.' });
+    }
+  }, []);
+
+  // Keep a ref to the latest state to avoid stale closure in interval
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  useEffect(() => {
+    if (!securitySession) return;
+    if (plate) {
+      const p = String(plate).toUpperCase();
+      setSearchPlate(p);
+      trackByPlate(p);
+    }
+  }, [plate, trackByPlate, securitySession]);
+
+  const submitDecision = async (outcome: 'verified' | 'flagged') => {
+    const resolvedFlagReason = selectedFlagReason === 'Other' ? flagReason.trim() : selectedFlagReason;
+    if (!securitySession || (outcome === 'flagged' && !resolvedFlagReason)) return;
+    if (decisionBusy || capturing) return;
+    if (atGate && !driverPhoto) { setDecisionError('Capture the driver photo before submitting your decision.'); return; }
+    setDecisionBusy(true); setDecisionError('');
+    try {
+      await selectSecurityTrackingVehicle(securitySession.id, securitySession.token, state.kind === 'active' ? state.data.plateNumber : securitySession.plate, false, atGate && driverPhoto ? driverPhoto : undefined);
+      await recordSecurityTrackingDecision(securitySession.id, securitySession.token, outcome, resolvedFlagReason);
+      setDecisionMessage(outcome === 'flagged' ? 'Delivery flagged. The vendor and administrators were notified.' : 'Delivery accepted.');
+      if (outcome === 'flagged') {
+        await Promise.all([removeItem(TRACK_SESSION_KEY), removeItem(LEGACY_TRACK_SESSION_KEY)]);
+        setState((current) => current.kind === 'active'
+          ? { ...current, data: { ...current.data, securityFlag: { status: 'flagged', reason: resolvedFlagReason } } }
+          : current);
+      }
+    } catch (err: any) {
+      if (err?.response?.status === 403) {
+        await Promise.all([removeItem(TRACK_SESSION_KEY), removeItem(LEGACY_TRACK_SESSION_KEY)]);
+        setSecuritySession(null);
+        router.replace('/session' as any);
+        return;
+      }
+      setDecisionError(err?.response?.data?.error || 'Unable to save the decision.');
+    }
+    finally { setDecisionBusy(false); }
+  };
+
+  const trackAnotherVehicle = () => {
+    setDecisionMessage('');
+    setDecisionError('');
+    setSelectedFlagReason('');
+    setFlagReason('');
+    setShowFlagOptions(false);
+    setDriverPhoto(null);
+    setSearchPlate('');
+    setSecurityPage(1);
+    setState({ kind: 'expired', message: 'Enter a vehicle registration number to track.' });
+  };
+
+  // Auto-refresh tracking data every 10 seconds when showing active delivery
+  useEffect(() => {
+    if (state.kind !== 'active') return;
+    const interval = setInterval(() => {
+      if (searchPlate && searchPlate.length >= 3) {
+        // Use background refresh — keep current data visible while fetching updates
+        trackByPlate(searchPlate, true);
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [state.kind, searchPlate, trackByPlate]);
+
+  const colors = Colors.light;
+  const bg = colors.background;
+  const surface = colors.surface;
+  const text = colors.text;
+  const textSec = colors.textSecondary;
+  const textMut = colors.textMuted;
+  const border = colors.border;
+  const primary = colors.primary;
+
+  function renderSearchBar() {
+    return (
+      <View style={[styles.searchBar, { backgroundColor: '#F8FAFC', borderColor: border }]}>
+        <Ionicons name="search" size={18} color={textMut} />
+        <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
+          style={[styles.searchInput, { color: text }]}
+          placeholder="Enter plate number (e.g. KAA 123B)"
+          placeholderTextColor={textMut}
+          value={searchPlate}
+          onChangeText={setSearchPlate}
+          onSubmitEditing={() => trackByPlate(searchPlate)}
+          returnKeyType="search"
+          autoCapitalize="characters"
+          autoCorrect={false}
+        />
+        <TouchableOpacity
+          onPress={() => trackByPlate(searchPlate)}
+          disabled={!searchPlate || searchPlate.length < 3}
+          style={{ opacity: searchPlate && searchPlate.length >= 3 ? 1 : 0.3 }}
+        >
+          <Ionicons name="arrow-forward-circle" size={24} color={primary} />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  /* ─── Header shared by all states ─── */
+  const renderHeader = (subtitle: string, showLiveBadge?: boolean) => (
+    <View style={[styles.header, { backgroundColor: surface, borderColor: border }]}>
+      <View style={styles.headerTopRow}>
+        <View style={styles.headerLeftGroup}>
+          <View style={[styles.headerIconCircle, { backgroundColor: primary + '14' }]}>
+            <Ionicons name="location-outline" size={22} color={primary} />
+          </View>
+          <View>
+            <Text style={[styles.headerTitle, { color: text }]}>Delivery Tracking</Text>
+            <Text style={[styles.headerSubtitle, { color: textMut }]}>{subtitle}</Text>
+          </View>
+        </View>
+        {showLiveBadge && (
+          <View style={[styles.liveBadge, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+            <View style={[styles.liveDot, { backgroundColor: '#10B981' }]} />
+            <Text style={styles.liveLabel}>LIVE</Text>
+          </View>
+        )}
+      </View>
+      {renderSearchBar()}
+    </View>
+  );
+
+  /* ─── Error State (network / server failure) ─── */
+  if (state.kind === 'error') {
+    return (
+      <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {renderHeader('Enter plate number')}
+          <View style={styles.centerContent}>
+            <View style={styles.expiredCard}>
+              <View style={[styles.expiredIconCircle, { backgroundColor: '#FFF7ED' }]}>
+                <Ionicons name="cloud-offline-outline" size={48} color="#F59E0B" />
+              </View>
+              <Text style={[styles.expiredTitle, { color: text }]}>Connection Error</Text>
+              <Text style={[styles.expiredMessage, { color: textSec }]}>{state.message}</Text>
+              <View style={[styles.expiredDivider, { backgroundColor: border }]} />
+              <TouchableOpacity
+                onPress={() => trackByPlate(searchPlate)}
+                style={[styles.retryButton, { backgroundColor: primary }]}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  /* ─── Expired State ─── */
+  if (state.kind === 'expired') {
+    return (
+      <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {renderHeader('Enter plate number')}
+          <View style={styles.centerContent}>
+            <View style={styles.expiredCard}>
+              <View style={[styles.expiredIconCircle, { backgroundColor: '#FEF2F2' }]}>
+                <Ionicons name="time-outline" size={48} color="#EF4444" />
+              </View>
+              <Text style={[styles.expiredTitle, { color: text }]}>Tracking Expired</Text>
+              <Text style={[styles.expiredMessage, { color: textSec }]}>{state.message}</Text>
+              <View style={[styles.expiredDivider, { backgroundColor: border }]} />
+              <Text style={[styles.expiredHint, { color: textMut }]}>
+                Tracking links are only active while the delivery is in transit.
+                Once the truck arrives at the destination site, the link is
+                automatically deactivated for privacy and security.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  /* ─── Loading State ─── */
+  if (state.kind === 'loading') {
+    return (
+      <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {renderHeader('Loading...')}
+          <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color={primary} />
+            <Text style={[styles.loadingText, { color: textMut }]}>Loading tracking data...</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  /* ─── Active Tracking Dashboard ─── */
+  const d = state.data;
+  const quarryWeighIn = d.weighInWeight ?? d.quarryWeighInWeight;
+  const quarryWeighOut = d.weighOutWeight ?? d.quarryWeighOutWeight;
+  const quarryNet = d.netWeight ?? (quarryWeighIn != null && quarryWeighOut != null ? quarryWeighIn - quarryWeighOut : null);
+  const siteWeighIn = d.siteWeighInWeight;
+  const siteWeighOut = d.siteWeighOutWeight;
+  const siteNet = (siteWeighIn != null && siteWeighOut != null) ? siteWeighIn - siteWeighOut : null;
+  const hasQuarryWeights = quarryWeighIn != null || quarryWeighOut != null || quarryNet != null;
+  const hasSiteWeights = siteWeighIn != null || siteWeighOut != null;
+  const hasSecurityFlag = d.securityFlag?.status === 'flagged';
+  const isWarehouse = d.isWarehouseDelivery || d.deliveryOrigin === 'warehouse';
+  const dispatchProofPhoto = d.dispatchProofPhotoURL || (isWarehouse ? d.packagingPhotoURL : d.driverPhotoURL || d.weighOutPhotoURL);
+
+  return (
+    <KeyboardAvoidingView style={[styles.root, { backgroundColor: bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {canControlStatusBarAppearance ? <StatusBar style="dark" /> : null}
+      <View style={{ flex: 1 }} onLayout={(event) => setSlideWidth(event.nativeEvent.layout.width)}>
+        <ScrollView ref={slidesRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEnabled={!decisionBusy && !capturing}
+          onMomentumScrollEnd={(event) => setSecurityPage(Math.round(event.nativeEvent.contentOffset.x / slideWidth) === 0 ? 1 : 2)}>
+          <ScrollView style={{ width: slideWidth }} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+
+        {renderHeader(d.plateNumber || '—', true)}
+
+        {hasSecurityFlag ? (
+          <View style={[styles.securityFlagBanner, { backgroundColor: '#FEF2F2', borderColor: colors.danger }]}>
+            <Ionicons name="warning-outline" size={22} color={colors.danger} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.securityFlagTitle, { color: colors.danger }]}>Security flag raised</Text>
+              <Text style={[styles.securityFlagReason, { color: textSec }]}>{d.securityFlag.reason || 'This delivery requires review.'}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {/* ─── Source Quarry Card (includes quarry weight records) ─── */}
+        <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+          <View style={styles.cardHead}>
+            <View style={[styles.cardHeadIcon, { backgroundColor: '#FFF7ED' }]}>
+              <Ionicons name="map-outline" size={18} color="#F59E0B" />
+            </View>
+            <Text style={[styles.cardTitle, { color: text }]}>{isWarehouse ? 'Warehouse Shipment' : 'Source Quarry'}</Text>
+          </View>
+          <View style={[styles.cardDivider, { backgroundColor: border }]} />
+          
+          {d.weighOutGeoLocation?.address ? (
+            <InfoRow label="City / Town" value={d.weighOutGeoLocation.address} colors={colors} />
+          ) : d.weighOutLocation ? (
+            <InfoRow label="Location" value={d.weighOutLocation} colors={colors} />
+          ) : null}
+          {d.materialSource ? <InfoRow label="Material Source" value={d.materialSource} colors={colors} /> : null}
+          {isWarehouse && d.siteName ? <InfoRow label="Destination" value={d.siteName} colors={colors} /> : null}
+          {hasQuarryWeights ? (
+            <>
+              <View style={[styles.weightDivider, { backgroundColor: border }]} />
+              <Text style={[styles.sectionLabel, { color: textSec }]}>Weigh Records</Text>
+            </>
+          ) : null}
+          {quarryWeighIn != null ? <InfoRow label="Weigh In (Tare)" value={`${quarryWeighIn.toFixed(1)} tonnes`} colors={colors} /> : null}
+          {quarryWeighOut != null ? <InfoRow label="Weigh Out (Gross)" value={`${quarryWeighOut.toFixed(1)} tonnes`} colors={colors} /> : null}
+          {quarryNet != null ? <InfoRow label="Net Weight" value={`${quarryNet.toFixed(1)} tonnes`} colors={colors} valueColor={colors.success} /> : null}
+          <View style={[styles.weightDivider, { backgroundColor: border }]} />
+          <InfoRow label="Dispatched At" value={formatEAT(d.weighOutAt || d.dispatchedAt)} colors={colors} />
+        </View>
+
+        {/* ─── Cargo Details Card (includes driver National ID) ─── */}
+        <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+          <View style={styles.cardHead}>
+            <View style={[styles.cardHeadIcon, { backgroundColor: primary + '0F' }]}>
+              <Ionicons name="document-text-outline" size={18} color={primary} />
+            </View>
+            <Text style={[styles.cardTitle, { color: text }]}>Cargo Details</Text>
+          </View>
+          <View style={[styles.cardDivider, { backgroundColor: border }]} />
+          <InfoRow label="Material" value={isWarehouse && d.materials?.length ? d.materials.map((line: any) => line.materialName).filter(Boolean).join(', ') : d.materialName || '—'} colors={colors} />
+          <InfoRow label="Truck (Plate)" value={d.plateNumber || '—'} colors={colors} />
+          <InfoRow label="Driver" value={d.driverName || '—'} colors={colors} />
+          {d.driverNationalId ? <InfoRow label="National ID" value={d.driverNationalId} colors={colors} /> : null}
+        </View>
+
+        {/* ─── Site Weights Card (only appears when site weigh data is present) ─── */}
+        {hasSiteWeights ? (
+          <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+            <View style={styles.cardHead}>
+              <View style={[styles.cardHeadIcon, { backgroundColor: '#ECFDF5' }]}>
+                <Ionicons name="scale-outline" size={18} color="#10B981" />
+              </View>
+              <Text style={[styles.cardTitle, { color: text }]}>Site Weights</Text>
+            </View>
+            <View style={[styles.cardDivider, { backgroundColor: border }]} />
+            <Text style={[styles.sectionLabel, { color: textSec }]}>Destination Site</Text>
+            {siteWeighIn != null ? <InfoRow label="Arrival Weight" value={`${siteWeighIn.toFixed(1)} tonnes`} colors={colors} /> : null}
+            {siteWeighOut != null ? <InfoRow label="Offload Weight" value={`${siteWeighOut.toFixed(1)} tonnes`} colors={colors} /> : null}
+            {siteNet != null ? <InfoRow label="Net Weight (Site)" value={`${siteNet.toFixed(1)} tonnes`} colors={colors} valueColor={colors.success} /> : null}
+            {quarryNet != null && siteNet != null ? (
+              <>
+                <View style={[styles.weightDivider, { backgroundColor: border }]} />
+                <View style={[styles.totalWeightRow, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                  <Text style={[styles.totalWeightLabel, { color: '#047857' }]}>Combined Net</Text>
+                  <Text style={[styles.totalWeightValue, { color: '#047857' }]}>{(quarryNet + siteNet).toFixed(1)} tonnes</Text>
+                </View>
+              </>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* ─── Dispatch Proof / Geolocation Card ─── */}
+        <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+          <View style={styles.cardHead}>
+            <View style={[styles.cardHeadIcon, { backgroundColor: '#FFF7ED' }]}>
+              <Ionicons name="shield-checkmark-outline" size={18} color="#F59E0B" />
+            </View>
+            <Text style={[styles.cardTitle, { color: text }]}>Dispatch Proof</Text>
+          </View>
+          <View style={[styles.cardDivider, { backgroundColor: border }]} />
+          {dispatchProofPhoto ? (
+            <View style={styles.photoSection}>
+              <View style={styles.photoHeader}>
+                <Ionicons name="person-outline" size={16} color={textSec} />
+                <Text style={[styles.photoLabel, { color: textSec }]}>{isWarehouse ? 'Shipment Photo' : 'Driver Photo (Weigh-Out)'}</Text>
+              </View>
+              <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoFullscreen(true)} style={styles.photoContainer}>
+                <Image source={{ uri: dispatchProofPhoto }} style={[styles.driverPhoto, { borderColor: border }]} resizeMode="contain" />
+                <View style={styles.photoOverlay}>
+                  <Ionicons name="expand-outline" size={22} color="#fff" />
+                  <Text style={styles.photoOverlayText}>Tap to expand</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+          {d.weighOutCoordinates ? (
+            <TouchableOpacity
+              style={[styles.coordRow, { borderColor: colors.warning + '33', backgroundColor: '#FFFBEB' }]}
+              activeOpacity={0.7}
+              onPress={() => openMaps(d.weighOutCoordinates?.latitude, d.weighOutCoordinates?.longitude)}
+            >
+              <View style={[styles.coordIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="location" size={16} color={colors.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.coordTitle, { color: text }]}>Quarry Dispatch Location</Text>
+                <Text style={[styles.coordValue, { color: textSec }]}>
+                  {d.weighOutCoordinates.latitude?.toFixed(6)}, {d.weighOutCoordinates.longitude?.toFixed(6)}
+                </Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={textMut} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+
+          </ScrollView>
+          <ScrollView style={{ width: slideWidth }} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            {renderHeader(d.plateNumber || 'Delivery', true)}
+
+        { !hasSecurityFlag && !decisionMessage ? (
+          <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
+            <Text style={[styles.cardTitle, { color: text }]}>Security Decision</Text>
+            {atGate ? <View style={{ gap: Gap, marginBottom: Spacing.md }}>
+              <Text style={{ color: text }}>Driver photo *</Text>
+              {driverPhoto ? <Image source={{ uri: driverPhoto.uri }} style={{ width: '100%', height: 220, borderRadius: Radius.md }} resizeMode="contain" /> : null}
+              <TouchableOpacity style={[styles.decisionButton, { backgroundColor: primary }]} onPress={captureDriverPhoto} disabled={capturing || decisionBusy}>
+                <Ionicons name="camera-outline" size={20} color="#fff" />
+                <Text style={styles.decisionButtonText}>{capturing ? 'Opening camera...' : driverPhoto ? 'Retake driver photo' : 'Capture driver photo'}</Text>
+              </TouchableOpacity>
+            </View> : null}
+            {decisionError ? <Text style={{ color: colors.danger, marginBottom: Spacing.sm }}>{decisionError}</Text> : null}
+            <View style={styles.decisionActions}>
+              <TouchableOpacity disabled={decisionBusy} onPress={() => submitDecision('verified')} style={[styles.decisionButton, { backgroundColor: colors.success }]}><Text style={styles.decisionButtonText}>Accept</Text></TouchableOpacity>
+              <TouchableOpacity disabled={decisionBusy} onPress={() => setShowFlagOptions((visible) => !visible)} style={[styles.decisionButton, { backgroundColor: colors.danger }]}><Text style={styles.decisionButtonText}>Flag</Text></TouchableOpacity>
+            </View>
+            {showFlagOptions ? <>
+              <Text style={[styles.flagPrompt, { color: textSec }]}>Select a reason for flagging</Text>
+              <View style={styles.flagOptions}>
+                {FLAG_REASON_OPTIONS.map((option) => {
+                  const selected = selectedFlagReason === option;
+                  return <TouchableOpacity key={option} disabled={decisionBusy} onPress={() => setSelectedFlagReason(option)} style={[styles.flagOption, { borderColor: selected ? colors.danger : border, backgroundColor: selected ? '#FEF2F2' : surface }]}><Text style={[styles.flagOptionText, { color: selected ? colors.danger : textSec }]}>{option}</Text></TouchableOpacity>;
+                })}
+              </View>
+              {selectedFlagReason === 'Other' ? <TextInput inputAccessoryViewID="trucksphere-keyboard-done" value={flagReason} onChangeText={setFlagReason} placeholder="Enter the reason for flagging" placeholderTextColor={textMut} style={[styles.reasonInput, { color: text, borderColor: border }]} multiline /> : null}
+              <TouchableOpacity disabled={decisionBusy || !(selectedFlagReason === 'Other' ? flagReason.trim() : selectedFlagReason)} onPress={() => submitDecision('flagged')} style={[styles.confirmFlagButton, { backgroundColor: colors.danger, opacity: selectedFlagReason === 'Other' ? (flagReason.trim() ? 1 : 0.5) : (selectedFlagReason ? 1 : 0.5) }]}><Text style={styles.decisionButtonText}>Confirm Flag</Text></TouchableOpacity>
+            </> : null}
+          </View>
+        ) : <View style={[styles.card, { backgroundColor: '#ECFDF5', borderColor: colors.success }]}>
+          <Text style={[styles.cardTitle, { color: colors.success }]}>{decisionMessage}</Text>
+          {!hasSecurityFlag ? <TouchableOpacity onPress={trackAnotherVehicle} style={[styles.confirmFlagButton, { backgroundColor: primary, flexDirection: 'row', justifyContent: 'center', gap: Gap }]}><Ionicons name="search-outline" size={18} color="#fff" /><Text style={styles.decisionButtonText}>Track another vehicle</Text></TouchableOpacity> : null}
+        </View>}
+
+        <View style={styles.footer}>
+          <Ionicons name="lock-closed-outline" size={14} color={textMut} />
+          <Text style={[styles.footerText, { color: textMut }]}>This tracking link will automatically expire upon delivery.</Text>
+        </View>
+        <View style={{ height: 40 }} />
+
+          </ScrollView>
+        </ScrollView>
+        <View style={[styles.pagination, { padding: Spacing.md }]}>
+          <TouchableOpacity disabled={securityPage === 1} onPress={() => goToStep(1)} style={[styles.pageButton, { borderColor: border, opacity: securityPage === 1 ? 0.4 : 1 }]}><Text style={{ color: text }}>Back</Text></TouchableOpacity>
+          <Text style={{ color: textMut }}>Step {securityPage} of 2</Text>
+          <TouchableOpacity disabled={securityPage === 2} onPress={() => goToStep(2)} style={[styles.pageButton, { backgroundColor: primary, opacity: securityPage === 2 ? 0.4 : 1 }]}><Text style={{ color: '#fff' }}>Next</Text></TouchableOpacity>
+        </View>
+      </View>
+
+      <Modal visible={photoFullscreen} transparent animationType="fade" onRequestClose={() => setPhotoFullscreen(false)}>
+        <Pressable style={styles.fullscreenOverlay} onPress={() => setPhotoFullscreen(false)}>
+          <TouchableOpacity style={styles.fullscreenCloseBtn} onPress={() => setPhotoFullscreen(false)} activeOpacity={0.8}>
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          {dispatchProofPhoto ? <Image source={{ uri: dispatchProofPhoto }} style={styles.fullscreenImage} resizeMode="contain" /> : null}
+          <Text style={styles.fullscreenCaption}>{isWarehouse ? 'Shipment Photo' : 'Dispatch Proof'}</Text>
+        </Pressable>
+      </Modal>
+    </KeyboardAvoidingView>
+  );
+}
+
+function InfoRow({ label, value, colors, valueColor }: { label: string; value: string; colors: typeof Colors.light; valueColor?: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={[styles.infoLabel, { color: colors.textMuted }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: valueColor || colors.text }]} selectable>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingBottom: Spacing['4xl'] },
+  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
+  pageButton: { borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  captureButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Gap, borderRadius: Radius.md, padding: 12, marginTop: Spacing.md },
+  capturedPreview: { width: 120, height: 120, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.md, alignSelf: 'center' },
+
+  /* ─── Header ─── */
+  header: {
+    paddingTop: Platform.OS === 'web' ? 32 : 56,
+    paddingBottom: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    borderBottomWidth: 1,
+    gap: Gap,
+  },
+  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerLeftGroup: { flexDirection: 'row', alignItems: 'center', gap: Gap},
+  headerIconCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '800', lineHeight: 24 },
+  headerSubtitle: { fontSize: 12, fontWeight: '600', marginTop: Spacing.xs, letterSpacing: 0.5 },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: Gap, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1 },
+  liveDot: { width: 7, height: 7, borderRadius: 4 },
+  liveLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, color: '#10B981', textTransform: 'uppercase' },
+
+  /* ─── Search Bar ─── */
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: Gap, paddingHorizontal: 12, paddingVertical: 10, borderRadius: Radius.md, borderWidth: 1 },
+  searchInput: { flex: 1, fontSize: 14, fontWeight: '600', paddingVertical: 4 },
+
+  /* ─── Center Content ─── */
+  centerContent: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: Spacing['2xl'] },
+
+  /* ─── Cards ─── */
+  card: {
+    borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, gap: Gap, marginHorizontal: Spacing.lg, marginBottom: Spacing.xs,
+    ...Platform.select({ web: { boxShadow: 'none' }, default: { elevation: 0 } }),
+  },
+  securityFlagBanner: { flexDirection: 'row', gap: Gap, margin: Spacing.lg, marginBottom: Spacing.xs, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md },
+  securityFlagTitle: { fontSize: 15, fontWeight: '800' },
+  securityFlagReason: { fontSize: 13, fontWeight: '600', marginTop: 2 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: Gap},
+  cardHeadIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: 15, fontWeight: '700' },
+  cardDivider: { height: 1, marginVertical: Spacing.xs},
+
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 7, gap: Gap},
+  infoLabel: { fontSize: 13, fontWeight: '500', flexShrink: 0, minWidth: 110 },
+  infoValue: { fontSize: 13, fontWeight: '700', textAlign: 'right', flexShrink: 1 },
+
+  sectionLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  weightDivider: { height: 1, marginVertical: Spacing.xs},
+  totalWeightRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.xs},
+  totalWeightLabel: { fontSize: 14, fontWeight: '800' },
+  totalWeightValue: { fontSize: 16, fontWeight: '900' },
+
+  photoSection: { marginTop: Spacing.xs, gap: Gap},
+  photoHeader: { flexDirection: 'row', alignItems: 'center', gap: Gap},
+  photoLabel: { fontSize: 12, fontWeight: '600' },
+  photoContainer: { position: 'relative', borderRadius: Radius.md, overflow: 'hidden' as const, backgroundColor: '#F8FAFC' },
+  driverPhoto: { width: '100%', height: Platform.OS === 'web' ? 400 : 280, borderWidth: 1, borderRadius: Radius.md, backgroundColor: '#F1F5F9' },
+  photoOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Gap, paddingVertical: 8 },
+  photoOverlayText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+
+  fullscreenOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
+  fullscreenCloseBtn: { position: 'absolute', top: Platform.OS === 'web' ? 24 : 56, right: 20, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  fullscreenImage: { width: '100%', height: '70%', borderRadius: Radius.md },
+  fullscreenCaption: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '600', marginTop: Spacing.xs},
+
+  coordRow: { flexDirection: 'row', alignItems: 'center', gap: Gap, marginTop: Spacing.xs, paddingVertical: 10, paddingHorizontal: 12, borderRadius: Radius.md, borderWidth: 1 },
+  coordIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  coordTitle: { fontSize: 12, fontWeight: '700' },
+  coordValue: { fontSize: 12, fontWeight: '500', marginTop: Spacing.xs},
+
+  expiredCard: { alignItems: 'center', maxWidth: 320, gap: Gap},
+  expiredIconCircle: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
+  expiredTitle: { fontSize: 20, fontWeight: '800' },
+  expiredMessage: { fontSize: 14, fontWeight: '500', textAlign: 'center', lineHeight: 20 },
+  expiredDivider: { width: 48, height: 3, borderRadius: 2, marginVertical: Spacing.xs},
+  expiredHint: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
+
+  loadingText: { marginTop: Spacing.xs, fontSize: 14, fontWeight: '500' },
+
+  retryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Gap, paddingHorizontal: 24, paddingVertical: 12, borderRadius: Radius.md },
+  retryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+
+  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Gap, marginTop: Spacing.xs, paddingHorizontal: Spacing.lg },
+  footerText: { fontSize: 11, fontWeight: '500' },
+  reasonInput: { minHeight: 64, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.sm, textAlignVertical: 'top', marginTop: Spacing.sm },
+  decisionActions: { flexDirection: 'row', gap: Gap, marginTop: Spacing.sm },
+  decisionButton: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: Radius.md },
+  decisionButtonText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  flagPrompt: { fontSize: 13, fontWeight: '700', marginTop: Spacing.md },
+  flagOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: Gap, marginTop: Spacing.xs },
+  flagOption: { borderWidth: 1, borderRadius: Radius.full, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs },
+  flagOptionText: { fontSize: 12, fontWeight: '700' },
+  confirmFlagButton: { alignItems: 'center', paddingVertical: 12, borderRadius: Radius.md, marginTop: Spacing.sm },
+});

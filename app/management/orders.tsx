@@ -1,33 +1,58 @@
-import { useMemo, useState, useEffect } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView, TextInput } from 'react-native';
-import { router } from 'expo-router';
+import { PurchaseOrderMaterials, getPurchaseOrderMaterials } from '../../components/PurchaseOrderMaterials';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View, ScrollView, TextInput, RefreshControl } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
-import { usePurchaseOrders } from '../../store/realtimeData';
+import { Gap, Radius, Spacing } from '../../constants/theme';
+import { usePurchaseOrders } from '@/store/realtimeData';
 import { fetchMaterials } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
-import { DataCard, DetailRow, EmptyState, PageShell, SearchField, SectionTitle } from '../../components/EnterpriseUI';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
+import { DataCard, DetailRow, EmptyState, PageShell, SectionTitle } from '../../components/EnterpriseUI';
+import { useAuthStore } from '@/store/authStore';
+import { hasManagementPermission } from '../../utils/access';
+import { ManagementSearchHeader } from '../../components/ManagementSearchHeader';
 
 export default function ManagementOrdersScreen() {
   const colors = useTheme();
+  const styles = buildThemeStyles(colors);
+  const user = useAuthStore((state) => state.user);
+  const canCreatePurchaseOrder = hasManagementPermission(user?.role, 'purchaseOrders.create');
   const [search, setSearch] = useState('');
   const [materials, setMaterials] = useState<any[]>([]);
   const [materialFilter, setMaterialFilter] = useState('');
   const [matDropdownOpen, setMatDropdownOpen] = useState(false);
   const [matSearch, setMatSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
 
   useEffect(() => { fetchMaterials().then(m => setMaterials(m || [])).catch(() => {}); }, []);
 
   const orders = usePurchaseOrders();
 
+  // Refresh orders when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refresh('purchaseOrders');
+    }, [refresh])
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh('purchaseOrders');
+    setRefreshing(false);
+  }, [refresh]);
+
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     return orders.filter((item: any) => {
-      const matchesSearch = !query || [item.poNumber, item.vendorName, item.materialName]
+      if (["cancelled", "canceled"].includes(String(item.status || "").trim().toLowerCase())) return false;
+      const matchesSearch = !query || [item.poNumber, item.vendorName, ...getPurchaseOrderMaterials(item).map((line) => line.materialName)]
         .some((v: any) => String(v || '').toLowerCase().includes(query));
       const matchesFilter = true;
-      const matchesMaterial = !materialFilter || item.materialId === materialFilter;
+      const matchesMaterial = !materialFilter || getPurchaseOrderMaterials(item).some((line) => line.materialId === materialFilter);
       return matchesSearch && matchesFilter && matchesMaterial;
     });
   }, [orders, search, materialFilter]);
@@ -40,11 +65,14 @@ export default function ManagementOrdersScreen() {
 
   return (
     <View style={styles.shell}>
-      <PageShell>
-        <SearchField value={search} onChangeText={setSearch} placeholder="Search PO, vendor, material..." />
-
+      <ManagementSearchHeader title="Orders" search={search} onChangeSearch={setSearch} placeholder="Search order, vendor, material..." />
+      <PageShell
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+        }
+      >
         {/* Material Dropdown Filter */}
-        <View style={{ marginBottom: Spacing.sm }}>
+        <View style={{ marginBottom: Spacing.xs}}>
           <TouchableOpacity
             style={[styles.matBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
             onPress={() => { setMatDropdownOpen(!matDropdownOpen); setMatSearch(''); }}
@@ -65,9 +93,9 @@ export default function ManagementOrdersScreen() {
             <View style={[styles.matDropdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={[styles.matSearchRow, { borderBottomColor: colors.border }]}>
                 <Ionicons name="search" size={14} color={colors.textMuted} />
-                <TextInput style={[styles.matSearchInput, { color: colors.text }]} placeholder="Search materials..." placeholderTextColor={colors.textMuted} value={matSearch} onChangeText={setMatSearch} autoFocus />
+                <TextInput inputAccessoryViewID="trucksphere-keyboard-done" style={[styles.matSearchInput, { color: colors.text }]} placeholder="Search materials..." placeholderTextColor={colors.textMuted} value={matSearch} onChangeText={setMatSearch} autoFocus />
               </View>
-              <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
+              <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
                 {matFiltered.map((m: any) => (
                   <TouchableOpacity key={m.id} style={[styles.matItem, m.id === materialFilter && { backgroundColor: (colors as any).accent + '15' }]} onPress={() => { setMaterialFilter(m.id); setMatDropdownOpen(false); }}>
                     <Text style={{ color: colors.text, fontSize: 14, flex: 1 }} numberOfLines={1}>{m.name}</Text>
@@ -79,40 +107,46 @@ export default function ManagementOrdersScreen() {
           )}
         </View>
 
-        <SectionTitle title={`${filtered.length} purchase orders`} />
+        <SectionTitle title={`${filtered.length} orders`} />
 
         {filtered.length > 0 ? (
-          filtered.map((item: any) => (
-            <DataCard key={item.id} onPress={() => router.push(`/screens/purchase-order?id=${item.id}` as any)}>
+          <View style={styles.orderList}>
+          {filtered.map((item: any) => (
+            <DataCard key={item.id} style={styles.orderCard} onPress={() => router.push(`/management/purchase-orders/${item.id}` as any)}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber}</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{String(item.poNumber || item.id || '').toUpperCase()}</Text>
                   <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.vendorName}</Text>
                 </View>
               </View>
-              <DetailRow icon="cube-outline" value={`${item.materialName} · ${item.quantity || 0} ${item.unit || 'units'}`} />
+              <PurchaseOrderMaterials order={item} />
               <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.createdAt)}</Text>
             </DataCard>
-          ))
+          ))}
+          </View>
         ) : (
           <EmptyState icon="document-text-outline" title="No orders found" subtitle="Adjust the search or filter." />
         )}
       </PageShell> 
 
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/screens/purchase-order?new=true' as any)} activeOpacity={0.85}>
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      {canCreatePurchaseOrder && (
+        <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => router.push('/management/purchase-orders/create' as any)} activeOpacity={0.85} accessibilityLabel="Create order">
+          <Ionicons name="add" size={28} color={colors.onPrimary} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   shell: { flex: 1 },
-  fab: { position: 'absolute', bottom: 28, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#25D366', alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6 },
-  matBtn: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: 6 },
+  orderList: { gap: Gap},
+  orderCard: { borderRadius: 5, marginBottom: Spacing.xs},
+  fab: { position: 'absolute', bottom: 28, right: 20, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 0, shadowColor: colors.text, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0, shadowRadius: 0 },
+  matBtn: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: Gap},
   matBtnText: { flex: 1, fontSize: 14 },
   matDropdown: { borderWidth: 1, borderTopWidth: 0, borderBottomLeftRadius: Radius.md, borderBottomRightRadius: Radius.md, overflow: 'hidden' },
-  matSearchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderBottomWidth: 1, gap: 6 },
+  matSearchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderBottomWidth: 1, gap: Gap},
   matSearchInput: { flex: 1, fontSize: 13, paddingVertical: 2 },
   matItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: Spacing.md },
 });

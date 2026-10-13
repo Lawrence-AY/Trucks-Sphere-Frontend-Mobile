@@ -32,6 +32,7 @@ export interface FuelDispenseState {
   flowVisible: boolean;
   flowStep: FlowStep;
   flowFuelAmount: string;
+  girFuelAmount: number | null;
 
   // Active job
   activeJob: any | null;
@@ -40,6 +41,7 @@ export interface FuelDispenseState {
   authId: string | null;
   authStatus: AuthStatus;
   authCode: string | null;
+  girDriverCode: string | null;
   otpInput: string;
   otpModalVisible: boolean;
   authVerifying: boolean;
@@ -55,10 +57,12 @@ export interface FuelDispenseState {
   closeFlow: () => void;
   setFlowStep: (step: FlowStep) => void;
   setFlowFuelAmount: (amount: string) => void;
+  setGirFuelAmount: (amount: number | null) => void;
   setActiveJob: (job: any) => void;
   setAuthId: (id: string | null) => void;
   setAuthStatus: (status: AuthStatus) => void;
   setAuthCode: (code: string | null) => void;
+  setGirDriverCode: (code: string | null) => void;
   setOtpInput: (input: string) => void;
   setOtpModalVisible: (visible: boolean) => void;
   setAuthVerifying: (verifying: boolean) => void;
@@ -80,10 +84,12 @@ export const useFuelDispenseStore = create<FuelDispenseState>((set, get) => ({
   flowVisible: false,
   flowStep: "list",
   flowFuelAmount: "",
+  girFuelAmount: null,
   activeJob: null,
   authId: null,
   authStatus: "pending",
   authCode: null,
+  girDriverCode: null,
   otpInput: "",
   otpModalVisible: false,
   authVerifying: false,
@@ -97,10 +103,12 @@ export const useFuelDispenseStore = create<FuelDispenseState>((set, get) => ({
       flowVisible: true,
       flowStep: "list",
       flowFuelAmount: "",
+      girFuelAmount: null,
       activeJob: null,
       authId: null,
       authStatus: "pending",
       authCode: null,
+      girDriverCode: null,
       otpInput: "",
       otpModalVisible: false,
       authVerifying: false,
@@ -113,10 +121,12 @@ export const useFuelDispenseStore = create<FuelDispenseState>((set, get) => ({
       flowVisible: false,
       flowStep: "list",
       flowFuelAmount: "",
+      girFuelAmount: null,
       activeJob: null,
       authId: null,
       authStatus: "pending",
       authCode: null,
+      girDriverCode: null,
       otpInput: "",
       otpModalVisible: false,
       authVerifying: false,
@@ -128,10 +138,12 @@ export const useFuelDispenseStore = create<FuelDispenseState>((set, get) => ({
 
   setFlowStep: (step) => set({ flowStep: step }),
   setFlowFuelAmount: (amount) => set({ flowFuelAmount: amount }),
+  setGirFuelAmount: (amount) => set({ girFuelAmount: amount }),
   setActiveJob: (job) => set({ activeJob: job }),
   setAuthId: (id) => set({ authId: id }),
   setAuthStatus: (status) => set({ authStatus: status }),
   setAuthCode: (code) => set({ authCode: code }),
+  setGirDriverCode: (code) => set({ girDriverCode: code }),
   setOtpInput: (input) => set({ otpInput: input }),
   setOtpModalVisible: (visible) => set({ otpModalVisible: visible }),
   setAuthVerifying: (verifying) => set({ authVerifying: verifying }),
@@ -159,6 +171,7 @@ export const useFuelDispenseStore = create<FuelDispenseState>((set, get) => ({
       authId: null,
       authStatus: "pending",
       authCode: null,
+      girDriverCode: null,
       otpInput: "",
       otpModalVisible: false,
       authVerifying: false,
@@ -178,6 +191,7 @@ export const useFuelDispenseStore = create<FuelDispenseState>((set, get) => ({
       authId: state.authId,
       authStatus: state.authStatus,
       authCode: state.authCode,
+      girDriverCode: state.girDriverCode,
       otpInput: state.otpInput,
       otpModalVisible: state.otpModalVisible,
       authVerifying: state.authVerifying,
@@ -213,6 +227,7 @@ export const useFuelDispenseStore = create<FuelDispenseState>((set, get) => ({
         authId: parsed.authId || null,
         authStatus: parsed.authStatus || "pending",
         authCode: parsed.authCode || null,
+        girDriverCode: parsed.girDriverCode || null,
         otpInput: parsed.otpInput || "",
         otpModalVisible: parsed.otpModalVisible || false,
         authVerifying: parsed.authVerifying || false,
@@ -247,3 +262,5 @@ export const useFuelDispenseStore = create<FuelDispenseState>((set, get) => ({
     }
   },
 }));
+
+export default null;

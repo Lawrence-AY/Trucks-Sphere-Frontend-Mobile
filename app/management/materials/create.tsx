@@ -1,0 +1,317 @@
+import { BackButton } from '../../../components/ui/BackButton';
+import { ResponsiveGrid } from '../../../components/ResponsiveGrid';
+/**
+ * Create Material Screen - With dynamic property definitions
+ *
+ * Features:
+ *   - Select category
+ *   - Select measurement type
+ *   - Define dynamic properties (name, type, options)
+ *   - Auto-suggest properties based on category
+ */
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
+  TouchableOpacity,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from '../../../utils/router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../../hooks/useTheme';
+import { Gap, Radius, Spacing } from '../../../constants/theme';
+import { Card } from '../../../components/ui/Card';
+import { Input } from '../../../components/ui/Input';
+import { Select } from '../../../components/ui/Select';
+import { Button } from '../../../components/ui/Button';
+import { materialRepository } from '../../../services/repositories/MaterialRepository';
+import { showAlertWithCallback } from '../../../utils/webAlert';
+import { MaterialCategory, MeasurementUnit } from '@/store/types';
+
+const CATEGORIES: { id: MaterialCategory; name: string }[] = [
+  { id: 'Aggregates', name: 'Aggregates' },
+  { id: 'Steel', name: 'Steel' },
+  { id: 'Cement', name: 'Cement' },
+  { id: 'Liquid', name: 'Liquid' },
+  { id: 'Blocks', name: 'Blocks' },
+  { id: 'Other', name: 'Other' },
+];
+
+const MEASUREMENT_UNITS: { id: MeasurementUnit; name: string }[] = [
+  { id: 'Tonnes', name: 'Tonnes' },
+  { id: 'Bags', name: 'Bags' },
+  { id: 'Pieces', name: 'Pieces' },
+  { id: 'Millimetres', name: 'Millimetres' },
+  { id: 'Metres', name: 'Metres' },
+  { id: 'Litres', name: 'Litres' },
+  { id: 'Cubic Metres', name: 'Cubic Metres' },
+  { id: 'Kilograms', name: 'Kilograms' },
+];
+
+export default function CreateMaterialScreen() {
+  const colors = useTheme();
+  const styles = buildThemeStyles(colors);
+  const insets = useSafeAreaInsets();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    category: '' as string,
+    measurementType: '' as string,
+    description: '',
+    barcode: '',
+    isWarehouseMaterial: false,
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function updateField(field: string, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[field];
+        return copy;
+      });
+    }
+  }
+
+
+  function validate(): boolean {
+    const newErrors: Record<string, string> = {};
+    if (!form.name.trim()) newErrors.name = 'Material name is required';
+    if (!form.isWarehouseMaterial && !form.category) newErrors.category = 'Category is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  async function handleCreate() {
+    if (!validate()) return;
+
+    setSaving(true);
+    try {
+      await materialRepository.create({
+        name: form.name.trim(),
+        ...(!form.isWarehouseMaterial ? {
+        category: form.category as MaterialCategory,
+        ...(form.measurementType ? { measurementType: form.measurementType as MeasurementUnit } : {}),
+        description: form.description.trim() || undefined,
+        } : {}),
+        isWarehouseMaterial: form.isWarehouseMaterial,
+        status: 'active',
+      });
+
+      materialRepository.invalidateCache();
+      setForm({
+        name: '', category: '', measurementType: '',
+        description: '', barcode: '',
+        isWarehouseMaterial: false,
+      });
+      setErrors({});
+      await showAlertWithCallback('Material created', 'Material created successfully.', () => router.back());
+    } catch (err: any) {
+      const errorCode = String(err?.code || '').toUpperCase();
+      const isRequestTimeout = errorCode === 'NETWORK_TIMEOUT' || errorCode === 'ECONNABORTED';
+      const msg = isRequestTimeout
+        ? 'The server is still confirming this material. It may already have been created. Go back and refresh the Materials list before trying again to avoid a duplicate.'
+        : err?.response?.data?.message || err?.message || 'Failed to create material';
+      await showAlertWithCallback('Unable to create material', msg, () => {});
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      {/* Back Button */}
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
+        <BackButton onPress={() => router.back()} style={styles.backBtn} />
+        <Text style={[styles.backTitle, { color: colors.text }]}>Create Material</Text>
+      </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        
+
+        <Card>
+          <Input
+            label="Material Name"
+            value={form.name}
+            onChangeText={(v) => updateField('name', v)}
+            placeholder="e.g. Ballast 3/4"
+            icon="cube-outline"
+            required
+            error={errors.name}
+          />
+
+          <View style={[styles.warehouseOption, { borderColor: colors.border, backgroundColor: colors.inputBg }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.warehouseOptionTitle, { color: colors.text }]}>Warehouse reference material</Text>
+            </View>
+            <Switch
+              value={form.isWarehouseMaterial}
+              onValueChange={(value) => {
+                setForm((prev) => ({ ...prev, isWarehouseMaterial: value }));
+                setErrors({});
+              }}
+              trackColor={{ false: colors.border, true: colors.primary + '80' }}
+              thumbColor={form.isWarehouseMaterial ? colors.primary : colors.surface}
+            />
+          </View>
+
+          {!form.isWarehouseMaterial && <>
+          <Select
+            label="Category"
+            value={form.category}
+            options={CATEGORIES}
+            onSelect={(v) => updateField('category', v)}
+            icon="layers-outline"
+            required
+            error={errors.category}
+            placeholder="Select category..."
+          />
+
+          <Select
+            label="Measurement Type"
+            value={form.measurementType}
+            options={MEASUREMENT_UNITS}
+            onSelect={(v) => updateField('measurementType', v)}
+            icon="speedometer-outline"
+            error={errors.measurementType}
+            placeholder="Select measurement (optional)..."
+          />
+
+          <Input
+            label="Description"
+            value={form.description}
+            onChangeText={(v) => updateField('description', v)}
+            placeholder="Optional description..."
+            icon="document-text-outline"
+            multiline
+            numberOfLines={3}
+          />
+          </>}
+        </Card>
+
+        <View style={styles.actions}>
+          <Button
+            title="Cancel"
+            onPress={() => { setForm({
+    name: '',
+    category: '' as string,
+    measurementType: '' as string,
+    description: '',
+    barcode: '',
+    isWarehouseMaterial: false,
+  }); setErrors({}); (() => router.back())(); }}
+            variant="secondary"
+            style={styles.actionBtn}
+          />
+          <Button
+            title="Create Material"
+            onPress={handleCreate}
+            icon="checkmark-circle"
+            style={styles.actionBtn}
+            loading={saving}
+          />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  backBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: 8,
+    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    marginLeft: 4,
+  },
+  content: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing['4xl'],
+  },
+  header: { marginBottom: Spacing.xs,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  subtitle: {
+    fontSize: 14, marginTop: Spacing.xs,
+  },
+  propertiesSection: { marginTop: Spacing.xs,
+  },
+  warehouseOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderRadius: Radius.md, marginBottom: Spacing.xs,
+  },
+  warehouseOptionTitle: { fontSize: 14, fontWeight: '700' },
+  warehouseOptionText: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs},
+  propertiesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: Spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  addPropBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+  },
+  addPropText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  noProps: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    padding: Spacing.md,
+  },
+  propRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Gap,
+  },
+  removeProp: {
+    padding: Spacing.sm, marginBottom: Spacing.xs,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: Gap, marginTop: Spacing.xs,
+  },
+  actionBtn: {
+    flex: 1,
+  },
+});

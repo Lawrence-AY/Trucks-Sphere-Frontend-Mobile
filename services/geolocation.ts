@@ -1,12 +1,75 @@
 import * as Location from 'expo-location';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 
 export interface GeoLocation {
   latitude: number;
   longitude: number;
 }
 
+export interface GeoLocationFull {
+  latitude: number;
+  longitude: number;
+  address: string;
+  city?: string;
+  town?: string;
+  district?: string;
+  name?: string;
+}
+
+/**
+ * Present a saved quarry geolocation as the city/town and the captured
+ * location. This is intentionally separate from a configured quarry name:
+ * receipts and reports need to show where the weigh-out was actually captured.
+ */
+export function formatCapturedGeoLocation(
+  location?: Partial<GeoLocationFull> | null,
+  fallback = '',
+): string {
+  const city = location?.city || location?.town || location?.district || '';
+  const address = location?.address || location?.name || fallback;
+
+  if (city && address) {
+    return address.toLocaleLowerCase().includes(city.toLocaleLowerCase())
+      ? address
+      : `${city} — ${address}`;
+  }
+
+  return city || address || '';
+}
+
+function confirmLocationUse(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Location for delivery verification',
+      'Truck Sphere uses your location only while you capture a weigh-in, weigh-out, or delivery record. The location is saved with that operational record so your organisation can verify where it was completed. We do not request background location access.',
+      [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Continue', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
+function confirmIpLocationUse(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Use approximate location?',
+      'GPS is unavailable. If you continue, Truck Sphere will ask ipapi.co for an approximate city or region based on your IP address. This approximate location will be saved with the operational record. You can choose not to use this fallback.',
+      [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Use approximate location', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
 export async function requestLocationPermissions(): Promise<boolean> {
+  const current = await Location.getForegroundPermissionsAsync();
+  if (current.granted) return true;
+
+  if (!await confirmLocationUse()) return false;
   const { status } = await Location.requestForegroundPermissionsAsync();
   return status === 'granted';
 }
@@ -17,7 +80,7 @@ export async function requestLocationPermissions(): Promise<boolean> {
  * so we use a best-effort approach:
  *   1. Try high-accuracy position (3s timeout)
  *   2. Fall back to last known position
- *   3. Fall back to IP-based geolocation
+ *   3. Let the calling workflow offer an opt-in IP-based location fallback
  */
 export async function getCurrentLocation(): Promise<GeoLocation> {
   const hasPermission = await requestLocationPermissions();
@@ -94,6 +157,53 @@ export async function reverseGeocode(
   }
 }
 
+/**
+ * Reverse geocode with rich location data including city, town, district.
+ */
+export async function reverseGeocodeRich(
+  latitude: number,
+  longitude: number
+): Promise<GeoLocationFull> {
+  try {
+    const addresses = await Location.reverseGeocodeAsync({
+      latitude,
+      longitude,
+    });
+
+    if (addresses && addresses.length > 0) {
+      const addr = addresses[0];
+      const parts = [
+        addr.name,
+        addr.street,
+        addr.district,
+        addr.city,
+        addr.region,
+        addr.country,
+      ].filter(Boolean);
+      return {
+        latitude,
+        longitude,
+        address: parts.join(', '),
+        city: addr.city || undefined,
+        town: addr.name || undefined,
+        district: addr.district || undefined,
+        name: addr.name || undefined,
+      };
+    }
+    return {
+      latitude,
+      longitude,
+      address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+    };
+  } catch {
+    return {
+      latitude,
+      longitude,
+      address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+    };
+  }
+}
+
 export async function getAddressFromLocation(): Promise<{
   latitude: number;
   longitude: number;
@@ -110,6 +220,9 @@ export async function getLocationFromIP(): Promise<{
   longitude: number;
   address: string;
 }> {
+  if (!await confirmIpLocationUse()) {
+    throw new Error('Approximate location was not selected');
+  }
   try {
     const response = await fetch('https://ipapi.co/json/');
     const data = await response.json();
@@ -122,11 +235,6 @@ export async function getLocationFromIP(): Promise<{
       address: address || 'Unknown',
     };
   } catch {
-    // Fallback to Kisumu, Kenya coordinates
-    return {
-      latitude: -0.0917,
-      longitude: 34.768,
-      address: 'Kisumu, Kenya (Fallback)',
-    };
+    throw new Error('Could not determine location from IP');
   }
 }

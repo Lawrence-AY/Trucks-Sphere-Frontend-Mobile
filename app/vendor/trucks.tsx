@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
+import { useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../store/authStore';
-import { fetchVehicles, fetchDrivers, fetchDeliveryOrders } from '../../services/api';
+import { useAuthStore } from '@/store/authStore';
+import { useRealtimeCollection } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
+import { normalizeVendorId } from '../../utils/helpers';
 import {
   DataCard,
   DetailRow,
@@ -14,39 +17,40 @@ import {
   SectionTitle,
   StatusPill,
 } from '../../components/EnterpriseUI';
-import { Spacing } from '../../constants/theme';
+import { Gap, Spacing } from '../../constants/theme';
 
 export default function VendorTrucksScreen() {
   const colors = useTheme();
+  const styles = buildThemeStyles(colors);
   const { user } = useAuthStore();
   const vendorId = user?.vendorId || 'v1';
-  const [vehicles, setVehicles] = useState<any[]>([]);
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const refresh = useRealTimeSyncStore((state) => state.refresh);
+  const { data: allVehicles, loading: vehiclesLoading } = useRealtimeCollection('vehicles');
+  const { data: allDrivers, loading: driversLoading } = useRealtimeCollection('drivers');
+  const { data: allDeliveries, loading: deliveriesLoading } = useRealtimeCollection('deliveryOrders');
+  const vehicles = useMemo(() => allVehicles.filter((v: any) =>
+    normalizeVendorId(v.vendorId || v.vendor || '') === normalizedUserVendorId
+  ), [allVehicles, normalizedUserVendorId]);
+  const drivers = useMemo(() => allDrivers.filter((d: any) =>
+    normalizeVendorId(d.vendorId || d.vendor || '') === normalizedUserVendorId
+  ), [allDrivers, normalizedUserVendorId]);
+  const deliveries = useMemo(() => allDeliveries.filter((d: any) =>
+    normalizeVendorId(d.vendorId || d.vendor || '') === normalizedUserVendorId
+  ), [allDeliveries, normalizedUserVendorId]);
+  const loading = vehiclesLoading || driversLoading || deliveriesLoading;
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [vehicleData, driverData, deliveryData] = await Promise.all([
-        fetchVehicles(),
-        fetchDrivers(),
-        fetchDeliveryOrders(),
-      ]);
-      setVehicles((vehicleData || []).filter((v: any) => v.vendorId === vendorId));
-      setDrivers((driverData || []).filter((d: any) => d.vendorId === vendorId));
-      setDeliveries((deliveryData || []).filter((d: any) => d.vendorId === vendorId));
+      await Promise.all([refresh('vehicles'), refresh('drivers'), refresh('deliveryOrders')]);
     } catch (error) {
-      console.error('Vendor trucks error:', error);
     } finally {
       setRefreshing(false);
-      setLoading(false);
     }
   };
-
-  useEffect(() => { loadData(); }, []);
 
   const vehiclesWithStats = useMemo(() => {
     const query = search.toLowerCase();
@@ -78,28 +82,16 @@ export default function VendorTrucksScreen() {
       );
   }, [vehicles, drivers, deliveries, search]);
 
-  const activeCount = vehiclesWithStats.filter((v) => v.status === 'active').length;
-
+ 
   return (
     <PageShell
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />
       }
     >
-      <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
-        <View style={[styles.statChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="car" size={18} color={colors.accent} />
-          <Text style={[styles.statValue, { color: colors.text }]}>{vehiclesWithStats.length}</Text>
-          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total</Text>
-        </View>
-        <View style={[styles.statChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="checkmark-circle" size={18} color="#10B981" />
-          <Text style={[styles.statValue, { color: colors.text }]}>{activeCount}</Text>
-          <Text style={[styles.statLabel, { color: colors.textMuted }]}>Active</Text>
-        </View>
-      </View>
 
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search plate, make, model, driver..." />
+
+      <SearchField title="Trucks" icon="bus-outline" value={search} onChangeText={setSearch} placeholder="Search plate, make, model, driver..." />
       <SectionTitle title={`${vehiclesWithStats.length} trucks`} />
 
       {loading ? (
@@ -108,11 +100,12 @@ export default function VendorTrucksScreen() {
         vehiclesWithStats.map((vehicle) => (
           <DataCard
             key={vehicle.id}
+            style={vehicle.securityFlag?.status === 'cleared' ? { borderColor: '#A78BFA', borderWidth: 1.5 } : undefined}
             onPress={() =>
               router.push(`/screens/truck-history?id=${vehicle.id}&plate=${encodeURIComponent(vehicle.plateNumber || vehicle.plate || '')}` as any)
             }
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Gap}}>
               <View style={[styles.truckIcon, { backgroundColor: `${colors.accent}15` }]}>
                 <Ionicons name="car" size={24} color={colors.accent} />
               </View>
@@ -122,21 +115,16 @@ export default function VendorTrucksScreen() {
                     <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                       {vehicle.plateNumber || vehicle.plate}
                     </Text>
-                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
-                      {vehicle.make} {vehicle.model} ({vehicle.year || 'N/A'})
+                    <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: Spacing.xs}}>
+                      {[vehicle.make, vehicle.model].filter(Boolean).join(' ')}{vehicle.year ? ` (${vehicle.year})` : ''}
                     </Text>
                   </View>
             
                 </View>
               </View>
             </View>
-            <View style={[styles.statsRow, { borderTopColor: colors.border }]}>
-              <View style={styles.miniStat}>
-                <Ionicons name="person-outline" size={14} color={colors.primary} />
-                <Text style={[styles.miniStatText, { color: colors.textSecondary }]}>
-                  {vehicle.assignedDriver?.name || 'No driver'}
-                </Text>
-              </View>
+            <ResponsiveGrid sideBySide style={[styles.statsRow, { borderTopColor: colors.border }]}>
+            
               <View style={styles.miniStat}>
                 <Ionicons name="layers-outline" size={14} color={colors.accent} />
                 <Text style={[styles.miniStatText, { color: colors.textSecondary }]}>
@@ -144,13 +132,13 @@ export default function VendorTrucksScreen() {
                 </Text>
               </View>
               <View style={styles.miniStat}>
-                <Ionicons name="checkmark-done-outline" size={14} color="#10B981" />
+                <Ionicons name="checkmark-done-outline" size={14} color={colors.success} />
                 <Text style={[styles.miniStatText, { color: colors.textSecondary }]}>
                   {vehicle.completedTrips} done
                 </Text>
               </View>
-            </View>
-            <DetailRow icon="speedometer-outline" value={`Capacity: ${vehicle.capacity || 'N/A'} tonnes`} />
+            </ResponsiveGrid>
+            {vehicle.securityFlag?.status === 'cleared' ? <Text style={[styles.clearedLabel, { color: colors.primaryText }]}>Unsuspended after security clearance</Text> : null}
           </DataCard>
         ))
       ) : (
@@ -164,14 +152,14 @@ export default function VendorTrucksScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   statChip: {
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
     padding: Spacing.md,
     alignItems: 'center',
-    gap: 4,
+    gap: Gap,
   },
   statValue: { fontSize: 18, fontWeight: '800' },
   statLabel: { fontSize: 11, fontWeight: '600' },
@@ -184,14 +172,15 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: Gap,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
   },
   miniStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Gap,
   },
   miniStatText: { fontSize: 12, fontWeight: '600' },
+  clearedLabel: { color: '#6D28D9', fontSize: 12, fontWeight: '700', marginTop: Spacing.xs },
 });

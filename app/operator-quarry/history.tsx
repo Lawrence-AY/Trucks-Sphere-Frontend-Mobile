@@ -1,3 +1,4 @@
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
 import { useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
@@ -7,11 +8,14 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
-import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders } from '../../services/api';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { formatEAT } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
+import { useDeliveryOrders } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
+import { useAuthStore } from '@/store/authStore';
 import {
   DataCard,
   EmptyState,
@@ -33,27 +37,59 @@ const FILTER_LABELS: Record<FilterPeriod, string> = {
 
 export default function OperatorQuarryHistoryScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const styles = buildThemeStyles(colors);
+  const { user } = useAuthStore();
+  const deliveries = useDeliveryOrders();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterPeriod>('today');
 
-  const loadData = async () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    try {
-      const data = (await fetchDeliveryOrders()) || [];
-      // Backend already scopes by quarryId for operator_quarry role
-      setDeliveries(data);
-    } catch {
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
+    await refresh('deliveryOrders');
+    setRefreshing(false);
   };
 
+  function formatEAT(value: any): string {
+  if (!value) return '';
+  try {
+    const d = value instanceof Date
+      ? value
+      : typeof value?.toDate === 'function'
+        ? value.toDate()
+        : typeof value === 'object' && typeof value.seconds === 'number'
+          ? new Date(value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1e6))
+          : new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-KE', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Africa/Nairobi',
+      hour12: false,
+      timeZoneName: 'short',
+    });
+  } catch { 
+    return '';
+  } 
+}
+
   useEffect(() => {
-    loadData();
+    // The delivery-orders hook establishes the shared subscription.  Refresh
+    // it once here so a history opened immediately after a weigh-out sees the
+    // server record as well as any optimistic update.
+    void refresh('deliveryOrders').finally(() => setLoading(false));
   }, []);
+
+  // Auto-hide loading when realtime data arrives
+  useEffect(() => {
+    if (deliveries.length > 0) {
+      setLoading(false);
+    }
+  }, [deliveries.length]);
 
   /* ─── Filtering Logic ─── */
 
@@ -77,81 +113,99 @@ export default function OperatorQuarryHistoryScreen() {
 
   const startDate = getStartOfPeriod(filter);
 
-  const activeQueue = deliveries.filter(
-    (d) => !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status),
-  );
+  // History is a quarry ledger: every operator assigned to the quarry sees
+  // dispatches completed there, including those recorded by another shift.
+  const operatorUid = user?.uid || '';
+  const operatorQuarryId = (user as any)?.quarryId || '';
+  const operatorQuarryLocation = (user as any)?.quarryLocation || '';
+
+  // The API authorizes this collection by quarry. Keep the final client-side
+  // filter as a defence-in-depth check for cached or stale records.
+  const operatorDeliveries = useMemo(() => {
+    return deliveries.filter((delivery: any) =>
+      (operatorQuarryId && delivery.quarryId === operatorQuarryId) ||
+      (operatorQuarryLocation && String(delivery.quarryLocation || delivery.quarryName || '').trim().toLowerCase() === operatorQuarryLocation.trim().toLowerCase()) ||
+      (operatorUid && [delivery.createdByUid, delivery.quarryOperatorUid, delivery.weighInByUid, delivery.weighOutByUid].includes(operatorUid)),
+    );
+  }, [deliveries, operatorQuarryId, operatorQuarryLocation, operatorUid]);
+
+  const isDispatchRecord = (delivery: any) => {
+    const status = String(delivery.status || '').toLowerCase();
+    // A quarry weigh-out stores status as `DISPATCHED`.  Older records may
+    // carry a later lifecycle status, so keep those visible as well.
+    return Boolean(delivery.weighOutAt || delivery.weighOutWeight != null) || [
+      'quarry_weighed_out',
+      'dispatched',
+      'in_transit',
+      'en_route',
+      'at_site',
+      'delivered',
+      'completed',
+      'loaded',
+    ].includes(status);
+  };
+
+  const recordTimestamp = (delivery: any) =>
+    delivery.weighOutAt || delivery.dispatchedAt || delivery.updatedAt || delivery.createdAt;
+
+  const activeQueue = useMemo(() => {
+    return operatorDeliveries.filter(
+      (d) => !isDispatchRecord(d) && String(d.status || '').toLowerCase() !== 'cancelled',
+    );
+  }, [operatorDeliveries]);
 
   const completedRecords = useMemo(() => {
-    return deliveries
-      .filter(
-        (d) =>
-          d.status === 'delivered' || d.status === 'completed' || d.status === 'loaded',
-      )
+    return operatorDeliveries
+      .filter(isDispatchRecord)
       .filter((d) => {
-        const updated = new Date(d.updatedAt || d.createdAt);
-        return updated >= startDate;
+        const timestamp = recordTimestamp(d);
+        const dispatchedAt = timestamp ? new Date(timestamp) : null;
+        return Boolean(dispatchedAt && !Number.isNaN(dispatchedAt.getTime()) && dispatchedAt >= startDate);
       })
       .sort(
         (a, b) =>
-          new Date(b.updatedAt || b.createdAt).getTime() -
-          new Date(a.updatedAt || a.createdAt).getTime(),
+          new Date(recordTimestamp(b)).getTime() - new Date(recordTimestamp(a)).getTime(),
       );
-  }, [deliveries, startDate]);
+  }, [operatorDeliveries, startDate]);
 
   /* ─── Export Logic ─── */
 
   const exportHeaders = [
-    'Receipt Note',
     'Job ID',
     'PO Number',
-    'Vendor',
-    'Driver',
-    'Truck Plate',
     'Material',
-    'Qty Ordered (t)',
-    'Quarry In (t)',
-    'Quarry Out (t)',
-    'Quarry Net (t)',
-    'Site In (t)',
-    'Site Out (t)',
-    'Site Net (t)',
-    'Expected (t)',
-    'Difference (t)',
-    'Status',
-    'Finalized',
+    'Quarry Weigh-In (t)',
+    'Quarry Weigh-Out (t)',
+    'Qty Loaded (t)',
+    'Truck Plate',
+    'Driver',
+    'Quarry In-Time',
+    'Quarry Out-Time',
+    'Quarry Geolocation',
+    'Operator',
   ];
 
   const buildExportRows = (records: any[]): string[][] =>
     records.map((r) => {
-      const quarryIn = r.weighInWeight ?? null;
-      const quarryOut = r.weighOutWeight ?? null;
       const quarryNet =
         r.netWeight ??
-        (quarryIn != null && quarryOut != null ? quarryOut - quarryIn : null);
-      const siteIn = r.siteWeighInWeight ?? null;
-      const siteOut = r.siteWeighOutWeight ?? null;
-      const siteNet = r.siteNetWeight ?? r.quantityDelivered ?? null;
-      const diff = r.siteWeightDifference ?? null;
+        (r.weighInWeight != null && r.weighOutWeight != null
+          ? r.weighOutWeight - r.weighInWeight
+          : null);
 
       return [
-        r.receiptNoteId || '—',
         r.jobId || '',
         r.poNumber || '',
-        r.vendorName || '',
+        formatPurchaseOrderMaterials(r),
+        r.weighInWeight != null ? String(r.weighInWeight) : '',
+        r.weighOutWeight != null ? String(r.weighOutWeight) : '',
+        quarryNet != null ? `${quarryNet.toFixed(1)}` : String(r.quantityOrdered ?? '—'),
+        r.plateNumber || '', 
         r.driverName || '',
-        r.plateNumber || '',
-        r.materialName || '',
-        String(r.quantityOrdered ?? ''),
-        quarryIn != null ? quarryIn.toFixed(1) : '—',
-        quarryOut != null ? quarryOut.toFixed(1) : '—',
-        quarryNet != null ? quarryNet.toFixed(1) : '—',
-        siteIn != null ? siteIn.toFixed(1) : '—',
-        siteOut != null ? siteOut.toFixed(1) : '—',
-        siteNet != null ? siteNet.toFixed(1) : '—',
-        r.quantityOrdered != null ? r.quantityOrdered.toFixed(1) : '—',
-        diff != null ? `${diff > 0 ? '+' : ''}${diff.toFixed(2)}` : '—',
-        r.status || '',
-        r.receivedAt || r.updatedAt || r.createdAt || '',
+       formatEAT( r.weighInAt || r.quarryInTime || (r.createdAt|| '—')),
+       formatEAT( r.weighOutAt || r.quarryOutTime || (r.updatedAt|| '—')),
+        r.weighOutGeoLocation?.address || r.weighOutLocation || r.quarryName || '—',
+        r.operatorUsername || r.quarryOperator || '—',
       ];
     });
 
@@ -182,8 +236,8 @@ export default function OperatorQuarryHistoryScreen() {
     ['Net Weight', item.netWeight != null ? `${item.netWeight.toFixed(1)} t` : '—'],
     ['Weigh-Out Location', item.weighOutGeoLocation?.address || item.weighOutLocation || '—'],
     ['Status', (item.status || '').replace(/_/g, ' ').toUpperCase()],
-    ['Assigned At', item.createdAt || ''],
-    ['Completed At', item.updatedAt || ''],
+    ['Assigned At',  formatEAT(item.createdAt || '')],
+    ['Completed At', formatEAT(item.updatedAt || '')],
   ];
 
   const handleExportDeliveryNoteCSV = async (item: any) => {
@@ -206,7 +260,7 @@ export default function OperatorQuarryHistoryScreen() {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={loadData}
+          onRefresh={handleRefresh}
           tintColor={colors.primary}
         />
       }
@@ -238,12 +292,12 @@ export default function OperatorQuarryHistoryScreen() {
                       : 'calendar-number-outline'
                 }
                 size={14}
-                color={active ? '#FFFFFF' : colors.textSecondary}
+                color={active ? colors.onPrimary : colors.textSecondary}
               />
               <Text
                 style={[
                   styles.filterPillText,
-                  { color: active ? '#FFFFFF' : colors.textSecondary },
+                  { color: active ? colors.onPrimary : colors.textSecondary },
                 ]}
               >
                 {FILTER_LABELS[period]}
@@ -254,15 +308,10 @@ export default function OperatorQuarryHistoryScreen() {
       </View>
 
       {/* Export Actions — CSV only */}
-      <View style={styles.exportRow}>
-        <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: '#2563EB' }]}
-          onPress={handleDownloadCSV}
-        >
-          <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.exportBtnText}>Download CSV</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity accessibilityRole="button" style={[styles.exportBtn, { backgroundColor: colors.primary }]} onPress={() => { void handleDownloadCSV(); }}>
+        <Ionicons name="download-outline" size={18} color={colors.onPrimary} />
+        <Text style={styles.exportBtnText}>Download history CSV</Text>
+      </TouchableOpacity>
 
       {/* Completed Submissions */}
       <SectionTitle
@@ -303,7 +352,7 @@ export default function OperatorQuarryHistoryScreen() {
               <View style={styles.tableCell}>
                 <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Material</Text>
                 <Text style={[styles.tableValue, { color: colors.text }]}>
-                  {item.materialName || '—'}
+                  {formatPurchaseOrderMaterials(item) || '—'}
                 </Text>
               </View>
             </View>
@@ -312,13 +361,13 @@ export default function OperatorQuarryHistoryScreen() {
             <View style={[styles.weightSummary, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
               <View style={styles.weightCell}>
                 <Text style={[styles.wLabel, { color: colors.textMuted }]}>IN</Text>
-                <Text style={[styles.wValue, { color: '#2563EB' }]}>
+                <Text style={[styles.wValue, { color: colors.blueText }]}>
                   {item.weighInWeight != null ? `${item.weighInWeight.toFixed(1)}T` : '—'}
                 </Text>
               </View>
               <View style={styles.weightCell}>
                 <Text style={[styles.wLabel, { color: colors.textMuted }]}>OUT</Text>
-                <Text style={[styles.wValue, { color: '#7C3AED' }]}>
+                <Text style={[styles.wValue, { color: colors.purpleText }]}>
                   {item.weighOutWeight != null ? `${item.weighOutWeight.toFixed(1)}T` : '—'}
                 </Text>
               </View>
@@ -340,19 +389,36 @@ export default function OperatorQuarryHistoryScreen() {
               </View>
             )}
 
+            {/* Dispatched by */}
+            <View style={styles.tableRow}>
+              <View style={styles.tableCell}>
+                <Text style={[styles.tableLabel, { color: colors.textMuted }]}>Dispatched by</Text>
+                <Text style={[styles.tableValue, { color: colors.text }]}>
+                  {item.createdByName || item.weighOutByName || item.operatorUsername || '—'}
+                </Text>
+              </View>
+            </View>
+
             {/* Per-Delivery Export Actions — CSV only */}
             <View style={styles.deliveryExportRow}>
+              <TouchableOpacity
+                style={[styles.deliveryExportBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
+                onPress={() => router.push({ pathname: '/screens/delivery-note', params: { id: item.jobId || item.id } })}
+              >
+                <Ionicons name="receipt-outline" size={14} color={colors.primaryText} />
+                <Text style={[styles.deliveryExportBtnText, { color: colors.primaryText }]}>Delivery note</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.deliveryExportBtn, { backgroundColor: '#2563EB12', borderColor: '#2563EB33' }]}
                 onPress={() => handleExportDeliveryNoteCSV(item)}
               >
-                <Ionicons name="document-text-outline" size={14} color="#2563EB" />
-                <Text style={[styles.deliveryExportBtnText, { color: '#2563EB' }]}>CSV</Text>
+                <Ionicons name="document-text-outline" size={14} color={colors.blueText} />
+                <Text style={[styles.deliveryExportBtnText, { color: colors.blueText }]}>CSV</Text>
               </TouchableOpacity>
             </View>
 
             <Text style={[styles.tableTimestamp, { color: colors.textTertiary }]}>
-              Completed: {formatEAT(item.updatedAt || item.createdAt)}
+              Dispatched: {formatEAT(recordTimestamp(item))}
             </Text>
           </DataCard>
         ))
@@ -372,22 +438,20 @@ export default function OperatorQuarryHistoryScreen() {
 
 /* ─── Styles ─── */
 
-const styles = StyleSheet.create({
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   metricRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Gap,
   },
   // Filters
   filterRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
+    gap: Gap, marginTop: 0, marginBottom:0,
   },
   filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: Gap,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: Radius.full,
@@ -397,46 +461,42 @@ const styles = StyleSheet.create({
   // Export
   exportRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Gap, marginBottom:0,
   },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.sm,
+    gap: Gap,
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
     minHeight: 44,
     paddingHorizontal: Spacing.xl,
   },
-  exportBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  exportBtnText: { color: colors.onPrimary, fontSize: 13, fontWeight: '800' },
   // Table rows
   tableHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
+    alignItems: 'flex-start', marginBottom: 0,
   },
   tableJobId: { fontSize: 15, fontWeight: '700' },
-  tablePo: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  tablePo: { fontSize: 11, fontWeight: '600', marginTop: Spacing.xs},
   tableRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: 4,
+    gap: Gap, marginBottom: 0,
   },
   tableCell: { flex: 1 },
-  tableLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: 2 },
+  tableLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', marginBottom: Spacing.xs},
   tableValue: { fontSize: 13, fontWeight: '600' },
-  tableTimestamp: { fontSize: 12, marginTop: Spacing.sm },
+  tableTimestamp: { fontSize: 12, marginTop: 0},
   // Weight summary for completed
   weightSummary: {
     flexDirection: 'row',
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.sm,
-    marginTop: Spacing.sm,
-    gap: Spacing.xs,
+    padding: Spacing.sm, marginTop: Spacing.xs,
+    gap: Gap,
   },
   weightCell: {
     flex: 1,
@@ -444,13 +504,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   wLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-  wValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
+  wValue: { fontSize: 14, fontWeight: '800', marginTop: Spacing.xs},
   // Location tag
   locationTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: Spacing.sm,
+    gap: Gap, marginTop: Spacing.xs,
   },
   locationTagText: {
     fontSize: 11,
@@ -460,13 +519,12 @@ const styles = StyleSheet.create({
   // Per-delivery export
   deliveryExportRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
+    gap: Gap, marginTop: Spacing.xs,
   },
   deliveryExportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Gap,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: Radius.md,

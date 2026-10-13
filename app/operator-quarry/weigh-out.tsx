@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { printDocument as printHtmlOnWeb } from '../../utils/printDocument';
+import { getJobPurchaseOrderMaterials, materialSelectionKey, selectedDispatchMaterials, formatPurchaseOrderMaterials } from '../../utils/poMaterials';
+import { useQuarrySearchHeader } from '../../hooks/useQuarrySearchHeader';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
+  InputAccessoryView,
+  Keyboard,
   Modal,
   RefreshControl,
   ScrollView,
@@ -11,74 +16,140 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
+import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
-import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
+import { Gap, Radius, Spacing } from '../../constants/theme';
+import { updateDeliveryOrder, fetchQuarries } from '../../services/api';
+import { useDeliveryOrders, useDrivers, usePurchaseOrders } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
+import { useAuthStore } from '@/store/authStore';
 import { formatEAT } from '../../utils/helpers';
+import { isActiveJob } from '../../utils/jobStatus';
 import { uploadDriverPhotoWeighOut } from '../../services/uploadService';
-import { getCurrentLocation, reverseGeocode, getLocationFromIP } from '../../services/geolocation';
+import { getCurrentLocation, reverseGeocodeRich, getLocationFromIP } from '../../services/geolocation';
+import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import {
   DataCard,
   DetailRow,
   EmptyState,
   PageShell,
-  SearchField,
   SectionTitle,
 } from '../../components/EnterpriseUI';
 
+/* ─────────── Helper: escape HTML ─────────── */
+const escapeHtml = (str: string | null | undefined): string => {
+  if (!str) return '';
+  const map: Record<string, string> = {
+    '&': '&',
+    '<': '<',
+    '>': '>',
+    '"': '"',
+    "'": '&#039;',
+  };
+  return str.replace(/[&<>"']/g, (m) => map[m]);
+};
+
+/* ─────────── Web-specific print using hidden iframe ─────────── */
+
+
 export default function OperatorQuarryWeighOutScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const styles = buildThemeStyles(colors);
+  const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const [activeJob, setActiveJob] = useState<any>(null);
   const [weightOut, setWeightOut] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const purchaseOrders = usePurchaseOrders();
   const [confirmVisible, setConfirmVisible] = useState(false);
+
+  // ─── Delivery Note Modal ───
+  const [deliveryNoteVisible, setDeliveryNoteVisible] = useState(false);
+  const [deliveryNoteData, setDeliveryNoteData] = useState<any>(null);
 
   // ─── Driver Photo State ───
   const [driverPhotoUri, setDriverPhotoUri] = useState<string | null>(null);
   const [driverPhotoUploading, setDriverPhotoUploading] = useState(false);
   const [driverPhotoURL, setDriverPhotoURL] = useState<string | null>(null);
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
+  const searchHeader = useQuarrySearchHeader('Weigh Out', search, setSearch, Boolean(activeJob));
+  const availableMaterials = getJobPurchaseOrderMaterials(activeJob, purchaseOrders);
+  const dispatchedMaterials = selectedDispatchMaterials(availableMaterials, selectedMaterialIds);
 
   // ─── Location State ───
   const [geoLocation, setGeoLocation] = useState<{
     latitude: number;
     longitude: number;
     address: string;
+    city?: string;
+    town?: string;
+    district?: string;
+    name?: string;
   } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
 
-  const loadData = async (silent?: boolean) => {
-    if (!silent) setRefreshing(true);
-    try {
-      const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data.filter((d: any) => d.weighInWeight && !d.weighOutWeight && !['delivered', 'completed', 'loaded', 'cancelled'].includes(d.status)));
-    } catch {
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  };
+  // ─── Quarry data ───
+  const [quarries, setQuarries] = useState<any[]>([]);
+  const [selectedQuarryId, setSelectedQuarryId] = useState('');
 
-  useEffect(() => { loadData(); }, []);
+  const allDeliveries = useDeliveryOrders();
+  const drivers = useDrivers();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
+
+  useEffect(() => {
+    fetchQuarries().then((data) => setQuarries(data || [])).catch(() => {});
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh('deliveryOrders');
+    setRefreshing(false);
+  }, [refresh]);
+
+  const operatorUid = user?.uid || '';
+  const operatorQuarryId = (user as any)?.quarryId || '';
+  const operatorQuarryLocation = (user as any)?.quarryLocation || '';
+
+  // All personnel assigned to this quarry can complete a weigh-out. This is
+  // essential for shift handovers and matches the shared history ledger.
+  const deliveries = useMemo(() => {
+    return allDeliveries.filter((delivery: any) =>
+      ((operatorQuarryId && delivery.quarryId === operatorQuarryId) ||
+        (operatorQuarryLocation && String(delivery.quarryLocation || delivery.quarryName || '').trim().toLowerCase() === operatorQuarryLocation.trim().toLowerCase()) ||
+        (operatorUid && [delivery.createdByUid, delivery.quarryOperatorUid, delivery.weighInByUid, delivery.weighOutByUid].includes(operatorUid))) &&
+      delivery.weighInWeight != null &&
+      delivery.weighOutWeight == null &&
+      isActiveJob(delivery.status),
+    );
+  }, [allDeliveries, operatorQuarryId, operatorQuarryLocation, operatorUid]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return deliveries.filter((d) => !q || [d.jobId, d.driverName, d.plateNumber].some((v) => String(v || '').toLowerCase().includes(q)));
   }, [deliveries, search]);
 
+  const getDriverPhoto = (job: any) =>
+    job.driverPhotoURL || job.driverPhotoUrl || drivers.find((driver: any) => driver.id === job.driverId)?.photoURL;
+
   const openWeighOutForm = async (job: any) => {
     setActiveJob(job);
     setWeightOut('');
     setDriverPhotoUri(null);
     setDriverPhotoURL(job.driverPhotoURL || null);
+    const tripMaterials = getJobPurchaseOrderMaterials(job, purchaseOrders);
+    setSelectedMaterialIds(tripMaterials.length === 1 ? [materialSelectionKey(tripMaterials[0], 0)] : []);
     setGeoLocation(null);
+    setSelectedQuarryId((user as any)?.quarryId || job.quarryId || '');
     await captureLocation();
   };
 
@@ -88,18 +159,17 @@ export default function OperatorQuarryWeighOutScreen() {
     setSubmitting(false);
     setDriverPhotoUri(null);
     setDriverPhotoURL(null);
+    setSelectedMaterialIds([]);
     setGeoLocation(null);
   };
 
   const captureLocation = async () => {
     setLocationLoading(true);
     try {
-      // Try GPS first
       const loc = await getCurrentLocation();
-      const address = await reverseGeocode(loc.latitude, loc.longitude);
-      setGeoLocation({ ...loc, address });
+      const rich = await reverseGeocodeRich(loc.latitude, loc.longitude);
+      setGeoLocation({ ...loc, address: rich.address, city: rich.city, town: rich.town, district: rich.district, name: rich.name });
     } catch {
-      // GPS failed — try IP-based geolocation (works in Expo Go even without GPS)
       try {
         const fallback = await getLocationFromIP();
         setGeoLocation({
@@ -119,8 +189,6 @@ export default function OperatorQuarryWeighOutScreen() {
     }
   };
 
-  // ─── Driver Photo Capture (Camera only) ───
-
   const handleTakePhoto = async () => {
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -128,59 +196,40 @@ export default function OperatorQuarryWeighOutScreen() {
         Alert.alert('Permission needed', 'Camera access is required to take a photo.');
         return;
       }
-
-      // allowsEditing: false — skips the crop screen so the photo goes straight to upload
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: false,
         quality: 0.8,
       });
-
       if (result.canceled || !result.assets?.length) return;
-
       const fileUri = result.assets[0].uri;
-      // Pass activeJob.jobId directly from the captured state at this moment
-      // to avoid stale closure issues where activeJob may have changed
       await uploadDriverPhoto(fileUri, activeJob?.jobId);
     } catch (error: any) {
-      console.error('[weigh-out] handleTakePhoto error:', error?.message, error?.stack);
       Alert.alert('Error', error?.message || 'Failed to capture photo.');
     }
   };
 
   const uploadDriverPhoto = async (fileUri: string, jobId: string) => {
-    console.log('[weigh-out] uploadDriverPhoto called');
-    console.log('[weigh-out] jobId:', jobId);
-    console.log('[weigh-out] fileUri:', fileUri);
-
     if (!jobId) {
-      console.warn('[weigh-out] uploadDriverPhoto: no jobId provided, aborting');
       Alert.alert('Upload Error', 'No active job selected. Please go back and select a job.');
       return;
     }
     setDriverPhotoUri(fileUri);
     setDriverPhotoUploading(true);
     try {
-      console.log('[weigh-out] Calling uploadDriverPhotoWeighOut...');
       const result = await uploadDriverPhotoWeighOut(jobId, fileUri);
-      console.log('[weigh-out] uploadDriverPhotoWeighOut result:', JSON.stringify(result));
       if (result.success && result.photoURL) {
-        console.log('[weigh-out] Photo uploaded successfully, photoURL:', result.photoURL);
         setDriverPhotoURL(result.photoURL);
         setDriverPhotoUri(null);
       } else {
-        console.warn('[weigh-out] Upload returned success but no photoURL:', JSON.stringify(result));
         Alert.alert('Upload Warning', 'The server accepted the upload but did not return a photo URL. Please try again.');
       }
     } catch (error: any) {
-      console.error('[weigh-out] uploadDriverPhoto error:', error?.message, error?.stack);
       Alert.alert('Upload Failed', error?.message || 'Could not upload driver photo.');
       setDriverPhotoUri(null);
     } finally {
       setDriverPhotoUploading(false);
     }
   };
-
-  // ─── Weigh-Out Submission ───
 
   const handleSubmitPress = () => {
     const numericWeightOut = parseFloat(weightOut);
@@ -190,6 +239,10 @@ export default function OperatorQuarryWeighOutScreen() {
     }
     if (numericWeightOut <= (activeJob?.weighInWeight || 0)) {
       Alert.alert('Invalid Weight', 'Loaded weight must be higher than empty weight.');
+      return;
+    }
+    if (!dispatchedMaterials.length) {
+      Alert.alert('Material selection required', 'Select the material or materials loaded onto this truck before capturing the driver photo.');
       return;
     }
     if (!driverPhotoURL) {
@@ -204,6 +257,7 @@ export default function OperatorQuarryWeighOutScreen() {
   };
 
   const handleConfirmSubmit = async () => {
+    if (!dispatchedMaterials.length || submitting) return;
     const numericWeightOut = parseFloat(weightOut);
     const weighIn = activeJob?.weighInWeight || 0;
     const netWeight = numericWeightOut - weighIn;
@@ -211,39 +265,247 @@ export default function OperatorQuarryWeighOutScreen() {
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
+
+      // Quarry selection is not a user-facing requirement at weigh-out. Keep
+      // the job's assigned quarry intact, falling back to the operator's
+      // assignment when the job does not yet contain one.
+      const resolvedQuarryId = selectedQuarryId || activeJob?.quarryId || operatorQuarryId;
+      const selectedQuarry = quarries.find((q) => q.id === resolvedQuarryId);
+      const resolvedQuarryName = selectedQuarry?.name || selectedQuarry?.location?.address || activeJob?.quarryName || operatorQuarryLocation || '';
+
       const updatePayload: any = {
         weighOutWeight: numericWeightOut,
         netWeight,
         weighOutAt: now,
-        weighOutLocation: geoLocation?.address || (activeJob.quarryName ? `${activeJob.quarryName} Exit` : 'Quarry Exit'),
-        status: 'loaded',
+        weighOutLocation: geoLocation?.address || 'Weigh-Out Location',
+        quarryId: resolvedQuarryId || activeJob?.quarryId || '',
+        quarryName: resolvedQuarryName || activeJob?.quarryName || geoLocation?.address || 'Quarry',
+        // The operator's assigned quarry location is the dispatch source used
+        // by the Site Schedule, independent of the phone's GPS reading.
+        quarryLocation: operatorQuarryLocation || activeJob?.quarryLocation || '',
+        weighOutByUid: user?.uid || '',
+        weighOutByName: user?.displayName || user?.name || 'Quarry Operator',
+        status: 'DISPATCHED',
         updatedAt: now,
+        materials: dispatchedMaterials,
+        materialId: dispatchedMaterials[0].materialId || '',
+        materialName: dispatchedMaterials[0].materialName || dispatchedMaterials[0].productName || '',
+        unit: dispatchedMaterials[0].unit || activeJob.unit || '',
+        dispatchedMaterialIds: dispatchedMaterials.map(line => line.materialId).filter(Boolean),
       };
-
       if (driverPhotoURL) {
         updatePayload.driverPhotoURL = driverPhotoURL;
+        updatePayload.weighOutPhotoURL = driverPhotoURL;
       }
-
       if (geoLocation) {
         updatePayload.weighOutGeoLocation = {
           latitude: geoLocation.latitude,
           longitude: geoLocation.longitude,
           address: geoLocation.address,
+          city: geoLocation.city || undefined,
+          town: geoLocation.town || undefined,
+          district: geoLocation.district || undefined,
+          name: geoLocation.name || undefined,
+        };
+        updatePayload.weighOutCoordinates = {
+          latitude: geoLocation.latitude,
+          longitude: geoLocation.longitude,
         };
       }
+      const geoCity = geoLocation?.city || '';
+      const geoTown = geoLocation?.town || '';
+      const geoDistrict = geoLocation?.district || '';
+      const geoAddress = geoLocation?.address || '';
+      const loadingLocationParts = [geoTown || geoCity, geoDistrict, geoAddress.split(', ').slice(-2).join(', ')].filter(Boolean);
+      const loadingLocation = loadingLocationParts.length > 0
+        ? loadingLocationParts.join(', ')
+        : (resolvedQuarryName || activeJob?.quarryName || 'Quarry');
 
-      const updated = await updateDeliveryOrder(activeJob.id, updatePayload);
-      setDeliveries((current) => current.map((item) => (item.id === activeJob.id ? updated : item)));
-      closeWeighOutForm();
-      Alert.alert('Completed', `Weigh-Out submitted.\n\nLoaded: ${numericWeightOut.toFixed(1)}T · Empty: ${weighIn.toFixed(1)}T · Net: ${netWeight.toFixed(1)}T`, [
-        { text: 'OK' },
-      ]);
+      const noteData = {
+        jobId: activeJob.jobId,
+        poNumber: activeJob.poNumber || '',
+        driverName: activeJob.driverName || '',
+        plateNumber: activeJob.plateNumber || '',
+        vendorName: activeJob.vendorName || '',
+        materialName: formatPurchaseOrderMaterials({ materials: dispatchedMaterials }),
+        quantityOrdered: activeJob.quantityOrdered || 0,
+        quarryName: resolvedQuarryName || activeJob?.quarryName || 'Quarry',
+        siteName: activeJob.siteName || '',
+        loadingLocation,
+        loadingCity: geoCity || geoTown || '',
+        loadingDistrict: geoDistrict || '',
+        weighIn: weighIn,
+        weighOut: numericWeightOut,
+        netWeight,
+        operatorName: user?.displayName || user?.name || 'Quarry Operator',
+      };
+
+      const persisted = await updateDeliveryOrder(activeJob.id, updatePayload);
+      // Move the job from queue to history only after the status transition is
+      // committed by the server; a rejected request remains actionable.
+      optimisticUpdate('deliveryOrders', { ...activeJob, ...updatePayload, ...persisted, id: activeJob.id });
+      setDeliveryNoteData(noteData);
+      setDeliveryNoteVisible(true);
     } catch (error: any) {
-      console.error('[weigh-out] handleConfirmSubmit error:', error?.message, error?.stack);
       Alert.alert('Submission Failed', error?.message || 'Could not submit weigh-out data.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /* ─── Delivery Note Export Handlers ─── */
+
+  function buildDeliveryNoteHtml(data: any): string {
+    const timestamp = new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' });
+    const e = escapeHtml;
+
+    return `
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 32px; color: #1E293B; max-width: 600px; margin: auto; }
+          .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+          .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+          .header .subtitle { color: #64748B; font-size: 13px; }
+          .section { margin-bottom: 20px; }
+          .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; }
+          .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+          .row .label { color: #64748B; }
+          .row .value { white-space: pre-line; overflow-wrap: anywhere; font-weight: 700; color: #1E293B; }
+          .highlight-box { background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
+          .highlight-box .net { font-size: 32px; font-weight: 900; color: #7C3AED; }
+          .highlight-box .calc { font-size: 11px; color: #64748B; margin-top: 4px; }
+          table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
+          table th { background: #1B2A4A; color: #FFF; padding: 8px 12px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+          table td { padding: 8px 12px; border: 1px solid #DDD; }
+          table tr:nth-child(even) td { background: #F8FAFC; }
+          .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
+          .signature-line { display: flex; justify-content: space-between; margin-top: 48px; }
+          .sig-block { flex: 1; text-align: center; }
+          .sig-block .line { border-bottom: 1px solid #94A3B8; margin: 32px 20px 8px; }
+          .sig-block .name { font-size: 12px; font-weight: 600; color: #1E293B; }
+          .sig-block .role { font-size: 10px; color: #94A3B8; }
+          @page { size: A4; margin: 20mm 15mm; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Trucks Sphere</h1>
+          <div class="subtitle">Delivery Note (Quarry Weigh-Out)</div>
+        </div>
+        <div class="section">
+          <div class="section-title">Document Details</div>
+          <div class="row"><span class="label">Job ID</span><span class="value">${e(data.jobId)}</span></div>
+          <div class="row"><span class="label">Purchase Order</span><span class="value">${e(data.poNumber) || 'N/A'}</span></div>
+          <div class="row"><span class="label">Date</span><span class="value">${e(timestamp)}</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Parties</div>
+          <div class="row"><span class="label">Vendor</span><span class="value">${e(data.vendorName) || 'N/A'}</span></div>
+          <div class="row"><span class="label">Driver</span><span class="value">${e(data.driverName) || 'N/A'}</span></div>
+          <div class="row"><span class="label">Truck Plate</span><span class="value">${e(data.plateNumber) || 'N/A'}</span></div>
+          <div class="row"><span class="label">Loading Location</span><span class="value">${e(data.loadingLocation || data.quarryName) || 'N/A'}</span></div>
+          ${data.loadingCity ? `<div class="row"><span class="label">City / Town</span><span class="value">${e(data.loadingCity)}${data.loadingDistrict ? ', ' + e(data.loadingDistrict) : ''}</span></div>` : `<div class="row"><span class="label">Quarry</span><span class="value">${e(data.quarryName) || 'N/A'}</span></div>`}
+          <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(data.siteName) || 'N/A'}</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Material</div>
+          <div class="row"><span class="label">Material</span><span class="value">${e(data.materialName) || 'N/A'}</span></div>
+          <div class="row"><span class="label">Quantity Ordered</span><span class="value">${data.quantityOrdered} tonnes</span></div>
+        </div>
+        <div class="section">
+          <div class="section-title">Weight Record</div>
+          <table>
+            <tr><td>Empty Weight (Tare)</td><td style="font-weight:700;">${data.weighIn?.toFixed(1) || '0.0'} T</td></tr>
+            <tr><td>Loaded Weight (Gross)</td><td style="font-weight:700;">${data.weighOut?.toFixed(1) || '0.0'} T</td></tr>
+          </table>
+          <div class="highlight-box">
+            <div class="net">${data.netWeight?.toFixed(1) || '0.0'} Tonnes</div>
+            <div class="calc">NET WEIGHT = ${data.weighOut?.toFixed(1) || '0'}T (Loaded) − ${data.weighIn?.toFixed(1) || '0'}T (Tare)</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Certification</div>
+          <div class="row"><span class="label">Operator</span><span class="value">${e(data.operatorName)}</span></div>
+          <div class="row"><span class="label">Location</span><span class="value">${e(data.quarryName) || 'Quarry'}</span></div>
+        </div>
+        <div class="signature-line">
+          <div class="sig-block">
+            <div class="line"></div>
+            <div class="name">${e(data.operatorName)}</div>
+            <div class="role">Quarry Operator</div>
+          </div>
+          <div class="sig-block">
+            <div class="line"></div>
+            <div class="name">${e(data.driverName) || 'Driver'}</div>
+            <div class="role">Driver</div>
+          </div>
+        </div>
+        <div class="footer">
+          <p>Generated by Trucks Sphere on ${e(timestamp)}</p>
+          <p>This is a computer-generated document.</p>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  const handleDeliveryNoteCSV = async () => {
+    if (!deliveryNoteData) return;
+    try {
+      const timestamp = new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' });
+      const headers = ['Field', 'Value'];
+      const rows = [
+        ['Delivery Note #', deliveryNoteData.jobId],
+        ['Date/Time', timestamp],
+        ['Purchase Order', deliveryNoteData.poNumber || 'N/A'],
+        ['Vendor', deliveryNoteData.vendorName || 'N/A'],
+        ['Driver', deliveryNoteData.driverName || 'N/A'],
+        ['Truck', deliveryNoteData.plateNumber || 'N/A'],
+        ['Material', deliveryNoteData.materialName || 'N/A'],
+        ['Ordered Qty', `${deliveryNoteData.quantityOrdered} tonnes`],
+        ['Loading Location', deliveryNoteData.loadingLocation || deliveryNoteData.quarryName || 'N/A'],
+        ['City / Town', deliveryNoteData.loadingCity || 'N/A'],
+        ['Quarry', deliveryNoteData.quarryName || 'N/A'],
+        ['Destination (Site)', deliveryNoteData.siteName || 'N/A'],
+        ['Weigh-In (Tare)', `${deliveryNoteData.weighIn?.toFixed(1) || '0.0'} T`],
+        ['Weigh-Out (Gross)', `${deliveryNoteData.weighOut?.toFixed(1) || '0.0'} T`],
+        ['Net Weight', `${deliveryNoteData.netWeight?.toFixed(1) || '0.0'} tonnes`],
+        ['Operator', deliveryNoteData.operatorName || 'N/A'],
+      ];
+      const csvContent = buildCsvContent(headers, rows);
+      await shareCsvAsFile(`Delivery_Note_${deliveryNoteData.jobId}`, csvContent);
+    } catch (e: any) {
+      Alert.alert('Export Error', e?.message || 'Failed to export CSV');
+    }
+  };
+
+  // ─── Cross-platform PDF printing ──────────────────────────────
+
+  const handleDeliveryNotePrint = async () => {
+    if (!deliveryNoteData) return;
+    try {
+      const html = buildDeliveryNoteHtml(deliveryNoteData);
+
+      if (Platform.OS === 'web') {
+        await printHtmlOnWeb(html);
+      } else {
+        const { uri } = await Print.printToFileAsync({ width: 595, height: 842,  html });
+        await Print.printAsync({ uri });
+      }
+    } catch (e: any) {
+      Alert.alert('Print Error', e?.message || 'Failed to print');
+    }
+  };
+
+  const closeDeliveryNote = () => {
+    closeWeighOutForm();
+    setDeliveryNoteVisible(false);
+    setDeliveryNoteData(null);
+    router.replace('/operator-quarry/history');
   };
 
   /* ─── Weigh-Out Form View ─── */
@@ -260,53 +522,67 @@ export default function OperatorQuarryWeighOutScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={true}
         >
-          {/* Job Info Card */}
           <View style={[styles.jobCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.jobCardHeader}>
               <Text style={[styles.jobCardTitle, { color: colors.text }]}>{activeJob.jobId}</Text>
             </View>
             <DetailRow icon="document-outline" value={`PO: ${activeJob.poNumber || 'N/A'}`} />
-            <DetailRow icon="person-outline" value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
-            <DetailRow icon="cube-outline" value={`${activeJob.materialName || 'Material'}`} />
+            <View style={styles.driverRow}>
+              {getDriverPhoto(activeJob) ? (
+                <Image source={{ uri: getDriverPhoto(activeJob) }} style={styles.driverPhoto} />
+              ) : (
+                <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
+                  <Text style={[styles.driverInitial, { color: colors.primaryText }]}>
+                    {(activeJob.driverName || 'D').charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <DetailRow value={`${activeJob.driverName || 'Unassigned'} · ${activeJob.plateNumber || 'N/A'}`} />
+            </View>
+          {availableMaterials.map((line: any, index: number) => <DetailRow key={materialSelectionKey(line, index)} icon="cube-outline" value={`${line.materialName || line.productName || 'Material'}`} />)}
             <DetailRow icon="business-outline" value={`Vendor: ${activeJob.vendorName || 'N/A'}`} />
-            <DetailRow icon="location-outline" value={`${activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`} />
+            <DetailRow icon="location-outline" value={`Origin: ${(geoLocation as any)?.city || (geoLocation as any)?.town || (geoLocation as any)?.district || geoLocation?.address || activeJob.quarryName || 'Quarry'}`} />
+            
             <View style={styles.divider} />
             <View style={styles.draftWeightRow}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.draftLabel, { color: colors.textMuted }]}>Empty Weight (Tare)</Text>
-                <Text style={[styles.draftValue, { color: '#2563EB' }]}>{wIn.toFixed(1)} Tonnes</Text>
+                <Text style={[styles.draftValue, { color: colors.infoText }]}>{wIn.toFixed(1)} Tonnes</Text>
               </View>
-              <View style={[styles.draftBadge, { backgroundColor: '#2563EB15' }]}>
-                <Ionicons name="checkmark-circle" size={14} color="#2563EB" />
-                <Text style={[styles.draftBadgeText, { color: '#2563EB' }]}>Recorded</Text>
+              <View style={[styles.draftBadge, { backgroundColor: `${colors.primary}15` }]}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.infoText} />
+                <Text style={[styles.draftBadgeText, { color: colors.infoText }]}>Recorded</Text>
               </View>
             </View>
           </View>
 
-          {/* ─── Driver Photo Section ─── */}
+          {availableMaterials.length > 1 ? <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.sectionHeader}><Ionicons name="cube-outline" size={22} color={colors.primary} /><Text style={[styles.sectionTitleStyle, { color: colors.text }]}>Materials loaded on this trip</Text></View>
+            <Text style={[styles.sectionSub, { color: colors.textMuted }]}>Select every material actually loaded before capturing the driver photo.</Text>
+            {availableMaterials.map((line: any, index: number) => { const id = materialSelectionKey(line, index); const selected = selectedMaterialIds.includes(id); return <TouchableOpacity key={id} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} accessibilityLabel={line.materialName || line.productName || 'Material'} disabled={submitting} onPress={() => setSelectedMaterialIds((current) => selected ? current.filter((value) => value !== id) : [...current, id])} style={{ flexDirection: 'row', alignItems: 'center', gap: Gap, paddingVertical: 8 }}><Ionicons name={selected ? 'checkbox' : 'square-outline'} size={22} color={selected ? colors.primary : colors.textMuted} /><Text style={{ color: colors.text, flex: 1 }}>{line.materialName || line.productName || 'Material'}</Text></TouchableOpacity>; })}
+          </View> : null}
+
           <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#F59E0B15' }]}>
-                <Ionicons name="person-circle-outline" size={22} color="#F59E0B" />
+              <View style={[styles.sectionIcon, { backgroundColor: `${colors.warning}15` }]}>
+                <Ionicons name="person-circle-outline" size={22} color={colors.warningText} />
               </View>
               <Text style={[styles.sectionTitleStyle, { color: colors.text }]}>Driver Photo</Text>
               {driverPhotoURL ? (
-                <View style={[styles.photoStatusBadge, { backgroundColor: '#10B98115' }]}>
-                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                  <Text style={[styles.photoStatusText, { color: '#10B981' }]}>Captured</Text>
+                <View style={[styles.photoStatusBadge, { backgroundColor: `${colors.success}15` }]}>
+                  <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                  <Text style={[styles.photoStatusText, { color: colors.success }]}>Captured</Text>
                 </View>
               ) : (
-                <View style={[styles.photoStatusBadge, { backgroundColor: '#EF444415' }]}>
-                  <Ionicons name="alert-circle" size={14} color="#EF4444" />
-                  <Text style={[styles.photoStatusText, { color: '#EF4444' }]}>Required</Text>
+                <View style={[styles.photoStatusBadge, { backgroundColor: `${colors.danger}15` }]}>
+                  <Ionicons name="alert-circle" size={14} color={colors.danger} />
+                  <Text style={[styles.photoStatusText, { color: colors.danger }]}>Required</Text>
                 </View>
               )}
             </View>
             <Text style={[styles.sectionSub, { color: colors.textMuted }]}>
               Capture a photo of the driver at the weighbridge.
             </Text>
-
-            {/* Photo Preview */}
             {(driverPhotoURL || driverPhotoUri) ? (
               <View style={styles.photoPreviewWrap}>
                 <Image
@@ -316,71 +592,67 @@ export default function OperatorQuarryWeighOutScreen() {
                 />
                 {driverPhotoUploading && (
                   <View style={styles.photoOverlay}>
-                    <ActivityIndicator size="large" color="#FFFFFF" />
+                    <ActivityIndicator size="large" color={colors.onPrimary} />
                     <Text style={styles.photoOverlayText}>Uploading...</Text>
                   </View>
                 )}
               </View>
             ) : (
               <View style={[styles.photoPreviewWrap, styles.photoPlaceholder]}>
-                <Ionicons name="camera-outline" size={48} color="#94A3B8" />
+                <Ionicons name="camera-outline" size={48} color={colors.textMuted} />
                 <Text style={styles.photoPlaceholderText}>No photo captured</Text>
               </View>
             )}
-
-            {/* Camera / Retake / Remove buttons */}
             <View style={styles.photoActions}>
               <TouchableOpacity
                 style={[
                   styles.photoBtnFull,
                   {
-                    backgroundColor: driverPhotoURL ? '#10B98115' : colors.inputBg,
-                    borderColor: driverPhotoURL ? '#10B98133' : colors.border,
+                    backgroundColor: driverPhotoURL ? `${colors.success}15` : colors.inputBg,
+                    borderColor: driverPhotoURL ? `${colors.success}33` : colors.border,
                   },
                 ]}
                 onPress={handleTakePhoto}
                 disabled={driverPhotoUploading}
               >
-                <Ionicons name="camera-outline" size={20} color={driverPhotoURL ? '#10B981' : colors.primary} />
-                <Text style={[styles.photoBtnText, { color: driverPhotoURL ? '#10B981' : colors.primary }]}>
+                <Ionicons name="camera-outline" size={20} color={driverPhotoURL ? colors.success : colors.primary} />
+                <Text style={[styles.photoBtnText, { color: driverPhotoURL ? colors.success : colors.primary }]}>
                   {driverPhotoURL ? 'Retake Photo' : 'Take Photo'}
                 </Text>
               </TouchableOpacity>
               {driverPhotoURL && (
                 <TouchableOpacity
-                  style={[styles.photoBtn, { backgroundColor: '#EF444415', borderColor: '#EF444433' }]}
+                  style={[styles.photoBtn, { backgroundColor: `${colors.danger}15`, borderColor: `${colors.dangerBorder}33` }]}
                   onPress={() => { setDriverPhotoURL(null); setDriverPhotoUri(null); }}
                   disabled={driverPhotoUploading}
                 >
-                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                  <Text style={[styles.photoBtnText, { color: '#EF4444' }]}>Remove</Text>
+                  <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                  <Text style={[styles.photoBtnText, { color: colors.danger }]}>Remove</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          {/* ─── Location Section ─── */}
           <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.sectionHeader}>
-              <View style={[styles.sectionIcon, { backgroundColor: '#10B98115' }]}>
-                <Ionicons name="navigate-outline" size={22} color="#10B981" />
+              <View style={[styles.sectionIcon, { backgroundColor: `${colors.success}15` }]}>
+                <Ionicons name="navigate-outline" size={22} color={colors.success} />
               </View>
               <Text style={[styles.sectionTitleStyle, { color: colors.text }]}>Location</Text>
               {locationLoading ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color={colors.primaryText} />
               ) : geoLocation ? (
-                <View style={[styles.photoStatusBadge, { backgroundColor: '#10B98115' }]}>
-                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                  <Text style={[styles.photoStatusText, { color: '#10B981' }]}>Captured</Text>
+                <View style={[styles.photoStatusBadge, { backgroundColor: `${colors.success}15` }]}>
+                  <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                  <Text style={[styles.photoStatusText, { color: colors.success }]}>Captured</Text>
                 </View>
               ) : (
-                <View style={[styles.photoStatusBadge, { backgroundColor: '#EF444415' }]}>
-                  <Ionicons name="alert-circle" size={14} color="#EF4444" />
-                  <Text style={[styles.photoStatusText, { color: '#EF4444' }]}>Required</Text>
+                <View style={[styles.photoStatusBadge, { backgroundColor: `${colors.danger}15` }]}>
+                  <Ionicons name="alert-circle" size={14} color={colors.danger} />
+                  <Text style={[styles.photoStatusText, { color: colors.danger }]}>Required</Text>
                 </View>
               )}
             </View>
-
             {geoLocation ? (
               <View style={[styles.locationBox, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
                 <View style={styles.locationRow}>
@@ -405,48 +677,49 @@ export default function OperatorQuarryWeighOutScreen() {
             ) : (
               <View style={[styles.locationBox, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
                 <View style={styles.locationRow}>
-                  <Ionicons name="warning-outline" size={16} color="#EF4444" />
-                  <Text style={[styles.locationText, { color: '#EF4444' }]}>Location unavailable. Please enable location services.</Text>
+                  <Ionicons name="warning-outline" size={16} color={colors.danger} />
+                  <Text style={[styles.locationText, { color: colors.danger }]}>Location unavailable. Please enable location services.</Text>
                 </View>
                 <TouchableOpacity
                   style={[styles.retryLocationBtn, { borderColor: colors.primary }]}
                   onPress={captureLocation}
                 >
-                  <Ionicons name="refresh-outline" size={14} color={colors.primary} />
-                  <Text style={[styles.retryLocationText, { color: colors.primary }]}>Retry</Text>
+                  <Ionicons name="refresh-outline" size={14} color={colors.primaryText} />
+                  <Text style={[styles.retryLocationText, { color: colors.primaryText }]}>Retry</Text>
                 </TouchableOpacity>
               </View>
             )}
           </View>
 
-          {/* Weigh-Out Input */}
           <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.inputHeader}>
-              <View style={[styles.inputIcon, { backgroundColor: '#7C3AED15' }]}>
-                <Ionicons name="arrow-up-outline" size={22} color="#7C3AED" />
+              <View style={[styles.inputIcon, { backgroundColor: `${colors.purple}15` }]}>
+                <Ionicons name="arrow-up-outline" size={22} color={colors.purpleText} />
               </View>
               <Text style={[styles.inputTitle, { color: colors.text }]}>Weigh-Out</Text>
             </View>
             <Text style={[styles.inputSub, { color: colors.textMuted }]}>
               Enter the gross weight of the loaded truck.
             </Text>
-            <View style={[styles.weightInputWrap, { borderColor: '#7C3AED', backgroundColor: colors.inputBg }]}>
+            <View style={[styles.weightInputWrap, { borderColor: colors.purpleBorder, backgroundColor: colors.inputBg }]}>
               <TextInput
                 style={[styles.weightInput, { color: colors.text }]}
                 placeholder="0.0"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="decimal-pad"
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+                inputAccessoryViewID={Platform.OS === 'ios' ? 'weigh-out-keyboard-accessory' : undefined}
                 value={weightOut}
                 onChangeText={setWeightOut}
                 autoFocus
               />
               <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>
             </View>
-
             {net !== null && net > 0 && (
-              <View style={[styles.netPreview, { backgroundColor: '#7C3AED08', borderColor: '#7C3AED33' }]}>
+              <View style={[styles.netPreview, { backgroundColor: `${colors.purple}08`, borderColor: `${colors.purpleBorder}33` }]}>
                 <Text style={[styles.netLabel, { color: colors.textMuted }]}>NET WEIGHT</Text>
-                <Text style={[styles.netValue, { color: '#7C3AED' }]}>{net.toFixed(1)} Tonnes</Text>
+                <Text style={[styles.netValue, { color: colors.purpleText }]}>{net.toFixed(1)} Tonnes</Text>
                 <Text style={[styles.netCalc, { color: colors.textTertiary }]}>
                   {wOut.toFixed(1)}T (Loaded) − {wIn.toFixed(1)}T (Empty)
                 </Text>
@@ -454,14 +727,13 @@ export default function OperatorQuarryWeighOutScreen() {
             )}
           </View>
 
-          {/* Submit Button */}
           <TouchableOpacity
             style={[
               styles.submitBtn,
               {
                 backgroundColor:
                   weightOut && parseFloat(weightOut) > 0 && parseFloat(weightOut) > wIn && driverPhotoURL && geoLocation
-                    ? '#7C3AED'
+                    ? colors.purpleText
                     : colors.border,
               },
             ]}
@@ -469,16 +741,16 @@ export default function OperatorQuarryWeighOutScreen() {
             disabled={submitting || !weightOut || parseFloat(weightOut) <= 0 || parseFloat(weightOut) <= wIn || !driverPhotoURL || !geoLocation}
           >
             {submitting ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={colors.onPrimary} size="small" />
             ) : (
-              <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+              <Ionicons name="checkmark-circle" size={20} color={colors.onPrimary} />
             )}
             <Text style={styles.submitBtnText}>{submitting ? 'Submitting...' : 'Submit Weigh-Out'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.cancelBtn, { borderColor: colors.border }]}
-            onPress={closeWeighOutForm}
+            onPress={() => { setWeightOut(''); setSearch(''); (closeWeighOutForm)(); }}
             disabled={submitting}
           >
             <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
@@ -486,91 +758,198 @@ export default function OperatorQuarryWeighOutScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
 
-        {/* Confirmation Modal */}
         <Modal visible={confirmVisible} transparent animationType="fade" onRequestClose={() => setConfirmVisible(false)}>
           <View style={styles.modalBackdrop}>
             <View style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={[styles.confirmIcon, { backgroundColor: '#7C3AED15' }]}>
-                <Ionicons name="shield-checkmark-outline" size={32} color="#7C3AED" />
-              </View>
-              <Text style={[styles.confirmTitle, { color: colors.text }]}>Confirm Submission</Text>
-              <Text style={[styles.confirmSub, { color: colors.textMuted }]}>
-                Please verify all details before finalizing this record. Job will move to history after submission.
-              </Text>
-              <View style={[styles.confirmSummary, { backgroundColor: colors.inputBg }]}>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Job ID</Text>
-                  <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.jobId}</Text>
+              <ScrollView style={styles.confirmScroll} contentContainerStyle={styles.confirmScrollContent} showsVerticalScrollIndicator>
+                <View style={[styles.confirmIcon, { backgroundColor: `${colors.purple}15` }]}>
+                  <Ionicons name="shield-checkmark-outline" size={32} color={colors.purpleText} />
                 </View>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver</Text>
-                  <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.driverName || 'N/A'}</Text>
-                </View>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Truck</Text>
-                  <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.plateNumber || 'N/A'}</Text>
-                </View>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Material</Text>
-                  <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.materialName || 'N/A'}</Text>
-                </View>
-                {geoLocation && (
+                <Text style={[styles.confirmTitle, { color: colors.text }]}>Confirm Submission</Text>
+                <Text style={[styles.confirmSub, { color: colors.textMuted }]}>
+                  Please verify all details before finalizing this record. Job will move to history after submission.
+                </Text>
+                <View style={[styles.confirmSummary, { backgroundColor: colors.inputBg }]}>
                   <View style={styles.confirmRow}>
-                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Location</Text>
-                    <Text style={[styles.confirmValue, { color: colors.text }]} numberOfLines={1}>{geoLocation.address}</Text>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Job ID</Text>
+                    <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.jobId}</Text>
                   </View>
-                )}
-                <View style={styles.confirmDivider} />
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Empty (Tare)</Text>
-                  <Text style={[styles.confirmValue, { color: '#2563EB', fontWeight: '800' }]}>{wIn.toFixed(1)} T</Text>
-                </View>
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Loaded (Gross)</Text>
-                  <Text style={[styles.confirmValue, { color: '#7C3AED', fontWeight: '800' }]}>{parseFloat(weightOut).toFixed(1)} T</Text>
-                </View>
-                <View style={[styles.confirmDivider, { marginTop: 6 }]} />
-                <View style={styles.confirmRow}>
-                  <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
-                  <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
-                    {(parseFloat(weightOut) - wIn).toFixed(1)} T
-                  </Text>
-                </View>
-                {driverPhotoURL && (
-                  <>
-                    <View style={styles.confirmDivider} />
-                    <View style={styles.confirmRow}>
-                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver Photo</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                        <Text style={[styles.confirmValue, { color: '#10B981' }]}>Attached</Text>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver</Text>
+                    <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.driverName || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Truck</Text>
+                    <Text style={[styles.confirmValue, { color: colors.text }]}>{activeJob.plateNumber || 'N/A'}</Text>
+                  </View>
+                  <View>
+                    {dispatchedMaterials.map((line, index) => (
+                      <View key={`${line.materialId || ''}-${index}`} style={styles.confirmRow}>
+                        <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Material {index + 1}</Text>
+                        <Text style={[styles.confirmValue, { color: colors.text, flex: 1 }]}>{line.materialName || line.productName || 'Material'}</Text>
                       </View>
+                    ))}
+                  </View>
+                  {geoLocation && (
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Location</Text>
+                      <Text style={[styles.confirmValue, { color: colors.text }]}>{geoLocation.address}</Text>
                     </View>
-                  </>
-                )}
-              </View>
+                  )}
+                  <View style={styles.confirmDivider} />
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Empty (Tare)</Text>
+                    <Text style={[styles.confirmValue, { color: colors.infoText, fontWeight: '800' }]}>{wIn.toFixed(1)} T</Text>
+                  </View>
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Loaded (Gross)</Text>
+                    <Text style={[styles.confirmValue, { color: colors.purpleText, fontWeight: '800' }]}>{parseFloat(weightOut).toFixed(1)} T</Text>
+                  </View>
+                  <View style={[styles.confirmDivider, { marginTop: Spacing.xs}]} />
+                  <View style={styles.confirmRow}>
+                    <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
+                    <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
+                      {(parseFloat(weightOut) - wIn).toFixed(1)} T
+                    </Text>
+                  </View>
+                  {driverPhotoURL && (
+                    <>
+                      <View style={styles.confirmDivider} />
+                      <View style={styles.confirmRow}>
+                        <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver Photo</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Gap}}>
+                          <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                          <Text style={[styles.confirmValue, { color: colors.success }]}>Attached</Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </ScrollView>
               <View style={styles.confirmActions}>
                 <TouchableOpacity style={[styles.confirmCancelBtn, { borderColor: colors.border }]} onPress={() => setConfirmVisible(false)}>
                   <Text style={[styles.confirmCancelText, { color: colors.textSecondary }]}>Go Back</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.confirmProceedBtn, { backgroundColor: '#7C3AED' }]} onPress={handleConfirmSubmit}>
-                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                <TouchableOpacity style={[styles.confirmProceedBtn, { backgroundColor: colors.purple }]} onPress={handleConfirmSubmit}>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.onPrimary} />
                   <Text style={styles.confirmProceedText}>Confirm & Submit</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
+
+        {/* ─── Delivery Note Modal ─── */}
+        <Modal
+          visible={deliveryNoteVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={closeDeliveryNote}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <ScrollView style={styles.confirmScroll} contentContainerStyle={styles.confirmScrollContent} showsVerticalScrollIndicator>
+                <View style={[styles.confirmIcon, { backgroundColor: `${colors.purple}15` }]}>
+                  <Ionicons name="document-text" size={36} color={colors.purpleText} />
+                </View>
+                <Text style={[styles.confirmTitle, { color: colors.text }]}>Delivery Note</Text>
+                <Text style={[styles.confirmSub, { color: colors.textMuted }]}>
+                  Weigh-Out recorded successfully. Export or print the delivery note below.
+                </Text>
+
+                {deliveryNoteData && (
+                  <View style={[styles.confirmSummary, { backgroundColor: colors.inputBg }]}>
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Job ID</Text>
+                      <Text style={[styles.confirmValue, { color: colors.text }]}>{deliveryNoteData.jobId}</Text>
+                    </View>
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Driver / Truck</Text>
+                      <Text style={[styles.confirmValue, { color: colors.text }]}>
+                        {deliveryNoteData.driverName} · {deliveryNoteData.plateNumber}
+                      </Text>
+                    </View>
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Material</Text>
+                      <Text style={[styles.confirmValue, { color: colors.text }]}>{deliveryNoteData.materialName}</Text>
+                    </View>
+                    <View style={styles.confirmDivider} />
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Tare (Empty)</Text>
+                      <Text style={[styles.confirmValue, { color: colors.infoText, fontWeight: '800' }]}>
+                        {deliveryNoteData.weighIn?.toFixed(1) || '0.0'} T
+                      </Text>
+                    </View>
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Gross (Loaded)</Text>
+                      <Text style={[styles.confirmValue, { color: colors.purpleText, fontWeight: '800' }]}>
+                        {deliveryNoteData.weighOut?.toFixed(1) || '0.0'} T
+                      </Text>
+                    </View>
+                    <View style={[styles.confirmDivider, { marginTop: Spacing.xs}]} />
+                    <View style={styles.confirmRow}>
+                      <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
+                      <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
+                        {deliveryNoteData.netWeight?.toFixed(1) || '0.0'} T
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+              </ScrollView>
+              {/* Export Actions */}
+              <View style={styles.grnExportSection}>
+                <Text style={[styles.grnExportTitle, { color: colors.textMuted }]}>
+                  EXPORT DELIVERY NOTE
+                </Text>
+                <View style={styles.grnDownloadRow}>
+                  <TouchableOpacity
+                    style={[styles.grnDownloadBtn, { backgroundColor: colors.primary }]}
+                    onPress={handleDeliveryNoteCSV}
+                  >
+                    <Ionicons name="document-text-outline" size={18} color={colors.onPrimary} />
+                    <Text style={styles.grnDownloadBtnText}>CSV</Text>
+                    <Text style={styles.grnDownloadBtnSub}>Download</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.grnDownloadBtn, { backgroundColor: colors.primary }]}
+                    onPress={handleDeliveryNotePrint}
+                  >
+                    <Ionicons name="print-outline" size={18} color={colors.onPrimary} />
+                    <Text style={styles.grnDownloadBtnText}>Print</Text>
+                    <Text style={styles.grnDownloadBtnSub}>PDF</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.confirmCancelBtn, { borderColor: colors.border, flex: 0 }]}
+                onPress={closeDeliveryNote}
+              >
+                <Text style={[styles.confirmCancelText, { color: colors.textSecondary }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+        {Platform.OS === 'ios' ? (
+          <InputAccessoryView nativeID="weigh-out-keyboard-accessory">
+            <View style={[styles.keyboardAccessory, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+              <TouchableOpacity onPress={Keyboard.dismiss} style={styles.keyboardDoneButton}>
+                <Text style={[styles.keyboardDoneText, { color: colors.primaryText }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </InputAccessoryView>
+        ) : null}
       </>
     );
   }
 
   /* ─── List View ─── */
   return (
-    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate..." />
+    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}>
+      {searchHeader}
       <SectionTitle title={`${filtered.length} to weigh out`} />
-      {loading ? (
+      {allDeliveries.length === 0 ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading...</Text></DataCard>
       ) : filtered.length ? (
         filtered.map((item) => {
@@ -580,15 +959,26 @@ export default function OperatorQuarryWeighOutScreen() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.jobId}</Text>
               </View>
-              <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+              <View style={styles.driverRow}>
+                {getDriverPhoto(item) ? (
+                  <Image source={{ uri: getDriverPhoto(item) }} style={styles.driverPhoto} />
+                ) : (
+                  <View style={[styles.driverPhoto, { backgroundColor: `${colors.primary}15` }]}>
+                    <Text style={[styles.driverInitial, { color: colors.primaryText }]}>
+                      {(item.driverName || 'D').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <DetailRow value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'N/A'}`} />
+              </View>
               <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'}`} />
               <View style={styles.listWeighInBadge}>
-                <Ionicons name="download-outline" size={12} color="#2563EB" />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>Empty Weight: {wInVal.toFixed(1)} T</Text>
+                <Ionicons name="download-outline" size={12} color={colors.infoText} />
+                <Text style={{ fontSize: 12, fontWeight: '700', color: colors.infoText }}>Empty Weight: {wInVal.toFixed(1)} T</Text>
               </View>
               <View style={[styles.tapHint, { backgroundColor: `${colors.primary}08` }]}>
-                <Ionicons name="hand-left-outline" size={12} color={colors.primary} />
-                <Text style={[styles.tapHintText, { color: colors.primary }]}>Tap to weigh out</Text>
+                <Ionicons name="hand-left-outline" size={12} color={colors.primaryText} />
+                <Text style={[styles.tapHintText, { color: colors.primaryText }]}>Tap to weigh out</Text>
               </View>
               <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
             </DataCard>
@@ -601,129 +991,92 @@ export default function OperatorQuarryWeighOutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+/* ─── Styles (unchanged) ─────────────────────────────────────────── */
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: { flex: 1 },
-  formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  jobCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  jobCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  formContent: { padding: Spacing.md,paddingTop:0, paddingBottom: Spacing['4xl'] },
+  jobCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  jobCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs},
   jobCardTitle: { fontSize: 18, fontWeight: '800' },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.sm },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: Spacing.xs},
   draftWeightRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   draftLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  draftValue: { fontSize: 18, fontWeight: '800', marginTop: 2 },
-  draftBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.full },
+  draftValue: { fontSize: 18, fontWeight: '800', marginTop: Spacing.xs},
+  draftBadge: { flexDirection: 'row', alignItems: 'center', gap: Gap, paddingHorizontal: 10, paddingVertical: 6, borderRadius: Radius.full },
   draftBadgeText: { fontSize: 11, fontWeight: '700' },
-
-  // ─── Section Card (Driver Photo + Location) ───
-  sectionCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  sectionCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Gap, marginBottom: Spacing.xs},
   sectionIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   sectionTitleStyle: { fontSize: 16, fontWeight: '700', flex: 1 },
-  sectionSub: { fontSize: 13, marginBottom: Spacing.md },
-  photoStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full },
+  quarryOption: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, flexDirection: 'row', alignItems: 'center', marginTop: Spacing.xs},
+  sectionSub: { fontSize: 13, marginBottom: Spacing.xs},
+  photoStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: Gap, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full },
   photoStatusText: { fontSize: 11, fontWeight: '700' },
-
-  // ─── Photo Preview ───
-  photoPreviewWrap: {
-    width: '100%',
-    height: 220,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-    marginBottom: Spacing.md,
-    backgroundColor: '#F1F5F9',
-  },
+  photoPreviewWrap: { width: '100%', height: 220, borderRadius: Radius.md, overflow: 'hidden', marginBottom: Spacing.xs, backgroundColor: colors.surface },
   photoPreview: { width: '100%', height: '100%' },
-  photoPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoPlaceholderText: {
-    fontSize: 13,
-    color: '#94A3B8',
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  photoOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoOverlayText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', marginTop: 8 },
-  photoActions: { flexDirection: 'row', gap: Spacing.sm },
-  photoBtnFull: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
-  photoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: 16,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-  },
+  photoPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  photoPlaceholderText: { fontSize: 13, color: colors.textTertiary, fontWeight: '600', marginTop: Spacing.xs},
+  photoOverlay: { ...StyleSheet.absoluteFill, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
+  photoOverlayText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700', marginTop: Spacing.xs},
+  photoActions: { flexDirection: 'row', gap: Gap},
+  photoBtnFull: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Gap, paddingVertical: Spacing.sm, borderRadius: Radius.md, borderWidth: 1 },
+  photoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Gap, paddingVertical: Spacing.sm, paddingHorizontal: 16, borderRadius: Radius.md, borderWidth: 1 },
   photoBtnText: { fontSize: 13, fontWeight: '700' },
-
-  // ─── Location ───
-  locationBox: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.xs },
-  locationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  locationBox: { borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.xs},
+  locationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Gap},
   locationText: { fontSize: 13, fontWeight: '600', flex: 1, lineHeight: 18 },
-  locationCoords: { marginTop: Spacing.sm, paddingLeft: 28 },
+  locationCoords: { marginTop: Spacing.xs, paddingLeft: 28 },
   coordText: { fontSize: 11, fontFamily: 'monospace' },
-  retryLocationBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    marginTop: Spacing.sm,
-  },
+  retryLocationBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: Gap, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.full, borderWidth: 1, marginTop: Spacing.xs},
   retryLocationText: { fontSize: 12, fontWeight: '700' },
-
-  inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.md },
-  inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  inputCard: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  inputHeader: { flexDirection: 'row', alignItems: 'center', gap: Gap, marginBottom: Spacing.xs},
   inputIcon: { width: 40, height: 40, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   inputTitle: { fontSize: 18, fontWeight: '700' },
-  inputSub: { fontSize: 13, marginBottom: Spacing.md },
+  inputSub: { fontSize: 13, marginBottom: Spacing.xs},
   weightInputWrap: { borderRadius: Radius.md, borderWidth: 2, paddingHorizontal: Spacing.md, height: 64, flexDirection: 'row', alignItems: 'center' },
   weightInput: { flex: 1, fontSize: 28, fontWeight: '800' },
   weightSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
-  netPreview: { marginTop: Spacing.md, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, alignItems: 'center' },
+  netPreview: { marginTop: Spacing.xs, borderRadius: Radius.md, borderWidth: 1, padding: Spacing.md, alignItems: 'center' },
   netLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1 },
-  netValue: { fontSize: 28, fontWeight: '900', marginTop: 4 },
-  netCalc: { fontSize: 12, marginTop: 4 },
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm, minHeight: 50, marginTop: Spacing.sm },
-  submitBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.sm },
+  netValue: { fontSize: 28, fontWeight: '900', marginTop: Spacing.xs},
+  netCalc: { fontSize: 12, marginTop: Spacing.xs},
+  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Gap, minHeight: 50, marginTop: Spacing.xs},
+  submitBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: '800' },
+  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1, marginTop: Spacing.xs},
   cancelText: { fontSize: 14, fontWeight: '600' },
-  listWeighInBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, backgroundColor: '#2563EB12', marginTop: Spacing.sm },
-  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: 6 },
+  tapHint: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: Gap, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.full, marginTop: Spacing.xs},
   tapHintText: { fontSize: 11, fontWeight: '700' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  confirmDialog: { width: '100%', maxWidth: 380, borderRadius: 18, borderWidth: 1, padding: Spacing.xl },
-  confirmIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: Spacing.md },
-  confirmTitle: { fontSize: 20, fontWeight: '900', textAlign: 'center', marginBottom: Spacing.sm },
-  confirmSub: { fontSize: 13, textAlign: 'center', lineHeight: 18, marginBottom: Spacing.lg },
-  confirmSummary: { borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.lg, gap: 6 },
-  confirmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
-  confirmLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  confirmValue: { fontSize: 12, fontWeight: '700', maxWidth: '75%' },
-  confirmDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 4 },
-  confirmActions: { flexDirection: 'row', gap: Spacing.md },
-  confirmCancelBtn: { flex: 1, minHeight: 48, borderRadius: Radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  listWeighInBadge: { flexDirection: 'row', alignItems: 'center', gap: Gap, marginTop: Spacing.xs},
+  keyboardAccessory: { alignItems: 'flex-end', borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs },
+  keyboardDoneButton: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs },
+  keyboardDoneText: { fontSize: 16, fontWeight: '700' },
+  driverRow: { flexDirection: 'row', alignItems: 'center', gap: Gap},
+  driverPhoto: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  driverInitial: { fontSize: 12, fontWeight: '800' },
+  // Modal styles
+  modalBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: Spacing.md },
+  confirmDialog: { width: '100%', maxWidth: 560, maxHeight: '92%', minHeight: 0, borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.md, overflow: 'hidden' },
+  confirmScroll: { flexShrink: 1, minHeight: 0 },
+  confirmScrollContent: { paddingBottom: Spacing.sm },
+  confirmIcon: { width: 56, height: 56, borderRadius: Radius.full, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
+  confirmTitle: { fontSize: 18, fontWeight: '800' },
+  confirmSub: { fontSize: 13, marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  confirmSummary: { borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs},
+  confirmRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Gap, paddingVertical: 4 },
+  confirmLabel: { fontSize: 12, fontWeight: '600', flexShrink: 0, maxWidth: '38%' },
+  confirmValue: { fontSize: 13, fontWeight: '700', flexShrink: 1, minWidth: 0, textAlign: 'right' },
+  confirmDivider: { height: 1, backgroundColor: colors.border, marginVertical: Spacing.xs},
+  confirmActions: { flexDirection: 'row', flexWrap: 'wrap', flexShrink: 0, gap: Gap, marginTop: Spacing.xs},
+  confirmCancelBtn: { flex: 1, minWidth: 120, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, borderWidth: 1 },
   confirmCancelText: { fontSize: 14, fontWeight: '700' },
-  confirmProceedBtn: { flex: 1, minHeight: 48, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
-  confirmProceedText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  confirmProceedBtn: { flex: 1, minWidth: 160, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Gap},
+  confirmProceedText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700', flexShrink: 1, textAlign: 'center' },
+  // Export section
+  grnExportSection: { marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  grnExportTitle: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginBottom: Spacing.xs},
+  grnDownloadRow: { flexDirection: 'row', gap: Gap},
+  grnDownloadBtn: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Gap},
+  grnDownloadBtnText: { color: colors.onPrimary, fontSize: 14, fontWeight: '800' },
+  grnDownloadBtnSub: { color: '#FFFFFFCC', fontSize: 10, fontWeight: '600' },
 });

@@ -1,27 +1,98 @@
-import { useCallback, useRef, useState } from 'react';
-import { Tabs, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Tabs, usePathname, useRouter } from 'expo-router';
 import {
   Platform, StyleSheet, View, Text, TouchableOpacity, Animated, Pressable, useWindowDimensions, ScrollView, Modal, ActivityIndicator,
   type ColorValue,
 } from 'react-native';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
 import { getRoleLabel } from '../../utils/helpers';
+import { canAccessManagementRoute, MANAGEMENT_ROLES, managementHomeRoute, normalizeRole } from '../../utils/access';
+import { getManagementNavigation } from '../../utils/managementNavigation';
+import { ThemeToggle } from '../../components/ThemeToggle';
+import { ManagementHeaderMenuButton, ManagementMenuProvider } from '../../components/management/ManagementMenuContext';
 
-const BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
-const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings','fuel'];
+const DEFAULT_BOTTOM_TABS = ['dashboard', 'active', 'orders', 'materials'];
+const LITE_BOTTOM_TABS = ['dashboard', 'vendors', 'trucks', 'drivers'];
+const BOTTOM_TABS = [...new Set([...DEFAULT_BOTTOM_TABS, ...LITE_BOTTOM_TABS])];
+// These routes are opened from visible navigation and are not primary tab destinations.
+const SECONDARY_ROUTES = [
+  'stocks', // Register with href: null below so Expo Router cannot add a visible tab.
+  'security-personnel',
+  'super-admin',
+  'edit',
+  'lite',
+  'drivers/[id]',
+  'drivers/create',
+  'trips',
+  'settings',
+  'fuel',
+  'dispatch',
+  'quarries',
+  'sites',
+  'profile',
+  'fuel-records',
+  'reports',
+  'flagged',
+  'analytics',
+  'audit-logs',
+  'users',
+  'roles',
+  'master-data',
+  'materials/[id]',
+  'materials/create',
+  'materials/edit/[id]',
+  'purchase-orders',
+  'purchase-orders/[id]',
+  'purchase-orders/create',
+  'purchase-orders/edit/[id]',
+  'vehicles',
+  'vehicles/[id]',
+  'vehicles/create',
+  'vendors/[id]',
+  'vendors/create',
+  'vendors/edit/[id]',
+];
 
 const TAB_ICONS: Record<string, { icon: any; label: string; family: string }> = {
   dashboard: { icon: 'grid-outline', label: 'Dashboard', family: 'Ionicons' },
+  vendors: { icon: 'business-outline', label: 'Vendors', family: 'Ionicons' },
+  trucks: { icon: 'car-outline', label: 'Trucks', family: 'Ionicons' },
   drivers: { icon: 'people-outline', label: 'Drivers', family: 'Ionicons' },
- // trucks: { icon: 'car-outline', label: 'Trucks', family: 'Ionicons' },
   orders: { icon: 'document-text-outline', label: 'Orders', family: 'Ionicons' },
   active: { icon: 'pulse-outline', label: 'Active', family: 'Ionicons' },
   materials: { icon: 'cube-outline', label: 'Materials', family: 'Ionicons' },
+  profile: { icon: 'person-outline', label: 'Profile', family: 'Ionicons' },
 };
+
+const getManagementScreenOptions = (colors: any, bottomInset: number) => ({
+  tabBarActiveTintColor: colors.tabActive,
+  tabBarInactiveTintColor: colors.tabInactive,
+  tabBarHideOnKeyboard: true,
+  tabBarShowLabel: Platform.OS !== 'web',
+  tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' as const } : { fontSize: 11, fontWeight: '600' as const },
+  tabBarStyle: Platform.OS === 'web'
+    ? { display: 'none' as const }
+    : {
+        backgroundColor: colors.surface,
+        borderTopColor: colors.border,
+        borderTopWidth: 1,
+        paddingBottom: bottomInset + 4,
+        paddingTop: 6,
+        height: 68 + bottomInset,
+      },
+  headerShown: Platform.OS !== 'web',
+  headerStyle: { backgroundColor: colors.surface },
+  headerTintColor: colors.text,
+  headerTitleStyle: { fontWeight: '700' as const, fontSize: 16 },
+  headerTitleAlign: 'left' as const,
+  headerTitleContainerStyle: { left: 8, right: 52 },
+  headerShadowVisible: false,
+  headerRight: Platform.OS === 'web' ? undefined : () => <ManagementHeaderMenuButton />,
+});
 
 const getTabIcon = (name: string, color: ColorValue) => {
   const config = TAB_ICONS[name];
@@ -36,24 +107,35 @@ const getTabIcon = (name: string, color: ColorValue) => {
   }
 };
 
-const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
-  { label: 'Drivers', icon: 'people-outline', route: '/management/drivers' },
-  { label: 'Trucks', icon: 'car-outline', route: '/management/trucks' },
-  { label: 'Profile', icon: 'person-outline', route: '/management/profile' },
-  { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
-  { label: 'Issues', icon: 'chatbubble-ellipses-outline', route: '/screens/issues' },
-  { label: 'History', icon: 'time-outline', route: '/(tabs)/history' },
-  { label: 'Vendors', icon: 'business-outline', route: '/screens/vendor-details' },
-  { label: 'Export Data', icon: 'cloud-download-outline', route: '/management/settings' },
-  { label: 'Fuel', icon: 'water-outline', route: '/management/fuel' },
-  { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
-];
- 
+const NoopTabBar = () => null;
+
+// Keep each screen's options referentially stable. React Navigation applies
+// options with state updates, so recreating tabBarIcon functions during every
+// parent render can cause a nested update loop on Android.
+const MANAGEMENT_TAB_OPTIONS: Record<string, any> = Object.fromEntries(
+  BOTTOM_TABS.map((tabName) => {
+    const config = TAB_ICONS[tabName];
+    return [tabName, {
+      title: config?.label || tabName,
+      tabBarLabel: config?.label || tabName,
+      tabBarIcon: ({ color, focused }: { color: ColorValue; focused: boolean }) => (
+        <View style={{ width: 38, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: focused && typeof color === 'string' ? `${color}12` : 'transparent' }}>
+          {getTabIcon(tabName, color)}
+        </View>
+      ),
+    }];
+  }),
+);
+
 export default function ManagementLayout() {
-  const { user, logout } = useAuthStore();
   const colors = useTheme();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
+  const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  const tabBottomInset = Math.max(insets.bottom, 6);
   const { width: screenWidth } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -61,6 +143,30 @@ export default function ManagementLayout() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const menuWidth = Math.min(screenWidth * 0.8, 320);
+  const role = normalizeRole(user?.role);
+  const visibleBottomTabs = role === MANAGEMENT_ROLES.LITE ? LITE_BOTTOM_TABS : DEFAULT_BOTTOM_TABS;
+
+  // Hiding an item is not sufficient on web, where a saved URL can still be
+  // opened directly. Keep every management role inside its allowed routes.
+  useEffect(() => {
+    if (role && pathname?.startsWith('/management') && !canAccessManagementRoute(role, pathname)) {
+      router.replace(managementHomeRoute(role) as any);
+    }
+  }, [pathname, role, router]);
+
+  // Each management role has its own complete navigation definition. This is
+  // deliberately not a shared menu that is filtered after the fact.
+  const drawerSections = useMemo(() => {
+    const sections = getManagementNavigation(role, { platform: Platform.OS, bottomTabs: visibleBottomTabs });
+    return [
+      ...sections,
+      {
+        title: 'Session',
+        icon: 'log-out-outline' as keyof typeof Ionicons.glyphMap,
+        items: [{ label: 'Logout', icon: 'log-out-outline' as keyof typeof Ionicons.glyphMap, route: '__logout__' }],
+      },
+    ];
+  }, [role, visibleBottomTabs]);
 
   const toggleMenu = useCallback(() => {
     if (menuOpen) {
@@ -78,7 +184,8 @@ export default function ManagementLayout() {
     }
   }, [menuOpen, slideAnim, fadeAnim, menuWidth]);
 
-  const handleMenuNav = (route: string) => {
+  const handleMenuNav = (route?: string) => {
+    if (!route) return;
     if (route === '__logout__') {
       setConfirmLogout(true);
       return;
@@ -99,94 +206,103 @@ export default function ManagementLayout() {
   };
 
   return (
-      <View style={{ flex: 1 }}>
-      <Tabs
-        tabBar={Platform.OS === 'web' ? () => null : undefined}
-        screenOptions={{
-          tabBarActiveTintColor: '#1B2A4A',
-          tabBarInactiveTintColor: '#94A3B8',
-          tabBarShowLabel: Platform.OS !== 'web',
-          tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
-          tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
-            backgroundColor: '#FFFFFF',
-            borderTopColor: '#E2E8F0',
-            borderTopWidth: 1,
-            paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
-            paddingTop: 6,
-            height: Platform.OS === 'ios' ? 68 + insets.bottom : 68,
-            elevation: 4,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.06,
-            shadowRadius: 8,
-          },
-          headerShown: Platform.OS !== 'web',
-          headerStyle: { backgroundColor: '#FFFFFF' },
-          headerTintColor: '#1E293B',
-          headerTitleStyle: { fontWeight: '700', fontSize: 16 },
-          headerShadowVisible: false,
-          headerRight: Platform.OS === 'web' ? undefined : () => (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity onPress={() => router.push('/screens/notifications' as any)} style={{ paddingHorizontal: 6, paddingVertical: 8 }}>
-                <Ionicons name="notifications-outline" size={22} color="#1B2A4A" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={toggleMenu} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
-                <Ionicons name="menu-outline" size={24} color="#1B2A4A" />
-              </TouchableOpacity>
-            </View>
-          ),
-        }}
+    <View style={{ flex: 1 }}>
+      <ManagementMenuProvider openMenu={toggleMenu}>
+      <Tabs backBehavior="fullHistory"
+        tabBar={Platform.OS === 'web' ? NoopTabBar : undefined}
+        screenOptions={getManagementScreenOptions(colors, tabBottomInset)}
       >
         {BOTTOM_TABS.map((tabName) => {
-          const config = TAB_ICONS[tabName];
+          const route = `/management/${tabName}`;
           return (
             <Tabs.Screen
-              key={tabName} 
+              key={tabName}
               name={tabName}
               options={{
-                title: config?.label || tabName,
-                tabBarLabel: config?.label || tabName,
-                tabBarIcon: ({ color, focused }) => (
-                  <View style={[styles.tabIcon, focused && { backgroundColor: '#1B2A4A12' }]}>
-                    {getTabIcon(tabName, color)}
-                  </View>
-                ),
+                ...MANAGEMENT_TAB_OPTIONS[tabName],
+                ...(visibleBottomTabs.includes(tabName) && canAccessManagementRoute(role, route) ? {} : { href: null }),
               }}
             />
           );
         })}
-        {HIDDEN_TABS.map((tabName) => (
-          <Tabs.Screen
-            key={tabName}
-            name={tabName}
-            options={{ href: null }}
-          />
-        ))}
+        {SECONDARY_ROUTES.map((tabName) => {
+          const titleOverrides: Record<string, string> = {
+            'drivers': 'Drivers',
+            'drivers/create': 'Onboard Driver',
+            'trucks': 'Vehicles',
+            'fuel': 'Fuel Records',
+            'fuel-records': 'Fuel Records',
+            'quarries': 'Quarries',
+            'sites': 'Sites',
+            'reports': 'Reports',
+            'analytics': 'Analytics',
+            'audit-logs': 'Audit Logs',
+            'users': 'Users',
+            'roles': 'Roles',
+            
+            'vendors': 'Vendors',
+            'purchase-orders': 'Orders',
+            'vehicles': 'Vehicles',
+            'materials/[id]': 'Material Details',
+            'materials/edit/[id]': 'Edit Material',
+          };
+          const hideHeader = tabName === 'drivers/[id]' || tabName === 'drivers/create' || tabName === 'materials/[id]' || tabName === 'materials/create' || tabName === 'materials/edit/[id]' || tabName === 'vendors/[id]' || tabName === 'vendors/create' || tabName === 'vendors/edit/[id]' || tabName === 'vehicles/[id]' || tabName === 'vehicles/create' || tabName === 'purchase-orders/[id]' || tabName === 'purchase-orders/create' || tabName === 'purchase-orders/edit/[id]';
+          return (
+            <Tabs.Screen
+              key={tabName}
+              name={tabName}
+              options={{
+                href: null,
+                ...(titleOverrides[tabName] ? { title: titleOverrides[tabName] } : {}),
+                ...(hideHeader ? { headerShown: false } : {}),
+              }}
+            />
+          );
+        })}
       </Tabs>
+      </ManagementMenuProvider>
 
       {/* Hamburger Drawer */}
       {menuOpen && (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.35)', opacity: fadeAnim }]}>
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay, opacity: fadeAnim }]}>
             <Pressable style={StyleSheet.absoluteFill} onPress={toggleMenu} />
           </Animated.View>
-          <Animated.View style={[styles.drawer, { paddingTop: insets.top + 16, backgroundColor: '#FFFFFF', width: menuWidth, transform: [{ translateX: slideAnim }] }]}>
-            <View style={styles.drawerUser}>
-              <View style={[styles.drawerAvatar, { backgroundColor: '#1B2A4A15' }]}>
-                <Text style={{ fontSize: 20, fontWeight: '700', color: '#1B2A4A' }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
+          <Animated.View style={[styles.drawer, { paddingTop: insets.top + 16, backgroundColor: colors.surface, width: menuWidth, transform: [{ translateX: slideAnim }] }]}>
+            <View style={[styles.drawerUser, { borderBottomColor: colors.border }]}>
+              <View style={[styles.drawerAvatar, { backgroundColor: `${colors.accent}18` }]}>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.accent }}>{(user?.displayName || 'U').charAt(0).toUpperCase()}</Text>
               </View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B' }}>{user?.displayName || 'User'}</Text>
-              <Text style={{ fontSize: 14, color: '#64748B' }}>{user?.email || ''}</Text>
-              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#1B2A4A12' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1B2A4A' }}>{getRoleLabel(user?.role || '')}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'User'}</Text>
+              <View style={{ marginTop: Spacing.xs, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>{getRoleLabel(user?.role || '')}</Text>
               </View>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
-              {MENU_ITEMS.map((item) => (
-                <TouchableOpacity key={item.label} style={styles.drawerItem} onPress={() => handleMenuNav(item.route)}>
-                  <Ionicons name={item.icon} size={20} color={item.label === 'Logout' ? '#EF4444' : '#1E293B'} />
-                  <Text style={[styles.drawerItemText, item.label === 'Logout' && { color: '#EF4444' }]}>{item.label}</Text>
-                </TouchableOpacity>
+              <ThemeToggle />
+              {drawerSections.map((section) => (
+                <View key={section.title} style={styles.drawerSection}>
+                  <View style={styles.drawerSectionHeader}>
+                    <Ionicons name={section.icon} size={13} color={colors.textTertiary} />
+                    <Text style={[styles.drawerSectionTitle, { color: colors.textTertiary }]}>{section.title}</Text>
+                  </View>
+                  {section.items.map((item) => {
+                    const disabled = !item.route;
+                    const isLogout = item.label === 'Logout';
+                    return (
+                      <TouchableOpacity
+                        key={`${section.title}-${item.label}`}
+                        style={[styles.drawerItem, disabled && styles.drawerItemDisabled]}
+                        onPress={() => handleMenuNav(item.route)}
+                        disabled={disabled}
+                      >
+                        {item.route === '/warehouse' ? <MaterialCommunityIcons name="warehouse" size={20} color={colors.text} /> : <Ionicons name={item.icon} size={20} color={isLogout ? colors.danger : colors.text} />}
+                        <Text style={[styles.drawerItemText, { color: isLogout ? colors.danger : colors.text }, disabled && [styles.drawerItemTextDisabled, { color: colors.textTertiary }]]}>{item.label}</Text>
+                        {disabled && <View style={[styles.plannedDot, { backgroundColor: colors.textTertiary }]} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               ))}
             </ScrollView>
           </Animated.View>
@@ -196,19 +312,19 @@ export default function ManagementLayout() {
       {/* Logout Confirmation Modal */}
       <Modal visible={confirmLogout} transparent animationType="fade" onRequestClose={() => setConfirmLogout(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={styles.logoutDialog}>
-            <View style={styles.logoutIcon}>
-              <Ionicons name="log-out-outline" size={34} color="#EF4444" />
+          <View style={[styles.logoutDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.logoutIcon, { backgroundColor: `${colors.danger}18` }]}>
+              <Ionicons name="log-out-outline" size={34} color={colors.danger} />
             </View>
-            <Text style={styles.logoutTitle}>Logout</Text>
-            <Text style={styles.logoutMessage}>Are you sure you want to logout?</Text>
+            <Text style={[styles.logoutTitle, { color: colors.text }]}>Logout</Text>
+            <Text style={[styles.logoutMessage, { color: colors.textMuted }]}>Are you sure you want to logout?</Text>
             <View style={styles.logoutActions}>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, { backgroundColor: colors.inputBg }]}
                 onPress={() => setConfirmLogout(false)}
                 disabled={loggingOut}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmBtn, loggingOut && { opacity: 0.7 }]}
@@ -216,7 +332,7 @@ export default function ManagementLayout() {
                 disabled={loggingOut}
               >
                 {loggingOut ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={colors.onPrimary} size="small" />
                 ) : (
                   <Text style={styles.confirmText}>Logout</Text>
                 )}
@@ -225,23 +341,30 @@ export default function ManagementLayout() {
           </View>
         </View>
       </Modal>
-      </View>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const buildStyles = (colors: any) =>
+  StyleSheet.create({
   tabIcon: { width: 38, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   drawer: {
     position: 'absolute', top: 0, right: 0, bottom: 0,
-    shadowColor: '#000', shadowOffset: { width: -2, height: 0 }, shadowOpacity: 0.1, shadowRadius: 12, elevation: 8,
+    shadowColor: colors.text, shadowOffset: { width: -2, height: 0 }, shadowOpacity: 0, shadowRadius: 0, elevation: 0,
   },
-  drawerUser: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
-  drawerAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  drawerItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 20 },
-  drawerItemText: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
+  drawerUser: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border },
+  drawerAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
+  drawerSection: { paddingVertical: 4 },
+  drawerSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Gap, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4 },
+  drawerSectionTitle: { fontSize: 10, fontWeight: '800', color: colors.textTertiary, letterSpacing: 1.2, textTransform: 'uppercase' },
+  drawerItem: { flexDirection: 'row', alignItems: 'center', gap: Gap, paddingVertical: 14, paddingHorizontal: 20 },
+  drawerItemDisabled: { opacity: 0.52 },
+  drawerItemText: { fontSize: 16, fontWeight: '600', color: colors.text },
+  drawerItemTextDisabled: { color: colors.textTertiary },
+  plannedDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#CBD5E1', marginLeft: 'auto' },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
@@ -251,47 +374,44 @@ const styles = StyleSheet.create({
     maxWidth: 340,
     borderRadius: 18,
     padding: Spacing.xl,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     alignItems: 'center',
   },
   logoutIcon: {
     width: 66,
     height: 66,
     borderRadius: 22,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.dangerBg,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   logoutTitle: {
-    color: '#1E293B',
+    color: colors.text,
     fontSize: 22,
     fontWeight: '900',
   },
   logoutMessage: {
-    color: '#64748B',
-    fontSize: 14,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xl,
+    color: colors.textMuted,
+    fontSize: 14, marginTop: Spacing.xs, marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   logoutActions: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: Gap,
     width: '100%',
   },
   cancelBtn: {
     flex: 1,
     height: 48,
     borderRadius: Radius.md,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelText: {
-    color: '#1E293B',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '800',
   },
@@ -299,13 +419,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: Radius.md,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
   confirmText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '900',
   },
-});
+  });

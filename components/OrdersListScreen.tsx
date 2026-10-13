@@ -1,3 +1,5 @@
+import { SearchField } from './EnterpriseUI';
+import { PurchaseOrderMaterials, getPurchaseOrderMaterials } from './PurchaseOrderMaterials';
 import { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -12,7 +14,7 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { Radius, Spacing } from '../constants/theme';
+import { Gap, Radius, Spacing } from '../constants/theme';
 import { fetchDeliveryOrders, fetchPurchaseOrders, fetchMaterials } from '../services/api';
 import { formatEAT } from '../utils/helpers';
 
@@ -49,7 +51,6 @@ export default function OrdersListScreen() {
       setDeliveries(deliveryData || []);
       setMaterials(matData || []);
     } catch (e) {
-      console.error('Failed to load orders:', e);
     }
     setRefreshing(false);
   };
@@ -67,36 +68,23 @@ export default function OrdersListScreen() {
   const selectedStatus = STATUS_OPTIONS.find(s => s.key === filter);
 
   const filtered = orders.filter((order) => {
+    if (["cancelled", "canceled"].includes(String(order.status || "").trim().toLowerCase())) return false;
     const s = search.toLowerCase();
     const matchesSearch = !search ||
       (order.poNumber || '').toLowerCase().includes(s) ||
       (order.vendorName || '').toLowerCase().includes(s) ||
-      (order.materialName || '').toLowerCase().includes(s);
+      getPurchaseOrderMaterials(order).some((line) => (line.materialName || '').toLowerCase().includes(s));
     const matchesFilter = filter === 'all' || order.status === filter;
-    const matchesMaterial = !materialFilter || order.materialId === materialFilter;
+    const matchesMaterial = !materialFilter || getPurchaseOrderMaterials(order).some((line) => line.materialId === materialFilter);
     return matchesSearch && matchesFilter && matchesMaterial;
   });
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by Purchase Order, vendor..."
-          placeholderTextColor={colors.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
-      </View>
+      <SearchField title="Orders" icon="receipt-outline" value={search} onChangeText={setSearch} placeholder="Search by Purchase Order, vendor..." />
 
       {/* Status Dropdown Filter */}
-      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.sm }}>
+      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.xs}}>
         <TouchableOpacity
           style={[styles.dropdownBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
           onPress={() => setStatusDropdownOpen(!statusDropdownOpen)}
@@ -126,7 +114,7 @@ export default function OrdersListScreen() {
       </View>
 
       {/* Material Dropdown Filter */}
-      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.sm }}>
+      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.xs}}>
         <TouchableOpacity
           style={[styles.dropdownBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
           onPress={() => { setMatDropdownOpen(!matDropdownOpen); setMatSearch(''); }}
@@ -147,7 +135,7 @@ export default function OrdersListScreen() {
           <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.matSearchRow, { borderBottomColor: colors.border }]}>
               <Ionicons name="search" size={14} color={colors.textMuted} />
-              <TextInput style={[styles.matSearchInput, { color: colors.text }]} placeholder="Search materials..." placeholderTextColor={colors.textMuted} value={matSearch} onChangeText={setMatSearch} autoFocus />
+              <TextInput inputAccessoryViewID="trucksphere-keyboard-done" style={[styles.matSearchInput, { color: colors.text }]} placeholder="Search materials..." placeholderTextColor={colors.textMuted} value={matSearch} onChangeText={setMatSearch} autoFocus />
             </View>
             <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
               {matFiltered.map((m: any) => (
@@ -200,7 +188,7 @@ const OrderCard = ({ item, deliveries }: { item: any; deliveries: any[] }) => {
       <View style={styles.cardBody}>
         <View style={styles.detailRow}>
           <Ionicons name="cube-outline" size={14} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { color: colors.textSecondary }]}>{item.materialName} - {item.quantity} {item.unit}</Text>
+          <PurchaseOrderMaterials order={item} />
         </View>
         <View style={styles.detailRow}>
           <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
@@ -208,24 +196,6 @@ const OrderCard = ({ item, deliveries }: { item: any; deliveries: any[] }) => {
         </View>
       </View>
 
-      <View style={styles.progressRow}>
-        <ProgressStat label="Quantity" value={`${item.quantity} ${item.unit}`} color={colors.text} />
-        <ProgressStat label="Trips" value={orderTrips.length.toString()} color={colors.text} />
-      </View>
-
-      {orderTrips.length > 0 && (
-        <View style={[styles.tripList, { borderTopColor: colors.borderLight }]}>
-          {orderTrips.slice(0, 3).map((trip) => (
-            <View key={trip.id} style={styles.tripRow}>
-              <Text style={[styles.tripText, { color: colors.text }]} numberOfLines={1}>{trip.driverName}</Text>
-              <Text style={[styles.tripText, { color: colors.textSecondary }]} numberOfLines={1}>{trip.plateNumber}</Text>
-            </View>
-          ))}
-          {orderTrips.length > 3 && (
-            <Text style={[styles.moreTrips, { color: colors.textMuted }]}>+{orderTrips.length - 3} more trips</Text>
-          )}
-        </View>
-      )}
     </TouchableOpacity>
   );
 };
@@ -245,38 +215,37 @@ const styles = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
+    marginHorizontal: Spacing.lg, marginTop: Spacing.xs,
     borderRadius: Radius.md,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
     height: 44,
-    gap: Spacing.sm,
+    gap: Gap,
   },
   searchInput: { flex: 1, fontSize: 14 },
-  dropdownBtn: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: 6 },
+  dropdownBtn: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: Gap},
   dropdownBtnText: { flex: 1, fontSize: 14 },
   dropdownMenu: { borderWidth: 1, borderTopWidth: 0, borderBottomLeftRadius: Radius.md, borderBottomRightRadius: Radius.md, overflow: 'hidden' },
   dropdownItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: Spacing.md },
-  matSearchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderBottomWidth: 1, gap: 6 },
+  matSearchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderBottomWidth: 1, gap: Gap},
   matSearchInput: { flex: 1, fontSize: 13, paddingVertical: 2 },
   list: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.sm },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md, marginBottom: Spacing.md },
+  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Gap, marginBottom: Spacing.xs},
   orderTitleWrap: { flex: 1 },
   orderPo: { fontSize: 14, fontWeight: '700' },
-  vendorName: { fontSize: 12, marginTop: 2 },
-  cardBody: { gap: 6 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  vendorName: { fontSize: 12, marginTop: Spacing.xs},
+  cardBody: { gap: Gap},
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: Gap},
   detailText: { fontSize: 13 },
-  progressRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm, marginTop: Spacing.md },
+  progressRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Gap, marginTop: Spacing.xs},
   progressStatBox: { flex: 1 },
   progressLabel: { fontSize: 10 },
-  progressValue: { fontSize: 13, fontWeight: '800', marginTop: 2 },
-  tripList: { borderTopWidth: 1, marginTop: Spacing.md, paddingTop: Spacing.sm, gap: Spacing.xs },
-  tripRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  progressValue: { fontSize: 13, fontWeight: '800', marginTop: Spacing.xs},
+  tripList: { borderTopWidth: 1, marginTop: Spacing.xs, paddingTop: Spacing.sm, gap: Gap},
+  tripRow: { flexDirection: 'row', alignItems: 'center', gap: Gap},
   tripText: { flex: 1, fontSize: 12 },
-  moreTrips: { fontSize: 11, marginTop: 2 },
-  empty: { alignItems: 'center', marginTop: 60 },
-  emptyText: { fontSize: 15, marginTop: Spacing.md },
+  moreTrips: { fontSize: 11, marginTop: Spacing.xs},
+  empty: { alignItems: 'center', marginTop: Spacing.xs},
+  emptyText: { fontSize: 15, marginTop: Spacing.xs},
 });

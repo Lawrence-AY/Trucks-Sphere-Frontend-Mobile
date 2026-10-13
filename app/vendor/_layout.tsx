@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import {
   Platform,
@@ -17,16 +17,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
-import { Spacing, Radius } from '../../constants/theme';
+import { useAuthStore } from '@/store/authStore';
+import { Gap, Radius, Spacing } from '../../constants/theme';
+import { useTheme } from '../../hooks/useTheme';
 import { getRoleLabel, normalizeVendorId } from '../../utils/helpers';
+import { ThemeToggle } from '../../components/ThemeToggle';
 import {
   getPendingAuthorizations,
   verifyFuelAuthorization,
 } from '../../services/api';
 
 const BOTTOM_TABS = ['dashboard', 'trips', 'orders', 'materials'];
-const HIDDEN_TABS = ['drivers', 'trucks', 'profile', 'settings'];
+// These routes are opened from visible screens but are not primary tab destinations.
+const SECONDARY_ROUTES = ['drivers', 'trucks', 'profile', 'settings', 'fuel', 'reports'];
 
 const TAB_ICONS: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
   dashboard: { icon: 'home-outline', label: 'Home' },
@@ -41,15 +44,18 @@ const MENU_ITEMS: { label: string; icon: keyof typeof Ionicons.glyphMap; route: 
   { label: 'Drivers', icon: 'people-outline', route: '/vendor/drivers' },
   { label: 'Trucks', icon: 'car-outline', route: '/vendor/trucks' },
   { label: 'Profile', icon: 'person-outline', route: '/vendor/profile' },
-  { label: 'Settings', icon: 'settings-outline', route: '/management/settings' },
+  { label: 'Reports', icon: 'bar-chart-outline', route: '/vendor/reports' },
   { label: 'Fuel', icon: 'water-outline', route: '/vendor/fuel' },
   { label: 'Logout', icon: 'log-out-outline', route: '__logout__' },
 ];
 
 export default function VendorLayout() {
+  const colors = useTheme();
+  const styles = useMemo(() => buildStyles(colors), [colors]);
   const { user, logout } = useAuthStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const tabBottomInset = Math.max(insets.bottom, 6);
   const { width: screenWidth } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -188,51 +194,34 @@ export default function VendorLayout() {
 
   return (
     <>
-      <Tabs
+      <Tabs backBehavior="fullHistory"
         tabBar={Platform.OS === 'web' ? () => null : undefined}
         screenOptions={{
-          tabBarActiveTintColor: '#1B2A4A',
-          tabBarInactiveTintColor: '#94A3B8',
+          tabBarActiveTintColor: colors.tabActive,
+          tabBarInactiveTintColor: colors.tabInactive,
+          tabBarHideOnKeyboard: true,
           tabBarShowLabel: Platform.OS !== 'web',
           tabBarLabelStyle: Platform.OS === 'web' ? { display: 'none' } : { fontSize: 11, fontWeight: '600' },
           tabBarStyle: Platform.OS === 'web' ? { display: 'none' } : {
-            backgroundColor: '#FFFFFF',
-            borderTopColor: '#E2E8F0',
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
             borderTopWidth: 1,
-            paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 6,
+            paddingBottom: tabBottomInset + 4,
             paddingTop: 6,
-            height: Platform.OS === 'ios' ? 68 + insets.bottom : 68,
-            elevation: 4,
-            shadowColor: '#000',
+            height: 68 + tabBottomInset,
+            elevation: 0,
+            shadowColor: colors.shadow,
             shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.06,
-            shadowRadius: 8,
+            shadowOpacity: 0,
+            shadowRadius: 0,
           },
           headerShown: Platform.OS !== 'web',
-          headerStyle: { backgroundColor: '#FFFFFF' },
-          headerTintColor: '#1E293B',
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700', fontSize: 16 },
           headerShadowVisible: false,
           headerRight: Platform.OS === 'web' ? undefined : () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {/* Pending auth notification bell */}
-              <TouchableOpacity
-                onPress={() => {
-                  router.push('/screens/notifications' as any);
-                }}
-                style={{ paddingHorizontal: 6, paddingVertical: 8, position: 'relative' }}
-              >
-                <Ionicons
-                  name="notifications-outline"
-                  size={22}
-                  color={pendingAuths.length > 0 ? '#EF4444' : '#1B2A4A'}
-                />
-                {pendingAuths.length > 0 && (
-                  <View style={styles.authBadge}>
-                    <Text style={styles.authBadgeText}>{pendingAuths.length}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
               {/* Pending auth quick-access key icon */}
               {pendingAuths.length > 0 && (
                 <TouchableOpacity
@@ -243,11 +232,11 @@ export default function VendorLayout() {
                   }}
                   style={{ paddingHorizontal: 4, paddingVertical: 8 }}
                 >
-                  <Ionicons name="key-outline" size={20} color="#EF4444" />
+                  <Ionicons name="key-outline" size={20} color={colors.danger} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity onPress={toggleMenu} style={{ paddingHorizontal: 8, paddingVertical: 8 }}>
-                <Ionicons name="menu-outline" size={24} color="#1B2A4A" />
+                <Ionicons name="menu-outline" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
           ),
@@ -263,7 +252,7 @@ export default function VendorLayout() {
                 title: config?.label || tabName,
                 tabBarLabel: config?.label || tabName,
                 tabBarIcon: ({ color, focused }) => (
-                  <View style={[styles.tabIcon, focused && { backgroundColor: '#1B2A4A12' }]}>
+                  <View style={[styles.tabIcon, focused && { backgroundColor: `${colors.primary}12` }]}>
                     <Ionicons name={config?.icon || 'ellipse'} size={22} color={color} />
                   </View>
                 ),
@@ -271,7 +260,7 @@ export default function VendorLayout() {
             />
           );
         })}
-        {HIDDEN_TABS.map((tabName) => (
+        {SECONDARY_ROUTES.map((tabName) => (
           <Tabs.Screen key={tabName} name={tabName} options={{ href: null }} />
         ))}
       </Tabs>
@@ -282,7 +271,7 @@ export default function VendorLayout() {
           <Animated.View
             style={[
               StyleSheet.absoluteFill,
-              { backgroundColor: 'rgba(0,0,0,0.35)', opacity: fadeAnim },
+              { backgroundColor: colors.overlay, opacity: fadeAnim },
             ]}
           >
             <Pressable style={StyleSheet.absoluteFill} onPress={toggleMenu} />
@@ -292,30 +281,30 @@ export default function VendorLayout() {
               styles.drawer,
               {
                 paddingTop: insets.top + 16,
-                backgroundColor: '#FFFFFF',
+                backgroundColor: colors.surface,
                 width: menuWidth,
                 transform: [{ translateX: slideAnim }],
               },
             ]}
           >
-            <View style={styles.drawerUser}>
-              <View style={[styles.drawerAvatar, { backgroundColor: '#1B2A4A15' }]}>
-                <Text style={{ fontSize: 20, fontWeight: '700', color: '#1B2A4A' }}>
+            <View style={[styles.drawerUser, { borderBottomColor: colors.border }]}>
+              <View style={[styles.drawerAvatar, { backgroundColor: `${colors.accent}18` }]}>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: colors.accent }}>
                   {(user?.displayName || 'U').charAt(0).toUpperCase()}
                 </Text>
               </View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                 {user?.displayName || 'User'}
               </Text>
-              <Text style={{ fontSize: 14, color: '#64748B' }}>{user?.email || ''}</Text>
-              <View style={{ marginTop: 4, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: '#1B2A4A12' }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#1B2A4A' }}>
+              <View style={{ marginTop: Spacing.xs, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.accent}18` }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.accent }}>
                   {getRoleLabel(user?.role || '')}
                 </Text>
               </View>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8 }}>
-              {MENU_ITEMS.map((item) => (
+              <ThemeToggle />
+              {MENU_ITEMS.filter(item => Platform.OS === 'web' || !BOTTOM_TABS.some(tab => item.route === '/vendor/' + tab)).map((item) => (
                 <TouchableOpacity
                   key={item.label}
                   style={styles.drawerItem}
@@ -324,12 +313,12 @@ export default function VendorLayout() {
                   <Ionicons
                     name={item.icon}
                     size={20}
-                    color={item.label === 'Logout' ? '#EF4444' : '#1E293B'}
+                    color={item.label === 'Logout' ? colors.danger : colors.text}
                   />
                   <Text
                     style={[
                       styles.drawerItemText,
-                      item.label === 'Logout' && { color: '#EF4444' },
+                      { color: item.label === 'Logout' ? colors.danger : colors.text },
                     ]}
                   >
                     {item.label}
@@ -349,19 +338,19 @@ export default function VendorLayout() {
         onRequestClose={() => setConfirmLogout(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.logoutDialog}>
-            <View style={styles.logoutIcon}>
-              <Ionicons name="log-out-outline" size={34} color="#EF4444" />
+          <View style={[styles.logoutDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.logoutIcon, { backgroundColor: `${colors.danger}18` }]}>
+              <Ionicons name="log-out-outline" size={34} color={colors.danger} />
             </View>
-            <Text style={styles.logoutTitle}>Logout</Text>
-            <Text style={styles.logoutMessage}>Are you sure you want to logout?</Text>
+            <Text style={[styles.logoutTitle, { color: colors.text }]}>Logout</Text>
+            <Text style={[styles.logoutMessage, { color: colors.textMuted }]}>Are you sure you want to logout?</Text>
             <View style={styles.logoutActions}>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={[styles.cancelBtn, { backgroundColor: colors.inputBg }]}
                 onPress={() => setConfirmLogout(false)}
                 disabled={loggingOut}
               >
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmBtn, loggingOut && { opacity: 0.7 }]}
@@ -369,7 +358,7 @@ export default function VendorLayout() {
                 disabled={loggingOut}
               >
                 {loggingOut ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={colors.onPrimary} size="small" />
                 ) : (
                   <Text style={styles.confirmText}>Logout</Text>
                 )}
@@ -382,29 +371,29 @@ export default function VendorLayout() {
       {/* ===================== Fuel Authorization Modal (Root-Level) ===================== */}
       <Modal visible={authModalVisible} transparent animationType="slide" onRequestClose={closeAuthModal}>
         <View style={styles.authOverlay}>
-          <View style={[styles.authModalContent, { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+          <View style={[styles.authModalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {/* Header */}
             <View style={styles.authModalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.authModalTitle}>Fuel Authorization</Text>
-                <Text style={styles.authModalSubtitle}>
+                <Text style={[styles.authModalTitle, { color: colors.text }]}>Fuel Authorization</Text>
+                <Text style={[styles.authModalSubtitle, { color: colors.textMuted }]}>
                   A fuel operator is requesting authorization to dispense fuel
                 </Text>
               </View>
-              <TouchableOpacity style={[styles.closeButton, { backgroundColor: '#F1F5F9' }]} onPress={closeAuthModal}>
-                <Ionicons name="close" size={20} color="#64748B" />
+              <TouchableOpacity style={[styles.closeButton, { backgroundColor: colors.surfaceVariant }]} onPress={closeAuthModal}>
+                <Ionicons name="close" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
             {activeAuth && (
               <>
                 {/* Request Details */}
-                <View style={[styles.authDetailCard, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                <View style={[styles.authDetailCard, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
                   <View style={styles.authDetailRow}>
-                    <Ionicons name="water-outline" size={20} color="#F59E0B" />
+                    <Ionicons name="water-outline" size={20} color={colors.warningText} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Fuel Amount</Text>
-                      <Text style={{ fontSize: 22, fontWeight: '800', color: '#F59E0B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Fuel Amount</Text>
+                      <Text style={{ fontSize: 22, fontWeight: '800', color: colors.warningText }}>
                         {activeAuth.fuelAmount || 0} Litres
                       </Text>
                     </View>
@@ -413,30 +402,30 @@ export default function VendorLayout() {
                   <View style={styles.authDivider} />
 
                   <View style={styles.authDetailRow}>
-                    <Ionicons name="person-outline" size={20} color="#3B82F6" />
+                    <Ionicons name="person-outline" size={20} color={colors.infoText} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Driver</Text>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Driver</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
                         {activeAuth.driverName || 'Unknown'}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.authDetailRow}>
-                    <Ionicons name="car-outline" size={20} color="#10B981" />
+                    <Ionicons name="car-outline" size={20} color={colors.success} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Truck</Text>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Truck</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
                         {activeAuth.plateNumber || 'Unknown'}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.authDetailRow}>
-                    <Ionicons name="time-outline" size={20} color="#F59E0B" />
+                    <Ionicons name="time-outline" size={20} color={colors.warningText} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Validity</Text>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#F59E0B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Validity</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.warningText }}>
                         {formatExpiry(activeAuth.expiresAt)}
                       </Text>
                     </View>
@@ -445,13 +434,13 @@ export default function VendorLayout() {
 
                 {/* OTP Input */}
                 <View style={styles.otpSection}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: Spacing.sm }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: Spacing.xs}}>
                     Enter Fuel Authorization PIN sent to your phone
                   </Text>
-                  <TextInput
-                    style={[styles.otpInput, { color: '#1E293B', backgroundColor: '#F8FAFC', borderColor: '#3B82F6' }]}
+                  <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
+                    style={[styles.otpInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.infoBorder }]}
                     placeholder="Enter 6-digit PIN"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={colors.textMuted}
                     keyboardType="number-pad"
                     maxLength={6}
                     value={otpInput}
@@ -463,33 +452,33 @@ export default function VendorLayout() {
                 {/* Action Buttons */}
                 <View style={styles.authActions}>
                   <TouchableOpacity
-                    style={[styles.denyButton, { borderColor: '#EF4444', backgroundColor: '#FEF2F2' }]}
+                    style={[styles.denyButton, { borderColor: colors.dangerBorder, backgroundColor: colors.dangerBg }]}
                     onPress={() => handleAuthorize(false)}
                     disabled={authSubmitting}
                     activeOpacity={0.7}
                   >
                     {authSubmitting ? (
-                      <ActivityIndicator size="small" color="#EF4444" />
+                      <ActivityIndicator size="small" color={colors.danger} />
                     ) : (
                       <>
-                        <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
-                        <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 14 }}>Not Authorize</Text>
+                        <Ionicons name="close-circle-outline" size={20} color={colors.danger} />
+                        <Text style={{ color: colors.danger, fontWeight: '800', fontSize: 14 }}>Not Authorize</Text>
                       </>
                     )}
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.authorizeButton, { backgroundColor: '#10B981' }]}
+                    style={[styles.authorizeButton, { backgroundColor: colors.success }]}
                     onPress={() => handleAuthorize(true)}
                     disabled={authSubmitting}
                     activeOpacity={0.7}
                   >
                     {authSubmitting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <ActivityIndicator size="small" color={colors.onPrimary} />
                     ) : (
                       <>
-                        <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
-                        <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Authorize</Text>
+                        <Ionicons name="checkmark-circle-outline" size={20} color={colors.onPrimary} />
+                        <Text style={{ color: colors.onPrimary, fontWeight: '800', fontSize: 14 }}>Authorize</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -503,7 +492,8 @@ export default function VendorLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const buildStyles = (colors: any) =>
+  StyleSheet.create({
   tabIcon: {
     width: 38,
     height: 28,
@@ -516,42 +506,41 @@ const styles = StyleSheet.create({
     top: 0,
     right: 0,
     bottom: 0,
-    shadowColor: '#000',
+    shadowColor: colors.text,
     shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   drawerUser: {
     alignItems: 'center',
     paddingVertical: 24,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.border,
   },
   drawerAvatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   drawerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Gap,
     paddingVertical: 14,
     paddingHorizontal: 20,
   },
   drawerItemText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1E293B',
+    color: colors.text,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
@@ -561,47 +550,44 @@ const styles = StyleSheet.create({
     maxWidth: 340,
     borderRadius: 18,
     padding: Spacing.xl,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     alignItems: 'center',
   },
   logoutIcon: {
     width: 66,
     height: 66,
     borderRadius: 22,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.dangerBg,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.lg,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   logoutTitle: {
-    color: '#1E293B',
+    color: colors.text,
     fontSize: 22,
     fontWeight: '900',
   },
   logoutMessage: {
-    color: '#64748B',
-    fontSize: 14,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xl,
+    color: colors.textMuted,
+    fontSize: 14, marginTop: Spacing.xs, marginBottom: Spacing.xs,
     textAlign: 'center',
   },
   logoutActions: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: Gap,
     width: '100%',
   },
   cancelBtn: {
     flex: 1,
     height: 48,
     borderRadius: Radius.md,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelText: {
-    color: '#1E293B',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '800',
   },
@@ -609,12 +595,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: Radius.md,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
   confirmText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '900',
   },
@@ -627,12 +613,12 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
   authBadgeText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 10,
     fontWeight: '900',
   },
@@ -640,7 +626,7 @@ const styles = StyleSheet.create({
   // Auth Modal Styles
   authOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   authModalContent: {
@@ -654,19 +640,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: Gap, marginBottom: Spacing.xs,
   },
   authModalTitle: {
-    color: '#1E293B',
+    color: colors.text,
     fontSize: 20,
     fontWeight: '900',
   },
   authModalSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
+    lineHeight: 18, marginTop: Spacing.xs,
   },
   closeButton: {
     width: 38,
@@ -678,19 +662,17 @@ const styles = StyleSheet.create({
   authDetailCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+    padding: Spacing.lg, marginBottom: Spacing.xs,
   },
   authDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Gap,
     paddingVertical: Spacing.sm,
   },
   authDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: Spacing.xs,
+    backgroundColor: colors.border, marginVertical: Spacing.xs,
   },
   otpSection: {},
   otpInput: {
@@ -705,15 +687,14 @@ const styles = StyleSheet.create({
   },
   authActions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Gap, marginTop: Spacing.xs,
   },
   denyButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
+    gap: Gap,
     paddingVertical: Spacing.md,
     borderRadius: Radius.lg,
     borderWidth: 1.5,
@@ -724,9 +705,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
+    gap: Gap,
     paddingVertical: Spacing.md,
     borderRadius: Radius.lg,
     minHeight: 52,
   },
-});
+  });

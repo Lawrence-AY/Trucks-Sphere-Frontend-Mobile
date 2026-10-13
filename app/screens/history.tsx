@@ -1,9 +1,10 @@
+import { SearchField } from '../../components/EnterpriseUI';
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchWeighments } from '../../services/api';
 
 export default function HistoryScreen() {
@@ -13,11 +14,9 @@ export default function HistoryScreen() {
   const [weighments, setWeighments] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[History] Fetching weighments from backend...');
     fetchWeighments().then(data => {
-      console.log('[History] Weighments loaded:', data.length, 'items', data);
       setWeighments(data);
-    }).catch(err => console.error('[History] Failed to load weighments:', err));
+    }).catch(() => {});
   }, []);
 
   const filtered = weighments.filter(w => {
@@ -32,16 +31,7 @@ export default function HistoryScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Search */}
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search by job ID..."
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
+      <SearchField title="History" icon="time-outline" value={search} onChangeText={setSearch} placeholder="Search by job ID..." />
 
       {/* Filter Chips */}
       <View style={styles.filterRow}>
@@ -58,7 +48,7 @@ export default function HistoryScreen() {
             <Text style={[
               styles.filterText,
               { color: colors.textSecondary },
-              filter === f && { color: '#FFF' },
+              filter === f && { color: colors.onPrimary },
             ]}>
               {f === 'all' ? 'All' : f === 'weigh_in' ? 'Weigh In' : 'Weigh Out'}
             </Text>
@@ -83,15 +73,15 @@ export default function HistoryScreen() {
           >
             <View style={styles.cardTop}>
               <View style={[styles.typeBadge, {
-                backgroundColor: (item.type === 'weigh_in' ? '#2563EB' : '#7C3AED') + '15',
+                backgroundColor: (item.type === 'weigh_in' ? colors.blueText : colors.purpleText) + '15',
               }]}>
                 <Ionicons
                   name={item.type === 'weigh_in' ? 'arrow-down-circle' : 'arrow-up-circle'}
                   size={16}
-                  color={item.type === 'weigh_in' ? '#2563EB' : '#7C3AED'}
+                  color={item.type === 'weigh_in' ? colors.blueText : colors.purpleText}
                 />
                 <Text style={[styles.typeText, {
-                  color: item.type === 'weigh_in' ? '#2563EB' : '#7C3AED',
+                  color: item.type === 'weigh_in' ? colors.blueText : colors.purpleText,
                 }]}>
                   {item.type === 'weigh_in' ? 'WEIGH IN' : 'WEIGH OUT'}
                 </Text>
@@ -120,12 +110,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: Spacing.lg, marginTop: Spacing.md,
+    marginHorizontal: Spacing.lg, marginTop: Spacing.xs,
     borderRadius: Radius.md, borderWidth: 1,
-    paddingHorizontal: Spacing.md, height: 44, gap: Spacing.sm,
+    paddingHorizontal: Spacing.md, height: 44, gap: Gap,
   },
   searchInput: { flex: 1, fontSize: 14 },
-  filterRow: { flexDirection: 'row', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Spacing.sm },
+  filterRow: { flexDirection: 'row', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Gap},
   filterChip: {
     paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
     borderRadius: Radius.full, borderWidth: 1,
@@ -134,23 +124,23 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing['4xl'] },
   card: {
     borderRadius: Radius.lg, borderWidth: 1,
-    padding: Spacing.md, marginBottom: Spacing.sm,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   cardTop: {
     flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: Spacing.sm,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   typeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    flexDirection: 'row', alignItems: 'center', gap: Gap,
     paddingHorizontal: Spacing.sm, paddingVertical: 4,
     borderRadius: Radius.sm,
   },
   typeText: { fontSize: 10, fontWeight: '700' },
   weightText: { fontSize: 18, fontWeight: '800' },
-  cardInfo: { gap: 3 },
+  cardInfo: { gap: Gap},
   jobId: { fontSize: 14, fontWeight: '600' },
   location: { fontSize: 12 },
   operator: { fontSize: 11 },
-  empty: { alignItems: 'center', marginTop: 80 },
-  emptyText: { fontSize: 15, marginTop: Spacing.md },
+  empty: { alignItems: 'center', marginTop: Spacing.xs},
+  emptyText: { fontSize: 15, marginTop: Spacing.xs},
 });

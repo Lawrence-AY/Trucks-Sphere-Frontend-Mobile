@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
   RefreshControl,
@@ -11,9 +12,11 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTheme } from "../../hooks/useTheme";
-import { Radius, Spacing } from "../../constants/theme";
-import { fetchDeliveryOrders } from "../../services/api";
+import { Gap, Radius, Spacing } from "../../constants/theme";
+import { useDeliveryOrders } from "@/store/realtimeData";
+import { useRealTimeSyncStore } from "@/store/realTimeSyncStore";
 import { formatEAT, generateReceiptNoteId } from "../../utils/helpers";
+import { isActiveJob, normalizeJobStatus } from '../../utils/jobStatus';
 import { buildCsvContent, shareCsvAsFile } from "../../utils/exportData";
 import {
   DataCard,
@@ -26,10 +29,11 @@ import {
 
 /* ─────────── Filter Types ─────────── */
 
-type FilterPeriod = "today" | "week" | "month";
+type FilterPeriod = "all" | "today" | "week" | "month";
 type DetailView = "overview" | "completed" | "pending";
 
 const FILTER_LABELS: Record<FilterPeriod, string> = {
+  all: "All time",
   today: "Today",
   week: "This Week",
   month: "This Month",
@@ -37,33 +41,78 @@ const FILTER_LABELS: Record<FilterPeriod, string> = {
 
 /* ─────────── Phase 3: History Tab — Logs, Analytics & Reporting ─────────── */
 
+const receiver = (item: any): string => item.siteWeighOutByName || item.receivedByName || (typeof item.receivedBy === 'string' ? item.receivedBy : item.receivedBy?.displayName) || item.siteWeighInByName || item.warehouseAcceptedByName || 'Not recorded';
+const listenerRecord = (item: any) => Boolean(item.accessBridgeKey || item.accessBridgeSource || item.accessCapture || item.createdBy === 'access_bridge');
+
 export default function OperatorSiteHistoryScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const styles = buildThemeStyles(colors);
+  const allDeliveries = useDeliveryOrders();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const storeLoading = useRealTimeSyncStore((s) => s.isLoading);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterPeriod>("today");
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [filter, setFilter] = useState<FilterPeriod>("all");
   const [detailView, setDetailView] = useState<DetailView>("overview");
 
   // ─── Selected item for detail view ───
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
 
-  const loadData = async () => {
+
+
+  
+  function formatEAT(value: any): string {
+  if (!value) return '';
+  try {
+    const d = value instanceof Date
+      ? value
+      : typeof value?.toDate === 'function'
+        ? value.toDate()
+        : typeof value === 'object' && typeof value.seconds === 'number'
+          ? new Date(value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1e6))
+          : new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('en-KE', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Africa/Nairobi',
+      hour12: false,
+      timeZoneName: 'short',
+    });
+  } catch { 
+    return '';
+  }
+}
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data);
-    } catch {
-    } finally {
-      setRefreshing(false);
+    await refresh('deliveryOrders');
+    setRefreshing(false);
+  }, [refresh]);
+
+  // Mark loading as complete once data arrives or store reports finished
+  useEffect(() => {
+    if (allDeliveries.length > 0) {
+      setLoading(false);
+    } else if (!storeLoading('deliveryOrders')) {
       setLoading(false);
     }
-  };
+  }, [allDeliveries, storeLoading]);
 
+  // Safety timeout: stop showing spinner after 10s regardless
   useEffect(() => {
-    loadData();
-  }, []);
+    if (loading) {
+      const t = setTimeout(() => setLoading(false), 10000);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
+
+  // History is shared across all sites, including listener-created deliveries.
+  const deliveries = allDeliveries || [];
 
   /* ─── Date Range Logic ─── */
 
@@ -92,7 +141,7 @@ export default function OperatorSiteHistoryScreen() {
   const pendingJobs = useMemo(() => {
     return deliveries
       .filter(
-        (d) => !["completed", "delivered", "loaded", "cancelled"].includes(d.status),
+        (d) => !d.warehouseAcceptedAt && isActiveJob(d.status) && normalizeJobStatus(d.status) !== 'DISPATCHED',
       )
       .sort(
         (a, b) =>
@@ -103,37 +152,39 @@ export default function OperatorSiteHistoryScreen() {
 
   const completedRecords = useMemo(() => {
     return deliveries
-      .filter((d) => d.status === "completed" || d.status === "delivered")
+      .filter((d) => Boolean(d.warehouseAcceptedAt) || ['SITE_WEIGHED_OUT', 'COMPLETED'].includes(normalizeJobStatus(d.status)))
       .filter((d) => {
+        if (filter === "all") return true;
         const date = new Date(
-          d.receivedAt || d.siteWeighInAt || d.updatedAt || d.createdAt,
+          d.warehouseAcceptedAt || d.siteWeighOutAt || d.receivedAt || d.siteWeighInAt || d.updatedAt || d.createdAt,
         );
         return date >= startDate;
       })
       .map((d) => ({
         ...d,
-        receiptNoteId: d.receiptNoteId || generateReceiptNoteId(d.jobId),
+        receiptNoteId: d.receiptNoteId || generateReceiptNoteId(),
       }))
       .sort(
         (a, b) =>
           new Date(
-            b.receivedAt || b.siteWeighInAt || b.updatedAt || b.createdAt,
+            b.warehouseAcceptedAt || b.siteWeighOutAt || b.receivedAt || b.siteWeighInAt || b.updatedAt || b.createdAt,
           ).getTime() -
           new Date(
-            a.receivedAt || a.siteWeighInAt || a.updatedAt || a.createdAt,
+            a.warehouseAcceptedAt || a.siteWeighOutAt || a.receivedAt || a.siteWeighInAt || a.updatedAt || a.createdAt,
           ).getTime(),
       );
-  }, [deliveries, startDate]);
+  }, [deliveries, startDate, filter]);
 
   /* ─── Analytics / Summary Stats ─── */
 
   const analytics = useMemo(() => {
     const totalCompleted = completedRecords.length;
-    const totalSiteNet = completedRecords.reduce(
+    const weighedRecords = completedRecords.filter((r) => !r.isWarehouseMaterial && r.originType !== 'WAREHOUSE');
+    const totalSiteNet = weighedRecords.reduce(
       (sum, r) => sum + (r.siteNetWeight || r.quantityDelivered || 0),
       0,
     );
-    const totalQuarryNet = completedRecords.reduce(
+    const totalQuarryNet = weighedRecords.reduce(
       (sum, r) =>
         sum +
         (r.netWeight ??
@@ -142,27 +193,27 @@ export default function OperatorSiteHistoryScreen() {
             : 0)),
       0,
     );
-    const totalDifference = completedRecords.reduce(
+    const totalDifference = weighedRecords.reduce(
       (sum, r) => sum + Math.abs(r.siteWeightDifference || 0),
       0,
     );
 
  
-    const discrepancies = completedRecords.filter(
+    const discrepancies = weighedRecords.filter(
       (r) =>
         r.siteWeightDifference != null &&
         Math.abs(r.siteWeightDifference) > 0.5,
     ).length;
 
     // Average net per delivery
-    const avgNet = totalCompleted > 0 ? totalSiteNet / totalCompleted : 0;
+    const avgNet = weighedRecords.length > 0 ? totalSiteNet / weighedRecords.length : 0;
 
     // Material breakdown
     const materialBreakdown: Record<
       string,
       { count: number; totalNet: number }
     > = {};
-    completedRecords.forEach((r) => {
+    weighedRecords.forEach((r) => {
       const mat = r.materialName || "Unknown";
       if (!materialBreakdown[mat]) {
         materialBreakdown[mat] = { count: 0, totalNet: 0 };
@@ -193,15 +244,22 @@ export default function OperatorSiteHistoryScreen() {
     "Driver",
     "Truck Plate",
     "Material",
-    "Qty Ordered (t)",
+    "Lot Number",
     "Quarry Net (t)",
     "Site In (t)",
     "Site Out (t)",
     "Site Net (t)",
-    "Expected (t)",
     "Difference (t)",
-    "Status",
     "Finalized",
+    "Warehouse Accepted At",
+    "Accepted By",
+    "Site",
+    "Weighed In By",
+    "Site Weigh In At",
+    "Weighed Out By",
+    "Site Weigh Out At",
+    "Received By",
+    "Record Source",
   ];
 
   const buildExportRows = (records: any[]): string[][] =>
@@ -228,15 +286,22 @@ export default function OperatorSiteHistoryScreen() {
         r.driverName || "",
         r.plateNumber || "",
         r.materialName || "",
-        String(r.quantityOrdered ?? ""),
+        r.storageLot || r.lotNumber || r.destinationLot || "-",
         quarryNet != null ? quarryNet.toFixed(1) : "—",
         siteIn != null ? siteIn.toFixed(1) : "—",
         siteOut != null ? siteOut.toFixed(1) : "—",
         siteNet != null ? siteNet.toFixed(1) : "—",
-        r.quantityOrdered != null ? r.quantityOrdered.toFixed(1) : "—",
         diff != null ? `${diff > 0 ? "+" : ""}${diff.toFixed(2)}` : "—",
-        r.status || "",
-        r.receivedAt || r.updatedAt || r.createdAt || "",
+        formatEAT(r.warehouseAcceptedAt || r.receivedAt || r.updatedAt || r.createdAt || ""),
+        formatEAT(r.warehouseAcceptedAt),
+        r.warehouseAcceptedByName || r.warehouseAcceptedByUid || "",
+        r.siteName || r.receivedLocation || r.siteId || "",
+        r.siteWeighInByName || "Not recorded",
+        formatEAT(r.siteWeighInAt),
+        r.siteWeighOutByName || "Not recorded",
+        formatEAT(r.siteWeighOutAt),
+        receiver(r),
+        listenerRecord(r) ? "Weighbridge listener" : "App / other",
       ];
     });
 
@@ -262,9 +327,70 @@ export default function OperatorSiteHistoryScreen() {
 
   /* ─── Render: Detail Modal ─── */
 
+
+  const getWarehouseItems = (item: any) => item.materials || item.additionalItems || [];
+
+  const renderWarehouseReceiptSummary = (item: any) => {
+    const warehouseItems = getWarehouseItems(item);
+    const totalItems = Number.isFinite(Number(item.itemCount)) && Number(item.itemCount) > 0
+      ? Number(item.itemCount)
+      : warehouseItems.length;
+
+    return (
+      <View style={{ gap: Gap}}>
+        <Text style={[styles.tableJobId, { color: colors.text }]}>{item.jobId}</Text>
+        {item.receiptNoteId ? <Text style={{ color: colors.text }}>Receipt Note: {item.receiptNoteId}</Text> : null}
+        <Text style={{ color: colors.textMuted }}>{item.poNumber || 'No PO'} ? Warehouse</Text>
+        <Text style={{ color: colors.text }}>{item.vendorName || ''}</Text>
+        <Text style={{ color: colors.text }}>Accepted by: {item.warehouseAcceptedByName || item.warehouseAcceptedByUid || 'Unknown'}</Text>
+        <Text style={{ color: colors.textMuted }}>Accepted: {formatEAT(item.warehouseAcceptedAt)}</Text>
+        <Text style={{ color: colors.text }}>{normalizeJobStatus(item.status) === 'COMPLETED' ? 'Inspected' : 'Awaiting inspection'}</Text>
+        <Text style={{ color: colors.text, fontWeight: '700' }}>Total materials shipped: {totalItems}</Text>
+      </View>
+    );
+  };
+
+  const renderWarehouseReceipt = (item: any) => (
+    <View style={{ gap: Gap}}>
+      <Text style={[styles.tableJobId, { color: colors.text }]}>{item.jobId}</Text>
+      {item.receiptNoteId ? <Text style={{ color: colors.text }}>Receipt Note: {item.receiptNoteId}</Text> : null}
+      <Text style={{ color: colors.textMuted }}>{item.poNumber || 'No PO'} ? Warehouse</Text>
+      <Text style={{ color: colors.text }}>{item.vendorName || ''}</Text>
+      <Text style={{ color: colors.text }}>Accepted by: {item.warehouseAcceptedByName || item.warehouseAcceptedByUid || 'Unknown'}</Text>
+      <Text style={{ color: colors.textMuted }}>Accepted: {formatEAT(item.warehouseAcceptedAt)}</Text>
+      <Text style={{ color: colors.text }}>{normalizeJobStatus(item.status) === 'COMPLETED' ? 'Inspected' : 'Awaiting inspection'}</Text>
+      {getWarehouseItems(item).map((line: any, index: number) => (
+        <Text key={line.id || index} style={{ color: colors.text }}>{line.materialName || line.name || line.productName}: {line.quantity ?? ''} {line.unit || ''}</Text>
+      ))}
+    </View>
+  );
+
+  const renderPersonnel = (item: any) => (
+    <View style={{ marginTop: Spacing.sm, gap: Gap }}>
+      <Text style={{ color: colors.text, fontWeight: '700' }}>Site Personnel</Text>
+      <Text style={{ color: colors.textSecondary }}>Site: {item.siteName || item.receivedLocation || item.siteId || 'Not recorded'}</Text>
+      <Text style={{ color: colors.textSecondary }}>Weighed in by: {item.siteWeighInByName || 'Not recorded'}{item.siteWeighInAt ? ' ? ' + formatEAT(item.siteWeighInAt) : ''}</Text>
+      <Text style={{ color: colors.textSecondary }}>Weighed out by: {item.siteWeighOutByName || 'Not recorded'}{item.siteWeighOutAt ? ' ? ' + formatEAT(item.siteWeighOutAt) : ''}</Text>
+      <Text style={{ color: colors.textSecondary }}>Received by: {receiver(item)}</Text>
+      {listenerRecord(item) && <Text style={{ color: colors.textMuted }}>Weighbridge listener</Text>}
+    </View>
+  );
+
   const renderDetailModal = () => {
     if (!selectedItem) return null;
     const item = selectedItem;
+    if (item.warehouseAcceptedAt) return (
+      <Modal visible={detailModalVisible} transparent animationType="slide" onRequestClose={() => setDetailModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.detailSheet, { backgroundColor: colors.surface }]}>
+            <ScrollView contentContainerStyle={{ gap: Gap}}>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close details" onPress={() => setDetailModalVisible(false)}><Ionicons name="close" size={24} color={colors.text} /></TouchableOpacity>
+              {renderWarehouseReceipt(item)}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
     const siteIn = item.siteWeighInWeight ?? null;
     const siteOut = item.siteWeighOutWeight ?? null;
     const siteNet = item.siteNetWeight ?? item.quantityDelivered ?? null;
@@ -291,7 +417,7 @@ export default function OperatorSiteHistoryScreen() {
           >
             <ScrollView
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ gap: Spacing.md }}
+              contentContainerStyle={{ gap: Gap}}
             >
               {/* Header */}
               <View style={styles.detailHead}>
@@ -403,7 +529,7 @@ export default function OperatorSiteHistoryScreen() {
                     Material
                   </Text>
                   <Text style={[styles.detailValue, { color: colors.text }]}>
-                    {item.materialName || "N/A"}
+                    {formatPurchaseOrderMaterials(item) || "N/A"}
                   </Text>
                 </View>
                  
@@ -441,7 +567,7 @@ export default function OperatorSiteHistoryScreen() {
                         >
                           In
                         </Text>
-                        <Text style={[styles.dwValue, { color: "#2563EB" }]}>
+                        <Text style={[styles.dwValue, { color: colors.infoText }]}>
                           {item.weighInWeight != null
                             ? `${item.weighInWeight.toFixed(1)}T`
                             : "—"}
@@ -453,7 +579,7 @@ export default function OperatorSiteHistoryScreen() {
                         >
                           Out
                         </Text>
-                        <Text style={[styles.dwValue, { color: "#7C3AED" }]}>
+                        <Text style={[styles.dwValue, { color: colors.purpleText }]}>
                           {item.weighOutWeight != null
                             ? `${item.weighOutWeight.toFixed(1)}T`
                             : "—"}
@@ -493,7 +619,7 @@ export default function OperatorSiteHistoryScreen() {
                         >
                           In
                         </Text>
-                        <Text style={[styles.dwValue, { color: "#F59E0B" }]}>
+                        <Text style={[styles.dwValue, { color: colors.warningText }]}>
                           {siteIn != null ? `${siteIn.toFixed(1)}T` : "—"}
                         </Text>
                       </View>
@@ -503,7 +629,7 @@ export default function OperatorSiteHistoryScreen() {
                         >
                           Out
                         </Text>
-                        <Text style={[styles.dwValue, { color: "#8B5CF6" }]}>
+                        <Text style={[styles.dwValue, { color: colors.purpleText }]}>
                           {siteOut != null ? `${siteOut.toFixed(1)}T` : "—"}
                         </Text>
                       </View>
@@ -516,7 +642,7 @@ export default function OperatorSiteHistoryScreen() {
                         <Text
                           style={[
                             styles.dwValue,
-                            { color: "#10B981", fontSize: 16 },
+                            { color: colors.success, fontSize: 16 },
                           ]}
                         >
                           {siteNet != null ? `${siteNet.toFixed(1)}T` : "—"}
@@ -595,6 +721,7 @@ export default function OperatorSiteHistoryScreen() {
                     </Text>
                   </View>
                 )}
+                {renderPersonnel(item)}
                 {item.siteWeighInAt && (
                   <View style={styles.detailRow}>
                     <Text
@@ -661,26 +788,18 @@ export default function OperatorSiteHistoryScreen() {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={loadData}
+          onRefresh={handleRefresh}
           tintColor={colors.primary}
         />
       }
     >
-      {/* ─── Analytics Overview ─── */}
-      <View style={styles.analyticsHeader}>
-        <Text style={[styles.analyticsTitle, { color: colors.text }]}>
-          Analytics & Reporting
-        </Text>
-        <Text style={[styles.analyticsSub, { color: colors.textMuted }]}>
-          {FILTER_LABELS[filter]}
-        </Text>
-      </View>
+     
 
      
 
       {/* Filter Pills */}
       <View style={styles.filterRow}>
-        {(["today", "week", "month"] as FilterPeriod[]).map((period) => {
+        {(["all", "today", "week", "month"] as FilterPeriod[]).map((period) => {
           const active = filter === period;
           return (
             <TouchableOpacity
@@ -703,12 +822,12 @@ export default function OperatorSiteHistoryScreen() {
                       : "calendar-number-outline"
                 }
                 size={14}
-                color={active ? "#FFFFFF" : colors.textSecondary}
+                color={active ? colors.onPrimary : colors.textSecondary}
               />
               <Text
                 style={[
                   styles.filterPillText,
-                  { color: active ? "#FFFFFF" : colors.textSecondary },
+                  { color: active ? colors.onPrimary : colors.textSecondary },
                 ]}
               >
                 {FILTER_LABELS[period]}
@@ -721,10 +840,10 @@ export default function OperatorSiteHistoryScreen() {
       {/* Export Actions */}
       <View style={styles.exportRow}>
         <TouchableOpacity
-          style={[styles.exportBtn, { backgroundColor: "#2563EB" }]}
+          style={[styles.exportBtn, { backgroundColor: colors.primary }]}
           onPress={handleDownloadCSV}
         >
-          <Ionicons name="document-text-outline" size={16} color="#FFFFFF" />
+          <Ionicons name="document-text-outline" size={16} color={colors.onPrimary} />
           <Text style={styles.exportBtnText}>Download CSV</Text>
         </TouchableOpacity>
       </View>
@@ -760,7 +879,7 @@ export default function OperatorSiteHistoryScreen() {
                   >
                     {data.count} deliveries
                   </Text>
-                  <Text style={[styles.materialNet, { color: colors.primary }]}>
+                  <Text style={[styles.materialNet, { color: colors.primaryText }]}>
                     {data.totalNet.toFixed(1)}T
                   </Text>
                 </View>
@@ -825,7 +944,7 @@ export default function OperatorSiteHistoryScreen() {
                     Material
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.materialName || "—"}
+                    {formatPurchaseOrderMaterials(item) || "—"}
                   </Text>
                 </View>
                
@@ -872,6 +991,7 @@ export default function OperatorSiteHistoryScreen() {
         </DataCard>
       ) : completedRecords.length ? (
         completedRecords.map((item) => {
+          if (item.warehouseAcceptedAt) return <DataCard key={item.id} onPress={() => openDetail(item)}>{renderWarehouseReceiptSummary(item)}</DataCard>;
           const quarryNet =
             item.netWeight ??
             (item.weighInWeight != null && item.weighOutWeight != null
@@ -884,7 +1004,7 @@ export default function OperatorSiteHistoryScreen() {
           return (
             <DataCard key={item.id} onPress={() => openDetail(item)}>
               <View style={styles.tableHeaderRow}>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 0 }}>
                   <Text style={[styles.tableJobId, { color: colors.text }]}>
                     {item.jobId}
                   </Text>
@@ -894,11 +1014,11 @@ export default function OperatorSiteHistoryScreen() {
                 </View>
                 {/* RN Badge — tappable to view receipt note */}
                 <TouchableOpacity
-                  style={[styles.rnBadge, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
+                  style={[styles.rnBadge, { backgroundColor: `${colors.success}15`, borderColor: `${colors.successBorder}33` }]}
                   onPress={(e) => { e.stopPropagation(); router.push(`/screens/receipt-note?id=${item.jobId}` as any); }}
                 >
-                  <Ionicons name="receipt-outline" size={12} color="#10B981" style={{ marginTop: 1 }} />
-                  <Text style={[styles.rnBadgeText, { color: '#10B981' }]} numberOfLines={2}>{item.receiptNoteId}</Text>
+                  <Ionicons name="receipt-outline" size={12} color={colors.success} style={{ marginTop: Spacing.xs}} />
+                  <Text style={[styles.rnBadgeText, { color: colors.success }]} numberOfLines={2}>{item.receiptNoteId}</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.tableRow}>
@@ -931,7 +1051,7 @@ export default function OperatorSiteHistoryScreen() {
                     Material
                   </Text>
                   <Text style={[styles.tableValue, { color: colors.text }]}>
-                    {item.materialName || "—"}
+                    {formatPurchaseOrderMaterials(item) || "—"}
                   </Text>
                 </View>
                
@@ -949,9 +1069,25 @@ export default function OperatorSiteHistoryScreen() {
               >
                 <View style={styles.weightCell}>
                   <Text style={[styles.wLabel, { color: colors.textMuted }]}>
+                    Q-In
+                  </Text>
+                  <Text style={[styles.wValue, { color: colors.purpleText }]}>
+                    {item.weighInWeight != null ? `${item.weighInWeight.toFixed(1)}T` : "—"}
+                  </Text>
+                </View>
+                <View style={styles.weightCell}>
+                  <Text style={[styles.wLabel, { color: colors.textMuted }]}>
+                    Q-Out
+                  </Text>
+                  <Text style={[styles.wValue, { color: colors.purpleText }]}>
+                    {item.weighOutWeight != null ? `${item.weighOutWeight.toFixed(1)}T` : "—"}
+                  </Text>
+                </View>
+                <View style={styles.weightCell}>
+                  <Text style={[styles.wLabel, { color: colors.textMuted }]}>
                     S-In
                   </Text>
-                  <Text style={[styles.wValue, { color: "#F59E0B" }]}>
+                  <Text style={[styles.wValue, { color: colors.warningText }]}>
                     {siteIn != null ? `${siteIn.toFixed(1)}T` : "—"}
                   </Text>
                 </View>
@@ -959,7 +1095,7 @@ export default function OperatorSiteHistoryScreen() {
                   <Text style={[styles.wLabel, { color: colors.textMuted }]}>
                     S-Out
                   </Text>
-                  <Text style={[styles.wValue, { color: "#8B5CF6" }]}>
+                  <Text style={[styles.wValue, { color: colors.purpleText }]}>
                     {siteOut != null ? `${siteOut.toFixed(1)}T` : "—"}
                   </Text>
                 </View>
@@ -970,7 +1106,7 @@ export default function OperatorSiteHistoryScreen() {
                   <Text
                     style={[
                       styles.wValue,
-                      { color: colors.success, fontSize: 16 },
+                      { color: colors.success, fontSize: 14 },
                     ]}
                   >
                     {siteNet != null ? `${siteNet.toFixed(1)}T` : "—"}
@@ -980,12 +1116,13 @@ export default function OperatorSiteHistoryScreen() {
                   <Text style={[styles.wLabel, { color: colors.textMuted }]}>
                     Q-Net
                   </Text>
-                  <Text style={[styles.wValue, { color: "#2563EB" }]}>
+                  <Text style={[styles.wValue, { color: colors.infoText }]}>
                     {quarryNet != null ? `${quarryNet.toFixed(1)}T` : "—"}
                   </Text>
                 </View>
               </View>
 
+              {renderPersonnel(item)}
               <Text
                 style={[styles.tableTimestamp, { color: colors.textTertiary }]}
               >
@@ -1014,35 +1151,31 @@ export default function OperatorSiteHistoryScreen() {
 
 /* ─── Styles ─── */
 
-const styles = StyleSheet.create({
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   // Analytics
-  analyticsHeader: {
-    marginBottom: Spacing.md,
+  analyticsHeader: { marginBottom: Spacing.xs,
   },
   analyticsTitle: {
     fontSize: 18,
     fontWeight: "900",
   },
   analyticsSub: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   kpiRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
+    gap: Gap, marginBottom: Spacing.xs,
   },
   // Filters
   filterRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
+    flexWrap: "wrap",
+    gap: Gap, marginTop: 0, marginBottom: Spacing.xs,
   },
   filterPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: Gap,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: Radius.full,
@@ -1052,26 +1185,24 @@ const styles = StyleSheet.create({
   // Export
   exportRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Gap, marginBottom:0,
   },
   exportBtn: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.sm,
+    gap: Gap,
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
     minHeight: 44,
   },
-  exportBtnText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
+  exportBtnText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" },
   // Material Breakdown
   materialBreakdownGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Gap, marginBottom: Spacing.xs,
   },
   materialCard: {
     flex: 1,
@@ -1083,43 +1214,38 @@ const styles = StyleSheet.create({
   },
   materialName: {
     fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 4,
+    fontWeight: "700", marginBottom: Spacing.xs,
     maxWidth: "100%",
   },
-  materialCount: { fontSize: 11, marginBottom: 2 },
+  materialCount: { fontSize: 11, marginBottom: Spacing.xs},
   materialNet: { fontSize: 15, fontWeight: "900" },
   // Table rows
   tableHeaderRow: {
-    flexDirection: "row",
+    flexDirection: "column",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: Spacing.sm,
+    alignItems: "flex-start", marginBottom: Spacing.xs,
   },
   tableJobId: { fontSize: 15, fontWeight: "700" },
-  tablePo: { fontSize: 11, fontWeight: "600", marginTop: 2 },
+  tablePo: { fontSize: 11, fontWeight: "600", marginTop: Spacing.xs},
   tableRow: {
     flexDirection: "row",
-    gap: Spacing.md,
-    marginBottom: 4,
+    gap: Gap, marginBottom: Spacing.xs,
   },
   tableCell: { flex: 1 },
   tableLabel: {
     fontSize: 10,
     fontWeight: "700",
-    textTransform: "uppercase",
-    marginBottom: 2,
+    textTransform: "uppercase", marginBottom: Spacing.xs,
   },
   tableValue: { fontSize: 13, fontWeight: "600" },
-  tableTimestamp: { fontSize: 12, marginTop: Spacing.sm },
+  tableTimestamp: { fontSize: 12, marginTop: Spacing.xs},
   // Weight Summary
   weightSummary: {
     flexDirection: "row",
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.sm,
-    marginTop: Spacing.sm,
-    gap: Spacing.xs,
+    padding: Spacing.sm, marginTop: Spacing.xs,
+    gap: Gap,
   },
   weightCell: {
     flex: 1,
@@ -1132,24 +1258,24 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  wValue: { fontSize: 14, fontWeight: "800", marginTop: 2 },
+  wValue: { fontSize: 14, fontWeight: "800", marginTop: Spacing.xs},
   // RN Badge
   rnBadge: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 4,
+    gap: Gap,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.full,
+    borderRadius: 1,
     borderWidth: 1,
-    maxWidth: '50%',
+    maxWidth: '100%',
     minWidth: 0,
   },
   rnBadgeText: { fontSize: 11, fontWeight: "700", flexShrink: 1 },
   // Detail Modal
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: colors.overlay,
     justifyContent: "flex-end",
   },
   detailSheet: {
@@ -1165,7 +1291,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   detailJobId: { fontSize: 18, fontWeight: "900" },
-  detailPo: { fontSize: 12, fontWeight: "600", marginTop: 2 },
+  detailPo: { fontSize: 12, fontWeight: "600", marginTop: Spacing.xs},
   detailCloseBtn: {
     width: 36,
     height: 36,
@@ -1177,14 +1303,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.md,
     padding: Spacing.md,
-    gap: 6,
+    gap: Gap,
   },
   detailSectionTitle: {
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 1,
-    textTransform: "uppercase",
-    marginBottom: 2,
+    textTransform: "uppercase", marginBottom: Spacing.xs,
   },
   detailRow: {
     flexDirection: "row",
@@ -1199,20 +1324,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: 0.5, marginBottom: Spacing.xs,
   },
-  detailWeightSubsection: {
-    marginTop: 6,
+  detailWeightSubsection: { marginTop: Spacing.xs,
   },
   detailWeightGrid: {
     flexDirection: "row",
-    gap: Spacing.sm,
+    gap: Gap,
   },
   detailWeightCell: {
     flex: 1,
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surface,
     borderRadius: Radius.md,
     paddingVertical: Spacing.sm,
   },
@@ -1221,14 +1344,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
   },
-  dwValue: { fontSize: 14, fontWeight: "800", marginTop: 2 },
+  dwValue: { fontSize: 14, fontWeight: "800", marginTop: Spacing.xs},
   detailDiffRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 6,
+    alignItems: "center", marginTop: Spacing.xs,
     paddingTop: 6,
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: colors.border,
   },
 });

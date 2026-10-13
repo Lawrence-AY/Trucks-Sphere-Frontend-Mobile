@@ -45,28 +45,14 @@ export const useLocation = () => {
       return { ...loc, address };
     } catch (err: any) {
       if (!mountedRef.current) return;
-      // IP fallback
-      try {
-        const resp = await fetch('https://ipapi.co/json/');
-        const data = await resp.json();
-        const addr = `${data.city || ''}, ${data.region || ''}, ${data.country_name || ''}`.replace(/^, /, '');
-        setState({
-          latitude: data.latitude,
-          longitude: data.longitude,
-          address: addr || 'Unknown location',
-          loading: false,
-          error: null,
-        });
-        return { latitude: data.latitude, longitude: data.longitude, address: addr };
-      } catch {
-        setState({
-          latitude: null,
-          longitude: null,
-          address: 'Location unavailable',
-          loading: false,
-          error: 'Could not get location',
-        });
-      }
+      setState({
+        latitude: null,
+        longitude: null,
+        address: '',
+        loading: false,
+        error: err?.message || 'Could not get location',
+      });
+      return null;
     }
   }, []);
 

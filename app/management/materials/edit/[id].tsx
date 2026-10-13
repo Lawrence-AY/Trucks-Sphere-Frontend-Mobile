@@ -1,0 +1,263 @@
+/**
+ * Edit Material Screen - Update material details
+ *
+ * Features:
+ *   - Pre-populated form with existing data
+ *   - Update material fields
+ *   - Dynamic properties based on category
+ *   - Validation
+ */
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Switch,
+} from 'react-native';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import { router } from '../../../../utils/router';
+import { StackScreen } from '../../../../components/ui/StackScreen';
+import { useTheme } from '../../../../hooks/useTheme';
+import { Gap, Radius, Spacing } from '../../../../constants/theme';
+import { Card } from '../../../../components/ui/Card';
+import { Input } from '../../../../components/ui/Input';
+import { Select } from '../../../../components/ui/Select';
+import { Button } from '../../../../components/ui/Button';
+import { LoadingSkeleton } from '../../../../components/ui/LoadingSkeleton';
+import { materialRepository } from '../../../../services/repositories/MaterialRepository';
+import { Material, MaterialCategory, MeasurementUnit } from '@/store/types';
+
+const CATEGORIES: { id: MaterialCategory; name: string }[] = [
+  { id: 'Aggregates', name: 'Aggregates' },
+  { id: 'Steel', name: 'Steel' },
+  { id: 'Cement', name: 'Cement' },
+  { id: 'Liquid', name: 'Liquid' },
+  { id: 'Blocks', name: 'Blocks' },
+  { id: 'Other', name: 'Other' },
+];
+
+const UNITS: { id: MeasurementUnit; name: string }[] = [
+  { id: 'Tonnes', name: 'Tonnes' },
+  { id: 'Bags', name: 'Bags' },
+  { id: 'Pieces', name: 'Pieces' },
+  { id: 'Millimetres', name: 'Millimetres' },
+  { id: 'Metres', name: 'Metres' },
+  { id: 'Litres', name: 'Litres' },
+  { id: 'Cubic Metres', name: 'Cubic Metres' },
+  { id: 'Kilograms', name: 'Kilograms' },
+];
+
+export default function EditMaterialScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const colors = useTheme();
+  const [material, setMaterial] = useState<Material | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    isWarehouseMaterial: false,
+    name: '',
+    category: 'Aggregates' as MaterialCategory,
+    measurementType: '' as MeasurementUnit,
+    defaultUnit: 'Tonnes',
+    description: '',
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (id) loadMaterial();
+  }, [id]);
+
+  async function loadMaterial() {
+    try {
+      const m = await materialRepository.getById(id!);
+      if (!m) {
+        Alert.alert('Error', 'Material not found');
+        router.back();
+        return;
+      }
+      setMaterial(m);
+      setForm({
+        isWarehouseMaterial: Boolean(m.isWarehouseMaterial),
+        name: m.name || '',
+        category: m.category || 'Aggregates',
+        measurementType: m.measurementType || '' as MeasurementUnit,
+        defaultUnit: m.defaultUnit || '',
+        description: m.description || '',
+      });
+    } catch {
+      Alert.alert('Error', 'Failed to load material');
+      router.back();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function updateField(field: string, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => {
+        const copy = { ...prev };
+        delete copy[field];
+        return copy;
+      });
+    }
+  }
+
+  function validate(): boolean {
+    const newErrors: Record<string, string> = {};
+    if (!form.name.trim()) newErrors.name = 'Material name is required';
+    if (!form.isWarehouseMaterial && !form.category) newErrors.category = 'Category is required';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  async function handleSave() {
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      await materialRepository.update(id!, {
+        name: form.name,
+        isWarehouseMaterial: form.isWarehouseMaterial,
+        ...(form.isWarehouseMaterial ? { category: 'Warehouse' as MaterialCategory } : {
+        category: form.category,
+        measurementType: form.measurementType,
+        defaultUnit: form.defaultUnit,
+        description: form.description,
+        }),
+        updatedAt: new Date().toISOString(),
+      });
+      router.back();
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to update material');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <LoadingSkeleton lines={8} variant="card" />
+      </View>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <Stack.Screen options={{ title: 'Edit Material', headerShown: false }} />
+      <StackScreen title="Edit Material" fallbackHref="/management/materials" contentStyle={styles.content}>
+       
+
+        <Card>
+          <Input
+            label="Material Name"
+            value={form.name}
+            onChangeText={(v) => updateField('name', v)}
+            placeholder="e.g. Ballast, Cement, Rebars"
+            icon="cube-outline"
+            required
+            error={errors.name}
+          />
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 12 }}><Text style={{ flex: 1, color: colors.text }}>Warehouse reference material</Text><Switch value={form.isWarehouseMaterial} onValueChange={(value) => { setForm((current) => ({ ...current, isWarehouseMaterial: value, category: value ? 'Warehouse' : '' as MaterialCategory })); setErrors({}); }} /></View>
+          {!form.isWarehouseMaterial && <>
+          <Select
+            label="Category"
+            value={form.category}
+            options={CATEGORIES}
+            onSelect={(v) => updateField('category', v)}
+            icon="folder-outline"
+            required
+            error={errors.category}
+          />
+
+          <Select
+            label="Measurement Type"
+            value={form.measurementType}
+            options={UNITS}
+            onSelect={(v) => updateField('measurementType', v)}
+            icon="speedometer-outline"
+            error={errors.measurementType}
+          />
+
+          <Select
+            label="Default Unit"
+            value={form.defaultUnit}
+            options={UNITS}
+            onSelect={(v) => updateField('defaultUnit', v)}
+            icon="scale-outline"
+          />
+
+          <Input
+            label="Description"
+            value={form.description}
+            onChangeText={(v) => updateField('description', v)}
+            placeholder="Brief description of the material"
+            icon="document-text-outline"
+            multiline
+            numberOfLines={3}
+          />
+          </>}
+        </Card>
+
+        <View style={styles.actions}>
+          <Button
+            title="Cancel"
+            onPress={() => { setForm({
+    isWarehouseMaterial: false,
+    name: '',
+    category: 'Aggregates' as MaterialCategory,
+    measurementType: '' as MeasurementUnit,
+    defaultUnit: 'Tonnes',
+    description: '',
+  }); setErrors({}); (() => router.back())(); }}
+            variant="secondary"
+            style={styles.actionBtn}
+          />
+          <Button
+            title="Save Changes"
+            onPress={handleSave}
+            icon="checkmark-circle"
+            style={styles.actionBtn}
+            loading={saving}
+          />
+        </View>
+      </StackScreen>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing['4xl'],
+  },
+  header: { marginBottom: Spacing.xs,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  subtitle: {
+    fontSize: 14, marginTop: Spacing.xs,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: Gap, marginTop: Spacing.xs,
+  },
+  actionBtn: {
+    flex: 1,
+  },
+});

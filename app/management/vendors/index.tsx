@@ -1,0 +1,408 @@
+/**
+ * Vendor List Screen - Full CRUD with search, filter, and pagination
+ *
+ * Features:
+ *   - Search by name, contact, KRA PIN
+ *   - Filter by status
+ *   - Create new vendor
+ *   - Tap to view vendor details with tabs
+ *   - Pull to refresh
+ */
+
+import React, { useMemo, useRef, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../../hooks/useTheme';
+import { Gap, Radius, Spacing } from '../../../constants/theme';
+import { Card } from '../../../components/ui/Card';
+import { Badge } from '../../../components/ui/Badge';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
+import { vendorRepository } from '../../../services/repositories/VendorRepository';
+import { Vendor } from '@/store/types';
+import { fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../../services/api';
+import api from '../../../services/api';
+import { useAuthStore } from '@/store/authStore';
+import { hasManagementPermission } from '../../../utils/access';
+import { ManagementSearchHeader } from '../../../components/ManagementSearchHeader';
+import DesktopRecords from '../../../components/DesktopRecords';
+import { useDesktopWeb } from '../../../hooks/useDesktopWeb';
+
+const STATUS_BADGE: Record<string, { variant: 'success' | 'warning' | 'danger'; label: string }> = {
+  active: { variant: 'success', label: 'Active' },
+  inactive: { variant: 'warning', label: 'Inactive' },
+  suspended: { variant: 'danger', label: 'Suspended' },
+};
+
+export default function VendorListScreen() {
+  const desktop = useDesktopWeb();
+  const colors = useTheme();
+  const styles = buildThemeStyles(colors);
+  const user = useAuthStore((state) => state.user);
+  const canWriteVendors = hasManagementPermission(user?.role, 'vendors.write');
+  const insets = useSafeAreaInsets();
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const requestVersion = useRef(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [vendorStats, setVendorStats] = useState<Record<string, { drivers: number; vehicles: number; jobs: number }>>({});
+
+  useFocusEffect(
+    useCallback(() => {
+      vendorRepository.invalidateCache();
+      void loadVendors();
+    }, []),
+  );
+
+  const filtered = useMemo(() => filterVendors(), [search, vendors]);
+
+  async function loadVendors() {
+    const version = ++requestVersion.current;
+    try {
+      // Fetch all parallel: vendors, drivers, vehicles, jobs
+      const [vendorData, drivers, vehicles, jobs] = await Promise.all([
+        vendorRepository.getAll().then(data => {
+          if (version === requestVersion.current) {
+            setVendors(data);
+            setLoading(false);
+          }
+          return data;
+        }),
+        fetchDrivers(),
+        fetchVehicles(),
+        fetchDeliveryOrders(),
+      ]);
+
+      if (version !== requestVersion.current) return;
+      setVendors(vendorData);
+
+      // Compute per-vendor stats
+      const stats: Record<string, { drivers: number; vehicles: number; jobs: number }> = {};
+      vendorData.forEach((v) => {
+        const vid = v.id;
+        stats[vid] = {
+          drivers: drivers.filter((d: any) => d.vendorId === vid).length,
+          vehicles: vehicles.filter((t: any) => t.vendorId === vid).length,
+          jobs: jobs.filter((j: any) => j.vendorId === vid).length,
+        };
+      });
+      setVendorStats(stats);
+    } catch {
+      // Error handled silently
+    } finally {
+      if (version === requestVersion.current) setLoading(false);
+    }
+  }
+
+  async function onRefresh() {
+    setRefreshing(true);
+    vendorRepository.invalidateCache();
+    await loadVendors();
+    setRefreshing(false);
+  }
+
+
+  function filterVendors() {
+    let result = [...vendors];
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(
+        (v) =>
+          v.companyName?.toLowerCase().includes(q) ||
+          (v as any).name?.toLowerCase().includes(q) ||
+          v.contactPerson?.toLowerCase().includes(q) ||
+          v.email?.toLowerCase().includes(q) ||
+          (v as any).address?.toLowerCase().includes(q) ||
+          v.vendorId?.toLowerCase().includes(q) ||
+          v.kraPin?.toLowerCase().includes(q) ||
+          v.phone?.includes(q)
+      );
+    }
+    return result.sort((a, b) => String(a.vendorId || a.id).localeCompare(String(b.vendorId || b.id), 'en', { numeric: true, sensitivity: 'base' }) || a.id.localeCompare(b.id));
+  }
+
+  function getStatusBadge(status?: string) {
+    const config = STATUS_BADGE[status || ''] || { variant: 'default' as const, label: status || 'Unknown' };
+    return <Badge label={config.label} variant={config.variant as any} size="sm" dot />;
+  }
+
+  function renderVendor({ item }: { item: Vendor }) {
+    // Backend uses 'name' as the primary field; fall back to 'companyName' if available
+    const displayName = item.companyName || (item as any).name || 'Unknown Vendor';
+
+    return (
+      <TouchableOpacity
+        style={[styles.vendorCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => router.push(`/management/vendors/${item.id}` as any)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.vendorHeader}>
+          <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
+            <Text style={[styles.avatarText, { color: colors.primaryText }]}>
+              {displayName?.charAt(0)?.toUpperCase() || 'V'}
+            </Text>
+          </View>
+          <View style={styles.vendorInfo}>
+            <Text style={[styles.vendorName, { color: colors.text }]} numberOfLines={1}>
+              {displayName}
+            </Text>
+            {item.email ? (
+              <Text style={[styles.vendorId, { color: colors.textMuted }]} numberOfLines={1}>
+                {item.email}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.vendorMeta}>
+          <View style={styles.metaItem}>
+            <Ionicons name="person-outline" size={14} color={colors.textMuted} />
+            <Text style={[styles.metaText, { color: colors.textMuted }]} numberOfLines={1}>
+              {item.contactPerson || 'No contact'}
+            </Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="call-outline" size={14} color={colors.textMuted} />
+            <Text style={[styles.metaText, { color: colors.textMuted }]}>{item.phone || '-'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.vendorStats}>
+          <View style={styles.stat}>
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {vendorStats[item.id]?.drivers ?? 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Drivers</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {vendorStats[item.id]?.vehicles ?? 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Trucks</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={[styles.statValue, { color: colors.text }]}>
+              {vendorStats[item.id]?.jobs ?? 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textMuted }]}>Trips</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  if (desktop) return <DesktopRecords title="Vendors" records={filtered} search={search} onSearch={setSearch} loading={loading} refreshing={refreshing} onRefresh={onRefresh}
+    createHref={canWriteVendors ? '/management/vendors/create' : undefined} createLabel="Add vendor"
+    recordHref={item => `/management/vendors/${encodeURIComponent(item.id)}`}
+    columns={[
+      { key: 'name', label: 'Company', value: item => item.companyName || item.name || item.id },
+      { key: 'contact', label: 'Contact person', value: item => item.contactPerson || '—' },
+      { key: 'phone', label: 'Phone', value: item => item.phone || '—' },
+      { key: 'drivers', label: 'Drivers', value: item => vendorStats[item.id]?.drivers || 0 },
+      { key: 'trucks', label: 'Trucks', value: item => vendorStats[item.id]?.vehicles || 0 },
+      { key: 'status', label: 'Status', value: item => item.status || '—' },
+    ]} />;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>Vendors</Text>
+        </View>
+        <LoadingSkeleton lines={6} variant="card" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <ManagementSearchHeader title="Vendors" search={search} onChangeSearch={setSearch} placeholder="Search vendors..." />
+
+      <FlatList
+        data={filtered}
+        keyExtractor={(item) => item.id}
+        renderItem={renderVendor}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        ListEmptyComponent={
+          <EmptyState
+            icon="business-outline"
+            title={search ? 'No vendors found' : 'No vendors yet'}
+            subtitle={
+              search
+                ? 'Try a different search term'
+                : 'Create your first vendor to get started'
+            }
+            actionLabel={!search && canWriteVendors ? 'Add Vendor' : undefined}
+            onAction={!search && canWriteVendors ? () => router.push('/management/vendors/create' as any) : undefined}
+          />
+        }
+      />
+
+      {canWriteVendors && (
+        <TouchableOpacity
+          style={[styles.fab, { backgroundColor: colors.primary, bottom: insets.bottom + Spacing.xl }]}
+          onPress={() => router.push('/management/vendors/create' as any)}
+          accessibilityLabel="Add vendor"
+          accessibilityRole="button"
+        >
+          <Ionicons name="add" size={28} color={colors.onPrimary} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: Spacing.xs,
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 7,
+  },
+  syncButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  count: {
+    fontSize: 13, marginTop: Spacing.xs,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 44,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    gap: Gap, marginBottom: Spacing.xs,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: Gap, marginBottom: Spacing.xs,
+  },
+  filterChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  list: {
+    padding: Spacing.md,
+    paddingTop: 0,
+    paddingBottom: Spacing['4xl'],
+  },
+  vendorCard: {
+    borderRadius: 5,
+    borderWidth: 1,
+    padding: Spacing.md, marginBottom: Spacing.xs,
+  },
+  vendorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap, marginBottom: Spacing.xs,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  vendorInfo: {
+    flex: 1,
+  },
+  vendorName: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  vendorId: {
+    fontSize: 12, marginTop: Spacing.xs,
+  },
+  vendorMeta: {
+    gap: Gap, marginBottom: Spacing.xs,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+  },
+  metaText: {
+    fontSize: 12,
+  },
+  vendorStats: {
+    flexDirection: 'row',
+    gap: Gap,
+    paddingTop: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  stat: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  statLabel: {
+    fontSize: 11, marginTop: Spacing.xs,
+  },
+  fab: {
+    position: 'absolute',
+    right: Spacing.xl,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 0,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+  },
+});

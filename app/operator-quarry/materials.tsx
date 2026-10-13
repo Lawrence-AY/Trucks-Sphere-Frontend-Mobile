@@ -3,7 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpaci
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Radius, Spacing } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchMaterials } from '../../services/api';
 import { DataCard, DetailRow, EmptyState, PageShell, SearchField, SectionTitle } from '../../components/EnterpriseUI';
 
@@ -51,10 +51,10 @@ export default function OperatorQuarryMaterialsScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search..." />
+      <SearchField title="Materials" icon="cube-outline" value={search} onChangeText={setSearch} placeholder="Search..." />
 
       {/* Category Dropdown Filter */}
-      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.sm, marginBottom: Spacing.sm }}>
+      <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.xs, marginBottom: Spacing.xs}}>
         <TouchableOpacity
           style={[styles.dropdownBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
           onPress={() => { setDropdownOpen(!dropdownOpen); setCatSearch(''); }}
@@ -75,7 +75,7 @@ export default function OperatorQuarryMaterialsScreen() {
           <View style={[styles.dropdownMenu, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.catSearchRow, { borderBottomColor: colors.border }]}>
               <Ionicons name="search" size={14} color={colors.textMuted} />
-              <TextInput style={[styles.catSearchInput, { color: colors.text }]} placeholder="Search categories..." placeholderTextColor={colors.textMuted} value={catSearch} onChangeText={setCatSearch} autoFocus />
+              <TextInput inputAccessoryViewID="trucksphere-keyboard-done" style={[styles.catSearchInput, { color: colors.text }]} placeholder="Search categories..." placeholderTextColor={colors.textMuted} value={catSearch} onChangeText={setCatSearch} autoFocus />
             </View>
             <ScrollView style={{ maxHeight: 180 }} keyboardShouldPersistTaps="handled">
               {catFiltered.map((c: any) => (
@@ -85,7 +85,7 @@ export default function OperatorQuarryMaterialsScreen() {
                   onPress={() => { setCategoryFilter(c.key); setDropdownOpen(false); }}
                 >
                   <Text style={{ color: colors.text, fontSize: 14, flex: 1 }} numberOfLines={1}>{c.label}</Text>
-                  {c.key === categoryFilter && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                  {c.key === categoryFilter && <Ionicons name="checkmark" size={16} color={colors.primaryText} />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -111,10 +111,10 @@ export default function OperatorQuarryMaterialsScreen() {
 }
 
 const styles = StyleSheet.create({
-  dropdownBtn: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: 6 },
+  dropdownBtn: { flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: Gap},
   dropdownBtnText: { flex: 1, fontSize: 14 },
   dropdownMenu: { borderWidth: 1, borderTopWidth: 0, borderBottomLeftRadius: Radius.md, borderBottomRightRadius: Radius.md, overflow: 'hidden' },
   dropdownItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: Spacing.md },
-  catSearchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderBottomWidth: 1, gap: 6 },
+  catSearchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderBottomWidth: 1, gap: Gap},
   catSearchInput: { flex: 1, fontSize: 13, paddingVertical: 2 },
 });

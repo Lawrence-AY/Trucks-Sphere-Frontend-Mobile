@@ -1,10 +1,11 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
-import { Spacing } from "../../constants/theme";
+import { Gap, Spacing } from "../../constants/theme";
 import { fetchFuelRecords } from "../../services/api";
-import { useAuthStore } from "../../store/authStore";
+import { useAuthStore } from "@/store/authStore";
 import { formatEAT, normalizeVendorId } from "../../utils/helpers";
 import {
   DataCard,
@@ -59,14 +60,16 @@ export default function FuelScreen() {
 
   const vendorId = user?.vendorId;
   const normalizedUserVendorId = normalizeVendorId(vendorId);
-  console.log(
-    "[FuelScreen] user.role:",
-    user?.role,
-    "user.vendorId:",
-    vendorId,
-    "normalized:",
-    normalizedUserVendorId,
-  );
+  if (__DEV__) {
+    console.log(
+      "[FuelScreen] user.role:",
+      user?.role,
+      "user.vendorId:",
+      vendorId,
+      "normalized:",
+      normalizedUserVendorId,
+    );
+  }
 
   const loadData = useCallback(async () => {
     setRefreshing(true);
@@ -86,9 +89,11 @@ export default function FuelScreen() {
           });
         } else {
           // Vendor role without vendorId — cannot determine which records belong to them
-          console.warn(
-            "[FuelScreen] Vendor role detected but no vendorId. Showing empty to prevent data leakage.",
-          );
+          if (__DEV__) {
+            console.log(
+              "[FuelScreen] Vendor role detected but no vendorId. Showing empty to prevent data leakage.",
+            );
+          }
           data = [];
         }
       }
@@ -171,14 +176,14 @@ export default function FuelScreen() {
         onChange={setTimeFilter}
       />
 
-      <View style={styles.statsRow}>
+      <ResponsiveGrid sideBySide style={styles.statsRow}>
         <View
           style={[
             styles.statCard,
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <Ionicons name="water" size={18} color="#F59E0B" />
+          <Ionicons name="water" size={18} color={colors.warning} />
           <Text style={[styles.statValue, { color: colors.text }]}>
             {totalFuel.toFixed(1)} L
           </Text>
@@ -206,7 +211,7 @@ export default function FuelScreen() {
             { backgroundColor: colors.surface, borderColor: colors.border },
           ]}
         >
-          <Ionicons name="receipt-outline" size={18} color="#10B981" />
+          <Ionicons name="receipt-outline" size={18} color={colors.success} />
           <Text style={[styles.statValue, { color: colors.text }]}>
             {filtered.length}
           </Text>
@@ -214,11 +219,11 @@ export default function FuelScreen() {
             Records
           </Text>
         </View>
-      </View>
+      </ResponsiveGrid>
 
      
 
-      <SearchField
+      <SearchField title="Fuel Records" icon="water-outline"
         value={search}
         onChangeText={setSearch}
         placeholder="Search job, driver, plate..."
@@ -245,8 +250,7 @@ export default function FuelScreen() {
               <View
                 style={{
                   flexDirection: "row",
-                  justifyContent: "space-between",
-                  marginBottom: 0.1,
+                  justifyContent: "space-between", marginBottom: Spacing.xs,
                 }}
               >
                 <View style={{ flex: 1 }}>
@@ -254,7 +258,7 @@ export default function FuelScreen() {
                     style={{
                       fontSize: 13,
                       fontWeight: "800",
-                      color: "#F59E0B",
+                      color: colors.warning,
                     }}
                   >
                     {item.fuelId || item.id || item.jobId}
@@ -264,16 +268,15 @@ export default function FuelScreen() {
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 4,
-                        marginTop: 0.1,
+                        gap: Gap, marginTop: Spacing.xs,
                       }}
                     >
-                      <Ionicons name="key-outline" size={11} color="#8B5CF6" />
+                      <Ionicons name="key-outline" size={11} color={colors.purple} />
                       <Text
                         style={{
                           fontSize: 11,
                           fontWeight: "600",
-                          color: "#8B5CF6",
+                          color: colors.purple,
                           fontFamily: "monospace",
                         }}
                       >
@@ -289,7 +292,7 @@ export default function FuelScreen() {
                     style={{
                       fontSize: 14,
                       fontWeight: "800",
-                      color: "#F59E0B",
+                      color: colors.warning,
                     }}
                   >
                     {item.fuelAmount?.toFixed(1)} L
@@ -321,8 +324,7 @@ export default function FuelScreen() {
               <Text
                 style={{
                   fontSize: 12,
-                  color: colors.textTertiary,
-                  marginTop:0.1,
+                  color: colors.textTertiary, marginTop: Spacing.xs,
                 }}
               >
                 Dispensed: {formatEAT(item.dispensedAt || item.createdAt)}
@@ -348,14 +350,14 @@ export default function FuelScreen() {
 }
 
 const styles = StyleSheet.create({
-  statsRow: { flexDirection: "row", gap: Spacing.sm, marginBottom: Spacing.md },
+  statsRow: { flexDirection: "row", gap: Gap, marginBottom: Spacing.xs},
   statCard: {
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
     padding: Spacing.xs,
     alignItems: "center",
-    gap: 4,
+    gap: Gap,
   },
   statValue: { fontSize: 16, fontWeight: "800" },
   statLabel: { fontSize: 11, fontWeight: "600" },

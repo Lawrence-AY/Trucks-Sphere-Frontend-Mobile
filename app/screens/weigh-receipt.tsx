@@ -1,8 +1,9 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../utils/router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 
 export default function WeighReceiptScreen() {
   const { id, weightIn, weightOut, driver, truck } = useLocalSearchParams<{
@@ -25,8 +26,8 @@ export default function WeighReceiptScreen() {
     operator: 'Quarry Operator',
     truckPlate: truck || 'KAA 123B',
     driverName: driver || 'James Mwangi',
-    date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-    time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+    date: new Date().toLocaleDateString('en-GB', { timeZone: 'Africa/Nairobi',  day: '2-digit', month: 'short', year: 'numeric' }),
+    time: new Date().toLocaleTimeString('en-GB', { timeZone: 'Africa/Nairobi',  hour: '2-digit', minute: '2-digit' }),
     grossWeight: wIn,
     tareWeight: wOut,
     netWeight: net,
@@ -45,7 +46,7 @@ Status: ${receiptData.remarks}`;
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       {/* Supermarket-style thermal receipt */}
-      <View style={[styles.receipt, { backgroundColor: '#FFFDF7', borderColor: '#E5E0D0' }]}>
+      <View style={[styles.receipt, { backgroundColor: colors.receiptBg, borderColor: '#E5E0D0' }]}>
         {/* Header */}
         <View style={styles.receiptHeader}>
           <Ionicons name="scale" size={32} color="#333" />
@@ -81,9 +82,9 @@ Status: ${receiptData.remarks}`;
 
           <Text style={styles.rDivider}>- - - - - - - - - - - - - - - - - - -</Text>
 
-          <View style={[styles.stampArea, { backgroundColor: isWeighOut ? '#DCFCE7' : '#FEF3C7', borderColor: isWeighOut ? '#16A34A' : '#D97706' }]}>
-            <Ionicons name={isWeighOut ? 'checkmark-circle' : 'time'} size={18} color={isWeighOut ? '#16A34A' : '#D97706'} />
-            <Text style={[styles.stampText, { color: isWeighOut ? '#16A34A' : '#D97706' }]}>{receiptData.remarks}</Text>
+          <View style={[styles.stampArea, { backgroundColor: isWeighOut ? '#DCFCE7' : '#FEF3C7', borderColor: isWeighOut ? colors.success : colors.warningText }]}>
+            <Ionicons name={isWeighOut ? 'checkmark-circle' : 'time'} size={18} color={isWeighOut ? colors.success : colors.warningText} />
+            <Text style={[styles.stampText, { color: isWeighOut ? colors.success : colors.warningText }]}>{receiptData.remarks}</Text>
           </View>
 
           <Text style={styles.rDivider}>- - - - - - - - - - - - - - - - - - -</Text>
@@ -96,7 +97,7 @@ Status: ${receiptData.remarks}`;
       {/* Actions */}
       <View style={styles.actionRow}>
         <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.accent }]} onPress={handleShare}>
-          <Ionicons name="share-outline" size={20} color="#FFF" />
+          <Ionicons name="share-outline" size={20} color={colors.onPrimary} />
           <Text style={styles.actionBtnText}>Share</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]} onPress={() => router.back()}>
@@ -119,28 +120,28 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
 
   // Supermarket-style receipt
-  receipt: { borderWidth: 1.5, borderRadius: Radius.md, padding: Spacing.xl, marginBottom: Spacing.lg },
-  receiptHeader: { alignItems: 'center', marginBottom: Spacing.md },
-  receiptTitle: { fontSize: 16, fontWeight: '800', color: '#333', letterSpacing: 1, marginTop: 4 },
-  receiptLine: { width: '80%', height: 1, backgroundColor: '#DDD', marginTop: Spacing.sm },
+  receipt: { borderWidth: 1.5, borderRadius: Radius.md, padding: Spacing.xl, marginBottom: Spacing.xs},
+  receiptHeader: { alignItems: 'center', marginBottom: Spacing.xs},
+  receiptTitle: { fontSize: 16, fontWeight: '800', color: '#333', letterSpacing: 1, marginTop: Spacing.xs},
+  receiptLine: { width: '80%', height: 1, backgroundColor: '#DDD', marginTop: Spacing.xs},
   receiptBody: { padding: Spacing.sm },
   rHead: { fontSize: 14, fontWeight: '700', color: '#333', textAlign: 'center' },
-  rSub: { fontSize: 11, color: '#666', textAlign: 'center', marginBottom: 4 },
-  rDivider: { textAlign: 'center', color: '#CCC', marginVertical: 4, fontSize: 11 },
+  rSub: { fontSize: 11, color: '#666', textAlign: 'center', marginBottom: Spacing.xs},
+  rDivider: { textAlign: 'center', color: '#CCC', marginVertical: Spacing.xs, fontSize: 11 },
   rRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
   rLabel: { fontSize: 12, color: '#666', flex: 1 },
   rValue: { fontSize: 13, color: '#333', textAlign: 'right' },
   netRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
   netLabel: { fontSize: 14, fontWeight: '700', color: '#333' },
   netValue: { fontSize: 22, fontWeight: '800', color: '#2563EB' },
-  stampArea: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, paddingVertical: Spacing.sm, borderRadius: Radius.sm, borderWidth: 1 },
+  stampArea: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Gap, paddingVertical: Spacing.sm, borderRadius: Radius.sm, borderWidth: 1 },
   stampText: { fontSize: 11, fontWeight: '600' },
-  rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: 8 },
-  rFooter: { textAlign: 'center', fontSize: 10, color: '#999', marginTop: 2 },
-  rThanks: { textAlign: 'center', fontSize: 12, color: '#666', marginTop: 4, fontStyle: 'italic' },
+  rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: Spacing.xs},
+  rFooter: { textAlign: 'center', fontSize: 10, color: '#999', marginTop: Spacing.xs},
+  rThanks: { textAlign: 'center', fontSize: 12, color: '#666', marginTop: Spacing.xs, fontStyle: 'italic' },
 
-  actionRow: { flexDirection: 'row', gap: Spacing.md },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Spacing.sm },
+  actionRow: { flexDirection: 'row', gap: Gap},
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: Radius.md, gap: Gap},
   actionBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
   actionBtnTextAlt: { fontSize: 14, fontWeight: '600' },
 });

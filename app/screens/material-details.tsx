@@ -1,3 +1,4 @@
+import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -11,11 +12,11 @@ import {
   SectionTitle,
   StatusPill,
 } from '../../components/EnterpriseUI';
-import { Spacing } from '../../constants/theme';
+import { Gap, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { fetchDeliveryOrders, fetchMaterials, fetchPurchaseOrders } from '../../services/api';
-import { formatEAT } from '../../utils/helpers';
+import { formatEAT, normalizeVendorId } from '../../utils/helpers';
 
 export default function MaterialDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,7 +28,8 @@ export default function MaterialDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const vendorId = user?.role === 'vendor' ? user.vendorId || 'v1' : null;
+  const vendorId = user?.role === 'vendor' ? user.vendorId || 'v1' : '';
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
 
   useEffect(() => {
     const loadData = async () => {
@@ -49,13 +51,18 @@ export default function MaterialDetailsScreen() {
           return;
         }
 
-        const visibleOrders = vendorId ? (orderData || []).filter((item: any) => item.vendorId === vendorId) : orderData || [];
-        const visibleDeliveries = vendorId ? (deliveryData || []).filter((item: any) => item.vendorId === vendorId) : deliveryData || [];
+        const visibleOrders = normalizedUserVendorId ? (orderData || []).filter((item: any) => {
+          const recordVendorId = normalizeVendorId(item.vendorId || item.vendor || '');
+          return recordVendorId === normalizedUserVendorId;
+        }) : (orderData || []);
+        const visibleDeliveries = normalizedUserVendorId ? (deliveryData || []).filter((item: any) => {
+          const recordVendorId = normalizeVendorId(item.vendorId || item.vendor || '');
+          return recordVendorId === normalizedUserVendorId;
+        }) : (deliveryData || []);
         setMaterial(found);
         setOrders(visibleOrders.filter((order: any) => order.materialId === found.id || order.materialName === found.name));
         setDeliveries(visibleDeliveries.filter((job: any) => job.materialId === found.id || job.materialName === found.name));
       } catch (loadError) {
-        console.error('Material details load error:', loadError);
         setError('Failed to load material details.');
       } finally {
         setLoading(false);
@@ -79,7 +86,7 @@ export default function MaterialDetailsScreen() {
       <PageShell>
         <DataCard>
           <View style={styles.loadingRow}>
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={colors.primaryText} />
             <Text style={[styles.muted, { color: colors.textMuted }]}>Loading material...</Text>
           </View>
         </DataCard>
@@ -103,10 +110,10 @@ export default function MaterialDetailsScreen() {
       
       />
 
-      <View style={styles.metricRow}>
+      <ResponsiveGrid sideBySide style={styles.metricRow}>
         <MetricTile icon="document-text" label="Purchase orders" value={orders.length} tone={colors.primary} />
         <MetricTile icon="briefcase" label="Linked vendors" value={summary.vendors} tone={colors.accent} />
-      </View>
+      </ResponsiveGrid>
 
       <SectionTitle title="Purchase Orders" />
       {orders.length ? (
@@ -149,15 +156,15 @@ export default function MaterialDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: Gap},
   muted: { fontSize: 13, fontWeight: '800' },
-  metricRow: { flexDirection: 'row', gap: Spacing.md },
-  summarySub: { fontSize: 12, fontWeight: '700', marginTop: 3 },
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Spacing.md },
+  metricRow: { flexDirection: 'row', gap: Gap},
+  summarySub: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs},
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: Gap},
   cardCopy: { flex: 1 },
   poNumber: { fontSize: 17, fontWeight: '900' },
   timestamp: { fontSize: 11, fontWeight: '700' },
-  jobLine: { borderTopWidth: 1, paddingTop: Spacing.md, gap: 5 },
+  jobLine: { borderTopWidth: 1, paddingTop: Spacing.md, gap: Gap},
   jobId: { fontSize: 14, fontWeight: '900' },
   jobMeta: { fontSize: 12, fontWeight: '700' },
 });

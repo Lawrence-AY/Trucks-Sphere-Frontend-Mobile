@@ -1,8 +1,9 @@
+import { SearchField } from '../../components/EnterpriseUI';
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchDrivers } from '../../services/api';
 
 export default function MyDriversScreen() {
@@ -11,11 +12,9 @@ export default function MyDriversScreen() {
   const [drivers, setDrivers] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[MyDrivers] Fetching drivers from backend...');
     fetchDrivers().then(data => {
-      console.log('[MyDrivers] Drivers loaded:', data.length, 'items', data);
       setDrivers(data);
-    }).catch(err => console.error('[MyDrivers] Failed to load drivers:', err));
+    }).catch(() => {});
   }, []);
 
   const vendorDrivers = drivers.filter(d =>
@@ -23,10 +22,7 @@ export default function MyDriversScreen() {
   );
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search..." placeholderTextColor={colors.textTertiary} value={search} onChangeText={setSearch} />
-      </View>
+      <SearchField title="My Drivers" icon="people-outline" value={search} onChangeText={setSearch} placeholder="Search..." />
       <FlatList data={vendorDrivers} keyExtractor={d => d.id} contentContainerStyle={{ padding: 16 }}
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -44,9 +40,9 @@ export default function MyDriversScreen() {
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1 }, searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, height: 44, gap: 8 },
+  container: { flex: 1 }, searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: Spacing.xs, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, height: 44, gap: Gap},
   searchInput: { flex: 1, fontSize: 14 },
-  card: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, padding: 16, marginBottom: 8, gap: 12 },
+  card: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, padding: 16, marginBottom: Spacing.xs, gap: Gap},
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 14, fontWeight: '700' }, name: { fontSize: 15, fontWeight: '600' }, text: { fontSize: 13 },
 });

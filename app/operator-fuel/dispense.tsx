@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,24 +14,24 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import Toast from "react-native-toast-message";
 import { useTheme } from "../../hooks/useTheme";
-import { Radius, Spacing } from "../../constants/theme";
+import { Gap, Radius, Spacing } from "../../constants/theme";
 import {
-  fetchDeliveryOrders,
+  fetchFuelReadyDeliveryOrders,
   createFuelRecord,
+  confirmFuelTransaction,
   fetchFuelRecords,
-  fetchVendors,
   requestFuelAuthorization,
   verifyFuelAuthorization,
-  markJobAsFueled,
-  checkJobFuelStatus,
 } from "../../services/api";
-import { useAuthStore } from "../../store/authStore";
-import { useFuelDispenseStore } from "../../store/fuelDispenseStore";
-import type { FlowStep } from "../../store/fuelDispenseStore";
+import { normalizeJobStatus } from "../../utils/jobStatus";
+import { useAuthStore } from "@/store/authStore";
+import { useFuelDispenseStore } from "@/store/fuelDispenseStore";
+import type { FlowStep } from "@/store/fuelDispenseStore";
 import { generateFuelRecordId } from "../../utils/helpers";
 import { DataCard, EmptyState, PageShell } from "../../components/EnterpriseUI";
 import { uploadFuelPumpPhoto } from "../../services/uploadService";
@@ -58,6 +60,7 @@ function showToast(
 // ---------------------------------------------------------------------------
 export default function FuelDispenseScreen() {
   const colors = useTheme();
+  const styles = buildThemeStyles(colors);
   const { user } = useAuthStore();
 
   // ---- Local state ----
@@ -65,17 +68,16 @@ export default function FuelDispenseScreen() {
   const [fuelRecords, setFuelRecords] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [completedJobSearch, setCompletedJobSearch] = useState("");
 
   // Fuel price from management
   const [fuelPrice, setFuelPrice] = useState<number>(0);
-
-  // Vendors lookup for phone numbers
-  const [vendorsMap, setVendorsMap] = useState<Record<string, any>>({});
 
   // Fuel pump photo capture
   const [pumpPhotoUri, setPumpPhotoUri] = useState<string | null>(null);
   const [pumpPhotoUploading, setPumpPhotoUploading] = useState(false);
   const [pumpPhotoURL, setPumpPhotoURL] = useState<string | null>(null);
+  const otpInputRef = useRef<TextInput>(null);
 
   // ---- Zustand store ----
   const store = useFuelDispenseStore();
@@ -86,30 +88,23 @@ export default function FuelDispenseScreen() {
     async (silent?: boolean) => {
       if (!silent) setRefreshing(true);
       try {
-        const [deliveryData, fuelData, vendorData] = await Promise.all([
-          fetchDeliveryOrders(),
+        const [deliveryData, fuelData] = await Promise.all([
+          fetchFuelReadyDeliveryOrders(),
           fetchFuelRecords(),
-          fetchVendors(),
         ]);
 
-        // Read completedJobIds directly from store to avoid stale closure
-        const completedIds = useFuelDispenseStore.getState().completedJobIds;
         setDeliveries(
           (deliveryData || []).filter(
-            (d: any) =>
-              ["completed", "delivered"].includes(d.status) &&
-              !completedIds.includes(d.jobId || d.id),
+            (d: any) => {
+              const finalizedAtSite = ["SITE_WEIGHED_OUT", "COMPLETED"].includes(
+                normalizeJobStatus(d.status),
+              );
+              const warehouse = d.isWarehouseDelivery || [d.deliveryOrigin, d.materialSource].some((value) => String(value || '').trim().toLowerCase() === 'warehouse');
+              return !warehouse && finalizedAtSite;
+            },
           ),
         );
         setFuelRecords(fuelData || []);
-
-        // Build vendors lookup map
-        const map: Record<string, any> = {};
-        (vendorData || []).forEach((v: any) => {
-          if (v.id) map[v.id] = v;
-          if (v.vendorId) map[v.vendorId] = v;
-        });
-        setVendorsMap(map);
       } catch {
         // Silent fail
       } finally {
@@ -119,6 +114,11 @@ export default function FuelDispenseScreen() {
     },
     [], // no external deps needed — we read store directly inside
   );
+
+  useEffect(() => {
+    const timer = setInterval(() => { void loadData(true); }, 30000);
+    return () => clearInterval(timer);
+  }, [loadData]);
 
   const loadFuelPrice = async () => {
     try {
@@ -159,6 +159,14 @@ export default function FuelDispenseScreen() {
     store.otpModalVisible,
   ]);
 
+  // Keep the PIN prompt inside the fuel-flow modal. Android does not reliably
+  // deliver keyboard events to a native Modal opened on top of another Modal.
+  useEffect(() => {
+    if (store.otpModalVisible) {
+      requestAnimationFrame(() => otpInputRef.current?.focus());
+    }
+  }, [store.otpModalVisible]);
+
   // ========================= Derived Lists ================================
 
   const getJobFuelAmount = (jobId: string): number =>
@@ -166,21 +174,26 @@ export default function FuelDispenseScreen() {
       .filter((f) => f.jobId === jobId)
       .reduce((s, f) => s + (f.fuelAmount || 0), 0);
 
-  // Show only completed jobs (have /RN receipt note) that are not yet fueled
+  // The site-out completion is the authoritative signal that a job is ready
+  // for fuel. Receipt notes are generated by the site workflow, but should not
+  // hide otherwise valid finalized jobs from the fuel operator.
   const completedDeliveries = useMemo(() => {
     return deliveries.filter((d) => {
       const jobId = d.jobId || d.id;
-      const hasReceiptNote = Boolean(
-        d.receiptNoteId || d.receiptNote || String(jobId).includes("/RN"),
-      );
-      const hasExistingFuel = getJobFuelAmount(jobId) > 0;
-      return (
-        hasReceiptNote &&
-        !store.isJobCompleted(jobId) &&
-        !hasExistingFuel
-      );
+      return Boolean(jobId);
     });
   }, [deliveries, store.completedJobIds, fuelRecords]);
+
+  const filteredCompletedDeliveries = useMemo(() => {
+    const query = completedJobSearch.trim().toLowerCase();
+    if (!query) return completedDeliveries;
+    return completedDeliveries.filter((job: any) => {
+      const rn = job.receiptNoteId || job.receiptNote || "";
+      return [job.jobId, job.id, rn, job.driverName, job.plateNumber, job.vendorName]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [completedDeliveries, completedJobSearch]);
 
   // =========================== FAB Flow ===================================
 
@@ -207,24 +220,6 @@ export default function FuelDispenseScreen() {
     setPumpPhotoUploading(false);
     const jobId = job.jobId || job.id;
 
-    // Double-check if job has already been fueled (backend check)
-    try {
-      const status = await checkJobFuelStatus(jobId);
-      if (status.fueled) {
-        showToast(
-          "error",
-          "Already Fueled",
-          `Job ${jobId} has already been fueled. Select a different job.`,
-        );
-        store.markJobCompleted(jobId);
-        loadData();
-        return;
-      }
-    } catch {
-      // If backend check fails, allow the flow to continue
-      // The local completedJobIds check will still prevent double-dispensing
-    }
-
     store.setActiveJob(job);
     store.setFlowFuelAmount("");
     store.setFlowStep("authorization");
@@ -241,16 +236,18 @@ export default function FuelDispenseScreen() {
       return;
     }
 
-    const vendor = vendorsMap[store.activeJob.vendorId];
     const vendorPhone =
-      vendor?.phone || vendor?.mobile || store.activeJob.vendorPhone || "";
+      store.activeJob.vendorPhone ||
+      store.activeJob.vendorMobile ||
+      store.activeJob.vendorContactPhone ||
+      "";
     const driverPhone = store.activeJob.driverPhone || "";
 
     if (!vendorPhone) {
       showToast(
         "error",
         "Missing Vendor Phone",
-        "This job does not have a linked vendor phone number for the Authorization PIN.",
+        "Add a phone number to this job's vendor before requesting an Authorization PIN.",
       );
       return;
     }
@@ -262,6 +259,12 @@ export default function FuelDispenseScreen() {
         vendorName: store.activeJob.vendorName || "Unknown Vendor",
         vendorPhone,
         driverId: store.activeJob.driverId,
+        driverCode:
+          store.activeJob.baseDriverCode ||
+          store.activeJob.driverCode ||
+          store.activeJob.driverCodeId ||
+          store.activeJob.driverId ||
+          "",
         driverName: store.activeJob.driverName || "Unknown Driver",
         driverPhone,
         vehicleId: store.activeJob.vehicleId || store.activeJob.id,
@@ -325,13 +328,18 @@ export default function FuelDispenseScreen() {
     store.setAuthVerifying(true);
     try {
       const result = await verifyFuelAuthorization(store.authId, code, true);
-      if (result?.status !== "authorized" && result?.authorized !== true) {
+      if (result?.authorized !== true && result?.status !== "authorized") {
         throw new Error(
           result?.message || "Authorization PIN verification failed.",
         );
       }
 
+      // Auth PIN is the PIN sent to and entered by the vendor.
       store.setAuthCode(code);
+      // The attendant should only see the three-digit suffix to append.
+      // Keep the full GIR active code out of the operator-facing UI.
+      const appendedCode = String(result?.fuelCode || result?.girDriverCode || '').slice(-3);
+      store.setGirDriverCode(appendedCode || null);
       store.setAuthStatus("authorized");
       store.setOtpModalVisible(false);
       store.setOtpInput("");
@@ -343,6 +351,7 @@ export default function FuelDispenseScreen() {
       );
 
       // Auto-advance to form step
+      // Advance only after the successful response has been applied.
       store.setFlowStep("form");
     } catch (error: any) {
       const message =
@@ -408,20 +417,20 @@ export default function FuelDispenseScreen() {
         throw error;
       }
     } catch (error: any) {
-      console.error("[fuel] handleTakePumpPhoto error:", error?.message, error?.stack);
       Alert.alert("Photo Upload Failed", error?.message || "Could not capture the fuel pump photo.");
     } finally {
       setPumpPhotoUploading(false);
     }
   };
 
-  // After authorization, enter fuel amount and dispense
+  const [confirmedFuel, setConfirmedFuel] = useState<{id: string; volume: number; authorizationId: string} | null>(null);
+  const fuelSubmitLock = useRef(false);
+  useEffect(() => { setConfirmedFuel(null); }, [store.authId, store.activeJob?.id]);
+
+  // Confirm the actual FMS volume before recording the receipt.
   const handleFlowSubmit = async () => {
-    const amount = parseFloat(store.flowFuelAmount);
-    if (isNaN(amount) || amount <= 0) {
-      showToast("error", "Invalid Amount", "Please enter a valid fuel amount.");
-      return;
-    }
+    if (fuelSubmitLock.current) return;
+    const amount = confirmedFuel?.authorizationId === store.authId ? confirmedFuel.volume : 0;
     if (!store.activeJob) {
       showToast("error", "No Job", "No completed job selected.");
       return;
@@ -434,6 +443,33 @@ export default function FuelDispenseScreen() {
       );
       return;
     }
+    if (!confirmedFuel || confirmedFuel.authorizationId !== store.authId) {
+      fuelSubmitLock.current = true;
+      store.setSubmitting(true);
+      try {
+        const authorizationId = store.authId;
+        if (!authorizationId) throw new Error('Authorization is required.');
+        const transaction = await confirmFuelTransaction(authorizationId, {
+          jobId: store.activeJob.jobId || store.activeJob.id,
+          driverId: store.activeJob.driverId,
+          vehicleId: store.activeJob.vehicleId,
+          vendorId: store.activeJob.vendorId,
+        });
+        if (useFuelDispenseStore.getState().authId !== authorizationId) return;
+        if (transaction.status === 'pending') {
+          showToast('info', 'Waiting for fuel transaction', 'Complete dispensing at the pump, then tap Confirm Fuel again to retrieve the volume.');
+          return;
+        }
+        setConfirmedFuel({ ...transaction, authorizationId });
+        store.setGirFuelAmount(transaction.volume);
+      } catch (error: any) {
+        showToast('error', 'Fuel not confirmed', error?.message || 'Could not confirm the FMS transaction.');
+      } finally {
+        fuelSubmitLock.current = false;
+        store.setSubmitting(false);
+      }
+      return;
+    }
     if (!pumpPhotoURL) {
       showToast(
         "error",
@@ -443,26 +479,18 @@ export default function FuelDispenseScreen() {
       return;
     }
 
-    // Safety check: ensure job hasn't already been completed
     const jobId = store.activeJob.jobId || store.activeJob.id;
-    if (store.isJobCompleted(jobId)) {
-      showToast(
-        "error",
-        "Already Fueled",
-        `Job ${jobId} has already been fueled and is no longer available.`,
-      );
-      store.closeFlow();
-      loadData();
-      return;
-    }
 
+    fuelSubmitLock.current = true;
     store.setSubmitting(true);
     try {
-      const fuelId = generateFuelRecordId(jobId);
+      const fuelId = generateFuelRecordId();
 
       // Create the fuel record
-      await createFuelRecord({
+      const createdFuel = await createFuelRecord({
         fuelId,
+        fmsTransactionId: confirmedFuel.id,
+        vehicleId: store.activeJob.vehicleId,
         jobId,
         deliveryOrderId: store.activeJob.id,
         driverId: store.activeJob.driverId,
@@ -470,6 +498,7 @@ export default function FuelDispenseScreen() {
         plateNumber: store.activeJob.plateNumber || "N/A",
         vendorId: store.activeJob.vendorId,
         vendorName: store.activeJob.vendorName || "N/A",
+        companyName: store.activeJob.companyName || store.activeJob.vendorName || "N/A",
         materialName: store.activeJob.materialName || "N/A",
         fuelAmount: amount,
         pricePerLiter: fuelPrice,
@@ -481,20 +510,21 @@ export default function FuelDispenseScreen() {
         dispensedAt: new Date().toISOString(),
         authorizationId: store.authId,
         authorizationCode: store.authCode,
+        otp: store.girDriverCode || store.authCode,
         pumpPhotoURL,
       });
+      const girVolume = Number(createdFuel?.fuelAmount ?? createdFuel?.quantity ?? createdFuel?.litres);
+      store.setGirFuelAmount(Number.isFinite(girVolume) && girVolume > 0 ? girVolume : null);
 
-      // Mark job as fueled on the backend
-      await markJobAsFueled(jobId, fuelId);
-
-      // Mark job as completed locally (prevents re-appearance in list)
+      // A fuel record is the source of truth for completed dispensing. The
+      // legacy delivery-order `/fueled` endpoint is not available to the fuel
+      // operator and would report a false 403 after a successful fuel record.
       store.markJobCompleted(jobId);
 
-      const authCodeRef = store.authCode || "N/A";
       showToast(
         "success",
         "Fuel Dispensed",
-        `${amount.toFixed(1)} litres recorded as ${fuelId}. Auth PIN: ${authCodeRef}. Job card removed from completed jobs.`,
+        `${girVolume.toFixed(1)} litres recorded as ${createdFuel.id || fuelId}. Job card removed from completed jobs.`,
       );
 
       setPumpPhotoUri(null);
@@ -504,11 +534,16 @@ export default function FuelDispenseScreen() {
       // Close the flow and refresh data
       store.closeFlow();
       loadData();
+      Alert.alert('Fuel receipt ready', `${girVolume.toFixed(1)} litres recorded. Receipt: ${createdFuel.id}`, [
+        { text: 'Done' },
+        { text: 'View receipts', onPress: () => router.push('/operator-fuel/history' as any) },
+      ]);
     } catch (error: any) {
       const message =
         error?.message || "Failed to record fuel. Please try again.";
       showToast("error", "Dispense Failed", message);
     } finally {
+      fuelSubmitLock.current = false;
       store.setSubmitting(false);
     }
   };
@@ -552,13 +587,13 @@ export default function FuelDispenseScreen() {
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                gap: Spacing.sm,
+                gap: Gap,
               }}
             >
               <Ionicons
                 name="document-text-outline"
                 size={18}
-                color="#F59E0B"
+                color={colors.warningText}
               />
               <Text
                 style={{ fontSize: 14, fontWeight: "700", color: colors.text }}
@@ -568,7 +603,7 @@ export default function FuelDispenseScreen() {
               </Text>
             </View>
             <Text
-              style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}
+              style={{ fontSize: 12, color: colors.textMuted, marginTop: Spacing.xs}}
             >
               Tap the + button to view and dispense fuel
             </Text>
@@ -584,11 +619,11 @@ export default function FuelDispenseScreen() {
 
       {/* FAB Button */}
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: "#F59E0B" }]}
+        style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={openFlow}
         activeOpacity={0.86}
       >
-        <Ionicons name="add" size={32} color="#FFFFFF" />
+        <Ionicons name="add" size={32} color={colors.onPrimary} />
       </TouchableOpacity>
 
       {/* Flow Modal */}
@@ -596,7 +631,13 @@ export default function FuelDispenseScreen() {
         visible={store.flowVisible}
         transparent
         animationType="slide"
-        onRequestClose={closeFlow}
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
+        onRequestClose={() =>
+          store.otpModalVisible
+            ? store.setOtpModalVisible(false)
+            : closeFlow()
+        }
       >
         <View style={styles.modalBackdrop}>
           <View
@@ -613,7 +654,7 @@ export default function FuelDispenseScreen() {
                     ? "Completed Jobs"
                     : store.flowStep === "authorization"
                       ? "Vendor Authorization"
-                      : "Dispense Fuel"}
+                      : confirmedFuel ? "Step 3: Finalize Fuel" : "Step 2: Confirm Dispensed Fuel"}
                 </Text>
                 <Text
                   style={[styles.sheetSub, { color: colors.textMuted }]}
@@ -635,6 +676,9 @@ export default function FuelDispenseScreen() {
             </View>
 
             {/* Step indicators */}
+            <Text style={{ color: colors.textMuted, marginBottom: 12 }}>
+              1. Vendor authorization → 2. Confirm dispensed volume → 3. Finalize fuel transaction
+            </Text>
             <View style={styles.stepRow}>
               {(["list", "authorization", "form"] as FlowStep[]).map(
                 (s, idx) => {
@@ -644,11 +688,11 @@ export default function FuelDispenseScreen() {
                   const completed = stepIdx < currentIdx;
                   const isCurrent = stepIdx === currentIdx;
                   let dotColor = colors.border;
-                  if (completed) dotColor = "#10B981";
-                  else if (isCurrent) dotColor = "#F59E0B";
+                  if (completed) dotColor = colors.success;
+                  else if (isCurrent) dotColor = colors.warningText;
                   let lineColor = colors.border;
                   if (stepIdx < 2 && stepIdx < currentIdx)
-                    lineColor = "#10B981";
+                    lineColor = colors.success;
                   return (
                     <React.Fragment key={s}>
                       <View
@@ -668,29 +712,45 @@ export default function FuelDispenseScreen() {
               )}
             </View>
 
+            <KeyboardAvoidingView
+              style={{ flex: 1, minHeight: 0 }}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+            >
             <ScrollView
+              style={{ flex: 1 }}
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={{ gap: Spacing.md }}
-              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ gap: Gap, paddingBottom: Spacing.xl }}
+              keyboardShouldPersistTaps="always"
+              keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+              nestedScrollEnabled
             >
               {/* ============ STEP 1: Completed Jobs List ============ */}
               {store.flowStep === "list" && (
                 <>
-                  {completedDeliveries.length ? (
-                    completedDeliveries.map((job) => {
+                  <View style={{ marginBottom: Spacing.xs }}>
+                    <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
+                      value={completedJobSearch}
+                      onChangeText={setCompletedJobSearch}
+                      placeholder="Search job, RN, driver, truck or vendor"
+                      placeholderTextColor={colors.textMuted}
+                      style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+                      autoCapitalize="none"
+                      returnKeyType="search"
+                    />
+                  </View>
+                  {filteredCompletedDeliveries.length ? (
+                    filteredCompletedDeliveries.map((job) => {
                       const jobId = job.jobId || job.id;
-                      const existingFuel = getJobFuelAmount(jobId);
-                      const isCompleted = store.isJobCompleted(jobId);
+                      const existingFuel = 0;
+                      const isCompleted = false;
                       return (
                         <TouchableOpacity
                           key={job.id}
                           style={[
                             styles.jobSelectCard,
                             {
-                              borderColor: isCompleted
-                                ? "#10B98130"
-                                : colors.border,
-                              opacity: isCompleted ? 0.5 : 1,
+                              borderColor: colors.border,
                             },
                           ]}
                           onPress={() => {
@@ -704,8 +764,8 @@ export default function FuelDispenseScreen() {
                               styles.selectIconCircle,
                               {
                                 backgroundColor: isCompleted
-                                  ? "#10B98115"
-                                  : "#F59E0B15",
+                                  ? `${colors.success}15`
+                                  : `${colors.warningText}15`,
                               },
                             ]}
                           >
@@ -716,7 +776,7 @@ export default function FuelDispenseScreen() {
                                   : "document-text-outline"
                               }
                               size={20}
-                              color={isCompleted ? "#10B981" : "#F59E0B"}
+                              color={isCompleted ? colors.success : colors.warningText}
                             />
                           </View>
                           <View style={{ flex: 1 }}>
@@ -757,9 +817,8 @@ export default function FuelDispenseScreen() {
                                   style={[
                                     styles.selectSub,
                                     {
-                                      color: "#10B981",
-                                      fontWeight: "600",
-                                      marginTop: 1,
+                                      color: colors.success,
+                                      fontWeight: "600", marginTop: Spacing.xs,
                                     },
                                   ]}
                                 >
@@ -772,21 +831,21 @@ export default function FuelDispenseScreen() {
                                 style={[
                                   styles.fuelChip,
                                   {
-                                    backgroundColor: "#F59E0B10",
-                                    borderColor: "#F59E0B30",
+                                    backgroundColor: `${colors.warning}10`,
+                                    borderColor: `${colors.warningBorder}30`,
                                   },
                                 ]}
                               >
                                 <Ionicons
                                   name="water"
                                   size={12}
-                                  color="#F59E0B"
+                                  color={colors.warningText}
                                 />
                                 <Text
                                   style={{
                                     fontSize: 11,
                                     fontWeight: "700",
-                                    color: "#F59E0B",
+                                    color: colors.warningText,
                                   }}
                                 >
                                   {existingFuel.toFixed(1)} L already dispensed
@@ -798,21 +857,21 @@ export default function FuelDispenseScreen() {
                                 style={[
                                   styles.fuelChip,
                                   {
-                                    backgroundColor: "#10B98115",
-                                    borderColor: "#10B98130",
+                                    backgroundColor: `${colors.success}15`,
+                                    borderColor: `${colors.successBorder}30`,
                                   },
                                 ]}
                               >
                                 <Ionicons
                                   name="checkmark"
                                   size={12}
-                                  color="#10B981"
+                                  color={colors.success}
                                 />
                                 <Text
                                   style={{
                                     fontSize: 11,
                                     fontWeight: "700",
-                                    color: "#10B981",
+                                    color: colors.success,
                                   }}
                                 >
                                   Fueled ✓
@@ -847,7 +906,7 @@ export default function FuelDispenseScreen() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: Spacing.sm,
+                      gap: Gap,
                     }}
                   >
                     <TouchableOpacity
@@ -876,8 +935,8 @@ export default function FuelDispenseScreen() {
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: "#F59E0B15",
-                          borderColor: "#F59E0B30",
+                          backgroundColor: `${colors.warning}15`,
+                          borderColor: `${colors.warningBorder}30`,
                         },
                       ]}
                     >
@@ -885,7 +944,7 @@ export default function FuelDispenseScreen() {
                         style={{
                           fontSize: 12,
                           fontWeight: "700",
-                          color: "#F59E0B",
+                          color: colors.warningText,
                         }}
                       >
                         {store.activeJob?.jobId || store.activeJob?.id || "Job"}
@@ -908,7 +967,7 @@ export default function FuelDispenseScreen() {
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
-                          gap: Spacing.sm,
+                          gap: Gap,
                         }}
                       >
                         {getDriverPhotoUrl(store.activeJob) ? (
@@ -923,13 +982,13 @@ export default function FuelDispenseScreen() {
                             style={[
                               styles.driverPhotoLarge,
                               {
-                                backgroundColor: "#3B82F615",
+                                backgroundColor: `${colors.primary}15`,
                                 alignItems: "center",
                                 justifyContent: "center",
                               },
                             ]}
                           >
-                            <Ionicons name="person" size={32} color="#3B82F6" />
+                            <Ionicons name="person" size={32} color={colors.infoText} />
                           </View>
                         )}
                         <View style={{ flex: 1 }}>
@@ -972,7 +1031,7 @@ export default function FuelDispenseScreen() {
                     <View
                       style={{
                         alignItems: "center",
-                        gap: Spacing.lg,
+                        gap: Gap,
                         paddingVertical: Spacing.xl,
                       }}
                     >
@@ -981,13 +1040,13 @@ export default function FuelDispenseScreen() {
                           <View
                             style={[
                               styles.authIconCircle,
-                              { backgroundColor: "#F59E0B15" },
+                              { backgroundColor: `${colors.warning}15` },
                             ]}
                           >
                             <Ionicons
                               name="key-outline"
                               size={48}
-                              color="#F59E0B"
+                              color={colors.warningText}
                             />
                           </View>
                           <Text
@@ -1014,14 +1073,14 @@ export default function FuelDispenseScreen() {
                             <TouchableOpacity
                               style={[
                                 styles.submitBtn,
-                                { backgroundColor: "#F59E0B" },
+                                { backgroundColor: colors.warning },
                               ]}
                               onPress={() => store.setOtpModalVisible(true)}
                             >
                               <Ionicons
                                 name="keypad-outline"
                                 size={20}
-                                color="#FFFFFF"
+                                color={colors.onPrimary}
                               />
                               <Text style={styles.submitBtnText}>
                                 Enter Authorization Pin
@@ -1034,20 +1093,20 @@ export default function FuelDispenseScreen() {
                           <View
                             style={[
                               styles.authIconCircle,
-                              { backgroundColor: "#10B98115" },
+                              { backgroundColor: `${colors.success}15` },
                             ]}
                           >
                             <Ionicons
                               name="checkmark-circle"
                               size={48}
-                              color="#10B981"
+                              color={colors.success}
                             />
                           </View>
                           <Text
                             style={{
                               fontSize: 18,
                               fontWeight: "800",
-                              color: "#10B981",
+                              color: colors.success,
                               textAlign: "center",
                             }}
                           >
@@ -1060,23 +1119,24 @@ export default function FuelDispenseScreen() {
                               textAlign: "center",
                             }}
                           >
-                            The vendor has authorized fuel dispensing. Please
-                            enter fuel amount below.
+                            The vendor has authorized fuel dispensing. Share the temporary code below with the driver, then proceed. GIR/FMS will provide the fuel volume.
                           </Text>
+                          {store.girDriverCode ? <Text style={{ fontSize: 14, fontWeight: "700", color: colors.textMuted, textAlign: "center", marginTop: 12 }}>APPEND CODE</Text> : null}
+                          {store.girDriverCode ? <Text style={{ fontSize: 30, fontWeight: "900", letterSpacing: 5, color: colors.infoText, textAlign: "center", marginVertical: 8 }}>{store.girDriverCode}</Text> : null}
                           <TouchableOpacity
                             style={[
                               styles.submitBtn,
-                              { backgroundColor: "#10B981" },
+                              { backgroundColor: colors.success },
                             ]}
                             onPress={() => store.setFlowStep("form")}
                           >
                             <Ionicons
                               name="water-outline"
                               size={20}
-                              color="#FFFFFF"
+                              color={colors.onPrimary}
                             />
                             <Text style={styles.submitBtnText}>
-                              Enter Fuel Amount
+                              Proceed to Fueling
                             </Text>
                           </TouchableOpacity>
                         </>
@@ -1085,20 +1145,20 @@ export default function FuelDispenseScreen() {
                           <View
                             style={[
                               styles.authIconCircle,
-                              { backgroundColor: "#EF444415" },
+                              { backgroundColor: `${colors.danger}15` },
                             ]}
                           >
                             <Ionicons
                               name="close-circle"
                               size={48}
-                              color="#EF4444"
+                              color={colors.danger}
                             />
                           </View>
                           <Text
                             style={{
                               fontSize: 18,
                               fontWeight: "800",
-                              color: "#EF4444",
+                              color: colors.danger,
                               textAlign: "center",
                             }}
                           >
@@ -1116,7 +1176,7 @@ export default function FuelDispenseScreen() {
                           <TouchableOpacity
                             style={[
                               styles.submitBtn,
-                              { backgroundColor: "#3B82F6" },
+                              { backgroundColor: colors.primary },
                             ]}
                             onPress={() => {
                               store.setAuthId(null);
@@ -1127,7 +1187,7 @@ export default function FuelDispenseScreen() {
                             <Ionicons
                               name="arrow-back"
                               size={20}
-                              color="#FFFFFF"
+                              color={colors.onPrimary}
                             />
                             <Text style={styles.submitBtnText}>
                               Back to Jobs
@@ -1145,14 +1205,14 @@ export default function FuelDispenseScreen() {
                             <Ionicons
                               name="time-outline"
                               size={48}
-                              color="#94A3B8"
+                              color={colors.textMuted}
                             />
                           </View>
                           <Text
                             style={{
                               fontSize: 18,
                               fontWeight: "800",
-                              color: "#94A3B8",
+                              color: colors.textMuted,
                               textAlign: "center",
                             }}
                           >
@@ -1171,7 +1231,7 @@ export default function FuelDispenseScreen() {
                           <TouchableOpacity
                             style={[
                               styles.submitBtn,
-                              { backgroundColor: "#3B82F6" },
+                              { backgroundColor: colors.primary },
                             ]}
                             onPress={() => {
                               store.setAuthId(null);
@@ -1182,7 +1242,7 @@ export default function FuelDispenseScreen() {
                             <Ionicons
                               name="refresh"
                               size={20}
-                              color="#FFFFFF"
+                              color={colors.onPrimary}
                             />
                             <Text style={styles.submitBtnText}>
                               Back to Jobs
@@ -1196,18 +1256,18 @@ export default function FuelDispenseScreen() {
                         <TouchableOpacity
                           style={[
                             styles.submitBtn,
-                            { backgroundColor: "#3B82F6" },
+                            { backgroundColor: colors.primary },
                           ]}
                           onPress={handleRequestAuthorization}
                           disabled={store.submitting}
                         >
                           {store.submitting ? (
-                            <ActivityIndicator color="#FFFFFF" size="small" />
+                            <ActivityIndicator color={colors.onPrimary} size="small" />
                           ) : (
                             <Ionicons
                               name="key-outline"
                               size={20}
-                              color="#FFFFFF"
+                              color={colors.onPrimary}
                             />
                           )}
                           <Text style={styles.submitBtnText}>
@@ -1229,7 +1289,7 @@ export default function FuelDispenseScreen() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: Spacing.sm,
+                      gap: Gap,
                       flexWrap: "wrap",
                     }}
                   >
@@ -1255,8 +1315,8 @@ export default function FuelDispenseScreen() {
                       style={[
                         styles.chip,
                         {
-                          backgroundColor: "#10B98115",
-                          borderColor: "#10B98130",
+                          backgroundColor: `${colors.success}15`,
+                          borderColor: `${colors.successBorder}30`,
                         },
                       ]}
                     >
@@ -1264,7 +1324,7 @@ export default function FuelDispenseScreen() {
                         style={{
                           fontSize: 12,
                           fontWeight: "700",
-                          color: "#10B981",
+                          color: colors.success,
                         }}
                       >
                         Authorized ✓
@@ -1287,7 +1347,7 @@ export default function FuelDispenseScreen() {
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
-                          gap: Spacing.sm,
+                          gap: Gap,
                         }}
                       >
                         {getDriverPhotoUrl(store.activeJob) ? (
@@ -1302,13 +1362,13 @@ export default function FuelDispenseScreen() {
                             style={[
                               styles.driverPhotoLarge,
                               {
-                                backgroundColor: "#3B82F615",
+                                backgroundColor: `${colors.primary}15`,
                                 alignItems: "center",
                                 justifyContent: "center",
                               },
                             ]}
                           >
-                            <Ionicons name="person" size={32} color="#3B82F6" />
+                            <Ionicons name="person" size={32} color={colors.infoText} />
                           </View>
                         )}
                         <View style={{ flex: 1 }}>
@@ -1339,6 +1399,7 @@ export default function FuelDispenseScreen() {
                     </View>
                   )}
 
+                  {false && <>
                   {/* Fuel amount input */}
                   <View
                     style={[
@@ -1353,13 +1414,13 @@ export default function FuelDispenseScreen() {
                       <View
                         style={[
                           styles.inputIcon,
-                          { backgroundColor: "#F59E0B15" },
+                          { backgroundColor: `${colors.warning}15` },
                         ]}
                       >
                         <Ionicons
                           name="water-outline"
                           size={22}
-                          color="#F59E0B"
+                          color={colors.warningText}
                         />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -1379,12 +1440,12 @@ export default function FuelDispenseScreen() {
                       style={[
                         styles.fuelInputWrap,
                         {
-                          borderColor: "#F59E0B",
+                          borderColor: colors.warningBorder,
                           backgroundColor: colors.inputBg,
                         },
                       ]}
                     >
-                      <TextInput
+                      <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
                         style={[styles.fuelInput, { color: colors.text }]}
                         placeholder="0.0"
                         placeholderTextColor={colors.textTertiary}
@@ -1401,14 +1462,15 @@ export default function FuelDispenseScreen() {
                     </View>
                   </View>
 
-                  {/* Fuel price info */}
+                  </>}
+
+                  {/* Fuel volume is supplied by GIR/FMS after dispensing. */}
                   {store.flowFuelAmount && fuelPrice > 0 ? (
                     <View
-                      style={{
-                        marginTop: Spacing.sm,
+                      style={{ marginTop: Spacing.xs,
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: Spacing.sm,
+                        gap: Gap,
                         paddingHorizontal: Spacing.sm,
                       }}
                     >
@@ -1425,7 +1487,7 @@ export default function FuelDispenseScreen() {
                         style={{
                           fontSize: 16,
                           fontWeight: "800",
-                          color: "#10B981",
+                          color: colors.success,
                         }}
                       >
                         KES{" "}
@@ -1436,6 +1498,41 @@ export default function FuelDispenseScreen() {
                           maximumFractionDigits: 2,
                         })}
                       </Text>
+                    </View>
+                  ) : null}
+
+                  {/* GIR/FMS driver code — keep immediately above the evidence photo. */}
+                  {store.girDriverCode || store.girFuelAmount != null ? (
+                    <View
+                      style={{
+                        marginBottom: Spacing.md,
+                        padding: Spacing.md,
+                        borderRadius: Radius.lg,
+                        borderWidth: 2,
+                        borderColor: colors.infoBorder,
+                        backgroundColor: `${colors.primary}10`,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '700' }}>
+                        APPEND CODE — SHARE WITH DRIVER
+                      </Text>
+                      <Text style={{ color: colors.infoText, fontSize: 32, fontWeight: '900', letterSpacing: 6, marginTop: 4 }}>
+                        {store.girDriverCode}
+                      </Text>
+                      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
+                        Enter/share this appended code with the driver
+                      </Text>
+                      {store.girFuelAmount != null ? (
+                        <View style={{ alignItems: 'center', marginTop: Spacing.sm }}>
+                          <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '700' }}>
+                            GIR/FMS FUEL VOLUME
+                          </Text>
+                          <Text style={{ color: colors.success, fontSize: 22, fontWeight: '900', marginTop: 2 }}>
+                            {store.girFuelAmount.toFixed(1)} L
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                   ) : null}
 
@@ -1453,13 +1550,13 @@ export default function FuelDispenseScreen() {
                       <View
                         style={[
                           styles.inputIcon,
-                          { backgroundColor: "#10B98115" },
+                          { backgroundColor: `${colors.success}15` },
                         ]}
                       >
                         <Ionicons
                           name="camera-outline"
                           size={22}
-                          color="#10B981"
+                          color={colors.success}
                         />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -1477,14 +1574,14 @@ export default function FuelDispenseScreen() {
                         />
                         {pumpPhotoUploading && (
                           <View style={styles.photoOverlay}>
-                            <ActivityIndicator size="large" color="#FFFFFF" />
+                            <ActivityIndicator size="large" color={colors.onPrimary} />
                             <Text style={styles.photoOverlayText}>Uploading...</Text>
                           </View>
                         )}
                       </View>
                     ) : (
                       <View style={[styles.photoPreviewWrap, styles.photoPlaceholder]}>
-                        <Ionicons name="camera-outline" size={48} color="#94A3B8" />
+                        <Ionicons name="camera-outline" size={48} color={colors.textMuted} />
                         <Text style={styles.photoPlaceholderText}>No photo captured</Text>
                       </View>
                     )}
@@ -1493,7 +1590,7 @@ export default function FuelDispenseScreen() {
                       style={[
                         styles.submitBtn,
                         {
-                          backgroundColor: pumpPhotoURL ? "#10B981" : "#3B82F6",
+                          backgroundColor: pumpPhotoURL ? colors.success : colors.infoText,
                           opacity: pumpPhotoUploading ? 0.7 : 1,
                         },
                       ]}
@@ -1501,12 +1598,12 @@ export default function FuelDispenseScreen() {
                       disabled={pumpPhotoUploading}
                     >
                       {pumpPhotoUploading ? (
-                        <ActivityIndicator color="#FFFFFF" size="small" />
+                        <ActivityIndicator color={colors.onPrimary} size="small" />
                       ) : (
                         <Ionicons
                           name="camera-outline"
                           size={20}
-                          color="#FFFFFF"
+                          color={colors.onPrimary}
                         />
                       )}
                       <Text style={styles.submitBtnText}>
@@ -1526,16 +1623,16 @@ export default function FuelDispenseScreen() {
                           style={[
                             styles.existingFuel,
                             {
-                              backgroundColor: "#F59E0B10",
-                              borderColor: "#F59E0B30",
+                              backgroundColor: `${colors.warning}10`,
+                              borderColor: `${colors.warningBorder}30`,
                             },
                           ]}
                         >
-                          <Ionicons name="water" size={14} color="#F59E0B" />
+                          <Ionicons name="water" size={14} color={colors.warningText} />
                           <Text
                             style={{
                               fontSize: 12,
-                              color: "#F59E0B",
+                              color: colors.warningText,
                             }}
                           >
                             {existingFuel.toFixed(1)} L already dispensed for
@@ -1545,12 +1642,12 @@ export default function FuelDispenseScreen() {
                       ) : null;
                     })()}
 
-                  {/* Dispense button */}
+                  {/* Confirm / Complete button */}
                   <TouchableOpacity
                     style={[
                       styles.submitBtn,
                       {
-                        backgroundColor: "#F59E0B",
+                        backgroundColor: colors.warning,
                         opacity: store.submitting ? 0.6 : 1,
                       },
                     ]}
@@ -1558,39 +1655,36 @@ export default function FuelDispenseScreen() {
                     disabled={store.submitting}
                   >
                     {store.submitting ? (
-                      <ActivityIndicator color="#FFFFFF" size="small" />
+                      <ActivityIndicator color={colors.onPrimary} size="small" />
                     ) : (
                       <Ionicons
-                        name="water-outline"
+                        name="checkmark-circle-outline"
                         size={20}
-                        color="#FFFFFF"
+                        color={colors.onPrimary}
                       />
                     )}
                     <Text style={styles.submitBtnText}>
-                      {store.submitting ? "Dispensing..." : "Dispense Fuel"}
+                      {store.submitting ? "Processing..." : confirmedFuel?.authorizationId === store.authId ? "Finalize fuel & receipt" : "Confirm Fuel"}
                     </Text>
                   </TouchableOpacity>
                 </>
               )}
             </ScrollView>
+            </KeyboardAvoidingView>
           </View>
-        </View>
-      </Modal>
 
-      {/* OTP Modal */}
-      <Modal
-        visible={store.otpModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => store.setOtpModalVisible(false)}
-      >
-        <View style={styles.otpBackdrop}>
-          <View
-            style={[
-              styles.otpSheet,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
+            {store.otpModalVisible && (
+              <KeyboardAvoidingView
+                style={styles.otpKeyboardAvoider}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+              >
+                <View style={styles.otpBackdrop}>
+                  <View
+                    style={[
+                      styles.otpSheet,
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                    ]}
+                  >
             <View style={styles.otpHead}>
               <Text style={[styles.otpTitle, { color: colors.text }]}>
                 Enter Authorization PIN
@@ -1607,33 +1701,37 @@ export default function FuelDispenseScreen() {
               style={{
                 fontSize: 14,
                 color: colors.textMuted,
-                textAlign: "center",
-                marginBottom: Spacing.lg,
+                textAlign: "center", marginBottom: Spacing.xs,
               }}
             >
               Enter the Authorization PIN sent to the vendor's phone.
             </Text>
 
-            <View
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => otpInputRef.current?.focus()}
               style={[
                 styles.otpInputWrap,
                 {
-                  borderColor: "#F59E0B",
+                  borderColor: colors.warningBorder,
                   backgroundColor: colors.inputBg,
                 },
               ]}
             >
-              <TextInput
+              <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
+                ref={otpInputRef}
                 style={[styles.otpInput, { color: colors.text }]}
                 placeholder="Enter PIN"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="number-pad"
                 value={store.otpInput}
-                onChangeText={store.setOtpInput}
+                onChangeText={(value) =>
+                  store.setOtpInput(value.replace(/\D/g, "").slice(0, 8))
+                }
                 maxLength={8}
                 autoFocus
               />
-            </View>
+            </TouchableOpacity>
 
             <View style={styles.otpActions}>
               <TouchableOpacity
@@ -1644,7 +1742,7 @@ export default function FuelDispenseScreen() {
                     borderColor: colors.border,
                   },
                 ]}
-                onPress={() => store.setOtpModalVisible(false)}
+                onPress={() => { setCompletedJobSearch(""); (() => store.setOtpModalVisible(false))(); }}
               >
                 <Text
                   style={[styles.otpBtnText, { color: colors.textSecondary }]}
@@ -1653,20 +1751,23 @@ export default function FuelDispenseScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.otpBtn, { backgroundColor: "#F59E0B" }]}
+                style={[styles.otpBtn, { backgroundColor: colors.warning }]}
                 onPress={handleVerifyOtp}
                 disabled={store.authVerifying}
               >
                 {store.authVerifying ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={colors.onPrimary} size="small" />
                 ) : (
-                  <Text style={[styles.otpBtnText, { color: "#FFFFFF" }]}>
+                  <Text style={[styles.otpBtnText, { color: colors.onPrimary }]}>
                     Verify
                   </Text>
                 )}
               </TouchableOpacity>
             </View>
-          </View>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            )}
         </View>
       </Modal>
     </View>
@@ -1676,7 +1777,7 @@ export default function FuelDispenseScreen() {
 // ===========================================================================
 // Styles
 // ===========================================================================
-const styles = StyleSheet.create({
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   // FAB
   fab: {
     position: "absolute",
@@ -1687,25 +1788,24 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
   },
 
   // Modal backdrop
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: colors.overlay,
+    justifyContent: "center",
+    paddingHorizontal: Spacing.md,
   },
 
   // Flow sheet
   flowSheet: {
-    maxHeight: "92%",
+    height: "82%",
+    width: "100%",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
@@ -1717,8 +1817,7 @@ const styles = StyleSheet.create({
   flowHead: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Gap, marginBottom: Spacing.xs,
   },
 
   sheetTitle: {
@@ -1727,8 +1826,7 @@ const styles = StyleSheet.create({
   },
 
   sheetSub: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
 
   iconButton: {
@@ -1743,8 +1841,7 @@ const styles = StyleSheet.create({
   stepRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.lg,
+    justifyContent: "center", marginBottom: Spacing.xs,
     paddingHorizontal: Spacing.xl,
   },
 
@@ -1762,10 +1859,18 @@ const styles = StyleSheet.create({
   },
 
   // Job select card
+  searchInput: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    fontSize: 14,
+  },
+
   jobSelectCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    gap: Gap,
     padding: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1,
@@ -1785,19 +1890,17 @@ const styles = StyleSheet.create({
   },
 
   selectSub: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
 
   fuelChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: Gap,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 4,
+    borderWidth: 1, marginTop: Spacing.xs,
     alignSelf: "flex-start",
   },
 
@@ -1805,7 +1908,7 @@ const styles = StyleSheet.create({
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: Gap,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: Radius.md,
@@ -1857,7 +1960,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.sm,
+    gap: Gap,
     paddingVertical: 14,
     paddingHorizontal: Spacing.xl,
     borderRadius: Radius.md,
@@ -1867,7 +1970,7 @@ const styles = StyleSheet.create({
   submitBtnText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: colors.onPrimary,
   },
 
   // Driver info card
@@ -1887,8 +1990,7 @@ const styles = StyleSheet.create({
   inputHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Gap, marginBottom: Spacing.xs,
   },
 
   inputIcon: {
@@ -1905,8 +2007,7 @@ const styles = StyleSheet.create({
   },
 
   inputSub: {
-    fontSize: 12,
-    marginTop: 1,
+    fontSize: 12, marginTop: Spacing.xs,
   },
 
   fuelInputWrap: {
@@ -1933,7 +2034,7 @@ const styles = StyleSheet.create({
   existingFuel: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    gap: Gap,
     padding: Spacing.sm,
     borderRadius: Radius.md,
     borderWidth: 1,
@@ -1941,13 +2042,12 @@ const styles = StyleSheet.create({
 
   photoPreviewWrap: {
     borderRadius: Radius.md,
-    overflow: "hidden",
-    marginBottom: Spacing.md,
+    overflow: "hidden", marginBottom: Spacing.xs,
     minHeight: 180,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: colors.border,
   },
 
   photoPreview: {
@@ -1956,33 +2056,42 @@ const styles = StyleSheet.create({
   },
 
   photoPlaceholder: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surface,
   },
 
   photoPlaceholderText: {
     fontSize: 13,
-    color: "#94A3B8",
-    marginTop: Spacing.sm,
+    color: colors.textTertiary, marginTop: Spacing.xs,
   },
 
   photoOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(15, 23, 42, 0.55)",
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.sm,
+    gap: Gap,
   },
 
   photoOverlayText: {
-    color: "#FFFFFF",
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: "700",
   },
 
   // OTP Modal
+  otpKeyboardAvoider: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 10,
+    elevation: 0,
+  },
+
   otpBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: colors.overlay,
     justifyContent: "center",
     alignItems: "center",
     padding: Spacing.xl,
@@ -1999,8 +2108,7 @@ const styles = StyleSheet.create({
   otpHead: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: Spacing.sm,
+    justifyContent: "space-between", marginBottom: Spacing.xs,
   },
 
   otpTitle: {
@@ -2011,8 +2119,7 @@ const styles = StyleSheet.create({
   otpInputWrap: {
     borderRadius: Radius.md,
     borderWidth: 2,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md, marginBottom: Spacing.xs,
   },
 
   otpInput: {
@@ -2025,7 +2132,7 @@ const styles = StyleSheet.create({
 
   otpActions: {
     flexDirection: "row",
-    gap: Spacing.sm,
+    gap: Gap,
   },
 
   otpBtn: {

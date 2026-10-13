@@ -1,3 +1,6 @@
+import { printDocument as printHtmlOnWeb } from '../../utils/printDocument';
+import { deliveryLot, receivingPerson, receiptReference } from '../../utils/deliveryDocuments';
+import { formatTripMaterials } from '../../utils/poMaterials';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -6,15 +9,182 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
+  Alert,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../utils/router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
 import { useTheme } from '../../hooks/useTheme';
-import { Radius, Spacing } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
-import { reverseGeocode } from '../../services/geolocation';
+import { formatCapturedGeoLocation, reverseGeocode, reverseGeocodeRich } from '../../services/geolocation';
+
+/* ─────────── Helper: escape HTML special characters ─────────── */
+const escapeHtml = (str: string | null | undefined): string => {
+  if (!str) return '';
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return str.replace(/[&<>"']/g, (m) => map[m]);
+};
+
+/* ─────────── Web‑specific print using hidden iframe ─────────── */
+
+
+/* ─────────── Receipt Note PDF HTML Builder (with escaping) ─────────── */
+function buildReceiptNoteHtml(data: {
+  lotNumber?: string;
+  isWarehouse?: boolean;
+  receiptNoteId: string;
+  jobId: string;
+  poNumber: string;
+  driverName: string;
+  plateNumber: string;
+  vendorName: string;
+  materialName: string;
+  quarryName: string;
+  quarryOrigin?: string;
+  banker?: string;
+  quarryCityTown?: string;
+  quarryPersonnel?: string;
+  quarryWeighIn?: string;
+  quarryWeighOut?: string;
+  quarryNetWeight?: string;
+  siteName: string;
+  siteWeighIn?: string;
+  siteWeighOut?: string;
+  siteNetWeight?: string;
+  weighOutGeoAddress?: string;
+  timestamp: string;
+  operatorName: string;
+}): string {
+  const {
+    receiptNoteId, jobId, poNumber, driverName, plateNumber,
+    vendorName, materialName, quarryName, quarryOrigin, quarryCityTown,
+    quarryPersonnel, quarryWeighIn, quarryWeighOut, quarryNetWeight,
+    siteName, siteWeighIn, siteWeighOut, siteNetWeight,
+    weighOutGeoAddress, timestamp, operatorName,
+  } = data;
+
+  const e = escapeHtml;
+  const hasQuarryWeights = quarryWeighIn || quarryWeighOut || quarryNetWeight;
+  const hasSiteWeights = siteWeighIn || siteWeighOut || siteNetWeight;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 32px; padding-top:3px; color: #1E293B; max-width: 600px; margin: auto; }
+    .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 5px; margin-bottom: 10px; }
+    .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 2px; }
+    .header .subtitle { color: #64748B; font-size: 13px; }
+    .section { margin-bottom: 14px; }
+    .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; }
+    .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+    .row .label { color: #64748B; }
+    .row .value { white-space: pre-line; overflow-wrap: anywhere; font-weight: 700; color: #1E293B; }
+    .highlight-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 12px; text-align: center; margin: 10px 0; }
+    .highlight-box .net { font-size: 24px; font-weight: 900; color: #16A34A; }
+    .highlight-box .calc { font-size: 11px; color: #64748B; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
+    table th { background: #1B2A4A; color: #FFF; padding: 8px 12px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+    table td { padding: 8px 12px; border: 1px solid #DDD; }
+    table tr:nth-child(even) td { background: #F8FAFC; }
+    .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
+    .signature-line { display: flex; justify-content: space-between; margin-top: 48px; }
+    .sig-block { flex: 1; text-align: center; }
+    .sig-block .line { border-bottom: 1px solid #94A3B8; margin: 32px 20px 8px; }
+    .sig-block .name { font-size: 12px; font-weight: 600; color: #1E293B; }
+    .sig-block .role { font-size: 10px; color: #94A3B8; }
+    @page { size: A4; margin: 20mm 15mm; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Trucks Sphere</h1>
+    <div class="subtitle">Goods Receipt Note (GRN)</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Document Details</div>
+    <div class="row"><span class="label">Receipt Note</span><span class="value">${e(receiptNoteId) || e(jobId)}</span></div>
+    <div class="row"><span class="label">Banker</span><span class="value">${e(data.banker) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Job ID</span><span class="value">${e(jobId)}</span></div>
+    <div class="row"><span class="label">${data.isWarehouse ? 'Warehouse Order' : 'Purchase Order'}</span><span class="value">${e(poNumber) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Lot Number</span><span class="value">${e(data.lotNumber) || 'Not recorded'}</span></div>
+    <div class="row"><span class="label">Date</span><span class="value">${e(timestamp)}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Parties</div>
+    <div class="row"><span class="label">Vendor</span><span class="value">${e(vendorName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Driver : Truck Plate </span><span class="value">${e(driverName) || 'N/A'} : ${e(plateNumber) || 'N/A'}</span></div>
+   </div>
+
+  <div class="section">
+    <div class="section-title">Material</div>
+    <div class="row"><span class="label">Material</span><span class="value">${e(materialName) || 'N/A'}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Route </div>
+    <div class="row"><span class="label">Origin</span><span class="value">${e(quarryOrigin) || e(quarryName) || 'N/A'}</span></div>
+    ${weighOutGeoAddress ? `<div class="row"><span class="label">Weigh-Out Location</span><span class="value">${e(weighOutGeoAddress)}</span></div>` : ''}
+  </div>
+
+   
+
+  ${hasQuarryWeights ? `
+  <div class="section">
+    <div class="section-title">Quarry Weight Record (Reference)</div>
+    <table>
+      <tr><td>Quarry Weigh-In (Gross)</td><td style="font-weight:700;">${e(quarryWeighIn) || '—'}</td></tr>
+      <tr><td>Quarry Weigh-Out (Tare)</td><td style="font-weight:700;">${e(quarryWeighOut) || '—'}</td></tr>
+      ${quarryNetWeight ? `<tr><td>Quarry Net Weight</td><td style="font-weight:700; color:#16A34A;">${e(quarryNetWeight)}</td></tr>
+     <tr><td>Recorded By </td><td style="font-weight:700;">${e(quarryPersonnel)}</td></tr>
+      ` : ''}
+    </table>
+  </div>
+  ` : ''}
+
+  ${hasSiteWeights ? `
+  <div class="section">
+    <div class="section-title">Site Weight Record</div>
+    <table>
+      <tr><td>Site Arrival Weight (Gross)</td><td style="font-weight:700;">${e(siteWeighIn) || '—'}</td></tr>
+      <tr><td>Post-Offload Weight (Tare)</td><td style="font-weight:700;">${e(siteWeighOut) || '—'}</td></tr>
+      <tr><td>Site Operator </td><td style="font-weight:700;">${e(operatorName)}</td></tr>
+    </table>
+    ${siteNetWeight ? `
+    <div class="highlight-box">
+      <div class="net">${e(siteNetWeight)}</div>
+      <div class="calc">NET WEIGHT</div>
+    </div>
+    ` : ''}
+  </div>
+  ` : ''}
+
+  
+
+ 
+ 
+  </div>
+</body>
+</html>`;
+}
+
+/* ─────────── Main Screen ─────────── */
 
 export default function ReceiptNoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,7 +192,10 @@ export default function ReceiptNoteScreen() {
   const [loading, setLoading] = useState(true);
   const [delivery, setDelivery] = useState<any>(null);
   const [resolvedQuarryName, setResolvedQuarryName] = useState<string | null>(null);
-  const [exporting, setExporting] = useState<'csv' | null>(null);
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+  const [geoCity, setGeoCity] = useState<string | undefined>();
+  const [geoTown, setGeoTown] = useState<string | undefined>();
+  const [geoAddress, setGeoAddress] = useState<string | undefined>();
 
   useEffect(() => {
     (async () => {
@@ -32,10 +205,9 @@ export default function ReceiptNoteScreen() {
           const d = orders[0];
           setDelivery({
             ...d,
-            receiptNoteId: d.receiptNoteId || generateReceiptNoteId(d.jobId),
+            receiptNoteId: receiptReference(d) || 'Not recorded',
           });
 
-          // Resolve quarry name from coordinates if available
           if (d.quarryLatitude != null && d.quarryLongitude != null) {
             reverseGeocode(d.quarryLatitude, d.quarryLongitude).then((name) => {
               setResolvedQuarryName(name);
@@ -43,6 +215,14 @@ export default function ReceiptNoteScreen() {
           } else if (d.quarryLat != null && d.quarryLng != null) {
             reverseGeocode(d.quarryLat, d.quarryLng).then((name) => {
               setResolvedQuarryName(name);
+            }).catch(() => {});
+          }
+
+          if (d.weighOutLatitude != null && d.weighOutLongitude != null) {
+            reverseGeocodeRich(d.weighOutLatitude, d.weighOutLongitude).then((geo) => {
+              setGeoAddress(geo.address);
+              setGeoCity(geo.city);
+              setGeoTown(geo.town || geo.name);
             }).catch(() => {});
           }
         }
@@ -55,8 +235,8 @@ export default function ReceiptNoteScreen() {
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={{ color: colors.textMuted, marginTop: 12 }}>Loading receipt note...</Text>
+        <ActivityIndicator size="large" color={colors.primaryText} />
+        <Text style={{ color: colors.textMuted, marginTop: Spacing.xs}}>Loading receipt note...</Text>
       </View>
     );
   }
@@ -65,52 +245,70 @@ export default function ReceiptNoteScreen() {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <Ionicons name="document-outline" size={48} color={colors.textTertiary} />
-        <Text style={{ color: colors.textMuted, marginTop: 12, fontSize: 16 }}>Receipt note not found</Text>
+        <Text style={{ color: colors.textMuted, marginTop: Spacing.xs, fontSize: 16 }}>Receipt note not found</Text>
         <TouchableOpacity
           style={[styles.backBtn, { backgroundColor: colors.primary }]}
           onPress={() => router.back()}
         >
-          <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>Go Back</Text>
+          <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   const rn = delivery.receiptNoteId;
+  const banker = delivery.banker || (delivery.isWarehouseDelivery ? 'Warehouse-banker' : 'N/A');
   const jobId = delivery.jobId;
   const poNumber = delivery.poNumber || 'N/A';
   const driverName = delivery.driverName || 'N/A';
   const plateNumber = delivery.plateNumber || 'N/A';
   const vendorName = delivery.vendorName || 'N/A';
-  const vendorId = delivery.vendorId || '';
-  const materialName = delivery.materialName || 'N/A';
-  const quantityOrdered = delivery.quantityOrdered || 0;
+  const materialName = formatTripMaterials(delivery) || 'N/A';
+  const lotNumber = deliveryLot(delivery) || 'Not recorded';
+  const sitePersonnel = receivingPerson(delivery) || 'Not recorded';
+  const isWarehouse = Boolean(delivery.isWarehouseDelivery || delivery.warehouseJobId || delivery.deliveryOrigin === 'warehouse');
   const quarryName = resolvedQuarryName || delivery.quarryName || 'N/A';
+  const isCustomSite = ['operator_site', 'site_operator'].includes(String(delivery.createdBy?.role || delivery.createdBy || '').trim().toLowerCase());
+  const quarryOrigin = isCustomSite ? delivery.materialSource || 'N/A' : formatCapturedGeoLocation(
+    delivery?.weighOutGeoLocation,
+    delivery?.weighOutLocation || quarryName,
+  );
+  const quarryCityTown = geoCity || geoTown || delivery?.weighOutGeoLocation?.address || delivery?.weighOutLocation || null;
+  const quarryPersonnel = delivery?.operatorUsername || delivery?.weighOutByName || delivery?.quarryOperatorName || delivery?.weighOutBy || delivery?.weighOutOperator || null;
   const siteName = delivery.siteName || 'N/A';
   const siteWeighIn = delivery.siteWeighInWeight ?? null;
   const siteWeighOut = delivery.siteWeighOutWeight ?? null;
   const siteNet = delivery.siteNetWeight ?? delivery.quantityDelivered ?? null;
+  const quarryWeighIn = delivery.weighInWeight ?? null;
+  const quarryWeighOut = delivery.weighOutWeight ?? null;
   const quarryNet = delivery.netWeight ?? null;
 
   // Export helpers
   const exportHeaders = ['Field', 'Value'];
-  const exportRows = [
-    ['Receipt Note', rn],
-    ['Job ID', jobId],
-    ['Purchase Order', poNumber],
-    ['Driver', driverName],
-    ['Truck', plateNumber],
-    ['Vendor', vendorName],
-    ['Material', materialName],
-    ['Ordered Qty', `${quantityOrdered} tonnes`],
-    ['Origin', quarryName],
-    ['Destination', siteName],
-    ['Site Arrival (Gross)', siteWeighIn != null ? `${siteWeighIn.toFixed(1)} T` : 'N/A'],
-    ['Site Weigh Out (Tare)', siteWeighOut != null ? `${siteWeighOut.toFixed(1)} T` : 'N/A'],
-    ['Site Net Weight', siteNet != null ? `${siteNet.toFixed(1)} T` : 'N/A'],
-    ['Quarry Net (Reference)', quarryNet != null ? `${quarryNet.toFixed(1)} T` : 'N/A'],
-    ['Finalized', formatEAT(delivery.receivedAt || delivery.updatedAt)],
-  ];
+const exportRows = [
+  ['Receipt Note', rn],
+  ['Job ID', jobId],
+  ['Lot Number', lotNumber],
+  ['Purchase Order', poNumber],
+  ['Driver', driverName],
+  ['Truck', plateNumber],
+  ['Vendor', vendorName],
+  ['Material', materialName],
+  ['Banker', banker],
+  ['Origin', quarryOrigin || quarryName],
+
+  ['Quarry Personnel', quarryPersonnel || 'N/A'],
+  ['Weigh-Out Location', geoAddress || 'N/A'],
+
+  ['Quarry Weigh-In (Gross)', quarryWeighIn != null ? `${quarryWeighIn.toFixed(1)} T` : 'N/A'],
+  ['Quarry Weigh-Out (Tare)', quarryWeighOut != null ? `${quarryWeighOut.toFixed(1)} T` : 'N/A'],
+  ['Quarry Net Weight', quarryNet != null ? `${quarryNet.toFixed(1)} T` : 'N/A'],
+  ['Site Arrival (Gross)', siteWeighIn != null ? `${siteWeighIn.toFixed(1)} T` : 'N/A'],
+  ['Site Weigh Out (Tare)', siteWeighOut != null ? `${siteWeighOut.toFixed(1)} T` : 'N/A'],
+  ['Site Net Weight', siteNet != null ? `${siteNet.toFixed(1)} T` : 'N/A'],
+  ['Site Operator', sitePersonnel],   // <── NEW ROW
+  ['Finalized', formatEAT(delivery.receivedAt || delivery.updatedAt)],
+];
 
   const handleDownloadCSV = async () => {
     setExporting('csv');
@@ -122,7 +320,49 @@ export default function ReceiptNoteScreen() {
     }
   };
 
+  const handlePrintPDF = async () => {
+    setExporting('pdf');
+    try {
+      const html = buildReceiptNoteHtml({
+        lotNumber,
+        isWarehouse,
+        receiptNoteId: rn,
+        banker,
+        jobId,
+        poNumber,
+        driverName,
+        plateNumber,
+        vendorName,
+        materialName,
+        quarryName,
+        quarryOrigin: quarryOrigin || undefined,
+   
+        quarryPersonnel: quarryPersonnel || undefined,
+        quarryWeighIn: quarryWeighIn != null ? `${quarryWeighIn.toFixed(1)} T` : undefined,
+        quarryWeighOut: quarryWeighOut != null ? `${quarryWeighOut.toFixed(1)} T` : undefined,
+        quarryNetWeight: quarryNet != null ? `${quarryNet.toFixed(1)} T` : undefined,
+        siteName,
+        siteWeighIn: siteWeighIn != null ? `${siteWeighIn.toFixed(1)} T` : undefined,
+        siteWeighOut: siteWeighOut != null ? `${siteWeighOut.toFixed(1)} T` : undefined,
+        siteNetWeight: siteNet != null ? `${siteNet.toFixed(1)} T` : undefined,
+        weighOutGeoAddress: geoAddress,
+        timestamp: formatEAT(delivery.receivedAt || delivery.updatedAt),
+        operatorName: sitePersonnel,
+      });
 
+      if (Platform.OS === 'web') {
+        await printHtmlOnWeb(html);
+      } else {
+        const { uri } = await Print.printToFileAsync({ width: 595, height: 842,  html });
+        await Print.printAsync({ uri });
+      }
+    } catch (error: any) {
+      console.error('PDF generation/print error:', error);
+      Alert.alert('Print Error', error?.message || 'Could not generate PDF. Please try again.');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <ScrollView
@@ -138,11 +378,11 @@ export default function ReceiptNoteScreen() {
       >
         {/* Header */}
         <View style={styles.cardHeader}>
-          <View style={[styles.rnIconWrap, { backgroundColor: '#10B98115' }]}>
-            <Ionicons name="receipt" size={32} color="#10B981" />
+          <View style={[styles.rnIconWrap, { backgroundColor: `${colors.success}15` }]}>
+            <Ionicons name="receipt" size={32} color={colors.success} />
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[styles.rnTitle, { color: '#10B981' }]} numberOfLines={4}>{rn}</Text>
+            <Text style={[styles.rnTitle, { color: colors.success }]} numberOfLines={4}>{rn}</Text>
             <Text style={[styles.rnSubtitle, { color: colors.textMuted }]}>
               Receipt Note
             </Text>
@@ -151,8 +391,11 @@ export default function ReceiptNoteScreen() {
 
         {/* Job Info */}
         <SectionBlock title="DOCUMENT DETAILS" colors={colors}>
+          <RNRow label="Banker" value={banker} colors={colors} />
           <RNRow label="Job ID" value={jobId} colors={colors} />
-          <RNRow label="Purchase Order" value={poNumber} colors={colors} />
+          <RNRow label="Lot Number" value={lotNumber} colors={colors} />
+          <RNRow label="Site Personnel" value={sitePersonnel} colors={colors} />
+          <RNRow label={isWarehouse ? "Warehouse Order" : "Purchase Order"} value={poNumber} colors={colors} />
           <RNRow
             label="Finalized"
             value={formatEAT(delivery.receivedAt || delivery.updatedAt)}
@@ -164,42 +407,73 @@ export default function ReceiptNoteScreen() {
         <SectionBlock title="PARTIES" colors={colors}>
           <RNRow label="Driver" value={driverName} colors={colors} />
           <RNRow label="Truck" value={plateNumber} colors={colors} />
-          <RNRow
-            label="Vendor"
-            value={vendorName}
-            colors={colors}
-            tappable={!!vendorId}
-            onPress={() => vendorId && router.push(`/screens/vendor-detail?id=${vendorId}` as any)}
-          />
+          <RNRow label="Vendor" value={vendorName} colors={colors} />
         </SectionBlock>
 
-        {/* Route */}
-        <SectionBlock title="ROUTE" colors={colors}>
-          <RNRow label="Origin" value={quarryName} colors={colors} />
-          <RNRow label="Destination" value={siteName} colors={colors} />
+        {/* Route & Geolocation */}
+        <SectionBlock title="ROUTE " colors={colors}>
+          <RNRow label="Origin" value={quarryOrigin || quarryName} colors={colors} />
+        
+          {geoAddress ? (
+            <RNRow label="Weigh-Out Location" value={geoAddress} colors={colors} />
+          ) : null}
+    
           <RNRow label="Material" value={materialName} colors={colors} />
         </SectionBlock>
 
-        {/* Weight Record */}
-        <SectionBlock title="WEIGHT RECORD" colors={colors}>
+        {/* Quarry Personnel */}
+        {quarryPersonnel ? (
+          <SectionBlock title="QUARRY PERSONNEL" colors={colors}>
+            <RNRow label="Recorded By" value={quarryPersonnel} colors={colors} bold />
+          </SectionBlock>
+        ) : null}
+
+        {/* Quarry Weight Record */}
+        {(quarryWeighIn != null || quarryWeighOut != null || quarryNet != null) ? (
+          <SectionBlock title="QUARRY WEIGHT RECORD (REFERENCE)" colors={colors}>
+            <RNRow
+              label="Quarry Weigh-In (Gross)"
+              value={quarryWeighIn != null ? `${quarryWeighIn.toFixed(1)} T` : 'N/A'}
+              colors={colors}
+              valueColor={colors.purpleText}
+            />
+            <RNRow
+              label="Quarry Weigh-Out (Tare)"
+              value={quarryWeighOut != null ? `${quarryWeighOut.toFixed(1)} T` : 'N/A'}
+              colors={colors}
+              valueColor={colors.purpleText}
+            />
+            {quarryNet != null && (
+              <RNRow
+                label="Quarry Net Weight"
+                value={`${quarryNet.toFixed(1)} T`}
+                colors={colors}
+                valueColor={colors.infoText}
+              />
+            )}
+          </SectionBlock>
+        ) : null}
+
+        {/* Site Weight Record */}
+        <SectionBlock title="SITE WEIGHT RECORD" colors={colors}>
           <RNRow
             label="Site Arrival (Gross)"
             value={siteWeighIn != null ? `${siteWeighIn.toFixed(1)} T` : 'N/A'}
             colors={colors}
-            valueColor="#F59E0B"
+            valueColor={colors.warningText}
           />
           <RNRow
             label="Site Weigh Out (Tare)"
             value={siteWeighOut != null ? `${siteWeighOut.toFixed(1)} T` : 'N/A'}
             colors={colors}
-            valueColor="#8B5CF6"
+            valueColor={colors.purpleText}
           />
           <View style={styles.netDivider} />
           <RNRow
             label="Site Net Weight"
             value={siteNet != null ? `${siteNet.toFixed(1)} T` : 'N/A'}
             colors={colors}
-            valueColor="#10B981"
+            valueColor={colors.success}
             bold
           />
           {quarryNet != null && (
@@ -207,27 +481,37 @@ export default function ReceiptNoteScreen() {
               label="Quarry Net (Reference)"
               value={`${quarryNet.toFixed(1)} T`}
               colors={colors}
-              valueColor="#2563EB"
+              valueColor={colors.infoText}
             />
           )}
         </SectionBlock>
-
-      
       </View>
 
-      {/* Actions — Download only (no share) */}
+      {/* Actions — CSV + Print PDF */}
       <View style={styles.actionRow}>
         <TouchableOpacity
-          style={[styles.actionBtn, { backgroundColor: '#2563EB' }]}
+          style={[styles.actionBtn, { backgroundColor: colors.primary }]}
           onPress={handleDownloadCSV}
           disabled={exporting !== null}
         >
           {exporting === 'csv' ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={colors.onPrimary} />
           ) : (
-            <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
+            <Ionicons name="document-text-outline" size={18} color={colors.onPrimary} />
           )}
           <Text style={styles.actionBtnText}>Download CSV</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+          onPress={handlePrintPDF}
+          disabled={exporting !== null}
+        >
+          {exporting === 'pdf' ? (
+            <ActivityIndicator size="small" color={colors.onPrimary} />
+          ) : (
+            <Ionicons name="print-outline" size={18} color={colors.onPrimary} />
+          )}
+          <Text style={styles.actionBtnText}>Print PDF</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -267,7 +551,6 @@ const RNRow = ({
             styles.rnValue,
             { color: valueColor || colors.primary, fontWeight: bold ? '800' : '600', textDecorationLine: 'underline' },
           ]}
-          numberOfLines={3}
         >
           {value}
         </Text>
@@ -278,7 +561,6 @@ const RNRow = ({
           styles.rnValue,
           { color: valueColor || colors.text, fontWeight: bold ? '800' : '600' },
         ]}
-        numberOfLines={3}
       >
         {value}
       </Text>
@@ -290,13 +572,12 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
-  backBtn: { marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Radius.md },
+  backBtn: { marginTop: Spacing.xs, paddingHorizontal: 20, paddingVertical: 10, borderRadius: Radius.md },
   card: { borderRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: Gap, marginBottom: Spacing.xs,
   },
   rnIconWrap: {
     width: 56,
@@ -306,40 +587,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rnTitle: { fontSize: 16, fontWeight: '900', textTransform: 'uppercase' },
-  rnSubtitle: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  rnSubtitle: { fontSize: 11, fontWeight: '700', marginTop: Spacing.xs},
   section: {
     borderTopWidth: 1,
-    paddingTop: Spacing.md,
-    marginBottom: Spacing.md,
-    gap: 4,
+    paddingTop: Spacing.md, marginBottom: Spacing.xs,
+    gap: Gap,
   },
   sectionTitle: {
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 4,
+    textTransform: 'uppercase', marginBottom: Spacing.xs,
   },
   rnRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingVertical: 3,
-    gap: Spacing.sm,
+    gap: Gap,
   },
-  rnLabel: { fontSize: 13, flexShrink: 0, marginTop: 1 },
+  rnLabel: { fontSize: 13, flexShrink: 0, marginTop: Spacing.xs},
   rnValue: { fontSize: 13, flex: 1, textAlign: 'right', flexWrap: 'wrap' },
-  netDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 4 },
-  diffBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  netDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.xs},
+  actionRow: { flexDirection: 'row', gap: Gap, marginTop: Spacing.xs},
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -347,8 +617,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
-    gap: Spacing.sm,
+    gap: Gap,
   },
   actionBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
-  actionBtnTextAlt: { fontSize: 14, fontWeight: '600' },
 });

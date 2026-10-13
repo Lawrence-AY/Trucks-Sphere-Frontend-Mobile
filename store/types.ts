@@ -1,193 +1,519 @@
-export interface User {
+// ══════════════════════════════════════════════════════════════════
+// TruckSphere Enterprise Type System
+// All entities with full audit trails, status enums, and relationships
+// ══════════════════════════════════════════════════════════════════
+
+// ─── User Roles ───
+export type UserRole =
+  | 'superadmin'
+  | 'admin'
+  | 'adminlite'
+  // Legacy values may exist in persisted sessions while accounts are migrated.
+  | 'management'
+  | 'super_admin'
+  | 'management_edit'
+  | 'management_lite'
+  | 'operator_quarry'
+  | 'operator_site'
+  | 'operator_fuel'
+  | 'operator_warehouse'
+  | 'storeman'
+  | 'inspector'
+  | 'vendor';
+
+// ─── Status Enums ───
+export type VendorStatus = 'active' | 'inactive' | 'suspended';
+export type DriverStatus = 'active' | 'inactive' | 'suspended' | 'on_trip';
+export type VehicleStatus = 'active' | 'inactive' | 'on_trip' | 'in_maintenance' | 'out_of_service';
+export type POStatus = 'draft' | 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled' | 'archived';
+export type JobStatus =
+  | 'CREATED'
+  | 'ASSIGNED'
+  | 'QUARRY_QUEUED'
+  | 'QUARRY_WEIGHED_IN'
+  | 'QUARRY_WEIGHED_OUT'
+  | 'DISPATCHED'
+  | 'IN_TRANSIT'
+  | 'ARRIVED_AT_SITE'
+  | 'SITE_WEIGHED_IN'
+  | 'SITE_WEIGHED_OUT'
+  | 'draft'
+  | 'assigned'
+  | 'ready'
+  | 'loading'
+  | 'quarry_in'
+  | 'quarry_out'
+  | 'in_transit'
+  | 'site_in'
+  | 'offloading'
+  | 'site_out'
+  | 'receipt_uploaded'
+  | 'reconciliation'
+  | 'completed'
+  | 'cancelled';
+export type MaterialStatus = 'active' | 'inactive';
+export type QuarryStatus = 'active' | 'inactive';
+export type SiteStatus = 'active' | 'inactive';
+export type FuelStationStatus = 'active' | 'inactive';
+
+// ─── Audit Trail ───
+export interface AuditTrail {
+  createdBy: string;
+  createdAt: string;
+  updatedBy?: string;
+  updatedAt?: string;
+  deletedBy?: string;
+  deletedAt?: string;
+}
+
+/** Structured actor data stored on operational records by the API. */
+export interface UserReference {
+  uid: string;
+  username: string;
+  displayName: string;
+  email: string;
+  role: string;
+  entityId?: string;
+  entityType?: string;
+}
+
+// ─── User ───
+export interface User extends AuditTrail {
   uid: string;
   email: string;
   displayName: string;
   name?: string;
+  username?: string;
   role: UserRole;
   phone?: string;
   photoURL?: string;
   vendorId?: string;
+  quarryOperatorType?: 'general' | 'vendor';
   quarryId?: string;
+  quarryLocation?: string;
   siteId?: string;
-  createdAt: string;
+  fuelStationId?: string;
+  employeeNumber?: string;
+  shift?: string;
+  isActive: boolean;
+  lastLogin?: string;
 }
 
-export type UserRole = 'admin' | 'management' | 'operator_quarry' | 'operator_site' | 'vendor' | 'operator_fuel';
-
-export interface Vendor {
+// ─── Vendor ───
+export interface Vendor extends AuditTrail {
   id: string;
-  name: string;
+  vendorId: string; // Auto-generated: V001, V002...
+  companyName: string;
+  contactPerson: string;
   phone: string;
   email?: string;
   address?: string;
-  status: 'active' | 'inactive';
-  fleetSize: number;
-  createdAt: string;
+  kraPin?: string;
+  registrationNumber?: string;
+  businessPermit?: string;
+  companyActCR12?: string;
+  fleetSize?: number;
+  taxCompliance?: string;
+  status: VendorStatus;
+  // Insurance (single source of truth — drivers inherit from vendor)
+  insuranceCompany?: string;
+  insuranceNumber?: string;
+  insuranceStartDate?: string;
+  insuranceExpiryDate?: string;
+  insuranceCommencingDate?: string;
+  insuranceSupplier?: string;
+  // NTSE & WIBA Compliance (single source of truth — drivers inherit from vendor)
+  ntsaInspectionExpiry?: string;
+  wibaProvider?: string;
+  wibaStartDate?: string;
+  wibaEndDate?: string;
+  // Computed
+  driverCount?: number;
+  vehicleCount?: number;
+  activeJobCount?: number;
+  performance?: VendorPerformance;
 }
 
-export interface Driver {
+export interface VendorPerformance {
+  totalJobs: number;
+  completedJobs: number;
+  onTimeRate: number; // percentage
+  averageDeliveryTime: number; // hours
+  weightVarianceRate: number; // percentage
+  rating: number; // 1-5
+}
+
+// ─── Driver ───
+export interface Driver extends AuditTrail {
   id: string;
-  name: string;
+  driverId: string; // Auto-generated: D001, D002...
+  fullName: string;
+  firstName?: string;
+  surname?: string;
   phone: string;
   email?: string;
+  nationalId?: string;
   licenseNumber: string;
+  licenseClass?: string;
   licenseExpiry: string;
-  status: 'active' | 'inactive' | 'suspended' | 'on_trip';
-  vendorId?: string;
-  assignedTruckId?: string;
+  status: DriverStatus;
   photoURL?: string;
+  emergencyContact?: string;
+  emergencyPhone?: string;
+  vendorId: string;
+  vendorName?: string;
+  assignedTruckId?: string;
+  currentVehicleId?: string;
+  currentVehiclePlate?: string;
+  availability: boolean;
   totalTrips?: number;
   rating?: number;
-  createdAt: string;
+  // Insurance
+  insuranceCompany?: string;
+  insuranceNumber?: string;
+  insuranceStartDate?: string;
+  insuranceExpiryDate?: string;
+  insuranceCommencingDate?: string;
+  insuranceSupplier?: string;
+  // NTSE & WIBA
+  ntsaInspectionExpiry?: string;
+  wibaProvider?: string;
+  wibaStartDate?: string;
+  wibaEndDate?: string;
 }
 
-export interface Vehicle {
+// ─── Vehicle ───
+export interface Vehicle extends AuditTrail {
   id: string;
-  plate?: string;
-  plateNumber: string;
-  model: string;
-  make: string;
-  year: number;
-  color: string;
-  capacity: number; // tons
-  status: 'active' | 'inactive' | 'on_trip' | 'in_maintenance' | 'out_of_service';
-  vendorId?: string;
-  vendorName?: string;
-  assignedDriverId?: string;
-  driverName?: string;
-  axles?: number;
-  insuranceExpiry: string;
-  lastInspection: string;
-  createdAt: string;
-}
-
-export interface Material {
-  id: string;
-  name: string;
-  description?: string;
-  unit: string;
-  unitPrice: number;
-  category: string;
-  active: boolean;
-}
-
-export interface Quarry {
-  id: string;
-  name: string;
-  location: {
-    address: string;
-    latitude: number;
-    longitude: number;
-  };
-  status: 'active' | 'inactive';
-  contact?: string;
-  createdAt: string;
-}
-
-export interface Site {
-  id: string;
-  name: string;
-  location: {
-    address: string;
-    latitude: number;
-    longitude: number;
-  };
-  status: 'active' | 'inactive';
-  contact?: string;
-  createdAt: string;
-}
-
-export interface PurchaseOrder {
-  id: string;
-  poNumber: string;
+  registrationNumber: string; // Plate number
+  plateNumber?: string;
   vendorId: string;
-  vendorName: string;
-  materialId: string;
-  material?: string;
+  vendorName?: string;
+  make: string;
+  model: string;
+  type?: string;
+  year: number;
+  capacity: number; // tonnes
+  capacityUnit: string;
+  assignedDriverId?: string;
+  currentDriverId?: string;
+  currentDriverName?: string;
+  insuranceExpiry: string;
+  inspectionExpiry: string;
+  lastInspection?: string;
+  status: VehicleStatus;
+  photos?: string[];
+  documents?: VehicleDocument[];
+  axles?: number;
+  fuelType?: string;
+  color?: string;
+}
+
+export interface VehicleDocument {
+  id: string;
+  type: 'insurance' | 'inspection' | 'registration' | 'other';
+  name: string;
+  url: string;
+  expiryDate?: string;
+  uploadedAt: string;
+}
+
+// ─── Material Category ───
+export type MaterialCategory =
+  | 'Aggregates'
+  | 'Steel'
+  | 'Cement'
+  | 'Liquid'
+  | 'Blocks'
+  | 'Other'
+  | 'Warehouse';
+
+// ─── Measurement Unit ───
+export type MeasurementUnit =
+  | 'Tonnes'
+  | 'Bags'
+  | 'Pieces'
+  | 'Millimetres'
+  | 'Metres'
+  | 'Litres'
+  | 'Cubic Metres'
+  | 'Kilograms';
+
+// ─── Material Property Definition ───
+export interface MaterialProperty {
+  name: string;
+  type: 'select' | 'number' | 'text' | 'boolean';
+  label: string;
+  required: boolean;
+  options?: string[]; // For select type
+  unit?: string;
+}
+
+// ─── Material ───
+export interface Material extends AuditTrail {
+  id: string;
+  name: string;
+  category: MaterialCategory;
+  measurementType: MeasurementUnit;
+  defaultUnit: string;
+  status: MaterialStatus;
+  description?: string;
+  properties?: MaterialProperty[]; // Dynamic properties
+  /** Purchase unit price. */
+  unitPrice?: number;
+  /** Sales price. */
+  salesPrice?: number;
+  barcode?: string;
+  weight?: number;
+  volume?: number;
+  productType?: string;
+  // Computed
+  standardWeight?: number; // e.g., 50kg per bag for cement
+  diameterOptions?: string[]; // For steel: 8mm, 10mm, 12mm...
+  /** Marks a management-created material as the fixed reference for warehouse jobs. */
+  isWarehouseMaterial?: boolean;
+}
+
+export interface WarehouseJobItem {
+  materialId?: string;
   materialName: string;
   quantity: number;
   unit: string;
-  unitPrice: number;
-  totalAmount: number;
-  status: 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled';
-  quarryId: string;
-  quarryName: string;
-  siteId: string;
-  siteName: string;
-  requestedBy: string;
-  approvedBy?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  source?: string;
+  description?: string;
+  mrfNo?: string;
+  additionalNotes?: string;
+  sourceData?: Record<string, string>;
 }
 
-export interface DeliveryOrder {
+export default null;
+
+export interface WarehouseJob extends AuditTrail {
   id: string;
+  deliveryOrderId: string;
+  receiptNoteId?: string;
   jobId: string;
+  warehouseReference: string;
+  pomatReference: string;
+  poNumber?: string;
+  vendorId: string;
+  vendorName: string;
+  driverId?: string;
+  driverName?: string;
+  vehicleId?: string;
+  plateNumber?: string;
+  siteId: string;
+  siteName: string;
+  items: WarehouseJobItem[];
+  itemCount: number;
+  status: 'SUBMITTED' | 'ACCEPTED' | 'INSPECTED' | 'DENIED' | 'CANCELLED';
+  warehouseAcceptedAt?: string | null;
+  warehouseAcceptedByName?: string;
+  submittedAt: string;
+  workflowType?: 'bulk_upload' | 'manual_purchase_order';
+  goodsDeliveryNoteSource?: string;
+  goodsDeliveryNoteFileName?: string;
+  goodsDeliveryNoteHeaders?: string[];
+  dispatchedToSiteAt?: string;
+  packagingPhotoURL?: string;
+  packagingPhotoCapturedAt?: string;
+  packagingPhotoFileName?: string;
+  createdByUid?: string;
+  createdByName?: string;
+}
+
+// ─── Quarry ───
+export interface Quarry extends AuditTrail {
+  id: string;
+  name: string;
+  location: {
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
+  status: QuarryStatus;
+  contact?: string;
+  phone?: string;
+  email?: string;
+  operatorId?: string;
+  operatorName?: string;
+}
+
+// ─── Site ───
+export interface Site extends AuditTrail {
+  id: string;
+  name: string;
+  location: {
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
+  status: SiteStatus;
+  contact?: string;
+  phone?: string;
+  email?: string;
+  operatorId?: string;
+  operatorName?: string;
+}
+
+// ─── Fuel Station ───
+export interface FuelStation extends AuditTrail {
+  id: string;
+  name: string;
+  location: {
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
+  status: FuelStationStatus;
+  contact?: string;
+  phone?: string;
+  operatorId?: string;
+  operatorName?: string;
+}
+
+// ─── Purchase Order ───
+export interface PurchaseOrder extends AuditTrail {
+  id: string;
+  poNumber: string; // Auto-generated: PO#####/V###
+  customerId?: string;
+  customerName?: string;
+  vendorId: string;
+  vendorNumber?: string;
+  vendorName: string;
+  companyName?: string;
+  materialId: string;
+  materialNumber?: string;
+  materialName: string;
+  isWarehouseMaterial?: boolean;
+  quantity: number;
+  unit: string;
+  unitPrice?: number;
+  totalAmount?: number;
+  status: POStatus;
+  quarryId?: string;
+  quarryName?: string;
+  siteId?: string;
+  siteName?: string;
+  // Workflow
+  approvedBy?: string;
+  approvedAt?: string;
+  jobCount?: number;
+  deliveredQuantity?: number;
+  quantityDelivered?: number; // Alias for deliveredQuantity
+  remainingQuantity?: number;
+  materials?: PurchaseOrderMaterialLine[];
+  /** Stable per-form key used to make a retry safe after a network timeout. */
+  clientRequestId?: string;
+}
+
+export interface PurchaseOrderMaterialLine {
+  materialId: string;
+  materialNumber?: string;
+  materialName: string;
+  quantity?: number | null;
+  unit?: string | null;
+  isWarehouseMaterial?: boolean;
+}
+
+// ─── Job (Delivery Order) ───
+export interface Job extends AuditTrail {
+  id: string;
+  jobId: string; // Auto-generated: POMAT###/V###/D###/T###/J####
+  documentId?: string;
   purchaseOrderId: string;
   poNumber: string;
   vendorId: string;
   vendorName: string;
+  companyName?: string;
   driverId: string;
   driverName: string;
+  driverPhotoURL?: string;
   vehicleId: string;
-  truckPlate?: string;
   plateNumber: string;
   materialId: string;
-  material?: string;
   materialName: string;
-  quantity?: number;
+  materialSource?: string;
+  /** Required at site arrival for non-warehouse materials. */
+  banker?: string;
   quantityOrdered: number;
-  quantityDelivered: number;
-  quarryId: string;
-  quarryName: string;
-  siteId: string;
-  siteLocation?: string;
-  siteName: string;
-  status: 'assigned' | 'at_quarry' | 'loaded' | 'in_transit_to_site' | 'weighed_in' | 'completed' | 'delivered' | 'cancelled';
+  quantityDispatched?: number;
+  quantityDelivered?: number;
+  unit: string;
+  quarryId?: string;
+  quarryName?: string;
+  siteId?: string;
+  siteName?: string;
+  status: JobStatus;
+  trackingId?: string;
+  // Weights
   weighInId?: string;
   weighOutId?: string;
   weighInWeight?: number;
   weighOutWeight?: number;
   netWeight?: number;
-  weighInAt?: string;
-  weighOutAt?: string;
-  weighInLocation?: string;
-  weighOutLocation?: string;
-  weighInPhoto?: string;
-  weighOutPhoto?: string;
-  driverPhotoURL?: string;
-  weighOutGeoLocation?: {
-    latitude: number;
-    longitude: number;
-    address: string;
-  };
-  // Site-specific fields (Phase 2: Site Operator Workflow)
   siteWeighInWeight?: number;
   siteWeighOutWeight?: number;
   siteNetWeight?: number;
-  siteWeightDifference?: number;
+  weightVariance?: number;
+  // Site arrival variance = site weigh-in minus quarry weigh-out.
+  siteArrivalWeightVariance?: number;
+  siteArrivalWeightVarianceTolerance?: number;
+  siteArrivalWeightVarianceFlagged?: boolean;
+  siteArrivalWeightVarianceStatus?: 'within_tolerance' | 'flagged';
+  weighInAt?: string;
+  weighOutAt?: string;
   siteWeighInAt?: string;
   siteWeighOutAt?: string;
-  receivedAt?: string;
-  receivedLocation?: string;
-  receivedBy?: string;
-  deliveredAt?: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
+  weighInLocation?: string;
+  weighOutLocation?: string;
+  weighOutGeoLocation?: string;
+  // Timeline
+  dispatchTime?: string;
+  quarryInTime?: string;
+  quarryOutTime?: string;
+  siteInTime?: string;
+  siteOutTime?: string;
+  receiptTime?: string;
+  completionTime?: string;
+  // Receipt
+  receiptNoteId?: string;
+  receiptPhotoURL?: string;
+  // External delivery note captured at site (photo or PDF).
+  deliveryNoteURL?: string;
+  deliveryNoteFileName?: string;
+  deliveryNoteMimeType?: string;
+  deliveryNoteCapturedAt?: string;
+  // Warehouse-origin dispatch context and package-condition image.
+  warehouseJobId?: string;
+  isWarehouseDelivery?: boolean;
+  packagingPhotoURL?: string;
+  packagingPhotoCapturedAt?: string;
+  packagingPhotoFileName?: string;
+  // Backorder lineage created when a completed site's net delivery is short.
+  isBackorder?: boolean;
+  backorderOfDeliveryOrderId?: string;
+  backorderOfJobId?: string;
+  rootDeliveryOrderId?: string;
+  backorderDeliveryOrderId?: string;
+  backorderJobId?: string;
+  backorderRemainingQuantity?: number;
+  backorderCreatedAt?: string;
+  backorderDepth?: number;
+  // Fuel
+  fuelRecordId?: string;
+  fuelAmount?: number;
+  // Flags
+  isDelayed: boolean;
+  hasWeightDiscrepancy: boolean;
 }
 
-export interface WeighRecord {
+// ─── Weigh Record ───
+export interface WeighRecord extends AuditTrail {
   id: string;
-  deliveryOrderId: string;
   jobId: string;
+  deliveryOrderId: string;
   type: 'weigh_in' | 'weigh_out';
-  status?: 'pending' | 'weighed_in' | 'weighed_out' | 'completed';
-  truckPlate?: string;
-  driverName?: string;
-  material?: string;
-  weightIn?: number;
   weight: number;
   unit: string;
   location: string;
@@ -200,58 +526,170 @@ export interface WeighRecord {
   timestamp: string;
 }
 
-export interface QuarryQueue {
+// ─── Checkpoint ───
+export interface Checkpoint extends AuditTrail {
   id: string;
-  position: number;
-  deliveryOrderId: string;
   jobId: string;
-  driverName: string;
-  plateNumber: string;
-  materialName: string;
-  status: 'waiting' | 'weighing_in' | 'loading' | 'weighing_out' | 'completed';
-  arrivedAt: string;
-  weighInAt?: string;
-  weighOutAt?: string;
+  deliveryOrderId: string;
+  type: string;
+  timestamp: string;
+  location: string;
+  notes?: string;
+  weight?: number;
+  photoURL?: string;
 }
 
-export interface SiteDelivery {
+// ─── Fuel Record ───
+export interface FuelRecord extends AuditTrail {
   id: string;
-  deliveryOrderId: string;
+  fuelId: string;
   jobId: string;
+  vendorId: string;
   vendorName: string;
+  companyName?: string;
   driverName: string;
   plateNumber: string;
-  materialName: string;
-  quantity: number;
-  status: 'scheduled' | 'arrived' | 'received' | 'confirmed';
-  scheduledAt: string;
-  arrivedAt?: string;
-  receivedAt?: string;
+  fuelAmount: number;
+  fuelType?: string;
+  unit: string;
+  pricePerUnit?: number;
+  totalCost?: number;
+  stationId: string;
+  stationName: string;
+  operatorId: string;
+  operatorName: string;
+  authorizationCode?: string;
+  authorizationId?: string;
+  dispensedAt: string;
+  notes?: string;
 }
 
+// ─── Fuel Authorization ───
+export interface FuelAuthorization extends AuditTrail {
+  id: string;
+  jobId: string;
+  vendorId: string;
+  fuelAmount: number;
+  otp: string;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  authorizedBy?: string;
+  authorizedAt?: string;
+  expiresAt: string;
+}
+
+// ─── Customer ───
+export interface Customer extends AuditTrail {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  kraPin?: string;
+  status: 'active' | 'inactive';
+}
+
+// ─── Audit Log Entry ───
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  userId: string;
+  userName: string;
+  details: string;
+  changes?: Record<string, { from: any; to: any }>;
+  timestamp: string;
+  severity: 'info' | 'warning' | 'error';
+}
+
+// ─── Dashboard Stats ───
 export interface DashboardStats {
-  activeTrucks: number;
-  pendingDeliveries: number;
-  todayWeighments: number;
+  todayJobs: number;
+  activeDeliveries: number;
+  delayedJobs: number;
+  pendingDispatch: number;
+  activeVehicles: number;
+  availableDrivers: number;
+  totalVendors: number;
+  totalDrivers: number;
+  totalVehicles: number;
   todayDeliveries: number;
-  activeDrivers: number;
   pendingOrders: number;
+  fuelDispensedToday: number;
+  weightAlerts: number;
+  complianceAlerts: number;
 }
 
+// ─── Activity Log Entry ───
+export interface ActivityLogEntry {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  entityLabel: string;
+  userName: string;
+  timestamp: string;
+  icon?: string;
+  color?: string;
+}
+
+// ─── Role & Permission ───
+export interface Role {
+  id: string;
+  name: string;
+  description?: string;
+  permissions: Permission[];
+  isSystem: boolean;
+}
+
+export interface Permission {
+  resource: string;
+  actions: ('create' | 'read' | 'update' | 'delete' | 'approve' | 'archive')[];
+}
+
+ 
+
+// ─── Auth State ───
 export interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
 
-export interface Checkpoint {
-  id: string;
-  deliveryOrderId: string;
-  jobId: string;
-  type: 'weigh_in' | 'weigh_out' | 'loading' | 'arrived_site' | 'received';
-  timestamp: string;
-  location: string;
-  notes?: string;
+// ─── Tab Config ───
+export interface TabConfig {
+  name: string;
+  label: string;
+  icon: string;
 }
 
-export type TabName = string;
+// ─── Search Result ───
+export interface SearchResult {
+  id: string;
+  type: 'vendor' | 'driver' | 'vehicle' | 'material' | 'purchase_order' | 'job';
+  label: string;
+  subtitle: string;
+  route: string;
+  icon: string;
+  color: string;
+}
+
+// ─── Filter Config ───
+export interface FilterOption {
+  key: string;
+  label: string;
+  icon?: string;
+}
+
+export interface FilterState {
+  dateRange?: { start: string; end: string };
+  vendorId?: string;
+  driverId?: string;
+  vehicleId?: string;
+  materialId?: string;
+  purchaseOrderId?: string;
+  status?: string;
+  quarryId?: string;
+  siteId?: string;
+  search?: string;
+}

@@ -15,18 +15,26 @@
  */
 
 import { create } from 'zustand';
+import { Platform } from 'react-native';
+import { allPages } from '../services/allPages';
 import { setItem, getItem } from '../services/database';
 import * as api from '../services/api';
+import { API_BASE_URL } from '../services/config';
 
 // ─── Types ───
 interface CollectionEntry {
+  writeRevision?: number;
   data: any[];
-  hash: string;          // ETag value from server
+  // Retained for compatibility with the existing store API. The backend now
+  // disables ETag-based browser revalidation for authenticated collections.
+  hash: string;
   timestamp: number;      // Last successful fetch time
   loading: boolean;
   error: string | null;
   subscribers: number;    // How many components are using this
   pollInterval: ReturnType<typeof setInterval> | null;
+  cleanupTimer: ReturnType<typeof setTimeout> | null;
+  liveSyncStop: (() => void) | null;
 }
 
 interface SyncState {
@@ -37,6 +45,12 @@ interface SyncState {
   unsubscribe: (collectionName: string, params?: Record<string, string>) => void;
   // Force refresh a collection
   refresh: (collectionName: string, params?: Record<string, string>) => Promise<void>;
+  // Optimistic update: immediately push new/updated data into cache after a write
+  optimisticUpdate: (collectionName: string, updatedItem: any, idField?: string) => void;
+  // Invalidate ETag for a collection to force a full re-fetch on next poll
+  invalidateETag: (collectionName: string) => void;
+  // Clear active in-memory subscriptions when the authenticated account changes.
+  clearSession: () => void;
   // Get current data for a collection
   getData: (collectionName: string) => any[];
   // Get loading state
@@ -46,7 +60,13 @@ interface SyncState {
 }
 
 const CACHE_PREFIX = 'sync_cache_';
-const POLL_INTERVAL_MS = 30000; // 30 seconds
+// Keep data current without continuously triggering authenticated browser
+// requests (and their CORS preflights) while a vendor screen is open.
+const POLL_INTERVAL_MS = 5000;
+const UNSUBSCRIBE_GRACE_PERIOD_MS = 15000;
+// Public environment values ship with the app, so they must never enable
+// verbose production logging.
+const REALTIME_DEBUG = __DEV__;
 
 // ─── Collection-to-fetcher mapping ───
 const fetchers: Record<string, (p?: any) => Promise<any[]>> = {
@@ -62,44 +82,50 @@ const fetchers: Record<string, (p?: any) => Promise<any[]>> = {
   sites: api.fetchSites,
   fuelRecords: api.fetchFuelRecords,
   uploads: api.fetchUploads,
+  customers: api.fetchCustomers,
+  fuelStations: api.fetchFuelStations,
+  users: api.fetchUsers,
+  roles: api.fetchRoles,
 };
 
 // ─── ETag store for 304 support ───
 const etagStore: Record<string, string> = {};
+const inFlightFetches = new Map<string, Promise<{ data: any[]; hash: string; notModified: boolean; failed: boolean }>>();
+let sessionScope = 'anonymous';
 
-function buildCacheKey(collectionName: string, params?: Record<string, string>): string {
+/** Namespaces every persisted cache by user, preventing data leakage on account switching. */
+export function setRealtimeSessionScope(uid?: string): void {
+  sessionScope = uid || 'anonymous';
+}
+
+export function getRealtimeCollectionKey(collectionName: string, params?: Record<string, string>): string {
   const filterKey = params
-    ? '_' + Object.entries(params).map(([k, v]) => `${k}_${v}`).join('_')
+    ? '_' + Object.entries(params).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}_${v}`).join('_')
     : '';
-  return CACHE_PREFIX + collectionName + filterKey;
+  return CACHE_PREFIX + sessionScope + '_' + collectionName + filterKey;
+}
+
+function getCollectionKeyPrefix(collectionName: string): string {
+  return `${CACHE_PREFIX}${sessionScope}_${collectionName}`;
 }
 
 /**
  * Fetch from the API with ETag support.
  * Returns { data, hash, notModified }.
  */
-async function fetchWithETag(
+async function requestWithETag(
   collectionName: string,
   params?: Record<string, string>
-): Promise<{ data: any[]; hash: string; notModified: boolean }> {
+): Promise<{ data: any[]; hash: string; notModified: boolean; failed: boolean }> {
   const fetcher = fetchers[collectionName];
   if (!fetcher) {
-    console.warn(`[Sync] Unknown collection: ${collectionName}`);
-    return { data: [], hash: '', notModified: false };
+    return { data: [], hash: '', notModified: false, failed: true };
   }
 
   try {
     // Use axios directly for ETag support
-    const axios = (await import('axios')).default;
+    const axios = (await import('../services/apiTransport')).default;
     const token = await (await import('../services/database')).getStoredToken();
-
-    const baseUrl = (() => {
-      const { Platform } = require('react-native');
-      if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-      if (process.env.EXPO_PUBLIC_API_IP) return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
-      if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
-      return 'http://192.168.1.211:5000';
-    })();
 
     // Map collection names to API paths
     const pathMap: Record<string, string> = {
@@ -115,14 +141,19 @@ async function fetchWithETag(
       sites: '/api/sites',
       fuelRecords: '/api/fuel',
       uploads: '/api/uploads',
+      customers: '/api/customers',
+      fuelStations: '/api/fuel-stations',
+      users: '/api/users',
+      roles: '/api/roles',
     };
 
     const url = pathMap[collectionName] || `/api/${collectionName}`;
-    const prevETag = etagStore[collectionName] || '';
+    const etagKey = getRealtimeCollectionKey(collectionName, params);
+    const prevETag = etagStore[etagKey] || '';
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    // GETs have no body. Keep their headers minimal; the server's no-store
+    // response policy and the in-memory ETag cache handle freshness.
+    const headers: Record<string, string> = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -130,58 +161,112 @@ async function fetchWithETag(
       headers['If-None-Match'] = prevETag;
     }
 
-    console.log(`[Sync] Fetching ${collectionName}${prevETag ? ' (with ETag)' : ''}...`);
 
-    const response = await axios.get(url, {
-      baseURL: baseUrl,
+    const sendRequest = (accessToken: string | null) => axios.get(url, {
+      baseURL: API_BASE_URL,
       params,
-      headers,
+      headers: accessToken ? { ...headers, Authorization: `Bearer ${accessToken}` } : headers,
       timeout: 10000,
       validateStatus: (status: number) => status === 200 || status === 304,
     });
 
+    let response;
+    try {
+      response = await sendRequest(token);
+    } catch (error: any) {
+      if (error?.response?.status !== 401 || !token) throw error;
+      response = await sendRequest(await api.refreshAccessToken());
+    }
+
     // 304 Not Modified — data hasn't changed
     if (response.status === 304) {
-      console.log(`[Sync] ${collectionName} not modified (304)`);
-      return { data: [], hash: prevETag, notModified: true };
+      return { data: [], hash: prevETag, notModified: true, failed: false };
     }
 
     // Store ETag for next request
     const newETag = response.headers['etag'] || '';
     if (newETag) {
-      etagStore[collectionName] = newETag;
+      etagStore[etagKey] = newETag;
+    } else {
+      // The current API deliberately disables ETags for authenticated live
+      // collections. Drop a value retained by an older app session so later
+      // polls do not keep issuing conditional requests.
+      delete etagStore[etagKey];
     }
 
-    // Unwrap data
-    const rawData = response.data;
-    let items: any[] = [];
-    if (Array.isArray(rawData)) {
-      items = rawData;
-    } else if (Array.isArray(rawData?.data)) {
-      items = rawData.data;
-    } else if (Array.isArray(rawData?.items)) {
-      items = rawData.items;
-    } else if (Array.isArray(rawData?.results)) {
-      items = rawData.results;
+    // Keep API fallback and real-time polling on one normalized collection
+    // shape. This also accepts named envelopes such as `{ drivers: [] }`.
+    const items = Number(response.data?.totalPages || 1) > 1
+      ? await allPages<any>(async page => page === 1 ? response.data : (await axios.get(url, { baseURL: API_BASE_URL, params: { ...params, page }, headers: { Authorization: `Bearer ${await (await import('../services/database')).getStoredToken()}` }, timeout: 10000 })).data)
+      : api.normalizeCollection(response.data, collectionName);
+    if (REALTIME_DEBUG) {
+      console.debug(`[RealtimeSync] ${collectionName} GET ${response.status} -> ${items.length} records`, {
+        cacheControl: response.headers['cache-control'],
+      });
     }
 
-    console.log(`[Sync] ${collectionName} fetched: ${items.length} items`);
-    return { data: items, hash: newETag, notModified: false };
+    return { data: items, hash: newETag, notModified: false, failed: false };
   } catch (error: any) {
-    console.warn(`[Sync] ${collectionName} fetch error:`, error?.message || error);
-    return { data: [], hash: '', notModified: false };
+    if (REALTIME_DEBUG) {
+      console.debug(`[RealtimeSync] ${collectionName} request failed`, {
+        status: error?.response?.status,
+        message: error?.message,
+      });
+    }
+    return { data: [], hash: '', notModified: false, failed: true };
   }
+}
+
+/** Deduplicate concurrent polls, pull-to-refresh actions, and duplicate mounts. */
+async function fetchWithETag(
+  collectionName: string,
+  params?: Record<string, string>
+): Promise<{ data: any[]; hash: string; notModified: boolean; failed: boolean }> {
+  const key = getRealtimeCollectionKey(collectionName, params);
+  const activeRequest = inFlightFetches.get(key);
+  if (activeRequest) return activeRequest;
+
+  const request = requestWithETag(collectionName, params).finally(() => {
+    inFlightFetches.delete(key);
+  });
+  inFlightFetches.set(key, request);
+  return request;
+}
+
+/**
+ * On web, one EventSource receives server-side Firestore onSnapshot change
+ * signals. It does not transfer collection data or issue polling reads; the
+ * normal authenticated request runs only after an actual delivery change.
+ */
+function startDeliveryOrderLiveSync(onChange: () => Promise<void>): () => void {
+  const EventSourceClass = (globalThis as any).EventSource;
+  if (!EventSourceClass) return () => {};
+
+  const stream = new EventSourceClass(`${API_BASE_URL}/api/sync/stream`);
+  const handleChange = () => {
+    if (REALTIME_DEBUG) console.debug('[RealtimeSync] deliveryOrders snapshot change received');
+    void onChange();
+  };
+
+  stream.addEventListener('deliveryOrders', handleChange);
+  return () => {
+    stream.removeEventListener('deliveryOrders', handleChange);
+    stream.close();
+  };
 }
 
 /**
  * Load cached data from SecureStore.
  */
 async function loadCachedData(cacheKey: string): Promise<any[] | null> {
+  // Browser sessions use live requests and the shared in-memory snapshot.
+  // Do not hydrate an old disk snapshot or block the UI parsing large lists.
+  if (Platform.OS === 'web') return null;
   try {
     const cached = await getItem(cacheKey);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+    if (Array.isArray(parsed)) {
         return parsed;
       }
     }
@@ -193,6 +278,7 @@ async function loadCachedData(cacheKey: string): Promise<any[] | null> {
  * Save data to SecureStore cache.
  */
 async function saveCachedData(cacheKey: string, data: any[]): Promise<void> {
+  if (Platform.OS === 'web') return;
   try {
     await setItem(cacheKey, JSON.stringify(data));
   } catch {}
@@ -203,11 +289,12 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
   collections: {},
 
   subscribe: (collectionName: string, params?: Record<string, string>) => {
-    const cacheKey = buildCacheKey(collectionName, params);
+    const cacheKey = getRealtimeCollectionKey(collectionName, params);
     const state = get();
     const existing = state.collections[cacheKey];
 
     if (existing) {
+      if (existing.cleanupTimer) clearTimeout(existing.cleanupTimer);
       // Already subscribed — just increment count
       set({
         collections: {
@@ -215,6 +302,7 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
           [cacheKey]: {
             ...existing,
             subscribers: existing.subscribers + 1,
+            cleanupTimer: null,
           },
         },
       });
@@ -233,6 +321,8 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
           error: null,
           subscribers: 1,
           pollInterval: null,
+          cleanupTimer: null,
+          liveSyncStop: null,
         },
       },
     });
@@ -240,13 +330,16 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
     // Load cached data instantly
     loadCachedData(cacheKey).then((cached) => {
       const current = get().collections[cacheKey];
-      if (current && cached) {
+      // Do not let a slow SecureStore read overwrite a response that arrived
+      // from the server first.
+      if (current && cached && current.timestamp === 0 && !current.writeRevision) {
         set({
           collections: {
             ...get().collections,
             [cacheKey]: {
               ...current,
               data: cached,
+              loading: false,
             },
           },
         });
@@ -255,13 +348,31 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
 
     // Define poll function
     const doPoll = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const current = get().collections[cacheKey];
       if (!current || current.subscribers <= 0) return;
 
-      const result = await fetchWithETag(collectionName, params);
+      let result = await fetchWithETag(collectionName, params);
+
+      // Re-read the latest collection data after the async fetch. The cached
+      // payload may have been populated by loadCachedData while the request
+      // was in-flight, so `current.data.length` is stale.
+      const latest = get().collections[cacheKey];
+      // A response started before a confirmed local write is stale, even if
+      // it arrives later. Do not remove a newly created job or undo weighing.
+      if (!latest || (latest.writeRevision || 0) !== (current.writeRevision || 0)) return;
+      const latestDataLength = latest?.data?.length ?? 0;
+
+      // A 304 cannot rebuild an empty collection, so fetch once more without
+      // the conditional ETag when the in-memory array is still empty.
+      if (result.notModified && latestDataLength === 0) {
+        delete etagStore[cacheKey];
+        result = await fetchWithETag(collectionName, params);
+      }
+
+      if ((get().collections[cacheKey]?.writeRevision || 0) !== (current.writeRevision || 0)) return;
 
       if (result.notModified) {
-        // Data unchanged — just update timestamp, keep existing data
         const cur = get().collections[cacheKey];
         if (cur) {
           set({
@@ -279,7 +390,7 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
         return;
       }
 
-      if (result.data.length > 0) {
+      if (!result.failed) {
         // New data received
         saveCachedData(cacheKey, result.data);
         const cur = get().collections[cacheKey];
@@ -299,7 +410,6 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
           });
         }
       } else {
-        // Empty response — mark as loaded
         const cur = get().collections[cacheKey];
         if (cur) {
           set({
@@ -308,7 +418,7 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
               [cacheKey]: {
                 ...cur,
                 loading: false,
-                error: null,
+                error: 'Unable to refresh data',
               },
             },
           });
@@ -321,31 +431,68 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
 
     // Start polling interval
     const interval = setInterval(doPoll, POLL_INTERVAL_MS);
+    const stopStream = collectionName === 'deliveryOrders'
+      ? startDeliveryOrderLiveSync(doPoll)
+      : null;
+    const resume = () => { void doPoll(); };
+    const browserEventsAvailable = Platform.OS === 'web' && typeof window !== 'undefined'
+      && typeof window.addEventListener === 'function' && typeof window.removeEventListener === 'function'
+      && typeof document !== 'undefined' && typeof document.addEventListener === 'function'
+      && typeof document.removeEventListener === 'function';
+    if (browserEventsAvailable) {
+      window.addEventListener('focus', resume);
+      window.addEventListener('online', resume);
+      document.addEventListener('visibilitychange', resume);
+    }
+    const liveSyncStop = () => {
+      stopStream?.();
+      if (browserEventsAvailable) {
+        window.removeEventListener('focus', resume);
+        window.removeEventListener('online', resume);
+        document.removeEventListener('visibilitychange', resume);
+      }
+    };
     set({
       collections: {
         ...get().collections,
         [cacheKey]: {
           ...get().collections[cacheKey],
           pollInterval: interval,
+          liveSyncStop,
         },
       },
     });
   },
 
   unsubscribe: (collectionName: string, params?: Record<string, string>) => {
-    const cacheKey = buildCacheKey(collectionName, params);
+    const cacheKey = getRealtimeCollectionKey(collectionName, params);
     const state = get();
     const existing = state.collections[cacheKey];
     if (!existing) return;
+    if (existing.subscribers <= 0) return;
 
-    const newCount = existing.subscribers - 1;
+    const newCount = Math.max(0, existing.subscribers - 1);
     if (newCount <= 0) {
       // Last subscriber — clean up
-      if (existing.pollInterval) {
-        clearInterval(existing.pollInterval);
-      }
-      const { [cacheKey]: _removed, ...rest } = state.collections;
-      set({ collections: rest });
+      const cleanupTimer = setTimeout(() => {
+        const latest = get().collections[cacheKey];
+        if (!latest || latest.subscribers > 0) return;
+        if (latest.pollInterval) clearInterval(latest.pollInterval);
+        latest.liveSyncStop?.();
+        delete etagStore[cacheKey];
+        const { [cacheKey]: _removed, ...rest } = get().collections;
+        set({ collections: rest });
+        if (REALTIME_DEBUG) console.debug(`[RealtimeSync] released ${collectionName}`);
+      }, UNSUBSCRIBE_GRACE_PERIOD_MS);
+      // The collection data is being removed. Keeping its ETag would make a
+      // later mount receive a 304 with no in-memory data, then force a second
+      // full request to rebuild the cache.
+      set({
+        collections: {
+          ...state.collections,
+          [cacheKey]: { ...existing, subscribers: 0, cleanupTimer },
+        },
+      });
     } else {
       set({
         collections: {
@@ -360,13 +507,13 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
   },
 
   refresh: async (collectionName: string, params?: Record<string, string>) => {
-    const cacheKey = buildCacheKey(collectionName, params);
+    const cacheKey = getRealtimeCollectionKey(collectionName, params);
     const state = get();
     const existing = state.collections[cacheKey];
     if (!existing) return;
 
-    // Clear ETag to force full re-fetch
-    delete etagStore[collectionName];
+    // Clear only this scoped/filter ETag. Keep data visible during refresh.
+    delete etagStore[cacheKey];
 
     set({
       collections: {
@@ -378,8 +525,36 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
       },
     });
 
-    const result = await fetchWithETag(collectionName, params);
-    if (result.data.length > 0) {
+    // A refresh after a write must not reuse a request started before it.
+    await inFlightFetches.get(cacheKey);
+    let result = await fetchWithETag(collectionName, params);
+    if (result.notModified && existing.data.length === 0) {
+      delete etagStore[cacheKey];
+      result = await fetchWithETag(collectionName, params);
+    }
+
+    const latest = get().collections[cacheKey];
+    if (!latest || (latest.writeRevision || 0) !== (existing.writeRevision || 0)) return;
+
+    if (result.notModified) {
+      const current = get().collections[cacheKey];
+      if (current) {
+        set({
+          collections: {
+            ...get().collections,
+            [cacheKey]: {
+              ...current,
+              loading: false,
+              timestamp: Date.now(),
+              error: null,
+            },
+          },
+        });
+      }
+      return;
+    }
+
+    if (!result.failed) {
       saveCachedData(cacheKey, result.data);
       set({
         collections: {
@@ -401,7 +576,7 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
           [cacheKey]: {
             ...get().collections[cacheKey],
             loading: false,
-            error: result.notModified ? null : 'Failed to refresh',
+            error: 'Failed to refresh',
           },
         },
       });
@@ -412,14 +587,14 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
     const state = get();
     // Find all cache entries for this collection and return the first with data
     for (const key of Object.keys(state.collections)) {
-      if (key.startsWith(CACHE_PREFIX + collectionName)) {
+      if (key.startsWith(getCollectionKeyPrefix(collectionName))) {
         const entry = state.collections[key];
         if (entry.data.length > 0) return entry.data;
       }
     }
     // Fallback: find any entry (even empty) for this collection
     for (const key of Object.keys(state.collections)) {
-      if (key.startsWith(CACHE_PREFIX + collectionName)) {
+      if (key.startsWith(getCollectionKeyPrefix(collectionName))) {
         return state.collections[key].data;
       }
     }
@@ -429,20 +604,67 @@ export const useRealTimeSyncStore = create<SyncState>((set, get) => ({
   isLoading: (collectionName: string) => {
     const state = get();
     for (const key of Object.keys(state.collections)) {
-      if (key.startsWith(CACHE_PREFIX + collectionName)) {
+      if (key.startsWith(getCollectionKeyPrefix(collectionName))) {
         return state.collections[key].loading;
       }
     }
     return false;
   },
 
+  optimisticUpdate: (collectionName: string, updatedItem: any, idField?: string) => {
+    const state = get();
+    const idKey = idField || 'id';
+    const updatedId = updatedItem[idKey] ?? updatedItem.jobId ?? '';
+    if (!updatedId) return;
+
+    // Update all cache entries for this collection
+    const newCollections = { ...state.collections };
+    for (const key of Object.keys(newCollections)) {
+      if (key.startsWith(getCollectionKeyPrefix(collectionName))) {
+        const entry = newCollections[key];
+        const existingIndex = entry.data.findIndex(
+          (item: any) => (item[idKey] ?? item.jobId ?? '') === updatedId
+        );
+        let newData: any[];
+        if (existingIndex >= 0) {
+          newData = [...entry.data];
+          newData[existingIndex] = { ...newData[existingIndex], ...updatedItem };
+        } else {
+          newData = [updatedItem, ...entry.data];
+        }
+        newCollections[key] = { ...entry, data: newData, loading: false, writeRevision: (entry.writeRevision || 0) + 1 };
+        // Persist to SecureStore
+        const cacheKey = key;
+        saveCachedData(cacheKey, newData);
+      }
+    }
+    set({ collections: newCollections });
+  },
+
   getError: (collectionName: string) => {
     const state = get();
     for (const key of Object.keys(state.collections)) {
-      if (key.startsWith(CACHE_PREFIX + collectionName)) {
+      if (key.startsWith(getCollectionKeyPrefix(collectionName))) {
         return state.collections[key].error;
       }
     }
     return null;
   },
+
+  invalidateETag: (collectionName: string) => {
+    Object.keys(etagStore).filter((key) => key.includes(`_${collectionName}`)).forEach((key) => delete etagStore[key]);
+  },
+
+  clearSession: () => {
+    const state = get();
+    Object.values(state.collections).forEach((entry) => {
+      if (entry.pollInterval) clearInterval(entry.pollInterval);
+      if (entry.cleanupTimer) clearTimeout(entry.cleanupTimer);
+      entry.liveSyncStop?.();
+    });
+    Object.keys(etagStore).forEach((key) => delete etagStore[key]);
+    set({ collections: {} });
+  },
 }));
+
+export default null;

@@ -4,19 +4,11 @@
  * Uploads images to the backend which stores them in Firebase Storage
  * and returns the public URL which is saved to Firestore as photoURL.
  */
-import axios, { AxiosError } from 'axios';
 import { Platform } from 'react-native';
+import axios, { AxiosError } from 'axios';
 import { getStoredToken } from './database';
-
-function getBaseUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
-  if (process.env.EXPO_PUBLIC_API_IP) return `http://${process.env.EXPO_PUBLIC_API_IP}:5000`;
-  if (Platform.OS === 'android') return 'http://10.0.2.2:5000';
-  return 'http://192.168.1.211:5000';
-}
-
-const API_BASE_URL = getBaseUrl();
-
+import { API_BASE_URL } from './config';
+import { getErrorCode } from './api';
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const token = await getStoredToken();
   const headers: Record<string, string> = {};
@@ -31,11 +23,21 @@ export interface UploadResult {
   photoURL: string;
 }
 
+export interface UploadFile {
+  uri: string;
+  name?: string;
+  mimeType?: string;
+}
+
 /**
- * Extract a human-readable error message from an Axios error,
- * falling back to the generic Error.message.
+ * Return a stable reference code without exposing upload diagnostics.
  */
-function extractErrorMessage(error: unknown): string {
+function extractErrorMessage(error: any): string {
+  return `Error code: ${getErrorCode(error)}`;
+
+  /* Legacy diagnostic formatting deliberately disabled: user-facing errors
+   * must be stable reference codes rather than backend failure details.
+   *
   if (error instanceof AxiosError) {
     // No response from server (network down, wrong IP, timeout)
     if (!error.response) {
@@ -63,6 +65,7 @@ function extractErrorMessage(error: unknown): string {
   // Non-Axios error (unlikely but handle it)
   if (error instanceof Error) return error.message;
   return 'An unknown error occurred during upload.';
+  */
 }
 
 /**
@@ -74,7 +77,7 @@ export async function uploadDriverPhoto(driverId: string, fileUri: string): Prom
   return uploadFile(
     `driver-photo/${driverId}`,
     fileUri,
-    'photo',
+    'file',
     `driver-${driverId}`
   );
 }
@@ -84,12 +87,22 @@ export async function uploadDriverPhoto(driverId: string, fileUri: string): Prom
  * Storage folder: "Deliverynotes/"
  * Firestore field: deliveryOrders/{deliveryOrderId}.photoURL
  */
-export async function uploadDeliveryNote(deliveryOrderId: string, fileUri: string): Promise<UploadResult> {
+export async function uploadDeliveryNote(deliveryOrderId: string, file: string | UploadFile): Promise<UploadResult> {
   return uploadFile(
     `delivery-note/${deliveryOrderId}`,
-    fileUri,
+    file,
     'note',
     `delivery-${deliveryOrderId}`
+  );
+}
+
+/** Upload the required package-condition photo for a warehouse dispatch. */
+export async function uploadWarehousePackagingPhoto(warehouseJobId: string, file: string | UploadFile): Promise<UploadResult> {
+  return uploadFile(
+    `warehouse-packaging/${warehouseJobId}`,
+    file,
+    'file',
+    `warehouse-packaging-${warehouseJobId}`,
   );
 }
 
@@ -105,6 +118,15 @@ export async function uploadReceiptNote(weighRecordId: string, fileUri: string):
     'receipt',
     `receipt-${weighRecordId}`
   );
+}
+
+export async function uploadInspectionPhoto(deliveryOrderId: string, file: string | UploadFile, materialId?: string): Promise<UploadResult> {
+  const materialQuery = materialId ? `?materialId=${encodeURIComponent(materialId)}` : '';
+  return uploadFile(`inspection-photo/${deliveryOrderId}${materialQuery}`, file, 'file', `inspection-${deliveryOrderId}`);
+}
+
+export async function uploadReceivingPhoto(deliveryOrderId: string, file: string | UploadFile, lineIndex: number): Promise<UploadResult> {
+  return uploadFile(`receiving-photo/${encodeURIComponent(deliveryOrderId)}?lineIndex=${lineIndex}`, file, 'file', `receiving-${deliveryOrderId}`);
 }
 
 /**
@@ -139,7 +161,7 @@ export async function uploadFuelPumpPhoto(jobId: string, fileUri: string): Promi
 
 async function uploadFile(
   endpoint: string,
-  fileUri: string,
+  file: string | UploadFile,
   fileFieldName: string,
   filename: string
 ): Promise<UploadResult> {
@@ -148,16 +170,37 @@ async function uploadFile(
   delete headers['Content-Type'];
 
   const formData = new FormData();
-  formData.append('file', {
-    uri: fileUri,
-    name: `${filename}.jpg`,
-    type: 'image/jpeg',
-  } as any);
+  const fileUri = typeof file === 'string' ? file : file.uri;
+  const fileName = typeof file === 'string'
+    ? `${filename}.jpg`
+    : (file.name || `${filename}.jpg`);
+  const mimeType = typeof file === 'string'
+    ? 'image/jpeg'
+    : (file.mimeType || 'application/octet-stream');
 
-  const url = `${API_BASE_URL}/api/uploads/${endpoint}`;
+  // On web, expo-image-picker camera returns blob: URLs.
+  // React Native's { uri, name, type } object format is NOT understood
+  // by the browser's native FormData API — the blob must be fetched and
+  // appended directly. Without this, multer receives no file and returns
+  // 400 {"error":"No file provided"}.
+  if (Platform.OS === 'web' && (fileUri.startsWith('blob:') || fileUri.startsWith('data:'))) {
+    const blob: Blob = await fetch(fileUri).then((r) => r.blob());
+    formData.append(fileFieldName, blob, fileName);
+  } else {
+    // Native (iOS / Android): React Native's networking layer understands
+    // { uri, name, type } and will stream the file from disk.
+    formData.append(fileFieldName, {
+      uri: fileUri,
+      name: fileName,
+      type: mimeType,
+    } as any);
+  }
+
+  const url = `/api/uploads/${endpoint}`;
 
   try {
     const response = await axios.post(url, formData, {
+      baseURL: API_BASE_URL,
       headers: { ...headers },
       timeout: 30000,
     });
@@ -165,26 +208,14 @@ async function uploadFile(
     return response.data;
   } catch (error: unknown) {
     // Log full error details to console for debugging
-    console.error('[uploadService] Upload failed');
-    console.error('[uploadService] URL:', url);
-    console.error('[uploadService] fileUri:', fileUri);
 
     if (error instanceof AxiosError) {
       if (error.response) {
-        console.error('[uploadService] Status:', error.response.status);
-        console.error('[uploadService] Response data:', JSON.stringify(error.response.data));
-        console.error('[uploadService] Response headers:', JSON.stringify(error.response.headers));
       } else if (error.request) {
-        console.error('[uploadService] No response received — network or CORS issue');
-        console.error('[uploadService] Axios code:', error.code);
-        console.error('[uploadService] Axios message:', error.message);
       } else {
-        console.error('[uploadService] Request setup error:', error.message);
       }
     } else if (error instanceof Error) {
-      console.error('[uploadService] Non-Axios error:', error.message, error.stack);
     } else {
-      console.error('[uploadService] Unknown error type:', error);
     }
 
     // Throw a new Error with a meaningful message that the UI can display

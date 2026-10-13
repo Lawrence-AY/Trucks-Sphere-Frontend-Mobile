@@ -72,7 +72,7 @@ const Receipt: React.FC<ReceiptProps> = ({ visible, onClose, data }) => {
   if (!visible) return null;
 
   return (
-    <View style={styles.overlay}>
+    <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
       <TouchableOpacity style={styles.closeArea} onPress={onClose} />
       <View style={[styles.container, { backgroundColor: colors.receiptBg }]}>
         {/* Receipt Paper */}
@@ -174,7 +174,7 @@ const Receipt: React.FC<ReceiptProps> = ({ visible, onClose, data }) => {
               <Text style={[styles.netLabel, { color: colors.text }]}>
                 NET WEIGHT
               </Text>
-              <Text style={[styles.netValue, { color: colors.primary }]}>
+              <Text style={[styles.netValue, { color: colors.primaryText }]}>
                 {data.netWeight.toFixed(1)} tonnes
               </Text>
             </View>
@@ -278,7 +278,7 @@ const Receipt: React.FC<ReceiptProps> = ({ visible, onClose, data }) => {
 
           {/* Thank you */}
           <View style={styles.thankYouArea}>
-            <Text style={[styles.thankYou, { color: colors.primary }]}>
+            <Text style={[styles.thankYou, { color: colors.primaryText }]}>
               Thank you!
             </Text>
             <Text style={[styles.footerText, { color: colors.textMuted }]}>
@@ -306,8 +306,8 @@ const Receipt: React.FC<ReceiptProps> = ({ visible, onClose, data }) => {
             style={[styles.actionBtn, { backgroundColor: colors.primary }]}
             onPress={handleShare}
           >
-            <Ionicons name="share-outline" size={20} color="#FFF" />
-            <Text style={styles.actionBtnText}>Share</Text>
+            <Ionicons name="share-outline" size={20} color={colors.onPrimary} />
+            <Text style={[styles.actionBtnText, { color: colors.onPrimary }]}>Share</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
@@ -328,7 +328,6 @@ const Receipt: React.FC<ReceiptProps> = ({ visible, onClose, data }) => {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
@@ -341,11 +340,6 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     borderRadius: Radius.md,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 10,
   },
   receiptPaper: {
     padding: Spacing.xl,
@@ -354,12 +348,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderStyle: 'dashed',
-    paddingBottom: Spacing.lg,
-    marginBottom: Spacing.md,
+    paddingBottom: Spacing.lg, marginBottom: Spacing.xs,
   },
   stationIcon: {
-    fontSize: 32,
-    marginBottom: Spacing.xs,
+    fontSize: 32, marginBottom: Spacing.xs,
   },
   stationName: {
     fontSize: 18,
@@ -369,20 +361,17 @@ const styles = StyleSheet.create({
   },
   stationAddress: {
     fontSize: 11,
-    textAlign: 'center',
-    marginTop: 2,
+    textAlign: 'center', marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   receiptTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: Spacing.xs,
+    fontWeight: 'bold', marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   dashLine: {
     fontSize: 13,
-    textAlign: 'center',
-    marginVertical: Spacing.xs,
+    textAlign: 'center', marginVertical: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     letterSpacing: -1,
   },
@@ -418,8 +407,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderStyle: 'dashed',
-    marginVertical: Spacing.xs,
+    borderStyle: 'dashed', marginVertical: Spacing.xs,
   },
   netLabel: {
     fontSize: 14,
@@ -441,8 +429,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   barcodeText: {
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 11, marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   signatureArea: {
@@ -455,8 +442,7 @@ const styles = StyleSheet.create({
   },
   signatureName: {
     fontSize: 13,
-    fontWeight: 'bold',
-    marginTop: 4,
+    fontWeight: 'bold', marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   thankYouArea: {
@@ -469,8 +455,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   footerText: {
-    fontSize: 9,
-    marginTop: 4,
+    fontSize: 9, marginTop: Spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   perforation: {
@@ -499,7 +484,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   actionBtnText: {
-    color: '#FFF',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: Spacing.sm,

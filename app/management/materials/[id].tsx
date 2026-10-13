@@ -1,0 +1,489 @@
+import { BackButton } from '../../../components/ui/BackButton';
+/**
+ * Material Detail Screen - Full material information with dynamic properties
+ *
+ * Features:
+ *   - Material overview with category, unit, status
+ *   - Dynamic property display based on category
+ *   - Edit material details
+ *   - View associated jobs/POs
+ *   - Delete material
+ */
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  RefreshControl,
+  TouchableOpacity,
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../../utils/router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../../hooks/useTheme';
+import { Gap, Radius, Spacing } from '../../../constants/theme';
+import { Card } from '../../../components/ui/Card';
+import { Badge } from '../../../components/ui/Badge';
+import { Button } from '../../../components/ui/Button';
+import { Tabs } from '../../../components/ui/Tabs';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { materialRepository } from '../../../services/repositories/MaterialRepository';
+import { Material } from '@/store/types';
+import { formatEAT } from '../../../utils/helpers';
+import { UserActionInfo } from '../../../components/UserActionInfo';
+
+const MATERIAL_TABS = [
+  { name: 'details', label: 'Details', icon: 'information-circle-outline' as const },
+];
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Aggregates: '#F59E0B',
+  Steel: '#6B7280',
+  Cement: '#3B82F6',
+  Liquid: '#06B6D4',
+  Blocks: '#8B5CF6',
+  Other: '#10B981',
+};
+
+export default function MaterialDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const colors = useTheme();
+  const styles = buildThemeStyles(colors);
+  const insets = useSafeAreaInsets();
+  const [material, setMaterial] = useState<Material | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('details');
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const goBackToMaterials = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace('/management/materials' as any);
+  };
+
+  useEffect(() => {
+    if (id) loadMaterial();
+  }, [id]);
+
+  async function loadMaterial() {
+    try {
+      const m = await materialRepository.getById(id!);
+      setMaterial(m);
+    } catch {
+      Alert.alert('Error', 'Failed to load material');
+      goBackToMaterials();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onRefresh() {
+    setRefreshing(true);
+    materialRepository.invalidateCache();
+    await loadMaterial();
+    setRefreshing(false);
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await materialRepository.delete(id!);
+      Alert.alert('Deleted', 'Material has been deleted', [
+        // Replace the deleted detail route so the user cannot return to a
+        // record that no longer exists.
+        { text: 'OK', onPress: () => router.replace('/management/materials' as any) },
+      ]);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to delete material');
+    } finally {
+      setDeleting(false);
+      setShowDelete(false);
+    }
+  }
+
+  function renderDetails() {
+    if (!material) return null;
+    const catColor = CATEGORY_COLORS[material.category || 'Other'] || colors.primary;
+
+    return (
+      <View>
+        <Card>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Name</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{material.name}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Category</Text>
+            <View style={styles.categoryBadge}>
+              <View style={[styles.categoryDot, { backgroundColor: catColor }]} />
+              <Text style={[styles.categoryText, { color: catColor }]}>{material.isWarehouseMaterial ? 'Warehouse' : material.category}</Text>
+            </View>
+          </View>
+          {!material.isWarehouseMaterial && <>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Measurement Type</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{material.measurementType || 'N/A'}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Default Unit</Text>
+            <Text style={[styles.detailValue, { color: colors.text }]}>{material.defaultUnit || 'N/A'}</Text>
+          </View>
+          {material.description && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Description</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{material.description}</Text>
+            </View>
+          )}
+          {material.unitPrice !== undefined && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Purchase Cost</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>KES {material.unitPrice.toLocaleString()}</Text>
+            </View>
+          )}
+          {material.salesPrice !== undefined && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Sales Price</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>KES {material.salesPrice.toLocaleString()}</Text>
+            </View>
+          )}
+          {material.barcode && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Barcode</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{material.barcode}</Text>
+            </View>
+          )}
+          {material.weight !== undefined && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Weight</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{material.weight} kg</Text>
+            </View>
+          )}
+          {material.volume !== undefined && (
+            <View style={styles.detailRow}>
+              <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Volume</Text>
+              <Text style={[styles.detailValue, { color: colors.text }]}>{material.volume} m³</Text>
+            </View>
+          )}
+          </>}
+        </Card>
+
+       
+      </View>
+    );
+  }
+
+  function renderProperties() {
+    if (!material) return null;
+
+    if (!material.properties || material.properties.length === 0) {
+      return (
+        <EmptyState
+          icon="settings-outline"
+          title="No properties defined"
+          subtitle="This material has no custom properties"
+        />
+      );
+    }
+
+    return (
+      <Card>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Material Properties ({material.properties.length})
+        </Text>
+        {material.properties.map((prop, index) => (
+          <View key={index} style={styles.propertyCard}>
+            <View style={styles.propertyHeader}>
+              <Ionicons
+                name={
+                  prop.type === 'select' ? 'list-outline' :
+                  prop.type === 'number' ? 'calculator-outline' :
+                  prop.type === 'boolean' ? 'checkmark-circle-outline' :
+                  'text-outline'
+                }
+                size={16}
+                color={colors.primaryText}
+              />
+              <Text style={[styles.propertyName, { color: colors.text }]}>
+                {prop.label || prop.name}
+              </Text>
+              {prop.required && (
+                <Badge label="Required" variant="warning" size="sm" />
+              )}
+            </View>
+            <Text style={[styles.propertyType, { color: colors.textMuted }]}>
+              Type: {prop.type}
+              {prop.unit ? ` • Unit: ${prop.unit}` : ''}
+            </Text>
+            {prop.options && prop.options.length > 0 && (
+              <View style={styles.optionsRow}>
+                {prop.options.map((opt, i) => (
+                  <View key={i} style={[styles.optionChip, { backgroundColor: colors.inputBg }]}>
+                    <Text style={[styles.optionChipText, { color: colors.textMuted }]}>{opt}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        ))}
+      </Card>
+    );
+  }
+
+  function renderUsage() {
+    return (
+      <EmptyState
+        icon="briefcase-outline"
+        title="Usage History"
+        subtitle="Jobs and purchase orders using this material will appear here"
+      />
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <LoadingSkeleton lines={8} variant="card" />
+      </View>
+    );
+  }
+
+  if (!material) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <EmptyState icon="alert-circle-outline" title="Material not found" />
+      </View>
+    );
+  }
+
+  const catColor = CATEGORY_COLORS[material.category || 'Other'] || colors.primary;
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Back Button */}
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8 }]}>
+        <BackButton accessibilityRole="button"
+          accessibilityLabel="Back to materials"
+          onPress={goBackToMaterials}
+          style={[styles.backBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]} />
+        <Text style={[styles.backTitle, { color: colors.text }]}>Material Details</Text>
+      </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <View style={[styles.headerIcon, { backgroundColor: catColor + '15' }]}>
+              {material.isWarehouseMaterial ? <MaterialCommunityIcons name="warehouse" size={28} color={catColor} /> : <Ionicons name={ material.category === 'Aggregates' ? 'layers-outline' :
+                  material.category === 'Steel' ? 'barbell-outline' :
+                  material.category === 'Cement' ? 'cube-outline' :
+                  material.category === 'Liquid' ? 'water-outline' :
+                  material.category === 'Blocks' ? 'grid-outline' :
+                  'cube-outline'
+                }
+                size={28}
+                color={catColor}
+              />}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>{material.name}</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+                {material.isWarehouseMaterial ? 'Warehouse' : `${material.category || 'Other'} | ${material.defaultUnit || material.measurementType || ''}`}
+              </Text>
+            </View>
+          </View>
+
+          {/* Actions */}
+          <View style={styles.actionsRow}>
+            <Button
+              title="Edit"
+              onPress={() => router.push(`/management/materials/edit/${material.id}` as any)}
+              variant="secondary"
+              size="sm"
+              icon="create-outline"
+            />
+            <Button
+              title="Delete"
+              onPress={() => setShowDelete(true)}
+              variant="danger"
+              size="sm"
+              icon="trash-outline"
+            />
+          </View>
+        </View>
+
+        {/* Tabs */}
+        <Tabs
+          tabs={MATERIAL_TABS}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
+
+        {/* Tab Content */}
+        <View style={{ marginTop: Spacing.xs}}>
+          {activeTab === 'details' && renderDetails()}
+        </View>
+      </ScrollView>
+
+      <ConfirmDialog
+        visible={showDelete}
+        title="Delete Material"
+        message={`Are you sure you want to delete "${material.name}"? This action cannot be undone.`}
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setShowDelete(false)}
+        loading={deleting}
+      />
+    </View>
+  );
+}
+
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  backBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: 8,
+    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    marginLeft: 4,
+  },
+  content: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing['4xl'],
+  },
+  header: { marginBottom: Spacing.xs,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap, marginBottom: Spacing.xs,
+  },
+  headerIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  headerSubtitle: {
+    fontSize: 14, marginTop: Spacing.xs,
+    flexShrink: 1,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: Gap,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700', marginBottom: Spacing.xs,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    gap: Gap,
+  },
+  detailLabel: {
+    fontSize: 14,
+    flexShrink: 1, marginTop: Spacing.xs,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'flex-end',
+    gap: Gap,
+  },
+  categoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  categoryText: {
+    flex: 1,
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  propertyCard: {
+    paddingVertical: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  propertyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap, marginBottom: Spacing.xs,
+  },
+  propertyName: {
+    fontSize: 15,
+    fontWeight: '600',
+    flex: 1,
+  },
+  propertyType: {
+    fontSize: 12,
+    marginLeft: 24,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Gap, marginTop: Spacing.xs,
+    marginLeft: 24,
+  },
+  optionChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.sm,
+  },
+  optionChipText: {
+    fontSize: 11,
+  },
+});

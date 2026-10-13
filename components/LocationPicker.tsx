@@ -51,9 +51,9 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator size="small" color={colors.primary} />
+          <ActivityIndicator size="small" color={colors.primaryText} />
         ) : (
-          <Ionicons name="location-outline" size={22} color={colors.primary} />
+          <Ionicons name="location-outline" size={22} color={colors.primaryText} />
         )}
         <Text
           style={[styles.address, { color: currentAddress ? colors.text : colors.textMuted }]}
@@ -75,13 +75,11 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: Spacing.md,
+  container: { marginBottom: Spacing.xs,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: Spacing.sm,
+    fontWeight: '600', marginBottom: Spacing.xs,
   },
   locationBox: {
     flexDirection: 'row',
@@ -97,8 +95,7 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.sm,
     marginRight: Spacing.sm,
   },
-  coordsRow: {
-    marginTop: Spacing.xs,
+  coordsRow: { marginTop: Spacing.xs,
     paddingHorizontal: Spacing.xs,
   },
   coords: {

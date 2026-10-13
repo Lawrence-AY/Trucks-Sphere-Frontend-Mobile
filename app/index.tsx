@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore } from '../store/authStore';
+import { Spacing } from '../constants/theme';
+import { useAuthStore } from '@/store/authStore';
+import { isManagementRole, managementHomeRoute } from '../utils/access';
 
 const LOADING_MESSAGES = [
   'Loading fleet',
   'Preparing deliveries',
   'Connecting operations',
-  'Syncing data',
+  'Syncing data', 
 ];
 
 export default function IndexScreen() {
+  const useNativeDriver = Platform.OS !== 'web';
   const { isAuthenticated, isLoading } = useAuthStore();
   const [messageIndex, setMessageIndex] = useState(0);
   const truckX = useRef(new Animated.Value(-120)).current;
@@ -27,8 +30,8 @@ export default function IndexScreen() {
 
     Animated.loop(
       Animated.sequence([
-        Animated.timing(smoke, { toValue: 1, duration: 1200, useNativeDriver: true }),
-        Animated.timing(smoke, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(smoke, { toValue: 1, duration: 1200, useNativeDriver }),
+        Animated.timing(smoke, { toValue: 0, duration: 500, useNativeDriver }),
       ])
     ).start();
 
@@ -37,7 +40,7 @@ export default function IndexScreen() {
         toValue: 42,
         duration: 2600,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver,
       }),
       Animated.timing(progress, {
         toValue: 1,
@@ -48,8 +51,8 @@ export default function IndexScreen() {
       Animated.sequence([
         Animated.delay(1450),
         Animated.parallel([
-          Animated.timing(logoOpacity, { toValue: 1, duration: 650, useNativeDriver: true }),
-          Animated.spring(logoScale, { toValue: 1, friction: 7, tension: 70, useNativeDriver: true }),
+          Animated.timing(logoOpacity, { toValue: 1, duration: 650, useNativeDriver }),
+          Animated.spring(logoScale, { toValue: 1, friction: 7, tension: 70, useNativeDriver }),
         ]),
       ]),
     ]).start();
@@ -65,14 +68,19 @@ export default function IndexScreen() {
         router.replace('/(auth)/login');
         return;
       }
-      const role = useAuthStore.getState().user?.role ;
+      const role = useAuthStore.getState().user?.role;
+      if (isManagementRole(role)) {
+        router.replace(managementHomeRoute(role) as any);
+        return;
+      }
       switch (role) {
-        case 'management': router.replace('/management/dashboard' as any); break;
         case 'vendor': router.replace('/vendor/dashboard' as any); break;
-        case 'operator_site': router.replace('/operator-site/dashboard' as any); break;
+        case 'operator_site': router.replace('/operator-site/schedule' as any); break;
         case 'operator_quarry': router.replace('/operator-quarry/dashboard' as any); break;
         case 'operator_fuel': router.replace('/operator-fuel/dispense' as any); break;
-        case 'admin': router.replace('/management/dashboard' as any); break;
+        case 'inspector': router.replace('/inspector' as any); break;
+        case 'operator_warehouse': router.replace('/warehouse' as any); break;
+        case 'storeman': router.replace('/store-account' as any); break;
         default: router.replace('/management/dashboard' as any);
       }
     }, 900);
@@ -207,8 +215,7 @@ const styles = StyleSheet.create({
   containerLine: {
     height: 2,
     borderRadius: 2,
-    backgroundColor: '#2F6386',
-    marginBottom: 13,
+    backgroundColor: '#2F6386', marginBottom: Spacing.xs,
   },
   wheelRow: {
     position: 'absolute',
@@ -240,8 +247,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#2EE9D4',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
+    justifyContent: 'center', marginBottom: Spacing.xs,
     backgroundColor: 'rgba(16, 185, 129, 0.08)',
   },
   logoLetters: {
@@ -259,8 +265,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     color: '#B7C7D8',
-    fontSize: 12,
-    marginTop: 8,
+    fontSize: 12, marginTop: Spacing.xs,
     fontWeight: '600',
   },
   footer: {
@@ -269,8 +274,7 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#D8E7F6',
     fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 14,
+    fontWeight: '700', marginBottom: Spacing.xs,
     textTransform: 'uppercase',
   },
   progressTrack: {

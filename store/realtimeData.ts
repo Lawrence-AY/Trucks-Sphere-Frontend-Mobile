@@ -11,8 +11,9 @@
  *   const vendors = useVendors();
  *   const deliveryOrders = useDeliveryOrders({ status: 'in_transit' });
  */
-import { useEffect, useMemo, useRef } from 'react';
-import { useRealTimeSyncStore } from './realTimeSyncStore';
+import { useEffect, useMemo } from 'react';
+import { getRealtimeCollectionKey, useRealTimeSyncStore } from './realTimeSyncStore';
+const EMPTY_COLLECTION: any[] = [];
 
 // ============================================================
 // React hook for any collection — stale-while-revalidate
@@ -23,38 +24,36 @@ export function useRealtimeCollection(
 ): { data: any[]; loading: boolean; error: string | null } {
   const subscribe = useRealTimeSyncStore((s) => s.subscribe);
   const unsubscribe = useRealTimeSyncStore((s) => s.unsubscribe);
-  const getData = useRealTimeSyncStore((s) => s.getData);
-  const isLoading = useRealTimeSyncStore((s) => s.isLoading);
-  const getError = useRealTimeSyncStore((s) => s.getError);
 
   // Build a stable params key to avoid re-subscribing on every render
-  const paramsKey = JSON.stringify(params);
-
-  // Track previous subscription to clean up on params change
-  const prevKeyRef = useRef<string>(paramsKey);
+  const paramsKey = params
+    ? JSON.stringify(Object.fromEntries(Object.entries(params).sort(([a], [b]) => a.localeCompare(b))))
+    : '{}';
 
   useEffect(() => {
-    // Unsubscribe from previous params if they changed
-    if (prevKeyRef.current !== paramsKey) {
-      const prevParams = prevKeyRef.current !== '{}'
-        ? JSON.parse(prevKeyRef.current)
-        : undefined;
-      unsubscribe(collectionName, prevParams);
-    }
-    prevKeyRef.current = paramsKey;
-
     subscribe(collectionName, params);
     return () => {
       unsubscribe(collectionName, params);
     };
   }, [collectionName, paramsKey, subscribe, unsubscribe]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const data = getData(collectionName);
-  const loading = isLoading(collectionName);
-  const error = getError(collectionName);
+  // Select stable collection references and primitive state independently;
+  // unrelated updates must not serialize or copy entire data collections.
+  // This must match the store's account-scoped cache key exactly. The old
+  // suffix-only lookup could never find `sync_cache_<user>_<collection>`,
+  // leaving management dashboards blank even after the API had populated it.
+  const cacheKey = useMemo(
+    () => getRealtimeCollectionKey(collectionName, params),
+    [collectionName, paramsKey],
+  );
 
-  return { data, loading, error };
+  const data = useRealTimeSyncStore(s => s.collections[cacheKey]?.data || EMPTY_COLLECTION);
+  const loading = useRealTimeSyncStore(s => s.collections[cacheKey]?.loading ?? false);
+  const error = useRealTimeSyncStore(s => s.collections[cacheKey]?.error || null);
+  return useMemo(() => ({ data, loading, error }), [data, loading, error]);
 }
+
+export default null;
 
 // ============================================================
 // Convenience hooks for each collection

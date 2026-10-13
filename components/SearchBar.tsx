@@ -6,11 +6,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { Spacing, Radius } from '../constants/theme';
+import { Gap, Radius, Spacing } from '../constants/theme';
 import { debounce } from '../utils/helpers';
 
 interface FilterChip {
@@ -40,7 +39,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const [searchText, setSearchText] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const animatedWidth = useRef(new Animated.Value(40)).current;
-  const screenWidth = Dimensions.get('window').width;
+  const [containerWidth, setContainerWidth] = useState(40);
 
   const debouncedSearch = useCallback(
     debounce((text: string) => {
@@ -54,8 +53,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
     debouncedSearch(text);
   };
 
+  useEffect(() => {
+    if (isExpanded) {
+      animatedWidth.setValue(containerWidth);
+    }
+  }, [animatedWidth, isExpanded, containerWidth]);
+
   const toggleExpand = () => {
-    const toValue = isExpanded ? 40 : screenWidth - Spacing['2xl'] * 2;
+    const toValue = isExpanded ? 40 : containerWidth;
     Animated.spring(animatedWidth, {
       toValue,
       useNativeDriver: false,
@@ -75,7 +80,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={(event) => setContainerWidth(Math.max(40, event.nativeEvent.layout.width - Spacing.lg * 2))}>
       <Animated.View
         style={[
           styles.searchContainer,
@@ -92,7 +97,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           color={colors.textSecondary}
           style={styles.searchIcon}
         />
-        <TextInput
+        <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
           style={[styles.input, { color: colors.text }]}
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
@@ -110,7 +115,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           <Ionicons
             name={isExpanded ? 'close' : 'search'}
             size={20}
-            color={colors.primary}
+            color={colors.primaryText}
           />
         </TouchableOpacity>
       </Animated.View>
@@ -135,7 +140,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 <Text
                   style={[
                     styles.filterText,
-                    { color: isActive ? '#FFF' : colors.textSecondary },
+                    { color: isActive ? colors.onPrimary : colors.textSecondary },
                   ]}
                 >
                   {filter.label}
@@ -144,7 +149,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                   <Ionicons
                     name="checkmark"
                     size={14}
-                    color="#FFF"
+                    color={colors.onPrimary}
                     style={{ marginLeft: 4 }}
                   />
                 )}
@@ -191,9 +196,8 @@ const styles = StyleSheet.create({
   },
   filtersContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: Spacing.sm,
-    gap: 6,
+    flexWrap: 'wrap', marginTop: Spacing.xs,
+    gap: Gap,
   },
   filterChip: {
     flexDirection: 'row',

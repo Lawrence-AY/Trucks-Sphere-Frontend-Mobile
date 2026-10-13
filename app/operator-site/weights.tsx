@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { normalizeJobStatus } from '../../utils/jobStatus';
+import { isWarehouseJob } from '../../utils/warehouse';
+import { printDocument as printHtmlOnWeb } from '../../utils/printDocument';
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
   ActivityIndicator,
   Alert,
   Modal,
@@ -10,17 +15,21 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../../hooks/useTheme';
-import { Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders, updateDeliveryOrder } from '../../services/api';
+import { Gap, Radius, Spacing } from '../../constants/theme';
+import { fetchQuarries, updateDeliveryOrder } from '../../services/api';
+import { useAuthStore } from '@/store/authStore';
+import { useDeliveryOrders } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
+import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { getNextId } from '../../services/counter';
+import { formatCapturedGeoLocation } from '../../services/geolocation';
 import {
   DataCard,
   DetailRow,
@@ -29,10 +38,22 @@ import {
   PageShell,
   SearchField,
   SectionTitle,
- 
 } from '../../components/EnterpriseUI';
 
-/* ─────────── Configuration ─────────── */
+/* ─────────── Helper: escape HTML ─────────── */
+const escapeHtml = (str: string | null | undefined): string => {
+  if (!str) return '';
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return str.replace(/[&<>"']/g, (m) => map[m]);
+};
+
+/* ─────────── Web-specific print using hidden iframe ─────────── */
 
 
 /* ─────────── GRN (Good Receipt Note) Helpers ─────────── */
@@ -62,13 +83,40 @@ function buildReceiptHtml(data: {
   materialName: string;
   quantityOrdered: number;
   quarryName: string;
+  quarryOrigin?: string;
+  banker?: string;
+  materialSource?: string;
   siteName: string;
   weightIn: number;
   weightOut: number;
   netWeight: number;
   timestamp: string;
   operatorName: string;
+  lotNumber?: string;
 }): string {
+  const {
+    jobId,
+    receiptNoteId,
+    poNumber,
+    driverName,
+    plateNumber,
+    vendorName,
+    materialName,
+    quantityOrdered,
+    quarryName,
+    quarryOrigin,
+    materialSource,
+    siteName,
+    weightIn,
+    weightOut,
+    netWeight,
+    timestamp,
+    operatorName,
+    lotNumber,
+  } = data;
+
+  const e = escapeHtml;
+
   return `
     <html>
     <head>
@@ -84,7 +132,7 @@ function buildReceiptHtml(data: {
         .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; }
         .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
         .row .label { color: #64748B; }
-        .row .value { font-weight: 700; color: #1E293B; }
+        .row .value { white-space: pre-line; overflow-wrap: anywhere; font-weight: 700; color: #1E293B; }
         .highlight-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
         .highlight-box .net { font-size: 32px; font-weight: 900; color: #16A34A; }
         .highlight-box .calc { font-size: 11px; color: #64748B; margin-top: 4px; }
@@ -101,6 +149,7 @@ function buildReceiptHtml(data: {
         .sig-block .line { border-bottom: 1px solid #94A3B8; margin: 32px 20px 8px; }
         .sig-block .name { font-size: 12px; font-weight: 600; color: #1E293B; }
         .sig-block .role { font-size: 10px; color: #94A3B8; }
+        @page { size: A4; margin: 20mm 15mm; }
       </style>
     </head>
     <body>
@@ -111,56 +160,57 @@ function buildReceiptHtml(data: {
 
       <div class="section">
         <div class="section-title">Document Details</div>
-        <div class="row"><span class="label">Receipt Note</span><span class="value">${data.receiptNoteId || data.jobId}</span></div>
-        <div class="row"><span class="label">Job ID</span><span class="value">${data.jobId}</span></div>
-        <div class="row"><span class="label">Purchase Order</span><span class="value">${data.poNumber || 'N/A'}</span></div>
-        <div class="row"><span class="label">Date</span><span class="value">${data.timestamp}</span></div>
-        
+        <div class="row"><span class="label">Receipt Note</span><span class="value">${e(receiptNoteId || jobId)}</span></div>
+        <div class="row"><span class="label">Job ID</span><span class="value">${e(jobId)}</span></div>
+        <div class="row"><span class="label">Purchase Order</span><span class="value">${e(poNumber) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Date</span><span class="value">${e(timestamp)}</span></div>
       </div>
 
       <div class="section">
         <div class="section-title">Parties</div>
-        <div class="row"><span class="label">Vendor</span><span class="value">${data.vendorName || 'N/A'}</span></div>
-        <div class="row"><span class="label">Driver</span><span class="value">${data.driverName || 'N/A'}</span></div>
-        <div class="row"><span class="label">Truck Plate</span><span class="value">${data.plateNumber || 'N/A'}</span></div>
-        <div class="row"><span class="label">Origin (Quarry)</span><span class="value">${data.quarryName || 'N/A'}</span></div>
-        <div class="row"><span class="label">Destination (Site)</span><span class="value">${data.siteName || 'N/A'}</span></div>
+        <div class="row"><span class="label">Vendor</span><span class="value">${e(vendorName) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Driver</span><span class="value">${e(driverName) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Truck Plate</span><span class="value">${e(plateNumber) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Banker</span><span class="value">${e(data.banker) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Origin</span><span class="value">${e(quarryOrigin || materialSource || quarryName) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Destination (Site)</span><span class="value">${e(siteName) || 'N/A'}</span></div>
       </div>
 
       <div class="section">
         <div class="section-title">Material</div>
-        <div class="row"><span class="label">Material</span><span class="value">${data.materialName || 'N/A'}</span></div>
-        <div class="row"><span class="label">Quantity Ordered</span><span class="value">${data.quantityOrdered} tonnes</span></div>
+        <div class="row"><span class="label">Material</span><span class="value">${e(materialName) || 'N/A'}</span></div>
+        <div class="row"><span class="label">Quantity Ordered</span><span class="value">${quantityOrdered} tonnes</span></div>
+        ${lotNumber ? `<div class="row"><span class="label">Lot Number</span><span class="value">${e(lotNumber)}</span></div>` : ''}
       </div>
 
       <div class="section">
         <div class="section-title">Weight Record</div>
         <table>
-          <tr><td>Site Arrival Weight (Gross)</td><td style="font-weight:700;">${data.weightIn.toFixed(1)} T</td></tr>
-          <tr><td>Post-Offload Weight (Tare)</td><td style="font-weight:700;">${data.weightOut.toFixed(1)} T</td></tr>
+          <tr><td>Site Arrival Weight (Gross)</td><td style="font-weight:700;">${weightIn.toFixed(1)} T</td></tr>
+          <tr><td>Post-Offload Weight (Tare)</td><td style="font-weight:700;">${weightOut.toFixed(1)} T</td></tr>
         </table>
 
         <div class="highlight-box">
-          <div class="net">${data.netWeight.toFixed(1)} Tonnes</div>
-          <div class="calc">NET WEIGHT = ${data.weightIn.toFixed(1)}T (Gross) − ${data.weightOut.toFixed(1)}T (Tare)</div>
+          <div class="net">${netWeight.toFixed(1)} Tonnes</div>
+          <div class="calc">NET WEIGHT = ${weightIn.toFixed(1)}T (Gross) − ${weightOut.toFixed(1)}T (Tare)</div>
         </div>
       </div>
 
       <div class="section">
         <div class="section-title">Certification</div>
-        <div class="row"><span class="label">Operator</span><span class="value">${data.operatorName}</span></div>
-        <div class="row"><span class="label">Location</span><span class="value">${data.siteName || 'Site'}</span></div>
+        <div class="row"><span class="label">Operator</span><span class="value">${e(operatorName)}</span></div>
+        <div class="row"><span class="label">Location</span><span class="value">${e(siteName) || 'Site'}</span></div>
       </div>
 
       <div class="signature-line">
         <div class="sig-block">
           <div class="line"></div>
-          <div class="name">${data.operatorName}</div>
+          <div class="name">${e(operatorName)}</div>
           <div class="role">Site Operator</div>
         </div>
         <div class="sig-block">
           <div class="line"></div>
-          <div class="name">${data.driverName || 'Driver'}</div>
+          <div class="name">${e(driverName) || 'Driver'}</div>
           <div class="role">Driver</div>
         </div>
       </div>
@@ -178,7 +228,12 @@ function buildReceiptHtml(data: {
 
 export default function OperatorSiteWeightsScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
+  const styles = buildThemeStyles(colors);
+  const { user } = useAuthStore();
+  const deliveries = useDeliveryOrders();
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+  const optimisticUpdate = useRealTimeSyncStore((s) => s.optimisticUpdate);
+  const storeLoading = useRealTimeSyncStore((s) => s.isLoading);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -186,6 +241,7 @@ export default function OperatorSiteWeightsScreen() {
   // ─── Active weigh job state ───
   const [activeJob, setActiveJob] = useState<any>(null);
   const [weightOutInput, setWeightOutInput] = useState('');
+  const [lotNumber, setLotNumber] = useState('');
   const [saving, setSaving] = useState(false);
 
   // ─── Review / Receipt Modal ───
@@ -195,32 +251,69 @@ export default function OperatorSiteWeightsScreen() {
   const [grnVisible, setGrnVisible] = useState(false);
   const [grnData, setGrnData] = useState<any>(null);
 
-  const loadData = async (silent?: boolean) => {
-    if (!silent) setRefreshing(true);
-    try {
-      const data = (await fetchDeliveryOrders()) || [];
-      setDeliveries(data);
-    } catch {
-    } finally {
-      setRefreshing(false);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh('deliveryOrders');
+    setRefreshing(false);
+  }, [refresh]);
+
+  // Mark loading as complete once we have data or store reports finished
+  useEffect(() => {
+    if (deliveries.length > 0) {
+      setLoading(false);
+    } else if (!storeLoading('deliveryOrders')) {
       setLoading(false);
     }
-  };
+  }, [deliveries, storeLoading]);
 
-  useEffect(() => { loadData(); const t = setInterval(() => loadData(true), 2000); return () => clearInterval(t); }, []);
+  // Safety timeout: stop showing spinner after 10s regardless
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (loading) setLoading(false);
+    }, 10000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  /* ─── Data isolation: jobs belong to a site, not an individual operator ─── */
+  const operatorSiteId = (user as any)?.siteId || '';
 
   /* ─── Filtering & Categorizing ─── */
 
-  // Only show jobs that have completed site weigh-in but NOT yet weighed out.
-  // Once weighed out (completed/delivered), they move to history.
   const eligibleJobs = useMemo(() => {
-    return deliveries.filter(
+    let filtered = deliveries.filter(
       (d) =>
-        !['cancelled', 'completed', 'delivered'].includes(d.status) &&
+        !d.warehouseDeniedAt && !d.materialInspection?.mrfNumber && !d.isFlagged && d.securityFlag?.status !== 'flagged' && !['CANCELLED', 'COMPLETED', 'SITE_WEIGHED_OUT'].includes(normalizeJobStatus(d.status)) &&
         d.siteWeighOutWeight == null &&
-        (d.siteWeighInWeight != null || d.status === 'weighed_in'),
+        (d.siteWeighInWeight != null || d.siteArrivalWeight != null || d.status === 'weighed_in' || d.status === 'site_in'),
     );
-  }, [deliveries]);
+    // Apply data isolation for operator-site role
+    if (operatorSiteId) {
+      filtered = filtered.filter((d: any) => !d.siteId || d.siteId === operatorSiteId);
+    }
+    return filtered;
+  }, [deliveries, operatorSiteId]);
+
+  useEffect(() => {
+    const evaluatedDocuments = deliveries.map((job: any) => {
+      let reason = '';
+      if (['cancelled', 'completed', 'delivered'].includes(job.status)) reason = `terminal status: ${job.status}`;
+      else if (job.siteWeighOutWeight != null) reason = 'site weight-out already recorded';
+      else if (job.siteWeighInWeight == null && job.siteArrivalWeight == null && !['weighed_in', 'site_in'].includes(job.status)) reason = 'site arrival weight/status missing';
+      else if (operatorSiteId && job.siteId && job.siteId !== operatorSiteId) reason = `different site: ${job.siteId}`;
+      return { documentId: job.id, included: !reason, reason: reason || undefined };
+    });
+    if (__DEV__) {
+      console.debug('[SiteWeights] weights query filters', {
+        excludedStatuses: ['cancelled', 'completed', 'delivered'],
+        requires: 'site arrival weight or legacy site_in/weighed_in status',
+        siteId: operatorSiteId || 'unscoped',
+      });
+      console.debug('[SiteWeights] weights query result', {
+        documentIds: eligibleJobs.map((job: any) => job.id),
+        evaluatedDocuments,
+      });
+    }
+  }, [deliveries, eligibleJobs, operatorSiteId]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -245,7 +338,8 @@ export default function OperatorSiteWeightsScreen() {
 
   /* ─── Active Job Calculations ─── */
 
-  const siteWeighIn = activeJob?.siteWeighInWeight ?? 0;
+  const siteWeighIn = activeJob?.siteWeighInWeight ?? activeJob?.siteArrivalWeight ?? 0;
+  const activeSecurityFlag = activeJob?.securityFlag?.status === 'flagged' || activeJob?.isFlagged === true || activeJob?.siteArrivalWeightVarianceFlagged === true || activeJob?.hasWeightDiscrepancy === true;
   const weightOutNum = parseFloat(weightOutInput);
 
   const netWeight =
@@ -258,11 +352,13 @@ export default function OperatorSiteWeightsScreen() {
   const openWeighForm = (job: any) => {
     setActiveJob(job);
     setWeightOutInput('');
+    setLotNumber(isWarehouseJob(job) ? '' : job.storageLot || job.lotNumber || job.destinationLot || '');
   };
 
   const closeWeighForm = () => {
     setActiveJob(null);
     setWeightOutInput('');
+    setLotNumber('');
     setSaving(false);
   };
 
@@ -281,7 +377,18 @@ export default function OperatorSiteWeightsScreen() {
       );
       return;
     }
-    // Show receipt review note modal
+    const quarryOutWeight = activeJob?.weighOutWeight ?? 0;
+    if (quarryOutWeight > 0 && siteWeighIn < quarryOutWeight) {
+      Alert.alert(
+        'Weight Discrepancy',
+        `⚠️ Site arrival weight (${siteWeighIn.toFixed(1)}T) is lower than quarry loaded weight (${quarryOutWeight.toFixed(1)}T). This may indicate material loss in transit. Please verify before proceeding.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Proceed Anyway', onPress: () => setReviewVisible(true) },
+        ],
+      );
+      return;
+    }
     setReviewVisible(true);
   };
 
@@ -292,16 +399,14 @@ export default function OperatorSiteWeightsScreen() {
     try {
       const now = new Date().toISOString();
 
-      // Use backend sequential counter for RN, fallback to in-memory
       let receiptNoteId: string;
       try {
         const rnNum = await getNextId();
         receiptNoteId = `${activeJob.jobId}/RN${rnNum.replace('RN', '').padStart(3, '0')}`;
       } catch {
-        receiptNoteId = generateReceiptNoteId(activeJob.jobId);
+        throw new Error('Unable to allocate a receipt note number. Please retry before completing this weigh-out.');
       }
 
-      // Calculate weight differences: quarry net vs site net
       const quarryNetWeight =
         activeJob.netWeight ??
         (activeJob.weighInWeight != null && activeJob.weighOutWeight != null
@@ -311,11 +416,11 @@ export default function OperatorSiteWeightsScreen() {
       const weightDifference =
         quarryNetWeight != null ? quarryNetWeight - siteNetWeight : null;
 
-      await updateDeliveryOrder(activeJob.id, {
+      const updatePayload = {
         siteWeighOutWeight: weightOutNum,
         siteWeighOutAt: now,
         siteNetWeight: siteNetWeight,
-        quantityDelivered: siteNetWeight,
+        ...(isWarehouseJob(activeJob) ? {} : { quantityDelivered: siteNetWeight }),
         siteWeightDifference: weightDifference,
         differenceNote:
           weightDifference != null
@@ -323,35 +428,29 @@ export default function OperatorSiteWeightsScreen() {
             : null,
         receivedAt: now,
         receivedLocation: activeJob.siteName || 'Site',
-        receivedBy: 'Site Operator',
+        receivedBy: user?.displayName || 'Site Operator',
         receiptNoteId,
-        status: 'completed',
-        updatedAt: now,
-      });
-
-      // Update local
-      const updatedJob = {
-        ...activeJob,
-        siteWeighOutWeight: weightOutNum,
-        siteWeighOutAt: now,
-        siteNetWeight: netWeight,
-        quantityDelivered: netWeight,
-        receivedAt: now,
-        receivedBy: 'Site Operator',
-        receiptNoteId,
-        status: 'completed',
+        ...(isWarehouseJob(activeJob) ? {} : { storageLot: lotNumber || undefined }),
+        status: 'SITE_WEIGHED_OUT',
         updatedAt: now,
       };
-      setDeliveries((current) =>
-        current.map((item) =>
-          item.id === activeJob.id ? updatedJob : item,
-        ),
-      );
 
-      // Show GRN
+      // Commit first; history is updated only after the backend confirms the
+      // site weigh-out transition.
+      const updatedJob = {
+        ...activeJob,
+        ...updatePayload,
+        siteNetWeight: netWeight,
+      };
+      const persisted = await updateDeliveryOrder(activeJob.id, updatePayload);
+      const finalizedJob = persisted || updatedJob;
+      optimisticUpdate('deliveryOrders', finalizedJob);
+
       setGrnData({
         ...updatedJob,
+        ...finalizedJob,
         receiptNoteId,
+        storageLot: lotNumber,
         siteWeighIn,
         weightOut: weightOutNum,
         netWeight,
@@ -381,26 +480,50 @@ export default function OperatorSiteWeightsScreen() {
       materialName: grnData.materialName || '',
       quantityOrdered: grnData.quantityOrdered || 0,
       quarryName: grnData.quarryName || '',
+      quarryOrigin: ['operator_site', 'site_operator'].includes(String(grnData.createdBy?.role || grnData.createdBy || '').trim().toLowerCase()) ? grnData.materialSource || 'N/A' : formatCapturedGeoLocation(
+        grnData.weighOutGeoLocation,
+        grnData.weighOutLocation || grnData.quarryName || '',
+      ),
+      materialSource: grnData.materialSource || '',
+      banker: grnData.banker || '',
       siteName: grnData.siteName || '',
+      lotNumber: grnData.storageLot || grnData.lotNumber || grnData.destinationLot || '',
       weightIn: siteWeighIn,
       weightOut: weightOutNum,
       netWeight: grnData.siteNetWeight || netWeight || 0,
       timestamp: new Date().toLocaleString('en-KE', {
         timeZone: 'Africa/Nairobi',
       }),
-      operatorName: 'Site Operator',
+      operatorName: user?.displayName || 'Site Operator',
     };
   };
 
+  // ─── PDF printing (cross‑platform) ──────────────────────────
+
+  const handlePrintPDF = async () => {
+    const data = buildGrnExportData();
+    if (!data) return;
+    try {
+      const html = buildReceiptHtml(data);
+
+      if (Platform.OS === 'web') {
+        await printHtmlOnWeb(html);
+      } else {
+        const { uri } = await Print.printToFileAsync({ width: 595, height: 842,  html });
+        await Print.printAsync({ uri });
+      }
+    } catch (e: any) {
+      Alert.alert('Print Error', e?.message || 'Failed to print');
+    }
+  };
+
+  // ─── CSV Export ──────────────────────────────────────────────
 
   const handleDownloadCSV = async () => {
     const data = buildGrnExportData();
     if (!data) return;
     try {
-      const headers = [
-        'Field',
-        'Value',
-      ];
+      const headers = ['Field', 'Value'];
       const rows = [
         ['Receipt Note', data.receiptNoteId || data.jobId],
         ['Job ID', data.jobId],
@@ -410,30 +533,19 @@ export default function OperatorSiteWeightsScreen() {
         ['Truck Plate', data.plateNumber],
         ['Material', data.materialName],
         ['Quantity Ordered', `${data.quantityOrdered} tonnes`],
-        ['Origin (Quarry)', data.quarryName],
+        ['Banker', data.banker || 'N/A'],
+        ['Origin', data.quarryOrigin || data.materialSource || data.quarryName],
         ['Destination (Site)', data.siteName],
         ['Site Arrival Weight (Gross)', `${data.weightIn.toFixed(1)} T`],
         ['Weight Out (Tare)', `${data.weightOut.toFixed(1)} T`],
         ['Net Weight', `${data.netWeight.toFixed(1)} T`],
+        ['Lot Number', data.lotNumber || '—'],
         ['Status', 'COMPLETED'],
         ['Operator', data.operatorName],
         ['Date', data.timestamp],
       ];
-      const csv = formatCsv(headers, rows);
-      const fileName = `GRN_${data.receiptNoteId || data.jobId}.csv`;
-      const fs: any = FileSystem;
-      const dir = (fs.documentDirectory || fs.cacheDirectory || '');
-      const dest = `${dir}${fileName}`;
-      await fs.writeAsStringAsync(dest, csv, { encoding: fs.EncodingType?.UTF8 ?? 0 });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(dest, {
-          mimeType: 'text/csv',
-          dialogTitle: 'Download Goods Receipt Note (CSV)',
-          UTI: 'public.comma-separated-values-text',
-        });
-      } else {
-        Alert.alert('Success', `CSV saved: ${fileName}`);
-      }
+      const csvContent = buildCsvContent(headers, rows);
+      await shareCsvAsFile(`GRN_${data.receiptNoteId || data.jobId}`, csvContent);
     } catch (e: any) {
       Alert.alert('Export Error', e?.message || 'Failed to generate CSV');
     }
@@ -451,12 +563,14 @@ export default function OperatorSiteWeightsScreen() {
         : null);
 
     return (
-      <>
+      <KeyboardAvoidingView style={{ flex: 1, minHeight: 0 }} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}>
         <ScrollView
           style={[styles.container, { backgroundColor: colors.background }]}
           contentContainerStyle={styles.formContent}
           showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
         >
           {/* Job Card */}
           <View
@@ -470,30 +584,40 @@ export default function OperatorSiteWeightsScreen() {
                 <Text style={[styles.jobCardTitle, { color: colors.text }]}>
                   {activeJob.jobId}
                 </Text>
+                {(activeJob.receiptNoteId || activeJob.receiptNote) ? (
+                  <Text style={[styles.jobPo, { color: colors.success, fontWeight: '800' }]}>RN: {activeJob.receiptNoteId || activeJob.receiptNote}</Text>
+                ) : null}
                 <Text style={[styles.jobPo, { color: colors.textMuted }]}>
                   {activeJob.poNumber || 'No PO'}
                 </Text>
               </View>
-          
             </View>
+            {activeSecurityFlag ? (
+              <View style={styles.securityFlagAlert}>
+                <Ionicons name="warning-outline" size={20} color={colors.danger} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.securityFlagAlertTitle}>Security flag raised</Text>
+                  <Text style={styles.securityFlagAlertText}>{activeJob.securityFlag?.reason || 'This delivery requires review before it is finalized.'}</Text>
+                </View>
+              </View>
+            ) : null}
             <DetailRow
               icon="person-outline"
               value={`${activeJob.driverName || 'N/A'} · ${activeJob.plateNumber || 'N/A'}`}
             />
-              <DetailRow
-                icon="cube-outline"
-                value={`${activeJob.materialName || 'Material'}`}
-              />
+            <DetailRow multiline
+              icon="cube-outline"
+              value={`${formatPurchaseOrderMaterials(activeJob) || 'Material'}`}
+            />
             <DetailRow
               icon="business-outline"
               value={`Vendor: ${activeJob.vendorName || 'N/A'}`}
             />
             <DetailRow
               icon="location-outline"
-              value={`From: ${activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`}
+              value={`From: ${activeJob.isWarehouseDelivery || activeJob.deliveryOrigin === 'warehouse' ? 'Warehouse' : activeJob.materialSource || activeJob.quarryName || 'Quarry'} → ${activeJob.siteName || 'Site'}`}
             />
 
-            {/* Section: Site Arrival Weight (already recorded) */}
             <View style={styles.divider} />
             <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
               SITE ARRIVAL WEIGHT (RECORDED)
@@ -501,21 +625,20 @@ export default function OperatorSiteWeightsScreen() {
             <View
               style={[
                 styles.recordedWeightBox,
-                { backgroundColor: '#10B98108', borderColor: '#10B98133' },
+                { backgroundColor: `${colors.success}08`, borderColor: `${colors.successBorder}33` },
               ]}
             >
-              <Ionicons name="checkmark-circle" size={22} color="#10B981" />
+              <Ionicons name="checkmark-circle" size={22} color={colors.success} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.recordedWeightLabel, { color: colors.textMuted }]}>
                   Gross Weight
                 </Text>
-                <Text style={[styles.recordedWeightValue, { color: '#10B981' }]}>
+                <Text style={[styles.recordedWeightValue, { color: colors.success }]}>
                   {siteWeighIn.toFixed(1)} Tonnes
                 </Text>
               </View>
             </View>
 
-            {/* Quarry Weight Summary (reference only) */}
             {quarryNet != null && (
               <>
                 <View style={styles.divider} />
@@ -525,13 +648,13 @@ export default function OperatorSiteWeightsScreen() {
                 <View style={styles.quarryWeightRow}>
                   <View style={styles.qwCell}>
                     <Text style={[styles.qwLabel, { color: colors.textMuted }]}>Quarry In</Text>
-                    <Text style={[styles.qwValue, { color: '#7C3AED' }]}>
+                    <Text style={[styles.qwValue, { color: colors.purpleText }]}>
                       {quarryIn.toFixed(1)}T
                     </Text>
                   </View>
                   <View style={styles.qwCell}>
                     <Text style={[styles.qwLabel, { color: colors.textMuted }]}>Quarry Out</Text>
-                    <Text style={[styles.qwValue, { color: '#7C3AED' }]}>
+                    <Text style={[styles.qwValue, { color: colors.purpleText }]}>
                       {quarryOut.toFixed(1)}T
                     </Text>
                   </View>
@@ -550,11 +673,11 @@ export default function OperatorSiteWeightsScreen() {
           <View
             style={[
               styles.stageLabel,
-              { backgroundColor: '#8B5CF615', borderColor: '#8B5CF633' },
+              { backgroundColor: `${colors.purple}15`, borderColor: `${colors.purpleBorder}33` },
             ]}
           >
-            <Ionicons name="arrow-up-outline" size={20} color="#8B5CF6" />
-            <Text style={[styles.stageLabelText, { color: '#8B5CF6' }]}>
+            <Ionicons name="arrow-up-outline" size={20} color={colors.purpleText} />
+            <Text style={[styles.stageLabelText, { color: colors.purpleText }]}>
               INPUT POST-OFFLOAD WEIGHT (WEIGHT OUT)
             </Text>
           </View>
@@ -569,10 +692,10 @@ export default function OperatorSiteWeightsScreen() {
               <View
                 style={[
                   styles.inputIcon,
-                  { backgroundColor: '#8B5CF615' },
+                  { backgroundColor: `${colors.purple}15` },
                 ]}
               >
-                <Ionicons name="scale-outline" size={22} color="#8B5CF6" />
+                <Ionicons name="scale-outline" size={22} color={colors.purpleText} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.inputTitle, { color: colors.text }]}>
@@ -587,16 +710,19 @@ export default function OperatorSiteWeightsScreen() {
             <View
               style={[
                 styles.weightInputWrap,
-                { borderColor: '#8B5CF6', backgroundColor: colors.inputBg },
+                { borderColor: colors.purpleBorder, backgroundColor: colors.inputBg },
               ]}
             >
-              <TextInput
+              <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
                 style={[styles.weightInput, { color: colors.text }]}
                 placeholder="0.0"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="decimal-pad"
                 value={weightOutInput}
-                onChangeText={setWeightOutInput}
+                onChangeText={(value) => {
+                  const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                  setWeightOutInput(filtered);
+                }}
                 autoFocus
               />
               <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>
@@ -604,30 +730,26 @@ export default function OperatorSiteWeightsScreen() {
               </Text>
             </View>
 
-            {/* Live Calculation Preview */}
             {netWeight !== null && netWeight > 0 && (
               <View
                 style={[
                   styles.netPreview,
-                  { backgroundColor: '#8B5CF608', borderColor: '#8B5CF633' },
+                  { backgroundColor: `${colors.purple}08`, borderColor: `${colors.purpleBorder}33` },
                 ]}
               >
                 <Text style={[styles.netLabel, { color: colors.textMuted }]}>
                   NET WEIGHT
                 </Text>
-                <Text style={[styles.netValue, { color: '#8B5CF6' }]}>
+                <Text style={[styles.netValue, { color: colors.purpleText }]}>
                   {netWeight.toFixed(1)} Tonnes
                 </Text>
                 <Text style={[styles.netCalc, { color: colors.textTertiary }]}>
                   {siteWeighIn.toFixed(1)}T (Gross) − {weightOutNum.toFixed(1)}T (Tare)
                 </Text>
-
-
               </View>
             )}
           </View>
 
-          {/* Action Buttons */}
           <TouchableOpacity
             style={[
               styles.submitBtn,
@@ -637,7 +759,7 @@ export default function OperatorSiteWeightsScreen() {
                   netWeight !== null &&
                   netWeight > 0 &&
                   !saving
-                    ? '#8B5CF6'
+                    ? colors.purpleText
                     : colors.border,
               },
             ]}
@@ -650,9 +772,9 @@ export default function OperatorSiteWeightsScreen() {
             }
           >
             {saving ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <ActivityIndicator color={colors.onPrimary} size="small" />
             ) : (
-              <Ionicons name="calculator-outline" size={20} color="#FFFFFF" />
+              <Ionicons name="calculator-outline" size={20} color={colors.onPrimary} />
             )}
             <Text style={styles.submitBtnText}>
               {saving ? 'Processing...' : 'Calculate & Review'}
@@ -661,7 +783,7 @@ export default function OperatorSiteWeightsScreen() {
 
           <TouchableOpacity
             style={[styles.cancelBtn, { borderColor: colors.border }]}
-            onPress={closeWeighForm}
+            onPress={() => { setWeightOutInput(''); setSearch(''); (closeWeighForm)(); }}
             disabled={saving}
           >
             <Text style={[styles.cancelText, { color: colors.textSecondary }]}>
@@ -689,10 +811,10 @@ export default function OperatorSiteWeightsScreen() {
               <View
                 style={[
                   styles.grnIconWrap,
-                  { backgroundColor: '#8B5CF615' },
+                  { backgroundColor: `${colors.purple}15` },
                 ]}
               >
-                <Ionicons name="receipt-outline" size={36} color="#8B5CF6" />
+                <Ionicons name="receipt-outline" size={36} color={colors.purpleText} />
               </View>
 
               <Text style={[styles.grnTitle, { color: colors.text }]}>
@@ -702,7 +824,6 @@ export default function OperatorSiteWeightsScreen() {
                 Review the weight calculations below before finalizing.
               </Text>
 
-              {/* Receipt Summary */}
               <View
                 style={[
                   styles.grnSummary,
@@ -730,7 +851,7 @@ export default function OperatorSiteWeightsScreen() {
                     Material
                   </Text>
                   <Text style={[styles.grnValue, { color: colors.text }]}>
-                    {activeJob.materialName}
+                    {formatPurchaseOrderMaterials(activeJob)}
                   </Text>
                 </View>
                 <View style={styles.grnRow}>
@@ -746,7 +867,7 @@ export default function OperatorSiteWeightsScreen() {
                   <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
                     Site Arrival (Gross)
                   </Text>
-                  <Text style={[styles.grnValue, { color: '#F59E0B' }]}>
+                  <Text style={[styles.grnValue, { color: colors.warningText }]}>
                     {siteWeighIn.toFixed(1)} T
                   </Text>
                 </View>
@@ -754,11 +875,11 @@ export default function OperatorSiteWeightsScreen() {
                   <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
                     Weight Out (Tare)
                   </Text>
-                  <Text style={[styles.grnValue, { color: '#8B5CF6' }]}>
+                  <Text style={[styles.grnValue, { color: colors.purpleText }]}>
                     {weightOutNum.toFixed(1)} T
                   </Text>
                 </View>
-                <View style={[styles.grnDivider, { marginTop: 4 }]} />
+                <View style={[styles.grnDivider, { marginTop: Spacing.xs}]} />
                 <View style={styles.grnRow}>
                   <Text
                     style={[
@@ -779,7 +900,6 @@ export default function OperatorSiteWeightsScreen() {
                 </View>
               </View>
 
-              {/* Review Actions */}
               <View style={styles.grnActions}>
                 <TouchableOpacity
                   style={[styles.grnActionBtn, { flex: 1, backgroundColor: colors.border }]}
@@ -788,13 +908,13 @@ export default function OperatorSiteWeightsScreen() {
                   <Text style={[styles.grnActionText, { color: colors.textSecondary }]}>Back</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.grnActionBtn, { flex: 2, backgroundColor: '#8B5CF6' }]}
+                  style={[styles.grnActionBtn, { flex: 2, backgroundColor: colors.purple }]}
                   onPress={() => {
                     setReviewVisible(false);
                     handleConfirmAndFinalize();
                   }}
                 >
-                  <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+                  <Ionicons name="checkmark-circle" size={18} color={colors.onPrimary} />
                   <Text style={styles.grnActionText}>Confirm & Finalize</Text>
                 </TouchableOpacity>
               </View>
@@ -822,10 +942,10 @@ export default function OperatorSiteWeightsScreen() {
               <View
                 style={[
                   styles.grnIconWrap,
-                  { backgroundColor: '#10B98115' },
+                  { backgroundColor: `${colors.success}15` },
                 ]}
               >
-                <Ionicons name="receipt" size={40} color="#10B981" />
+                <Ionicons name="receipt" size={40} color={colors.success} />
               </View>
 
               <Text style={[styles.grnTitle, { color: colors.text }]}>
@@ -835,7 +955,7 @@ export default function OperatorSiteWeightsScreen() {
                 Delivery finalized successfully. GRN generated.
               </Text>
 
-              {/* GRN Summary */}
+              {grnData && !isWarehouseJob(grnData) && <Text style={{ color: colors.text }}>Banker: {grnData.banker || 'N/A'}</Text>}
               {grnData && (
                 <View
                   style={[
@@ -847,7 +967,7 @@ export default function OperatorSiteWeightsScreen() {
                     <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
                       Receipt Note
                     </Text>
-                    <Text style={[styles.grnValue, { color: '#8B5CF6', fontWeight: '800' }]}>
+                    <Text style={[styles.grnValue, { color: colors.purpleText, fontWeight: '800' }]}>
                       {grnData.receiptNoteId || grnData.jobId}
                     </Text>
                   </View>
@@ -872,15 +992,27 @@ export default function OperatorSiteWeightsScreen() {
                       Material
                     </Text>
                     <Text style={[styles.grnValue, { color: colors.text }]}>
-                      {grnData.materialName}
+                      {formatPurchaseOrderMaterials(grnData)}
                     </Text>
                   </View>
-                  <View style={styles.grnDivider} />
+                  {grnData.storageLot ? (
+                    <>
+                      <View style={styles.grnRow}>
+                        <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
+                          Lot Number
+                        </Text>
+                        <Text style={[styles.grnValue, { color: colors.warningText }]}>
+                          {grnData.storageLot}
+                        </Text>
+                      </View>
+                      <View style={styles.grnDivider} />
+                    </>
+                  ) : null}
                   <View style={styles.grnRow}>
                     <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
                       Gross (Site In)
                     </Text>
-                    <Text style={[styles.grnValue, { color: '#F59E0B' }]}>
+                    <Text style={[styles.grnValue, { color: colors.warningText }]}>
                       {siteWeighIn.toFixed(1)} T
                     </Text>
                   </View>
@@ -888,11 +1020,11 @@ export default function OperatorSiteWeightsScreen() {
                     <Text style={[styles.grnLabel, { color: colors.textMuted }]}>
                       Tare (Weight Out)
                     </Text>
-                    <Text style={[styles.grnValue, { color: '#8B5CF6' }]}>
+                    <Text style={[styles.grnValue, { color: colors.purpleText }]}>
                       {weightOutNum.toFixed(1)} T
                     </Text>
                   </View>
-                  <View style={[styles.grnDivider, { marginTop: 4 }]} />
+                  <View style={[styles.grnDivider, { marginTop: Spacing.xs}]} />
                   <View style={styles.grnRow}>
                     <Text
                       style={[
@@ -911,41 +1043,40 @@ export default function OperatorSiteWeightsScreen() {
                       {(grnData.siteNetWeight || netWeight || 0).toFixed(1)} T
                     </Text>
                   </View>
+                  {/* Backorder creation notice hidden from users (internal only) */}
                 </View>
               )}
 
-              {/* Export Actions */}
               <View style={styles.grnExportSection}>
-                <Text style={[styles.grnExportTitle, { color: colors.text }]}>
-                  Download Controls
+                <Text style={[styles.grnExportTitle, { color: colors.textMuted }]}>
+                  EXPORT RECEIPT
                 </Text>
                 <View style={styles.grnDownloadRow}>
                   <TouchableOpacity
-                    style={[styles.grnDownloadBtn, { backgroundColor: '#7C3AED' }]}
-                    onPress={handleDownloadCSV}
+                    style={[styles.grnDownloadBtn, { backgroundColor: colors.primary }]}
+                    onPress={handlePrintPDF}
                   >
-                    <Ionicons name="document-outline" size={22} color="#FFFFFF" />
-                    <Text style={styles.grnDownloadBtnText}>Download GRN (CSV)</Text>
-                    <Text style={styles.grnDownloadBtnSub}>Structured Line Items</Text>
+                    <Ionicons name="print-outline" size={18} color={colors.onPrimary} />
+                    <Text style={styles.grnDownloadBtnText}>Print</Text>
+                    <Text style={styles.grnDownloadBtnSub}>PDF</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.grnDownloadBtn, { backgroundColor: '#7C3AED' }]}
+                    style={[styles.grnDownloadBtn, { backgroundColor: colors.primary }]}
                     onPress={handleDownloadCSV}
                   >
-                    <Ionicons name="grid-outline" size={22} color="#FFFFFF" />
-                    <Text style={styles.grnDownloadBtnText}>Download CSV</Text>
-                    <Text style={styles.grnDownloadBtnSub}>Structured Line Items</Text>
+                    <Ionicons name="download-outline" size={18} color={colors.onPrimary} />
+                    <Text style={styles.grnDownloadBtnText}>CSV</Text>
+                    <Text style={styles.grnDownloadBtnSub}>Data</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Dismiss */}
               <TouchableOpacity
                 style={[styles.grnDoneBtn, { borderColor: colors.border }]}
                 onPress={() => {
                   setGrnVisible(false);
                   closeWeighForm();
-                  router.navigate('/operator-site/dashboard' as any);
+                  router.push('/operator-site/history' as any);
                 }}
               >
                 <Text
@@ -954,13 +1085,13 @@ export default function OperatorSiteWeightsScreen() {
                     { color: colors.textSecondary },
                   ]}
                 >
-                  Done — Back to Schedule
+                  Done
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
-      </>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -971,14 +1102,12 @@ export default function OperatorSiteWeightsScreen() {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={loadData}
+          onRefresh={handleRefresh}
           tintColor={colors.primary}
         />
       }
     >
-     
-
-      <SearchField
+      <SearchField title="Weights" icon="scale-outline"
         value={search}
         onChangeText={setSearch}
         placeholder="Search job, driver, plate..."
@@ -995,15 +1124,17 @@ export default function OperatorSiteWeightsScreen() {
         </DataCard>
       ) : filtered.length ? (
         filtered.map((item) => {
-          const siteIn = item.siteWeighInWeight ?? 0;
+          const siteIn = item.siteWeighInWeight ?? item.siteArrivalWeight ?? 0;
           const isCompleted =
             item.status === 'completed' || item.status === 'delivered';
-          const siteNet = item.siteNetWeight ?? item.quantityDelivered ?? null;
-          const diff = item.siteWeightDifference ?? null;
+          const lotNum = isWarehouseJob(item) ? '' : item.storageLot || item.lotNumber || item.destinationLot || '';
+          const hasSecurityFlag = item.securityFlag?.status === 'flagged' || item.isFlagged === true;
+          const hasWeightFlag = item.siteArrivalWeightVarianceFlagged === true || item.hasWeightDiscrepancy === true;
 
           return (
             <DataCard
               key={item.id}
+              style={hasSecurityFlag ? { borderColor: colors.warningBorder, borderWidth: 1.5, backgroundColor: colors.warningBg } : hasWeightFlag ? { borderColor: colors.dangerBorder, borderWidth: 1.5 } : undefined}
               onPress={() => !isCompleted && openWeighForm(item)}
             >
               <View
@@ -1021,7 +1152,6 @@ export default function OperatorSiteWeightsScreen() {
                 >
                   {item.jobId}
                 </Text>
-             
               </View>
               <DetailRow
                 icon="person-outline"
@@ -1029,23 +1159,32 @@ export default function OperatorSiteWeightsScreen() {
               />
               <DetailRow
                 icon="cube-outline"
-                value={`${item.materialName || 'Material'}`}
+                value={`${formatPurchaseOrderMaterials(item) || 'Material'}${lotNum ? ` · Lot: ${lotNum}` : ''}`}
               />
 
-              {/* Site Arrival Weight Badge */}
+              {hasSecurityFlag || hasWeightFlag ? (
+                <View style={styles.securityFlagAlert}>
+                  <Ionicons name="warning-outline" size={18} color={colors.danger} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.securityFlagAlertTitle}>{hasSecurityFlag ? 'Security flag raised' : 'Weight flag raised'}</Text>
+                    <Text style={styles.securityFlagAlertText}>{item.securityFlag?.reason || item.flagReason || item.differenceNote || 'Review this delivery before finalizing site weights.'}</Text>
+                  </View>
+                </View>
+              ) : null}
+
               <View
                 style={[
                   styles.listWeightBadge,
-                  { backgroundColor: '#10B98112' },
+                  { backgroundColor: `${colors.success}12` },
                 ]}
               >
                 <Ionicons
                   name="download-outline"
                   size={12}
-                  color="#10B981"
+                  color={colors.success}
                 />
                 <Text
-                  style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}
+                  style={{ fontSize: 12, fontWeight: '700', color: colors.success }}
                 >
                   Site Arrival: {siteIn.toFixed(1)} T
                 </Text>
@@ -1061,12 +1200,12 @@ export default function OperatorSiteWeightsScreen() {
                   <Ionicons
                     name="hand-left-outline"
                     size={12}
-                    color={colors.primary}
+                    color={colors.primaryText}
                   />
                   <Text
                     style={[
                       styles.tapHintText,
-                      { color: colors.primary },
+                      { color: colors.primaryText },
                     ]}
                   >
                     Tap to input Weight Out & finalize
@@ -1102,36 +1241,35 @@ export default function OperatorSiteWeightsScreen() {
 
 /* ─── Styles ─── */
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
+  container: { flex: 1, minHeight: 0 },
   formContent: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  metricRow: { flexDirection: 'row', gap: Spacing.sm },
-  // Job Card
+  metricRow: { flexDirection: 'row', gap: Gap},
   jobCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    padding: Spacing.lg, marginBottom: Spacing.xs,
   },
   jobCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.sm,
+    alignItems: 'flex-start', marginBottom: Spacing.xs,
   },
   jobCardTitle: { fontSize: 18, fontWeight: '800' },
-  jobPo: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: Spacing.sm },
+  jobPo: { fontSize: 12, fontWeight: '600', marginTop: Spacing.xs},
+  securityFlagAlert: { flexDirection: 'row', alignItems: 'flex-start', gap: Gap, padding: Spacing.sm, marginBottom: Spacing.sm, backgroundColor: colors.redBg, borderColor: '#FCA5A5', borderWidth: 1, borderRadius: Radius.md },
+  securityFlagAlertTitle: { color: colors.dangerText, fontSize: 13, fontWeight: '800' },
+  securityFlagAlertText: { color: '#7F1D1D', fontSize: 12, fontWeight: '600', marginTop: 2, lineHeight: 17 },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: Spacing.xs},
   sectionLabel: {
     fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: Spacing.sm,
+    letterSpacing: 1, marginBottom: Spacing.xs,
   },
   recordedWeightBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: Gap,
     borderRadius: Radius.md,
     borderWidth: 1,
     padding: Spacing.md,
@@ -1140,12 +1278,12 @@ const styles = StyleSheet.create({
   recordedWeightValue: { fontSize: 18, fontWeight: '800' },
   quarryWeightRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Gap,
   },
   qwCell: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surface,
     borderRadius: Radius.md,
     paddingVertical: Spacing.sm,
   },
@@ -1154,17 +1292,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
   },
-  qwValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
-  // Stage Labels
+  qwValue: { fontSize: 14, fontWeight: '800', marginTop: Spacing.xs},
   stageLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: Gap,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    marginBottom: Spacing.sm,
+    borderWidth: 1, marginBottom: Spacing.xs,
   },
   stageLabelText: {
     fontSize: 13,
@@ -1172,18 +1308,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  // Input
   inputCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
+    padding: Spacing.lg, marginBottom: Spacing.xs,
   },
   inputHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Gap, marginBottom: Spacing.xs,
   },
   inputIcon: {
     width: 40,
@@ -1193,24 +1326,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   inputTitle: { fontSize: 16, fontWeight: '700' },
-  inputSub: { fontSize: 12, marginTop: 2 },
+  inputSub: { fontSize: 12, marginTop: Spacing.xs},
   weightInputWrap: {
     borderRadius: Radius.md,
     borderWidth: 2,
     paddingHorizontal: Spacing.md,
     height: 64,
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   weightInput: { flex: 1, fontSize: 28, fontWeight: '800' },
   weightSuffix: { fontSize: 16, fontWeight: '600', marginLeft: Spacing.sm },
-  // Net Preview
   netPreview: {
     borderRadius: Radius.md,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginTop: Spacing.sm,
+    padding: Spacing.md, marginTop: Spacing.xs,
     alignItems: 'center',
   },
   netLabel: {
@@ -1219,13 +1349,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  netValue: { fontSize: 28, fontWeight: '900', marginTop: 4 },
-  netCalc: { fontSize: 12, marginTop: 4 },
+  netValue: { fontSize: 28, fontWeight: '900', marginTop: Spacing.xs},
+  netCalc: { fontSize: 12, marginTop: Spacing.xs},
   diffRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 8,
+    width: '100%', marginTop: Spacing.xs,
     paddingHorizontal: 8,
   },
   diffLabel: { fontSize: 12, fontWeight: '600' },
@@ -1233,8 +1362,7 @@ const styles = StyleSheet.create({
   mismatchBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 10,
+    gap: Gap, marginTop: Spacing.xs,
     borderRadius: Radius.md,
     borderWidth: 1,
     padding: Spacing.sm,
@@ -1243,65 +1371,57 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     fontWeight: '700',
-    color: '#991B1B',
+    color: colors.redText,
     lineHeight: 14,
   },
-  // Buttons
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
-    gap: Spacing.sm,
-    minHeight: 50,
-    marginTop: Spacing.sm,
+    gap: Gap,
+    minHeight: 50, marginTop: Spacing.xs,
   },
-  submitBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  submitBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: '800' },
   cancelBtn: {
     alignItems: 'center',
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    marginTop: Spacing.sm,
+    borderWidth: 1, marginTop: Spacing.xs,
   },
   cancelText: { fontSize: 14, fontWeight: '600' },
-  // List
   listWeightBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 4,
+    gap: Gap,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.full,
-    marginTop: Spacing.sm,
+    borderRadius: Radius.full, marginTop: Spacing.xs,
   },
   listNetBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 4,
+    gap: Gap,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.full,
-    marginTop: 4,
+    borderRadius: Radius.full, marginTop: Spacing.xs,
   },
   tapHint: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 4,
+    gap: Gap,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.full,
-    marginTop: 6,
+    borderRadius: Radius.full, marginTop: Spacing.xs,
   },
   tapHintText: { fontSize: 11, fontWeight: '700' },
-  // GRN Modal
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xl,
@@ -1320,25 +1440,21 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: Spacing.md,
+    alignSelf: 'center', marginBottom: Spacing.xs,
   },
   grnTitle: {
     fontSize: 20,
     fontWeight: '900',
-    textAlign: 'center',
-    marginBottom: Spacing.xs,
+    textAlign: 'center', marginBottom: Spacing.xs,
   },
   grnSub: {
     fontSize: 13,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
+    textAlign: 'center', marginBottom: Spacing.xs,
   },
   grnSummary: {
     borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.lg,
-    gap: 6,
+    padding: Spacing.md, marginBottom: Spacing.xs,
+    gap: Gap,
   },
   grnRow: {
     flexDirection: 'row',
@@ -1350,14 +1466,22 @@ const styles = StyleSheet.create({
   grnValue: { fontSize: 13, fontWeight: '700' },
   grnDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: 4,
+    backgroundColor: colors.border, marginVertical: Spacing.xs,
   },
+  backorderNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.md, marginTop: Spacing.xs,
+  },
+  backorderTitle: { fontSize: 13, fontWeight: '800' },
+  backorderText: { fontSize: 12, fontWeight: '600', marginTop: Spacing.xs},
   grnActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
+    gap: Gap, marginBottom: Spacing.xs,
   },
   grnActionBtn: {
     flex: 1,
@@ -1367,11 +1491,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Gap,
     paddingHorizontal: 8,
   },
   grnActionText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -1383,20 +1507,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   grnDoneText: { fontSize: 14, fontWeight: '700' },
-  // GRN Download Controls
-  grnExportSection: {
-    marginBottom: Spacing.lg,
+  grnExportSection: { marginBottom: Spacing.xs,
   },
   grnExportTitle: {
     fontSize: 13,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
+    letterSpacing: 0.5, marginBottom: Spacing.xs,
   },
   grnDownloadRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Gap,
   },
   grnDownloadBtn: {
     flex: 1,
@@ -1405,10 +1526,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Gap,
   },
   grnDownloadBtnText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '800',
   },

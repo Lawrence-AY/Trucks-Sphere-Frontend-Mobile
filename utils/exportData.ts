@@ -1,3 +1,8 @@
+import { printDocument, a4Html } from './printDocument';
+import { formatEAT } from './helpers';
+import { formatTripMaterials } from './poMaterials';
+import { deliveryLot, receivingPerson, receiptReference } from './deliveryDocuments';
+import { getPurchaseOrderMaterials } from './poMaterials';
 import { Platform, Alert, Share } from 'react-native';
 import { Paths, File } from 'expo-file-system';
 import * as ExpoSharing from 'expo-sharing';
@@ -6,7 +11,7 @@ import { fetchDrivers, fetchVehicles, fetchPurchaseOrders, fetchDeliveryOrders, 
 
 function escapeCsvField(value: any): string {
   if (value == null || value === undefined) return '';
-  const str = String(value);
+  const str = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:/.test(value) ? formatEAT(value) : String(value);
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -19,8 +24,17 @@ function formatCsv(headers: string[], rows: string[][]): string {
   return `${hdr}\n${body}`;
 }
 
-function buildHtmlTable(headers: string[], rows: string[][], title: string): string {
-  const headerCells = headers.map(h => `<th style="padding:10px 14px; background:#1B2A4A; color:#fff; font-weight:700; text-align:left; border:1px solid #ddd;">${h}</th>`).join('');
+function escapeHtml(value: any): string {
+  const text = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:/.test(value) ? formatEAT(value) : String(value ?? '');
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+export function buildHtmlTable(headers: string[], rows: string[][], title: string): string {
+  if (headers[0] !== 'No.') {
+    headers = ['No.', ...headers];
+    rows = rows.map((row, index) => [String(index + 1), ...row]);
+  }
+  const headerCells = headers.map(h => `<th style="padding:10px 14px; background:#1B2A4A; color:#fff; font-weight:700; text-align:left; border:1px solid #ddd;">${escapeHtml(h)}</th>`).join('');
   const bodyRows = rows.map((row, i) => {
     const bg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
     const cells = row.map(cell => `<td style="padding:8px 14px; border:1px solid #ddd;">${cell || '—'}</td>`).join('');
@@ -29,10 +43,10 @@ function buildHtmlTable(headers: string[], rows: string[][], title: string): str
 
   return `
     <html>
-    <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+    <head><style>@page { size: A4; margin: 12mm; } table { table-layout: fixed; } th, td { overflow-wrap: anywhere; white-space: pre-line; } thead { display: table-header-group; } tr { break-inside: avoid; } body { max-width: 100%; } @media print { body { padding: 0 !important; } table { font-size: 9px !important; } th, td { padding: 4px !important; } }</style><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
     <body style="font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 24px; color: #1E293B;">
       <h1 style="color: #1B2A4A; margin-bottom: 4px;">Trucks Sphere</h1>
-      <h2 style="color: #475569; font-size: 18px; margin-top: 0; margin-bottom: 24px;">${title}</h2>
+      <h2 style="color: #475569; font-size: 18px; margin-top: 0; margin-bottom: 24px;">${escapeHtml(title)}</h2>
       <p style="color: #94A3B8; font-size: 12px;">Exported on ${new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })}</p>
       <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:12px;">
         <thead><tr>${headerCells}</tr></thead>
@@ -50,7 +64,7 @@ function buildHtmlTable(headers: string[], rows: string[][], title: string): str
  * Falls back to Share.share (plain text) on web or if file sharing fails.
  */
 async function shareCsvFile(title: string, headers: string[], rows: string[][]) {
-  const csv = formatCsv(headers, rows);
+  const csv = buildCsvContent(headers, rows);
   const safeName = title.replace(/[^a-zA-Z0-9_-]/g, '_');
   const fileName = `${safeName}.csv`;
 
@@ -108,7 +122,7 @@ async function sharePdfFile(title: string, headers: string[], rows: string[][]) 
 
   try {
     if (Platform.OS === 'web') {
-      await Print.printAsync({ html, width: 595, height: 842 });
+      await printDocument(html);
       return;
     }
 
@@ -216,128 +230,88 @@ export async function exportDataAsPDF(entity: ExportEntity) {
   await doExport(entity, 'pdf');
 }
 
-async function doExport(entity: ExportEntity, format: 'csv' | 'pdf') {
+/**
+ * Fetches and builds exportable data as structured headers + rows for UI column selection.
+ */
+export async function fetchExportData(entity: ExportEntity): Promise<{
+  title: string;
+  headers: string[];
+  rows: string[][];
+}> {
   try {
     let title = '';
     let headers: string[] = [];
     let rows: string[][] = [];
 
-    if (entity === 'drivers' || entity === 'all') {
+    if (entity === 'drivers') {
       const drivers = await fetchDrivers();
-      title += title ? ' + Drivers' : 'Drivers';
-      if (entity === 'drivers') {
-        headers = ['Name', 'Phone', 'Email', 'License', 'License Expiry', 'Status', 'Vendor ID', 'Assigned Truck', 'Created'];
-        rows = drivers.map((d: any) => [
-          d.name, d.phone, d.email || '', d.licenseNumber, d.licenseExpiry || '',
-          d.status, d.vendorId || '', d.assignedTruckId || '', d.createdAt || '',
-        ]);
-      } else {
-        const dHeaders = ['Type', 'Name', 'Phone', 'Email', 'License', 'Status', 'Created'];
-        const dRows = drivers.map((d: any) => [
-          'Driver', d.name, d.phone, d.email || '', d.licenseNumber, d.status, d.createdAt || '',
-        ]);
-        headers = dHeaders;
-        rows = dRows;
-      }
-    }
-
-    if (entity === 'trucks' || entity === 'all') {
+      title = 'Drivers';
+      headers = ['Name', 'Phone', 'Email', 'License', 'License Expiry', 'Status', 'Vendor ID', 'Assigned Truck', 'Created'];
+      rows = drivers.map((d: any) => [
+        d.name, d.phone, d.email || '', d.licenseNumber, d.licenseExpiry || '',
+        d.status, d.vendorId || '', d.assignedTruckId || '', d.createdAt || '',
+      ]);
+    } else if (entity === 'trucks') {
       const vehicles = await fetchVehicles();
-      const prefix = title ? ' + ' : '';
-      title += `${prefix}Trucks`;
-      if (entity === 'trucks') {
-        headers = ['Plate', 'Model', 'Make', 'Year', 'Color', 'Capacity (t)', 'Status', 'Vendor', 'Driver', 'Insurance', 'Last Inspection'];
-        rows = vehicles.map((v: any) => [
-          v.plateNumber, v.model, v.make, String(v.year), v.color, String(v.capacity),
-          v.status, v.vendorName || '', v.driverName || '', v.insuranceExpiry || '', v.lastInspection || '',
-        ]);
-      } else {
-        const vHeaders = headers.length === 0 ? ['Type', 'Plate', 'Model', 'Make', 'Status', 'Capacity (t)'] : headers;
-        const vRows = vehicles.map((v: any) => [
-          'Truck', v.plateNumber, v.model, v.make, v.status, String(v.capacity),
-        ]);
-        if (headers.length === 0) {
-          headers = vHeaders;
-          rows = vRows;
-        } else {
-          rows = rows.map((row, i) => [...row, ...(vRows[i] || [])]);
-          headers = [...headers, ...vHeaders.slice(1)];
-        }
-      }
-    }
-
-    if (entity === 'purchase_orders' || entity === 'all') {
+      title = 'Trucks';
+      headers = ['Plate', 'Model', 'Make', 'Year', 'Color', 'Capacity (t)', 'Status', 'Vendor', 'Driver', 'Insurance', 'Last Inspection'];
+      rows = vehicles.map((v: any) => [
+        v.plateNumber, v.model, v.make, String(v.year), v.color, String(v.capacity),
+        v.status, v.vendorName || '', v.driverName || '', v.insuranceExpiry || '', v.lastInspection || '',
+      ]);
+    } else if (entity === 'purchase_orders') {
       const orders = await fetchPurchaseOrders();
-      if (entity === 'purchase_orders') {
-        title = 'Purchase Orders';
-        headers = ['PO Number', 'Vendor', 'Material', 'Quantity', 'Unit', 'Unit Price', 'Total', 'Status', 'Quarry', 'Site', 'Created'];
-        rows = orders.map((o: any) => [
-          o.poNumber, o.vendorName, o.materialName, String(o.quantity), o.unit,
-          String(o.unitPrice), String(o.totalAmount), o.status, o.quarryName, o.siteName, o.createdAt,
-        ]);
-      } else {
-        title += ` + Purchase Orders`;
-        const poHeaders = ['Type', 'PO Number', 'Vendor', 'Material', 'Qty', 'Status', 'Total (KES)'];
-        const poRows = orders.map((o: any) => [
-          'Order', o.poNumber, o.vendorName, o.materialName, `${o.quantity} ${o.unit}`, o.status, `KES ${o.totalAmount?.toLocaleString()}`,
-        ]);
-        rows = rows.map((row, i) => [...row, ...(poRows[i] || [])]);
-        headers = [...headers, ...poHeaders.slice(1)];
-      }
-    }
-
-    if (entity === 'deliveries' || entity === 'all') {
+      title = 'Purchase Orders';
+      headers = ['PO Number', 'Vendor', 'Material', 'Quantity', 'Unit', 'Unit Price', 'Total', 'Status', 'Quarry', 'Site', 'Created'];
+      rows = orders.flatMap((order: any) => getPurchaseOrderMaterials(order).map((line: any) => ({ ...order, ...line })).map((o: any) => [
+        o.poNumber, o.vendorName, o.materialName, String(o.quantity), o.unit,
+        String(o.unitPrice), String(o.totalAmount), o.status, o.quarryName, o.siteName, o.createdAt,
+      ]));
+    } else if (entity === 'deliveries') {
       const deliveries = await fetchDeliveryOrders();
-      if (entity === 'deliveries') {
-        title = 'Deliveries';
-        headers = ['Job ID', 'PO Number', 'Vendor', 'Driver', 'Truck', 'Material', 'Ordered Qty', 'Net Weight', 'Status', 'Quarry', 'Site', 'Created'];
-        rows = deliveries.map((d: any) => [
-          d.jobId, d.poNumber, d.vendorName, d.driverName, d.plateNumber, d.materialName,
-          `${d.quantityOrdered} ${d.unit || 'tonnes'}`, d.netWeight ? `${d.netWeight} t` : '—',
-          d.status, d.quarryName, d.siteName, d.createdAt,
-        ]);
-      } else {
-        title += ` + Deliveries`;
-        const dHeaders = ['Type', 'Job ID', 'Driver', 'Truck', 'Material', 'Status'];
-        const dRows = deliveries.map((d: any) => [
-          'Delivery', d.jobId, d.driverName, d.plateNumber, d.materialName, d.status,
-        ]);
-        rows = rows.map((row, i) => [...row, ...(dRows[i] || [])]);
-        headers = [...headers, ...dHeaders.slice(1)];
-      }
-    }
-
-    if (entity === 'vendors' || entity === 'all') {
+      title = 'Deliveries';
+      headers = ['Job ID', 'PO Number', 'Vendor', 'Driver', 'Truck', 'Material', 'Ordered Qty', 'Net Weight', 'Status', 'Quarry', 'Site', 'Created', 'Lot Number', 'Site Personnel', 'Receipt Note'];
+      rows = deliveries.map((d: any) => [
+        d.jobId, d.poNumber, d.vendorName, d.driverName, d.plateNumber, formatTripMaterials(d),
+        `${d.quantityOrdered} ${d.unit || 'tonnes'}`, d.netWeight ? `${d.netWeight} t` : '—',
+        d.status, d.quarryName, d.siteName, formatEAT(d.createdAt), deliveryLot(d), receivingPerson(d), receiptReference(d),
+      ]);
+    } else if (entity === 'vendors') {
       const vendors = await fetchVendors();
-      if (entity === 'vendors') {
-        title = 'Vendors';
-        headers = ['Name', 'Phone', 'Email', 'Address', 'Status', 'Fleet Size', 'Created'];
-        rows = vendors.map((v: any) => [
-          v.name, v.phone, v.email || '', v.address || '', v.status, String(v.fleetSize), v.createdAt || '',
-        ]);
-      } else {
-        title += ` + Vendors`;
-        const vHeaders = ['Type', 'Name', 'Phone', 'Status', 'Fleet'];
-        const vRows = vendors.map((v: any) => [
-          'Vendor', v.name, v.phone, v.status, String(v.fleetSize),
-        ]);
-        rows = rows.map((row, i) => [...row, ...(vRows[i] || [])]);
-        headers = [...headers, ...vHeaders.slice(1)];
-      }
-    }
-
-    if (entity === 'all') {
+      title = 'Vendors';
+      headers = ['Name', 'Phone', 'Email', 'Address', 'Status', 'Fleet Size', 'Created'];
+      rows = vendors.map((v: any) => [
+        v.name, v.phone, v.email || '', v.address || '', v.status, String(v.fleetSize), v.createdAt || '',
+      ]);
+    } else if (entity === 'all') {
+      const entities: ExportEntity[] = ['drivers', 'trucks', 'purchase_orders', 'deliveries', 'vendors'];
+      const sections = await Promise.all(entities.map(fetchExportData));
       title = 'Full_System_Export';
+      headers = ['Record Type', 'Record', 'Field', 'Value'];
+      rows = sections.flatMap(section => section.rows.flatMap((row, index) => section.headers.map((field, column) => [section.title, String(index + 1), field, String(row[column] ?? '')])));
+
     }
 
-    if (format === 'csv') {
-      await shareCsvFile(title, headers, rows);
-    } else {
-      await sharePdfFile(title, headers, rows);
-    }
+    return { title, headers, rows };
   } catch (e: any) {
-    Alert.alert('Export Error', e?.message || 'Failed to export data');
+    Alert.alert('Export Error', e?.message || 'Failed to fetch export data');
+    throw e;
   }
+}
+
+async function doExport(entity: ExportEntity, format: 'csv' | 'pdf') {
+  try {
+    if (entity === 'all' && format === 'pdf') {
+      const entities: ExportEntity[] = ['drivers', 'trucks', 'purchase_orders', 'deliveries', 'vendors'];
+      const sections = await Promise.all(entities.map(fetchExportData));
+      const body = sections.map(section => '<section>' + buildHtmlTable(section.headers, section.rows, section.title).split('<body')[1].replace(/^[^>]*>/, '').split('</body>')[0] + '</section>').join('');
+      await sharePdfAsFile('Full_System_Export', '<html><head><style>@page { size: A4; margin: 12mm; } section + section { break-before: page; } table { table-layout: fixed; font-size: 9px !important; } td, th { overflow-wrap: anywhere; white-space: pre-line; padding: 4px !important; } tr { break-inside: avoid; } thead { display: table-header-group; }</style></head><body>' + body + '</body></html>');
+      return;
+    }
+    const { title, headers, rows } = await fetchExportData(entity);
+    if (format === 'csv') await shareCsvFile(title, headers, rows);
+    else await sharePdfFile(title, headers, rows);
+  } catch (error: any) { Alert.alert('Export Error', error?.message || 'Failed to export data'); }
 }
 
 // ============== Exported helper functions (used by history screens inline) ==============
@@ -346,7 +320,7 @@ async function doExport(entity: ExportEntity, format: 'csv' | 'pdf') {
  * Build CSV content string from headers and rows.
  */
 export function buildCsvContent(headers: string[], rows: string[][]): string {
-  return formatCsv(headers, rows);
+  return headers[0] === 'No.' ? formatCsv(headers, rows) : formatCsv(['No.', ...headers], rows.map((row, index) => [String(index + 1), ...row]));
 }
 
 /**
@@ -406,47 +380,22 @@ export async function shareCsvAsFile(title: string, csvContent: string): Promise
 }
 
 /**
- * Share a PDF file using expo-print + expo-sharing + new expo-file-system API.
- * Generates PDF from HTML and shares as actual .pdf.
- * Falls back to plain text Share.share on failure.
+ * Print a PDF document from HTML. Do not fall back to sharing the raw HTML:
+ * on mobile that displays the markup instead of printing the document.
  */
 export async function sharePdfAsFile(title: string, htmlContent: string): Promise<void> {
   const safeName = title.replace(/[^a-zA-Z0-9_-]/g, '_');
   const fileName = `${safeName}.pdf`;
 
   try {
-    if (Platform.OS === 'web') {
-      await Print.printAsync({ html: htmlContent, width: 595, height: 842 });
-      return;
-    }
-
-    const { uri } = await Print.printToFileAsync({ html: htmlContent, width: 595, height: 842, base64: false });
-
-    // Copy generated PDF to cache with friendly name
-    const pdfFile = new File(Paths.cache, fileName);
-    const tempFile = new File(uri);
-    await tempFile.copy(pdfFile);
-
-    const canShare = await ExpoSharing.isAvailableAsync();
-    if (canShare) {
-      await ExpoSharing.shareAsync(pdfFile.uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: title,
-        UTI: 'com.adobe.pdf',
-      });
-    } else {
-      await Share.share({ message: htmlContent, title });
-    }
+    // printAsync opens the native print sheet on iOS/Android and the browser
+    // print dialog on web. It prevents the HTML source from being shown.
+    if (Platform.OS === 'web') { await printDocument(htmlContent); return; }
+    const { uri } = await Print.printToFileAsync({ html: a4Html(htmlContent), width: 595, height: 842 });
+    if (await ExpoSharing.isAvailableAsync()) await ExpoSharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: title, UTI: 'com.adobe.pdf' });
+    else await Print.printAsync({ uri });
   } catch (e: any) {
-    if (e?.message !== 'User did not share' && e?.message !== 'CANCELED') {
-      try {
-        await Share.share({ message: htmlContent, title });
-      } catch (_: any) {
-        if (_?.message !== 'User did not share') {
-          Alert.alert('Export Error', _?.message || 'Failed to share PDF');
-        }
-      }
-    }
+    if (e?.message !== 'User did not share' && e?.message !== 'CANCELED') Alert.alert('Print Error', e?.message || `Could not print ${fileName}`);
   }
 }
 

@@ -1,10 +1,12 @@
+import { BackButton } from '../../components/ui/BackButton';
 import { useState, useEffect } from 'react';
 import { Image, View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../utils/router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
-import { fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../services/api';
+import { Gap, Radius, Spacing } from '../../constants/theme';
+import { fetchDrivers, fetchVehicles, fetchDeliveryOrders, fetchVendors } from '../../services/api';
 import { formatDate, formatTime } from '../../utils/helpers';
 
 export default function DriverHistoryScreen() {
@@ -14,10 +16,11 @@ export default function DriverHistoryScreen() {
   const [truck, setTruck] = useState<any>(null);
   const [trips, setTrips] = useState<any[]>([]);
 
+  const [vendors, setVendors] = useState<any[]>([]);
+
   useEffect(() => {
-    console.log('[DriverHistory] Fetching data for driver:', id, name);
-    Promise.all([fetchDrivers(), fetchVehicles(), fetchDeliveryOrders()]).then(([drivers, vehicles, deliveries]) => {
-      console.log('[DriverHistory] Loaded drivers:', drivers.length, 'vehicles:', vehicles.length, 'deliveries:', deliveries.length);
+    Promise.all([fetchDrivers(), fetchVehicles(), fetchDeliveryOrders(), fetchVendors()]).then(([drivers, vehicles, deliveries, vendorData]) => {
+      setVendors(vendorData || []);
       const foundDriver = drivers.find(d => d.id === id);
       setDriver(foundDriver || null);
       if (foundDriver?.assignedTruckId) {
@@ -28,15 +31,15 @@ export default function DriverHistoryScreen() {
         .filter((d: any) => d.driverId === id)
         .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setTrips(driverTrips);
-      console.log('[DriverHistory] Found', driverTrips.length, 'trips for driver');
-    }).catch(err => console.error('[DriverHistory] Failed to load data:', err));
+    }).catch(() => {});
   }, [id, name]);
 
-  const driverName = driver?.name || name || 'Driver';
+  const driverName = driver?.fullName || driver?.name || name || 'Driver';
 
   const getCompanyName = (vendorId?: string) => {
     if (!vendorId) return '';
-    return vendorId;
+    const v = vendors.find((ven: any) => ven.id === vendorId || ven.vendorId === vendorId);
+    return v?.companyName || v?.name || v?.vendorId || vendorId;
   };
 
   // Group trips by date for chat-style grouping
@@ -51,9 +54,7 @@ export default function DriverHistoryScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Chat Header */}
       <View style={[styles.chatHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={colors.text} />
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} style={styles.backBtn} />
         {driver?.photoURL ? (
           <Image source={{ uri: driver.photoURL }} style={styles.chatAvatarImage} />
         ) : (
@@ -65,9 +66,7 @@ export default function DriverHistoryScreen() {
         )}
         <View style={styles.chatHeaderInfo}>
           <Text style={[styles.chatName, { color: colors.text }]}>{driverName}</Text>
-          <Text style={[styles.chatStatus, { color: colors.textSecondary }]}>
-            {driver?.status === 'active' ? 'Active' : driver?.status || ''} · {truck?.plateNumber || truck?.plate || 'No truck'}
-          </Text>
+           
         </View>
       </View>
 
@@ -106,8 +105,7 @@ export default function DriverHistoryScreen() {
                     styles.messageBubble,
                     {
                       backgroundColor: colors.surface,
-                      borderColor: colors.borderLight,
-                      marginBottom: isLast ? 8 : 4,
+                      borderColor: colors.borderLight, marginBottom: Spacing.xs,
                     },
                   ]}
                   onPress={() => router.push(`/screens/job-details?id=${trip.jobId}`)}
@@ -178,7 +176,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: Spacing.md,
     borderBottomWidth: 1,
-    gap: Spacing.md,
+    gap: Gap,
   },
   backBtn: { padding: 4 },
   chatAvatar: {
@@ -189,16 +187,15 @@ const styles = StyleSheet.create({
   chatAvatarText: { fontSize: 14, fontWeight: '700' },
   chatHeaderInfo: { flex: 1 },
   chatName: { fontSize: 16, fontWeight: '700' },
-  chatStatus: { fontSize: 12, marginTop: 1 },
+  chatStatus: { fontSize: 12, marginTop: Spacing.xs},
   chatContainer: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     paddingBottom: 80,
   },
-  dateGroup: { marginBottom: Spacing.xs },
+  dateGroup: { marginBottom: Spacing.xs},
   dateSeparator: {
-    alignItems: 'center',
-    marginVertical: Spacing.sm,
+    alignItems: 'center', marginVertical: Spacing.xs,
   },
   dateBadge: {
     paddingHorizontal: Spacing.md,
@@ -217,18 +214,16 @@ const styles = StyleSheet.create({
   bubbleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   tripId: { fontSize: 13, fontWeight: '700' },
   tripWeight: { fontSize: 14, fontWeight: '700' },
-  tripMaterial: { fontSize: 14, marginBottom: 2 },
-  tripRoute: { fontSize: 11, marginBottom: 4 },
+  tripMaterial: { fontSize: 14, marginBottom: Spacing.xs},
+  tripRoute: { fontSize: 11, marginBottom: Spacing.xs},
   bubbleFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
+    alignItems: 'center', marginTop: Spacing.xs,
   },
   tripTime: { fontSize: 11 },
   statusIcons: { flexDirection: 'row', alignItems: 'center' },
@@ -237,9 +232,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     alignItems: 'center',
   },
-  footerInfo: { alignItems: 'center', gap: 2 },
+  footerInfo: { alignItems: 'center', gap: Gap},
   footerLabel: { fontSize: 12 },
   footerCompany: { fontSize: 11 },
-  empty: { alignItems: 'center', marginTop: 80 },
-  emptyText: { fontSize: 15, marginTop: Spacing.md, textAlign: 'center' },
+  empty: { alignItems: 'center', marginTop: Spacing.xs},
+  emptyText: { fontSize: 15, marginTop: Spacing.xs, textAlign: 'center' },
 });

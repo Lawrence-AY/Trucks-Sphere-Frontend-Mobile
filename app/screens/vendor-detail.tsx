@@ -3,16 +3,18 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { router } from '../../utils/router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchVendors, fetchPurchaseOrders, fetchDrivers, fetchVehicles, fetchDeliveryOrders } from '../../services/api';
 import { formatEAT, getStatusColor, formatStatus } from '../../utils/helpers';
 
 export default function VendorDetailScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
   const colors = useTheme();
+  const styles = buildThemeStyles(colors);
   const [vendor, setVendor] = useState<any>(null);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -54,7 +56,6 @@ export default function VendorDetailScreen() {
       );
       setDeliveries(vendorDeliveries);
     } catch (e) {
-      console.error(e);
     }
     setLoading(false);
     setRefreshing(false);
@@ -130,7 +131,7 @@ export default function VendorDetailScreen() {
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
           <View style={[styles.statIcon, { backgroundColor: '#1B2A4A12' }]}>
-            <Ionicons name="document-text" size={20} color="#1B2A4A" />
+            <Ionicons name="document-text" size={20} color={colors.primary} />
           </View>
           <Text style={[styles.statValue, { color: colors.text }]}>{purchaseOrders.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Orders</Text>
@@ -154,7 +155,7 @@ export default function VendorDetailScreen() {
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
           <View style={[styles.statIcon, { backgroundColor: '#10B98112' }]}>
-            <Ionicons name="cube" size={20} color="#10B981" />
+            <Ionicons name="cube" size={20} color={colors.success} />
           </View>
           <Text style={[styles.statValue, { color: colors.text }]}>{totalDeliveredQty}</Text>
           <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Delivered (t)</Text>
@@ -241,7 +242,7 @@ export default function VendorDetailScreen() {
             >
               <View style={styles.itemTop}>
                 <View style={[styles.itemIcon, { backgroundColor: '#10B98112' }]}>
-                  <Ionicons name="person" size={16} color="#10B981" />
+                  <Ionicons name="person" size={16} color={colors.success} />
                 </View>
                 <View style={styles.itemInfo}>
                   <Text style={[styles.itemTitle, { color: colors.text }]}>{driver.name}</Text>
@@ -304,60 +305,57 @@ export default function VendorDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: { flex: 1 },
   centerContent: { justifyContent: 'center', alignItems: 'center' },
   content: { padding: Spacing.lg, paddingBottom: Spacing['4xl'] },
-  loadingText: { fontSize: 14, marginTop: Spacing.md },
+  loadingText: { fontSize: 14, marginTop: Spacing.xs},
   headerCard: {
-    borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.lg,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.xs,
   },
-  headerTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  headerTop: { flexDirection: 'row', alignItems: 'center', gap: Gap},
   vendorAvatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  vendorAvatarText: { fontSize: 24, fontWeight: '700', color: '#F59E0B' },
+  vendorAvatarText: { fontSize: 24, fontWeight: '700', color: colors.amberBorder },
   headerInfo: { flex: 1 },
   vendorName: { fontSize: 18, fontWeight: '700' },
-  vendorContact: { fontSize: 13, marginTop: 2 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
+  vendorContact: { fontSize: 13, marginTop: Spacing.xs},
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: Gap, paddingHorizontal: Spacing.sm, paddingVertical: 3, borderRadius: Radius.full },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 10, fontWeight: '700' },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Gap, marginBottom: Spacing.xs},
   statCard: {
     width: '48%', borderRadius: Radius.lg, padding: Spacing.md,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
-  statIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.sm },
+  statIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xs},
   statValue: { fontSize: 18, fontWeight: '800' },
-  statLabel: { fontSize: 12, marginTop: 2 },
-  statSub: { fontSize: 10, marginTop: 1 },
-  progressCard: { borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  statLabel: { fontSize: 12, marginTop: Spacing.xs},
+  statSub: { fontSize: 10, marginTop: Spacing.xs},
+  progressCard: { borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.xs},
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs},
   progressTitle: { fontSize: 15, fontWeight: '700' },
   progressStat: { fontSize: 13 },
   progressDetails: { flexDirection: 'row', justifyContent: 'space-between' },
   progressDetailItem: { alignItems: 'center' },
   progressLabel: { fontSize: 11 },
-  progressValue: { fontSize: 14, fontWeight: '700', marginTop: 2 },
-  section: { marginBottom: Spacing.lg },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: Spacing.md },
+  progressValue: { fontSize: 14, fontWeight: '700', marginTop: Spacing.xs},
+  section: { marginBottom: Spacing.xs},
+  sectionTitle: { fontSize: 16, fontWeight: '700', marginBottom: Spacing.xs},
   itemCard: {
-    borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.sm,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    borderRadius: Radius.md, padding: Spacing.md, marginBottom: Spacing.xs,
   },
-  itemTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  itemTop: { flexDirection: 'row', alignItems: 'center', gap: Gap},
   itemIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   itemInfo: { flex: 1 },
   itemTitle: { fontSize: 14, fontWeight: '700' },
-  itemSub: { fontSize: 12, marginTop: 1 },
+  itemSub: { fontSize: 12, marginTop: Spacing.xs},
   itemBadge: { paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: Radius.full },
   itemBadgeText: { fontSize: 9, fontWeight: '700' },
-  itemMeta: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: Spacing.sm },
+  itemMeta: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: Spacing.xs},
   itemMetaText: { fontSize: 12 },
   backBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: Spacing.sm, paddingVertical: Spacing.md, borderRadius: Radius.md,
-    borderWidth: 1, marginTop: Spacing.md,
+    gap: Gap, paddingVertical: Spacing.md, borderRadius: Radius.md,
+    borderWidth: 1, marginTop: Spacing.xs,
   },
   backText: { fontSize: 14, fontWeight: '600' },
 });

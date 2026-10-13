@@ -3,12 +3,13 @@ import { RefreshControl, StyleSheet, Text, TouchableOpacity, View, Modal, Scroll
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '../../hooks/useTheme';
-import { Radius, Spacing } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchMaterials } from '../../services/api';
 import { CommandHeader, DataCard, DetailRow, EmptyState, PageShell, SearchField, SectionTitle } from '../../components/EnterpriseUI';
 
 export default function OperatorSiteMaterialsScreen() {
   const colors = useTheme();
+  const styles = buildThemeStyles(colors);
   const [materials, setMaterials] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -48,10 +49,10 @@ export default function OperatorSiteMaterialsScreen() {
 
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search material..." />
+      <SearchField title="Materials" icon="cube-outline" value={search} onChangeText={setSearch} placeholder="Search material..." />
 
       {/* Category Dropdown */}
-      <View style={{ marginBottom: Spacing.md, position: 'relative', zIndex: 10 }}>
+      <View style={{ marginBottom: Spacing.xs, position: 'relative', zIndex: 10 }}>
         <TouchableOpacity
           style={[styles.dropdownTrigger, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => setDropdownVisible(true)}
@@ -84,7 +85,7 @@ export default function OperatorSiteMaterialsScreen() {
                       <Text style={[styles.dropdownItemText, { color: isActive ? colors.primary : colors.text }]}>
                         {cat}
                       </Text>
-                      {isActive && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                      {isActive && <Ionicons name="checkmark" size={16} color={colors.primaryText} />}
                     </TouchableOpacity>
                   );
                 })}
@@ -111,17 +112,17 @@ export default function OperatorSiteMaterialsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   dropdownOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     padding: Spacing.xl,
   },
   dropdownTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Gap,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,

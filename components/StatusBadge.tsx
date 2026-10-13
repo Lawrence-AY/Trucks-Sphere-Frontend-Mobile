@@ -15,6 +15,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
   size = 'sm',
   showDot = true,
 }) => {
+  const colors = useTheme();
   const statusColor = getStatusColor(status);
   const label = formatStatus(status);
 
@@ -31,7 +32,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
       style={[
         styles.badge,
         {
-          backgroundColor: statusColor + '18',
+          backgroundColor: colors.inputBg,
           paddingHorizontal: config.padding,
           paddingVertical: config.padding * 0.6,
         },
@@ -54,7 +55,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({
         style={[
           styles.label,
           {
-            color: statusColor,
+            color: colors.text,
             fontSize: config.fontSize,
           },
         ]}

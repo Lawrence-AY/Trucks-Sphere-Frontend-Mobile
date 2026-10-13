@@ -1,0 +1,504 @@
+import { printDocument } from '../../utils/printDocument';
+import { ReportActions } from '../../components/ReportActions';
+import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
+/**
+ * Downloads Screen - Export reports, delivery orders, and receipts as PDF
+ *
+ * Uses expo-print for PDF generation (same format as Simrion_flo).
+ * Includes quarry geolocation, operator username, and receipt note data.
+ */
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../hooks/useTheme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
+import { Card } from '../../components/ui/Card';
+import { fetchDeliveryOrders } from '../../services/api';
+import { useAuthStore } from '@/store/authStore';
+import * as Print from 'expo-print';
+import { formatEAT } from '../../utils/helpers';
+
+interface DownloadOption {
+  id: string;
+  title: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+}
+
+
+
+export default function DownloadsScreen() {
+  const colors = useTheme();
+const DOWNLOAD_OPTIONS: DownloadOption[] = [
+  {
+    id: 'delivery_orders',
+    title: 'Delivery Orders',
+    description: 'Export delivery orders as PDF report with quarry geolocation & operator details',
+    icon: 'document-text-outline',
+    color: colors.infoText,
+  },
+  {
+    id: 'weigh_records',
+    title: 'Weigh Records',
+    description: 'Export weighbridge records as PDF with receipt notes',
+    icon: 'scale-outline',
+    color: colors.success,
+  },
+  {
+    id: 'site_summary',
+    title: 'Site Summary',
+    description: 'Export site delivery summary report',
+    icon: 'location-outline',
+    color: colors.warningText,
+  },
+];
+  const styles = buildThemeStyles(colors);
+  const insets = useSafeAreaInsets();
+  const [loading, setLoading] = useState<string | null>(null);
+  const { user } = useAuthStore();
+
+  const operatorUsername = user?.username || user?.displayName || 'Operator';
+  const operatorUid = user?.uid || '';
+  const operatorSiteId = (user as any)?.siteId || '';
+
+  // Apply data isolation to the orders before export
+  const filterOrders = (orders: any[]): any[] => {
+    let filtered = orders || [];
+    if (operatorSiteId) {
+      filtered = filtered.filter((d: any) => !d.siteId || d.siteId === operatorSiteId);
+    }
+    if (operatorUid) {
+      filtered = filtered.filter((d: any) =>
+        d.createdByUid === operatorUid ||
+        d.siteOperatorUid === operatorUid ||
+        d.siteWeighInByUid === operatorUid ||
+        d.siteWeighOutByUid === operatorUid ||
+        d.receivedByUid === operatorUid
+      );
+    }
+    return filtered;
+  };
+
+  const generateDeliveryOrdersPDF = async () => {
+    try {
+      const rawOrders = await fetchDeliveryOrders();
+      const orders = filterOrders(rawOrders);
+      if (!orders || orders.length === 0) {
+        Alert.alert('No Data', 'No delivery orders found to export.');
+        return;
+      }
+
+      const rows = orders
+        .map(
+          (order: any, i: number) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${order.jobId || order.id || '-'}</td>
+          <td>${order.poNumber || '-'}</td>
+          <td>${order.vendorName || '-'}</td>
+          <td>${order.driverName || '-'}</td>
+          <td>${order.plateNumber || '-'}</td>
+          <td>${formatPurchaseOrderMaterials(order) || '-'}</td>
+          <td>${order.isWarehouseDelivery || String(order.deliveryOrigin || '').toLowerCase() === 'warehouse' || String(order.materialSource || '').toLowerCase() === 'warehouse' ? 'Warehouse-banker' : order.banker || '-'}</td>
+          <td>${order.quarryName || '-'}</td>
+          <td>${order.weighOutGeoLocation?.city || order.weighOutGeoLocation?.town || order.weighOutGeoLocation?.address || order.weighOutLocation || '-'}</td>
+          <td>${order.operatorUsername || '-'}</td>
+          <td>${order.quantityOrdered || 0} ${order.unit || ''}</td>
+          <td>${order.quantityDelivered || 0} ${order.unit || ''}</td>
+          <td>${order.receiptNoteId || order.receiptNote || '-'}</td>
+          <td>${order.status || '-'}</td>
+          <td>${order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi' }) : '-'}</td>
+        </tr>`
+        )
+        .join('');
+
+      const html = `
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 30px; color: #1E293B; max-width: 100%; margin: auto; }
+            .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+            .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+            .header .subtitle { color: #64748B; font-size: 13px; }
+            .header .meta { color: #94A3B8; font-size: 11px; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; font-size: 10px; margin: 16px 0; }
+            th { background: #1B2A4A; color: #FFF; padding: 8px 6px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+            td { padding: 6px; border-bottom: 1px solid #E2E8F0; border: 1px solid #DDD; }
+            tr:nth-child(even) { background: #F8FAFC; }
+            .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Trucks Sphere</h1>
+            <div class="subtitle">Delivery Orders Report</div>
+            <div class="meta">Generated by: ${operatorUsername} on ${new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Job ID</th><th>PO</th><th>Vendor</th>
+                <th>Driver</th><th>Plate</th><th>Material</th><th>Banker</th>
+                <th>Quarry</th><th>Quarry Geo</th>
+                <th>Quarry Op</th><th>Qty Ordered</th>
+                <th>Delivered</th><th>Receipt Note</th><th>Status</th><th>Date</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="footer">
+            <p>Generated by: ${operatorUsername}</p>
+            <p>Trucks Sphere — Computer-generated document</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      await printDocument(html);
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to generate PDF: ' + (err?.message || 'Unknown error'));
+    }
+  };
+
+  const generateWeighRecordsPDF = async () => {
+    try {
+      const rawOrders = await fetchDeliveryOrders();
+      const orders = filterOrders(rawOrders);
+      if (!orders || orders.length === 0) {
+        Alert.alert('No Data', 'No weigh records found to export.');
+        return;
+      }
+
+      const rows = orders
+        .filter((o: any) => o.weighInWeight != null || o.weighOutWeight != null || o.siteWeighInWeight != null || o.siteWeighOutWeight != null)
+        .map(
+          (w: any, i: number) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${w.jobId || '-'}</td>
+          <td>${w.receiptNoteId || w.receiptNote || '-'}</td>
+          <td>${w.weighInWeight != null ? w.weighInWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.weighOutWeight != null ? w.weighOutWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.netWeight != null ? w.netWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.siteWeighInWeight != null ? w.siteWeighInWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.siteWeighOutWeight != null ? w.siteWeighOutWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.siteNetWeight != null ? w.siteNetWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.operatorUsername || w.weighOutByName || '-'}</td>
+          <td>${w.quarryName || '-'}</td>
+          <td>${w.weighOutGeoLocation?.address || w.weighOutGeoLocation?.city || w.weighOutLocation || '-'}</td>
+          <td>${w.timestamp ? new Date(w.timestamp).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi' }) : (w.updatedAt ? new Date(w.updatedAt).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi' }) : '-')}</td>
+        </tr>`
+        )
+        .join('');
+
+      const html = `
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 30px; color: #1E293B; max-width: 100%; margin: auto; }
+            .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+            .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+            .header .subtitle { color: #64748B; font-size: 13px; }
+            .header .meta { color: #94A3B8; font-size: 11px; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; font-size: 9px; margin: 16px 0; }
+            th { background: #1B2A4A; color: #FFF; padding: 8px 6px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+            td { padding: 6px; border-bottom: 1px solid #E2E8F0; border: 1px solid #DDD; }
+            tr:nth-child(even) { background: #F8FAFC; }
+            .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Trucks Sphere</h1>
+            <div class="subtitle">Weighbridge Records Report</div>
+            <div class="meta">Generated by: ${operatorUsername} on ${new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Job ID</th><th>Receipt Note</th>
+                <th>Q-In (T)</th><th>Q-Out (T)</th><th>Q-Net (T)</th>
+                <th>S-In (T)</th><th>S-Out (T)</th><th>S-Net (T)</th>
+                <th>Quarry Op</th><th>Quarry</th><th>Geo Location</th><th>Date</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="footer">
+            <p>Generated by: ${operatorUsername}</p>
+            <p>Trucks Sphere — Computer-generated document</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      await printDocument(html);
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to generate PDF: ' + (err?.message || 'Unknown error'));
+    }
+  };
+
+  const generateSiteSummaryPDF = async () => {
+    try {
+      const rawOrders = await fetchDeliveryOrders();
+      const orders = filterOrders(rawOrders);
+      if (!orders || orders.length === 0) {
+        Alert.alert('No Data', 'No delivery data found for site summary.');
+        return;
+      }
+
+      // Group by material
+      const grouped: Record<string, { total: number; count: number; unit: string; quarryNet: number; siteNet: number }> = {};
+      orders.forEach((order: any) => {
+        const key = order.materialName || 'Unknown';
+        if (!grouped[key]) {
+          grouped[key] = { total: 0, count: 0, unit: order.unit || 'tonnes', quarryNet: 0, siteNet: 0 };
+        }
+        grouped[key].total += Number(order.quantityDelivered || 0);
+        grouped[key].count += 1;
+        grouped[key].quarryNet += order.netWeight ?? ((order.weighInWeight != null && order.weighOutWeight != null) ? (order.weighInWeight - order.weighOutWeight) : 0);
+        grouped[key].siteNet += order.siteNetWeight ?? order.quantityDelivered ?? 0;
+      });
+
+      const rows = Object.entries(grouped)
+        .map(
+          ([material, data], i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${material}</td>
+          <td>${data.count}</td>
+          <td>${data.total.toFixed(1)} ${data.unit}</td>
+          <td>${data.quarryNet.toFixed(1)} T</td>
+          <td>${data.siteNet.toFixed(1)} T</td>
+        </tr>`
+        )
+        .join('');
+
+      const totalDeliveries = orders.filter((o: any) => o.status === 'completed' || o.status === 'delivered').length;
+
+      const html = `
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 30px; color: #1E293B; max-width: 600px; margin: auto; }
+            .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+            .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+            .header .subtitle { color: #64748B; font-size: 13px; }
+            .header .meta { color: #94A3B8; font-size: 11px; margin-top: 4px; }
+            .section { margin-bottom: 20px; }
+            .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; }
+            .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+            .row .label { color: #64748B; }
+            .row .value { white-space: pre-line; overflow-wrap: anywhere; font-weight: 700; color: #1E293B; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 16px 0; }
+            th { background: #1B2A4A; color: #FFF; padding: 10px 8px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+            td { padding: 8px; border-bottom: 1px solid #E2E8F0; border: 1px solid #DDD; }
+            .total-row { font-weight: 700; background: #F0FDF4; }
+            .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Trucks Sphere</h1>
+            <div class="subtitle">Site Delivery Summary</div>
+            <div class="meta">Generated by: ${operatorUsername} on ${new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })}</div>
+          </div>
+          <div class="section">
+            <div class="section-title">Summary Statistics</div>
+            <div class="row"><span class="label">Total Completed Deliveries</span><span class="value">${totalDeliveries}</span></div>
+            <div class="row"><span class="label">Operator</span><span class="value">${operatorUsername}</span></div>
+          </div>
+          <div class="section">
+            <div class="section-title">Material Breakdown</div>
+            <table>
+              <thead>
+                <tr><th>#</th><th>Material</th><th>Count</th><th>Total Delivered</th><th>Quarry Net</th><th>Site Net</th></tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+          <div class="footer">
+            <p>Generated by: ${operatorUsername}</p>
+            <p>Trucks Sphere — Computer-generated document</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      await printDocument(html);
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to generate PDF: ' + (err?.message || 'Unknown error'));
+    }
+  };
+
+  const handleDownload = async (optionId: string) => {
+    setLoading(optionId);
+    switch (optionId) {
+      case 'delivery_orders':
+        await generateDeliveryOrdersPDF();
+        break;
+      case 'weigh_records':
+        await generateWeighRecordsPDF();
+        break;
+      case 'site_summary':
+        await generateSiteSummaryPDF();
+        break;
+    }
+    setLoading(null);
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Back Button */}
+      <View style={[styles.backBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }, { paddingTop: insets.top + 8, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.backTitle, { color: colors.text }]}>Downloads</Text>
+      </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>Export Reports</Text>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            Generate and download PDF reports
+          </Text>
+          {user?.displayName ? (
+            <Text style={[styles.operatorInfo, { color: colors.textMuted }]}>
+              Signed in as: {operatorUsername}
+            </Text>
+          ) : null}
+        </View>
+
+        <ReportActions categories={DOWNLOAD_OPTIONS.map(o => ({ key: o.id, label: o.title + ' PDF', icon: o.icon }))} busy={!!loading} onExport={handleDownload} />
+
+        {/* Upload Section */}
+        <Card>
+          <View style={styles.uploadSection}>
+            <Ionicons name="cloud-upload-outline" size={28} color={colors.primaryText} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.uploadTitle, { color: colors.text }]}>Upload Documents</Text>
+              <Text style={[styles.uploadDesc, { color: colors.textMuted }]}>
+                Upload delivery notes, receipts, and other documents
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.uploadBtn, { backgroundColor: colors.primary }]}
+              onPress={() => {
+                Alert.alert(
+                  'Upload Document',
+                  'Select document type to upload:',
+                  [
+                    { text: 'Delivery Note', onPress: () => {} },
+                    { text: 'Receipt', onPress: () => {} },
+                    { text: 'Cancel', style: 'cancel' },
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.uploadBtnText}>Upload</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
+      </ScrollView>
+    </View>
+  );
+}
+
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
+  container: { flex: 1 },
+  backBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingBottom: 8,
+    backgroundColor: colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  backTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  content: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing['4xl'],
+  },
+  header: { marginBottom: Spacing.xs,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  subtitle: {
+    fontSize: 14, marginTop: Spacing.xs,
+  },
+  operatorInfo: {
+    fontSize: 12, marginTop: Spacing.xs,
+    fontStyle: 'italic',
+  },
+  optionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
+    borderWidth: 1, marginBottom: Spacing.xs,
+    gap: Gap,
+  },
+  optionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionInfo: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  optionDesc: {
+    fontSize: 13, marginTop: Spacing.xs,
+  },
+  uploadSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+  },
+  uploadTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  uploadDesc: {
+    fontSize: 12, marginTop: Spacing.xs,
+  },
+  uploadBtn: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+  },
+  uploadBtnText: {
+    color: colors.onPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+});

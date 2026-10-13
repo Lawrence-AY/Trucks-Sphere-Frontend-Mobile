@@ -1,8 +1,9 @@
+import { SearchField } from '../../components/EnterpriseUI';
 import { useState, useEffect } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Radius, Spacing } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { useTheme } from '../../hooks/useTheme';
 import { fetchPurchaseOrders } from '../../services/api';
 
@@ -12,11 +13,9 @@ export default function ActiveOrdersScreen() {
   const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[ActiveOrders] Fetching purchase orders from backend...');
     fetchPurchaseOrders().then(data => {
-      console.log('[ActiveOrders] Orders loaded:', data.length, 'items', data);
       setOrders(data);
-    }).catch(err => console.error('[ActiveOrders] Failed to load orders:', err));
+    }).catch(() => {});
   }, []);
 
   const filtered = orders.filter((o) => o.status !== 'completed').filter((o) =>
@@ -25,16 +24,7 @@ export default function ActiveOrdersScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search orders..."
-          placeholderTextColor={colors.textTertiary}
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
+      <SearchField title="Active Orders" icon="receipt-outline" value={search} onChangeText={setSearch} placeholder="Search orders..." />
       <FlatList
         data={filtered}
         keyExtractor={(o) => o.id || o.poNumber}
@@ -63,17 +53,16 @@ const styles = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
+    marginHorizontal: Spacing.lg, marginTop: Spacing.xs,
     borderRadius: Radius.md,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
     height: 44,
-    gap: Spacing.sm,
+    gap: Gap,
   },
   searchInput: { flex: 1, fontSize: 14 },
-  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.sm },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm },
+  card: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.lg, marginBottom: Spacing.xs},
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xs},
   id: { fontSize: 14, fontWeight: '700' },
   status: { fontSize: 12, fontWeight: '600' },
   text: { fontSize: 13 },

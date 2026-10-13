@@ -1,137 +1,548 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../store/authStore';
-import { Spacing, Radius } from '../../constants/theme';
+import { useAuthStore } from '@/store/authStore';
+import { Gap, Radius, Spacing } from '../../constants/theme';
+import { DataCard, PageShell, SectionTitle } from '../../components/EnterpriseUI';
+import { fetchIssues, createIssue, updateIssue, deleteIssue } from '../../services/api';
+import { MANAGEMENT_ROLES, normalizeRole } from '../../utils/access';
 
-interface Message {
-  id: string;
-  sender: string;
-  text: string;
-  time: string;
-  isMe: boolean;
-}
 
-const INITIAL_MESSAGES: Message[] = [
-  { id: '1', sender: 'System', text: 'Welcome to the Issues chat. Report any problems or ask questions here.', time: '10:00 AM', isMe: false },
-  { id: '2', sender: 'Support', text: 'How can we help you today?', time: '10:02 AM', isMe: false },
-];
+
+
 
 export default function IssuesScreen() {
   const colors = useTheme();
+const PRIORITY_COLORS: Record<string, string> = {
+  low: colors.success,
+  medium: colors.warningText,
+  high: colors.danger,
+  critical: colors.purpleText,
+};
+const STATUS_COLORS: Record<string, string> = {
+  OPEN: colors.warningText,
+  IN_REVIEW: colors.infoText,
+  IN_PROGRESS: colors.purpleText,
+  RESOLVED: colors.success,
+  REJECTED: colors.danger,
+};
+  const styles = buildThemeStyles(colors);
   const { user } = useAuthStore();
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
-  const [text, setText] = useState('');
-  const flatListRef = useRef<FlatList>(null);
+  const role = normalizeRole(user?.role);
+  const isManagement = role === MANAGEMENT_ROLES.SUPER_ADMIN;
 
-  const sendMessage = () => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    const now = new Date();
-    const time = now.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit', hour12: true });
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      sender: user?.displayName || 'User',
-      text: trimmed,
-      time,
-      isMe: true,
-    };
-    setMessages((prev) => [...prev, newMsg]);
-    setText('');
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  const [loading, setLoading] = useState(true);
+  const [issues, setIssues] = useState<any[]>([]);
+  const [filter, setFilter] = useState<'all' | 'resolved'>('all');
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('general');
+  const [priority, setPriority] = useState('medium');
+  const [submitting, setSubmitting] = useState(false);
+  const [resolving, setResolving] = useState<Record<string, boolean>>({});
+  const [issueToResolve, setIssueToResolve] = useState<any | null>(null);
+  const [resolutionNotes, setResolutionNotes] = useState('');
+
+  const loadIssues = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: any = {};
+      if (filter !== 'all') params.status = filter;
+      const data = await fetchIssues(params);
+      setIssues(data);
+    } catch {} finally {
+      setLoading(false);
+    }
+  }, [filter]);
+
+  useEffect(() => { loadIssues(); }, [loadIssues]);
+
+  const handleSubmit = async () => {
+    if (isManagement) {
+      return;
+    }
+    if (!title.trim()) {
+      Alert.alert('Error', 'Title is required.');
+      return;
+    }
+    if (!description.trim()) {
+      Alert.alert('Error', 'Description is required.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await createIssue({ title: title.trim(), description: description.trim(), category, priority });
+      Alert.alert('Success', 'Issue submitted successfully.');
+      setShowForm(false);
+      setTitle('');
+      setDescription('');
+      setCategory('general');
+      setPriority('medium');
+      await loadIssues();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to submit issue.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <View style={[styles.msgBubble, item.isMe ? styles.meBubble : styles.otherBubble, { backgroundColor: item.isMe ? '#1B2A4A' : (colors.surface || '#F1F5F9'), borderColor: item.isMe ? '#1B2A4A' : colors.border }]}>
-      {!item.isMe && <Text style={[styles.msgSender, { color: colors.primary }]}>{item.sender}</Text>}
-      <Text style={[styles.msgText, { color: item.isMe ? '#FFFFFF' : colors.text }]}>{item.text}</Text>
-      <Text style={[styles.msgTime, { color: item.isMe ? 'rgba(255,255,255,0.6)' : colors.textMuted }]}>{item.time}</Text>
-    </View>
-  );
+  const openResolutionForm = (issue: any) => {
+    setIssueToResolve(issue);
+    setResolutionNotes(issue.resolutionNotes || '');
+  };
+
+  const closeResolutionForm = () => {
+    if (issueToResolve && resolving[issueToResolve.id]) return;
+    setIssueToResolve(null);
+    setResolutionNotes('');
+  };
+
+  const handleResolve = async () => {
+    const issueId = issueToResolve?.id;
+    const notes = resolutionNotes.trim();
+    if (!issueId) return;
+    if (!notes) {
+      Alert.alert('Resolution required', 'Enter the solution so the person who submitted this issue can see it.');
+      return;
+    }
+
+    setResolving((prev) => ({ ...prev, [issueId]: true }));
+    try {
+      await updateIssue(issueId, { status: 'RESOLVED', resolutionNotes: notes });
+      await loadIssues();
+      setIssueToResolve(null);
+      setResolutionNotes('');
+      Alert.alert('Issue resolved', 'The resolution is now visible to the person who submitted the issue.');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to resolve.');
+    } finally {
+      setResolving((prev) => ({ ...prev, [issueId]: false }));
+    }
+  };
+
+  const handleReopen = async (id: string) => {
+    setResolving((prev) => ({ ...prev, [id]: true }));
+    try {
+      await updateIssue(id, { status: 'OPEN' });
+      await loadIssues();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to reopen.');
+    } finally {
+      setResolving((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    Alert.alert('Delete Issue', 'Are you sure you want to delete this issue?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteIssue(id);
+            await loadIssues();
+          } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to delete.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const filteredIssues = issues;
+  const getIssueStatus = (issue: any) => String(issue.status || 'OPEN').toUpperCase();
+  const resolvedCount = issues.filter((i: any) => String(i.status).toUpperCase() === 'RESOLVED').length;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={{ padding: Spacing.md, gap: Spacing.sm, paddingBottom: Spacing.lg }}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-      />
-      <View style={[styles.inputBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
-          placeholder="Type a message..."
-          placeholderTextColor={colors.textMuted}
-          value={text}
-          onChangeText={setText}
-          onSubmitEditing={sendMessage}
-          returnKeyType="send"
-          multiline
-        />
-        <TouchableOpacity style={[styles.sendBtn, { backgroundColor: '#1B2A4A' }]} onPress={sendMessage}>
-          <Ionicons name="send" size={18} color="#FFF" />
-        </TouchableOpacity>
+    <>
+    <PageShell>
+      
+
+      {/* Filter + New Issue */}
+      <View style={{ flexDirection: 'row', gap: Gap, marginBottom: Spacing.xs, flexWrap: 'wrap' }}>
+        <View style={{ flexDirection: 'row', gap: Gap, flex: 1 }}>
+          {(['all', 'resolved'] as const).map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[
+                styles.filterChip,
+                {
+                  backgroundColor: filter === f ? colors.primary : colors.surface,
+                  borderColor: filter === f ? colors.primary : colors.border,
+                },
+              ]}
+              onPress={() => setFilter(f)}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '700', color: filter === f ? colors.onPrimary : colors.textSecondary }}>
+                {f === 'all' ? `All (${issues.length})` : `Resolved (${resolvedCount})`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {!isManagement && (
+          <TouchableOpacity
+            style={[styles.newBtn, { backgroundColor: colors.primary }]}
+            onPress={() => setShowForm(true)}
+          >
+            <Ionicons name="add-outline" size={16} color={colors.onPrimary} />
+            <Text style={{ color: colors.onPrimary, fontSize: 12, fontWeight: '700' }}>New</Text>
+          </TouchableOpacity>
+        )}
       </View>
-    </KeyboardAvoidingView>
+
+      {/* Submit Form */}
+      {!isManagement && showForm && (
+        <DataCard>
+          <Text style={[styles.formTitle, { color: colors.text }]}>Submit Issue</Text>
+          <Text style={[styles.label, { color: colors.textMuted }]}>Title *</Text>
+          <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
+            style={[styles.input, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
+            placeholder="Brief title of the issue"
+            placeholderTextColor={colors.textTertiary}
+            value={title}
+            onChangeText={setTitle}
+          />
+          <Text style={[styles.label, { color: colors.textMuted }]}>Description *</Text>
+          <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
+            style={[styles.input, styles.textArea, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
+            placeholder="Detailed description of the problem"
+            placeholderTextColor={colors.textTertiary}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+           
+          <View style={{ flexDirection: 'row', gap: Gap, marginTop: Spacing.xs}}>
+            <TouchableOpacity style={[styles.cancelBtn, { borderColor: colors.border }]} onPress={() => { setTitle(''); setDescription(''); setResolutionNotes(''); (() => setShowForm(false))(); }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: submitting ? 0.6 : 1 }]} onPress={handleSubmit} disabled={submitting}>
+              {submitting ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Ionicons name="send-outline" size={16} color={colors.onPrimary} />}
+              <Text style={{ color: colors.onPrimary, fontSize: 13, fontWeight: '700' }}>{submitting ? 'Submitting...' : 'Submit'}</Text>
+            </TouchableOpacity>
+          </View>
+        </DataCard>
+      )}
+
+      {/* Issues List */}
+      {loading ? (
+        <DataCard>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Gap}}>
+            <ActivityIndicator color={colors.primaryText} />
+            <Text style={{ fontSize: 14, color: colors.textMuted }}>Loading issues...</Text>
+          </View>
+        </DataCard>
+      ) : filteredIssues.length === 0 ? (
+        <DataCard>
+          <Text style={{ fontSize: 14, color: colors.textMuted, textAlign: 'center' }}>
+            {filter === 'all' ? 'No issues reported yet.' : `No ${filter} issues.`}
+          </Text>
+        </DataCard>
+      ) : (
+        filteredIssues.map((issue: any) => (
+          <DataCard key={issue.id}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <View style={{ flex: 1, marginRight: Spacing.sm }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{issue.title}</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: Spacing.xs, lineHeight: 18 }}>
+                  {issue.description}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: Gap, marginTop: Spacing.xs, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <View style={[styles.statusBadge, { backgroundColor: (STATUS_COLORS[getIssueStatus(issue)] || colors.textMuted) + '20' }]}>
+                    <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[getIssueStatus(issue)] || colors.textMuted }]} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: STATUS_COLORS[getIssueStatus(issue)] || colors.textMuted }}>
+                      {getIssueStatus(issue).replace(/_/g, ' ')}
+                    </Text>
+                  </View>
+                   
+                  {issue.category && (
+                    <Text style={{ fontSize: 11, color: colors.textTertiary }}>· {issue.category}</Text>
+                  )}
+                </View>
+                <Text style={{ fontSize: 11, color: colors.textTertiary, marginTop: Spacing.xs}}>
+                  {issue.submittedByName || 'Unknown'} · {issue.createdAt ? new Date(issue.createdAt).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi',  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                </Text>
+                {issue.resolvedAt && (
+                  <Text style={{ fontSize: 11, color: colors.success, marginTop: Spacing.xs}}>
+                    ✓ Resolved by {issue.resolvedByName || '—'} on {new Date(issue.resolvedAt).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi',  month: 'short', day: 'numeric' })}
+                  </Text>
+                )}
+                {(getIssueStatus(issue) === 'RESOLVED' || issue.resolutionNotes) && (
+                  <View style={[styles.resolutionCard, { backgroundColor: `${colors.success}12`, borderColor: `${colors.success}35` }]}>
+                    <View style={styles.resolutionHeader}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                      <Text style={[styles.resolutionTitle, { color: colors.success }]}>Resolution #{issue.issueNumber || issue.ticketNumber || String(issue.id || '').slice(-6).toUpperCase()}</Text>
+                    </View>
+                    <Text style={[styles.resolutionText, { color: colors.textSecondary }]}>
+                      {issue.resolutionNotes || 'This issue has been resolved.'}
+                    </Text>
+                    {(issue.resolvedByName || issue.resolvedAt) && (
+                      <Text style={[styles.resolutionMeta, { color: colors.textMuted }]}>
+                        Resolved by {issue.resolvedByName || 'Super Admin'}{issue.resolvedAt ? ` on ${new Date(issue.resolvedAt).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi',  month: 'short', day: 'numeric' })}` : ''}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+              {/* Actions */}
+              <View style={{ gap: Gap}}>
+                {isManagement && getIssueStatus(issue) !== 'RESOLVED' && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: colors.success }]}
+                    onPress={() => openResolutionForm(issue)}
+                    disabled={resolving[issue.id]}
+                  >
+                    {resolving[issue.id] ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Ionicons name="checkmark-outline" size={16} color={colors.onPrimary} />}
+                    <Text style={{ color: colors.onPrimary, fontSize: 11, fontWeight: '700' }}>Resolve</Text>
+                  </TouchableOpacity>
+                )}
+                {isManagement && getIssueStatus(issue) === 'RESOLVED' && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: colors.warning }]}
+                    onPress={() => handleReopen(issue.id)}
+                    disabled={resolving[issue.id]}
+                  >
+                    {resolving[issue.id] ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Ionicons name="refresh-outline" size={16} color={colors.onPrimary} />}
+                    <Text style={{ color: colors.onPrimary, fontSize: 11, fontWeight: '700' }}>Reopen</Text>
+                  </TouchableOpacity>
+                )}
+                {getIssueStatus(issue) !== 'RESOLVED' && issue.submittedBy === user?.uid && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: colors.danger }]}
+                    onPress={() => handleDelete(issue.id)}
+                  >
+                    <Ionicons name="trash-outline" size={16} color={colors.onPrimary} />
+                    <Text style={{ color: colors.onPrimary, fontSize: 11, fontWeight: '700' }}>Delete</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </DataCard>
+        ))
+      )}
+
+      <View style={{ height: 40 }} />
+    </PageShell>
+
+    <Modal
+        visible={Boolean(issueToResolve)}
+        transparent
+        animationType="fade"
+        onRequestClose={closeResolutionForm}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.resolutionDialog, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.dialogHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.dialogTitle, { color: colors.text }]}>Resolve issue</Text>
+                <Text style={[styles.dialogSubtitle, { color: colors.textMuted }]} numberOfLines={2}>
+                  Add the solution that will be shown to the person who reported “{issueToResolve?.title}”.
+                </Text>
+              </View>
+              <TouchableOpacity
+                accessibilityLabel="Close resolution form"
+                style={[styles.closeButton, { backgroundColor: colors.inputBg }]}
+                onPress={closeResolutionForm}
+                disabled={Boolean(issueToResolve && resolving[issueToResolve.id])}
+              >
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.label, { color: colors.textMuted }]}>Resolution *</Text>
+            <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
+              style={[styles.input, styles.resolutionInput, { borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text }]}
+              placeholder="Describe how this issue was resolved"
+              placeholderTextColor={colors.textTertiary}
+              value={resolutionNotes}
+              onChangeText={setResolutionNotes}
+              multiline
+              numberOfLines={5}
+              textAlignVertical="top"
+              editable={!Boolean(issueToResolve && resolving[issueToResolve.id])}
+            />
+            <View style={styles.dialogActions}>
+              <TouchableOpacity
+                style={[styles.cancelBtn, { borderColor: colors.border }]}
+                onPress={() => { setResolutionNotes(''); (closeResolutionForm)(); }}
+                disabled={Boolean(issueToResolve && resolving[issueToResolve.id])}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.textSecondary }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitBtn, { backgroundColor: colors.success, opacity: issueToResolve && resolving[issueToResolve.id] ? 0.6 : 1 }]}
+                onPress={handleResolve}
+                disabled={Boolean(issueToResolve && resolving[issueToResolve.id])}
+              >
+                {issueToResolve && resolving[issueToResolve.id] ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Ionicons name="checkmark-outline" size={17} color={colors.onPrimary} />}
+                <Text style={{ color: colors.onPrimary, fontSize: 13, fontWeight: '700' }}>Mark resolved</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+    </Modal>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  msgBubble: {
-    maxWidth: '82%',
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Radius.full,
     borderWidth: 1,
-    alignSelf: 'flex-start',
-    marginBottom: 4,
+    alignItems: 'center',
   },
-  meBubble: {
-    alignSelf: 'flex-end',
-    borderWidth: 0,
-  },
-  otherBubble: {
-    alignSelf: 'flex-start',
-  },
-  msgSender: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  msgText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  msgTime: {
-    fontSize: 14,
-    marginTop: 4,
-    alignSelf: 'flex-end',
-  },
-  inputBar: {
+  newBtn: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: Spacing.sm,
-    borderTopWidth: 1,
-    gap: Spacing.sm,
+    alignItems: 'center',
+    gap: Gap,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: Radius.full,
+  },
+  formTitle: {
+    fontSize: 16,
+    fontWeight: '800', marginBottom: Spacing.xs,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '600', marginBottom: Spacing.xs, marginTop: Spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   input: {
-    flex: 1,
-    borderRadius: Radius.lg,
     borderWidth: 1,
+    borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     fontSize: 14,
-    maxHeight: 100,
   },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  textArea: {
+    minHeight: 90,
+    paddingTop: Spacing.sm,
+  },
+  smallChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+  },
+  cancelBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: Radius.md,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  submitBtn: {
+    flex: 2,
+    minHeight: 42,
+    borderRadius: Radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Gap,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.full,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: Radius.md,
+    minWidth: 70,
+    justifyContent: 'center',
+  },
+  resolutionCard: { marginTop: Spacing.xs,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+  },
+  resolutionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+  },
+  resolutionTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  resolutionText: {
+    fontSize: 13,
+    lineHeight: 19, marginTop: Spacing.xs,
+  },
+  resolutionMeta: {
+    fontSize: 11, marginTop: Spacing.xs,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  resolutionDialog: {
+    width: '100%',
+    maxWidth: 460,
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+  },
+  dialogHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Gap, marginBottom: Spacing.xs,
+  },
+  dialogTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  dialogSubtitle: {
+    fontSize: 13,
+    lineHeight: 18, marginTop: Spacing.xs,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resolutionInput: {
+    minHeight: 112,
+    paddingTop: Spacing.sm,
+  },
+  dialogActions: {
+    flexDirection: 'row',
+    gap: Gap, marginTop: Spacing.xs,
   },
 });

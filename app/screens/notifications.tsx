@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../store/authStore';
-import { Spacing, Radius } from '../../constants/theme';
+import { useAuthStore } from '@/store/authStore';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { normalizeVendorId } from '../../utils/helpers';
 import {
   getPendingAuthorizations,
@@ -23,6 +23,7 @@ import {
 
 export default function NotificationsScreen() {
   const colors = useTheme();
+  const styles = buildThemeStyles(colors);
   const { user } = useAuthStore();
 
   const vendorId = user?.vendorId || '';
@@ -117,7 +118,7 @@ export default function NotificationsScreen() {
   const formatTime = (timestamp: string): string => {
     if (!timestamp) return '';
     const d = new Date(timestamp);
-    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return d.toLocaleTimeString('en-US', { timeZone: 'Africa/Nairobi',  hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
   return (
@@ -134,12 +135,7 @@ export default function NotificationsScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-              Fuel authorization requests & alerts
-            </Text>
-          </View>
+           
           {pendingAuths.length > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{pendingAuths.length}</Text>
@@ -149,7 +145,7 @@ export default function NotificationsScreen() {
 
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={colors.primaryText} />
             <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading notifications...</Text>
           </View>
         ) : pendingAuths.length === 0 ? (
@@ -159,11 +155,11 @@ export default function NotificationsScreen() {
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No notifications</Text>
             <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              You're all caught up. New fuel authorization requests and alerts will appear here.
+              You're all caught up.
             </Text>
           </View>
         ) : (
-          <View style={{ gap: Spacing.md }}>
+          <View style={{ gap: Gap}}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
               {pendingAuths.length} pending fuel authorization{pendingAuths.length !== 1 ? 's' : ''}
             </Text>
@@ -175,8 +171,8 @@ export default function NotificationsScreen() {
                 activeOpacity={0.7}
               >
                 <View style={styles.notificationRow}>
-                  <View style={[styles.notificationIcon, { backgroundColor: '#FEF3C7' }]}>
-                    <Ionicons name="water-outline" size={22} color="#F59E0B" />
+                  <View style={[styles.notificationIcon, { backgroundColor: colors.warningBg }]}>
+                    <Ionicons name="water-outline" size={22} color={colors.warningText} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.notificationTitle, { color: colors.text }]}>
@@ -214,32 +210,32 @@ export default function NotificationsScreen() {
         onRequestClose={closeAuthModal}
       >
         <View style={styles.authOverlay}>
-          <View style={[styles.authModalContent, { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0' }]}>
+          <View style={[styles.authModalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             {/* Header */}
             <View style={styles.authModalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.authModalTitle}>Fuel Authorization</Text>
-                <Text style={styles.authModalSubtitle}>
+                <Text style={[styles.authModalTitle, { color: colors.text }]}>Fuel Authorization</Text>
+                <Text style={[styles.authModalSubtitle, { color: colors.textMuted }]}>
                   A fuel operator is requesting authorization to dispense fuel
                 </Text>
               </View>
               <TouchableOpacity
-                style={[styles.closeButton, { backgroundColor: '#F1F5F9' }]}
+                style={[styles.closeButton, { backgroundColor: colors.surfaceVariant }]}
                 onPress={closeAuthModal}
               >
-                <Ionicons name="close" size={20} color="#64748B" />
+                <Ionicons name="close" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
             {activeAuth && (
               <>
                 {/* Request Details */}
-                <View style={[styles.authDetailCard, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                <View style={[styles.authDetailCard, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
                   <View style={styles.authDetailRow}>
-                    <Ionicons name="water-outline" size={20} color="#F59E0B" />
+                    <Ionicons name="water-outline" size={20} color={colors.warningText} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Fuel Amount</Text>
-                      <Text style={{ fontSize: 22, fontWeight: '800', color: '#F59E0B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Fuel Amount</Text>
+                      <Text style={{ fontSize: 22, fontWeight: '800', color: colors.warningText }}>
                         {activeAuth.fuelAmount || 0} Litres
                       </Text>
                     </View>
@@ -248,30 +244,30 @@ export default function NotificationsScreen() {
                   <View style={styles.authDivider} />
 
                   <View style={styles.authDetailRow}>
-                    <Ionicons name="person-outline" size={20} color="#3B82F6" />
+                    <Ionicons name="person-outline" size={20} color={colors.infoText} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Driver</Text>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Driver</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
                         {activeAuth.driverName || 'Unknown'}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.authDetailRow}>
-                    <Ionicons name="car-outline" size={20} color="#10B981" />
+                    <Ionicons name="car-outline" size={20} color={colors.success} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Truck</Text>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Truck</Text>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
                         {activeAuth.plateNumber || 'Unknown'}
                       </Text>
                     </View>
                   </View>
 
                   <View style={styles.authDetailRow}>
-                    <Ionicons name="time-outline" size={20} color="#F59E0B" />
+                    <Ionicons name="time-outline" size={20} color={colors.warningText} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B' }}>Validity</Text>
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: '#F59E0B' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted }}>Validity</Text>
+                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.warningText }}>
                         {formatExpiry(activeAuth.expiresAt)}
                       </Text>
                     </View>
@@ -280,13 +276,13 @@ export default function NotificationsScreen() {
 
                 {/* OTP Input */}
                 <View style={styles.otpSection}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: Spacing.sm }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: Spacing.xs}}>
                     Enter Fuel Authorization PIN sent to your phone
                   </Text>
-                  <TextInput
-                    style={[styles.otpInput, { color: '#1E293B', backgroundColor: '#F8FAFC', borderColor: '#3B82F6' }]}
+                  <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
+                    style={[styles.otpInput, { color: colors.text, backgroundColor: colors.inputBg, borderColor: colors.infoBorder }]}
                     placeholder="Enter 6-digit PIN"
-                    placeholderTextColor="#94A3B8"
+                    placeholderTextColor={colors.textMuted}
                     keyboardType="number-pad"
                     maxLength={6}
                     value={otpInput}
@@ -298,33 +294,33 @@ export default function NotificationsScreen() {
                 {/* Action Buttons */}
                 <View style={styles.authActions}>
                   <TouchableOpacity
-                    style={[styles.denyButton, { borderColor: '#EF4444', backgroundColor: '#FEF2F2' }]}
+                    style={[styles.denyButton, { borderColor: colors.dangerBorder, backgroundColor: colors.dangerBg }]}
                     onPress={() => handleAuthorize(false)}
                     disabled={authSubmitting}
                     activeOpacity={0.7}
                   >
                     {authSubmitting ? (
-                      <ActivityIndicator size="small" color="#EF4444" />
+                      <ActivityIndicator size="small" color={colors.danger} />
                     ) : (
                       <>
-                        <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
-                        <Text style={{ color: '#EF4444', fontWeight: '800', fontSize: 14 }}>Deny</Text>
+                        <Ionicons name="close-circle-outline" size={20} color={colors.danger} />
+                        <Text style={{ color: colors.danger, fontWeight: '800', fontSize: 14 }}>Deny</Text>
                       </>
                     )}
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.authorizeButton, { backgroundColor: '#10B981' }]}
+                    style={[styles.authorizeButton, { backgroundColor: colors.success }]}
                     onPress={() => handleAuthorize(true)}
                     disabled={authSubmitting}
                     activeOpacity={0.7}
                   >
                     {authSubmitting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <ActivityIndicator size="small" color={colors.onPrimary} />
                     ) : (
                       <>
-                        <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
-                        <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Authorize</Text>
+                        <Ionicons name="checkmark-circle-outline" size={20} color={colors.onPrimary} />
+                        <Text style={{ color: colors.onPrimary, fontWeight: '800', fontSize: 14 }}>Authorize</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -338,7 +334,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -349,28 +345,26 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '900',
   },
   headerSubtitle: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
   },
   badge: {
     minWidth: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.redBorder,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '900',
   },
@@ -378,7 +372,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    gap: Spacing.md,
+    gap: Gap,
   },
   loadingText: {
     fontSize: 14,
@@ -387,15 +381,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    gap: Spacing.md,
+    gap: Gap,
   },
   emptyIcon: {
     width: 88,
     height: 88,
     borderRadius: 44,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.sm,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   emptyTitle: {
     fontSize: 18,
@@ -417,12 +410,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     padding: Spacing.lg,
-    gap: Spacing.sm,
+    gap: Gap,
   },
   notificationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Gap,
   },
   notificationIcon: {
     width: 44,
@@ -436,15 +429,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   notificationDetail: {
-    fontSize: 13,
-    marginTop: 2,
+    fontSize: 13, marginTop: Spacing.xs,
     lineHeight: 18,
   },
   notificationMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
+    gap: Gap, marginTop: Spacing.xs,
   },
   notificationTime: {
     fontSize: 11,
@@ -454,10 +445,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 6,
+    gap: Gap,
     paddingTop: Spacing.xs,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: colors.border,
   },
   quickActionHint: {
     fontSize: 12,
@@ -467,7 +458,7 @@ const styles = StyleSheet.create({
   // Auth Modal Styles
   authOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   authModalContent: {
@@ -481,19 +472,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: Gap, marginBottom: Spacing.xs,
   },
   authModalTitle: {
-    color: '#1E293B',
+    color: colors.text,
     fontSize: 20,
     fontWeight: '900',
   },
   authModalSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
+    lineHeight: 18, marginTop: Spacing.xs,
   },
   closeButton: {
     width: 38,
@@ -505,19 +494,17 @@ const styles = StyleSheet.create({
   authDetailCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.lg,
-    marginBottom: Spacing.lg,
+    padding: Spacing.lg, marginBottom: Spacing.xs,
   },
   authDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Gap,
     paddingVertical: Spacing.sm,
   },
   authDivider: {
     height: 1,
-    backgroundColor: '#E2E8F0',
-    marginVertical: Spacing.xs,
+    backgroundColor: colors.border, marginVertical: Spacing.xs,
   },
   otpSection: {},
   otpInput: {
@@ -532,15 +519,14 @@ const styles = StyleSheet.create({
   },
   authActions: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
+    gap: Gap, marginTop: Spacing.xs,
   },
   denyButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
+    gap: Gap,
     paddingVertical: Spacing.md,
     borderRadius: Radius.lg,
     borderWidth: 1.5,
@@ -551,7 +537,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
+    gap: Gap,
     paddingVertical: Spacing.md,
     borderRadius: Radius.lg,
     minHeight: 52,

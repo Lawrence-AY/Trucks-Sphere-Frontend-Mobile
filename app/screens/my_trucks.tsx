@@ -1,8 +1,9 @@
+import { SearchField } from '../../components/EnterpriseUI';
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchVehicles } from '../../services/api';
 
 export default function MyTrucksScreen() {
@@ -11,11 +12,9 @@ export default function MyTrucksScreen() {
   const [trucks, setTrucks] = useState<any[]>([]);
 
   useEffect(() => {
-    console.log('[MyTrucks] Fetching vehicles from backend...');
     fetchVehicles().then(data => {
-      console.log('[MyTrucks] Vehicles loaded:', data.length, 'items', data);
       setTrucks(data);
-    }).catch(err => console.error('[MyTrucks] Failed to load vehicles:', err));
+    }).catch(() => {});
   }, []);
 
   const vendorTrucks = trucks.filter(t =>
@@ -23,10 +22,7 @@ export default function MyTrucksScreen() {
   );
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
-        <TextInput style={[styles.searchInput, { color: colors.text }]} placeholder="Search..." placeholderTextColor={colors.textTertiary} value={search} onChangeText={setSearch} />
-      </View>
+      <SearchField title="My Trucks" icon="bus-outline" value={search} onChangeText={setSearch} placeholder="Search..." />
       <FlatList data={vendorTrucks} keyExtractor={t => t.id} contentContainerStyle={{ padding: 16 }}
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -40,7 +36,7 @@ export default function MyTrucksScreen() {
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1 }, searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 12, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, height: 44, gap: 8 },
-  searchInput: { flex: 1, fontSize: 14 }, card: { borderRadius: 12, borderWidth: 1, padding: 16, marginBottom: 8 },
-  plate: { fontSize: 15, fontWeight: '700' }, text: { fontSize: 13, marginTop: 2 },
+  container: { flex: 1 }, searchWrap: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: Spacing.xs, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, height: 44, gap: Gap},
+  searchInput: { flex: 1, fontSize: 14 }, card: { borderRadius: 12, borderWidth: 1, padding: 16, marginBottom: Spacing.xs},
+  plate: { fontSize: 15, fontWeight: '700' }, text: { fontSize: 13, marginTop: Spacing.xs},
 });

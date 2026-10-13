@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../store/authStore';
-import { fetchDeliveryOrders, fetchFuelRecords } from '../../services/api';
-import { formatEAT } from '../../utils/helpers';
+import { useAuthStore } from '@/store/authStore';
+import { formatEAT, normalizeVendorId } from '../../utils/helpers';
+import { isActiveJob, normalizeJobStatus } from '../../utils/jobStatus';
+import { useRealtimeCollection } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import {
   DataCard,
   DetailRow,
@@ -16,7 +18,7 @@ import {
   SectionTitle,
   StatusPill,
 } from '../../components/EnterpriseUI';
-import { Spacing } from '../../constants/theme';
+import { Gap, Spacing } from '../../constants/theme';
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'All' },
@@ -29,31 +31,34 @@ export default function VendorTripsScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
   const vendorId = user?.vendorId || 'v1';
-  const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [fuelRecords, setFuelRecords] = useState<any[]>([]);
+  const normalizedUserVendorId = normalizeVendorId(vendorId);
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  const { status } = useLocalSearchParams<{ status?: string }>();
+  const [filter, setFilter] = useState(status === 'completed' ? 'completed' : 'all');
+  useEffect(() => { setFilter(status === 'completed' ? 'completed' : 'all'); }, [status]);
+  const refresh = useRealTimeSyncStore((state) => state.refresh);
+  const { data: deliveryData, loading: deliveriesLoading } = useRealtimeCollection('deliveryOrders');
+  const { data: fuelData, loading: fuelLoading } = useRealtimeCollection('fuelRecords');
 
   const loadData = async () => {
     setRefreshing(true);
     try {
-      const [deliveryData, fuelData] = await Promise.all([
-        fetchDeliveryOrders(),
-        fetchFuelRecords(),
-      ]);
-      setDeliveries((deliveryData || []).filter((d: any) => d.vendorId === vendorId));
-      setFuelRecords(fuelData || []);
-    } catch (error) {
-      console.error('Vendor trips error:', error);
+      await Promise.all([refresh('deliveryOrders'), refresh('fuelRecords')]);
     } finally {
       setRefreshing(false);
-      setLoading(false);
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  const deliveries = useMemo(() => (deliveryData || []).filter((item: any) => (
+    normalizeVendorId(item.vendorId || item.vendor || '') === normalizedUserVendorId
+  )), [deliveryData, normalizedUserVendorId]);
+
+  const fuelRecords = useMemo(() => (fuelData || []).filter((item: any) => (
+    normalizeVendorId(item.vendorId || item.vendor || '') === normalizedUserVendorId
+  )), [fuelData, normalizedUserVendorId]);
+
+  const loading = deliveriesLoading || fuelLoading;
 
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
@@ -66,10 +71,10 @@ export default function VendorTripsScreen() {
 
         if (filter === 'all') return matchesSearch;
         if (filter === 'active')
-          return matchesSearch && !['completed', 'delivered', 'received', 'cancelled'].includes(d.status);
+          return matchesSearch && isActiveJob(d.status);
         if (filter === 'completed')
-          return matchesSearch && ['completed', 'delivered', 'received'].includes(d.status);
-        if (filter === 'cancelled') return matchesSearch && d.status === 'cancelled';
+          return matchesSearch && !isActiveJob(d.status) && normalizeJobStatus(d.status) !== 'CANCELLED';
+        if (filter === 'cancelled') return matchesSearch && normalizeJobStatus(d.status) === 'CANCELLED';
 
         return matchesSearch;
       })
@@ -81,10 +86,10 @@ export default function VendorTripsScreen() {
   }, [deliveries, search, filter]);
 
   const activeTrips = deliveries.filter(
-    (d) => !['completed', 'delivered', 'received', 'cancelled'].includes(d.status)
+    (d) => isActiveJob(d.status)
   ).length;
   const completedTrips = deliveries.filter((d) =>
-    ['completed', 'delivered', 'received'].includes(d.status)
+    !isActiveJob(d.status) && normalizeJobStatus(d.status) !== 'CANCELLED'
   ).length;
 
   const getJobFuel = (jobId: string) => {
@@ -99,25 +104,25 @@ export default function VendorTripsScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />
       }
     >
-      <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+      <View style={{ flexDirection: 'row', gap: Gap}}>
         <View style={[styles.statChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="layers-outline" size={18} color={colors.primary} />
+          <Ionicons name="layers-outline" size={18} color={colors.primaryText} />
           <Text style={[styles.statValue, { color: colors.text }]}>{deliveries.length}</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>Total</Text>
         </View>
         <View style={[styles.statChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="car-outline" size={18} color="#F59E0B" />
+          <Ionicons name="car-outline" size={18} color={colors.warning} />
           <Text style={[styles.statValue, { color: colors.text }]}>{activeTrips}</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>Active</Text>
         </View>
         <View style={[styles.statChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="checkmark-done-outline" size={18} color="#10B981" />
+          <Ionicons name="checkmark-done-outline" size={18} color={colors.success} />
           <Text style={[styles.statValue, { color: colors.text }]}>{completedTrips}</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>Done</Text>
         </View>
       </View>
 
-      <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, PO..." />
+      <SearchField title="Trips" icon="navigate-outline" value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, PO..." />
       <FilterRail options={STATUS_FILTERS} value={filter} onChange={setFilter} />
       <SectionTitle title={`${filtered.length} trips`} />
 
@@ -138,7 +143,7 @@ export default function VendorTripsScreen() {
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
                     {item.jobId || item.id}
                   </Text>
-                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 2 }}>
+                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: Spacing.xs}}>
                     PO: {item.poNumber || 'N/A'}
                   </Text>
                 </View>
@@ -154,8 +159,8 @@ export default function VendorTripsScreen() {
               />
               {jobFuel > 0 && (
                 <View style={[styles.fuelRow, { backgroundColor: '#F59E0B10' }]}>
-                  <Ionicons name="water-outline" size={13} color="#F59E0B" />
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#F59E0B' }}>
+                  <Ionicons name="water-outline" size={13} color={colors.warning} />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.warning }}>
                     {jobFuel.toFixed(1)} L fuel dispensed
                   </Text>
                 </View>
@@ -180,7 +185,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.md,
     alignItems: 'center',
-    gap: 4,
+    gap: Gap,
   },
   statValue: { fontSize: 18, fontWeight: '800' },
   statLabel: { fontSize: 11, fontWeight: '600' },
@@ -188,7 +193,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 6,
+    gap: Gap,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,

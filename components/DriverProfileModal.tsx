@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Linking,
   Modal,
@@ -11,17 +10,16 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { Radius, Spacing } from '../constants/theme';
+import { Gap, Radius, Spacing } from '../constants/theme';
 import { fetchDeliveryOrders, fetchDrivers, fetchVehicles } from '../services/api';
 import { formatEAT } from '../utils/helpers';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const GALLERY_COLS = 3;
 const GALLERY_GAP = 6;
-const GALLERY_ITEM_SIZE = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.xl * 2 - GALLERY_GAP * (GALLERY_COLS - 1)) / GALLERY_COLS;
 
 // Build storage URLs for quarry verification images
 const STORAGE_BASE = 'https://storage.googleapis.com/trucksphere.firebasestorage.app';
@@ -42,6 +40,8 @@ interface DriverProfileModalProps {
 
 export default function DriverProfileModal({ visible, driverId, driverData, jobId: filterJobId, onClose }: DriverProfileModalProps) {
   const colors = useTheme();
+  const { width } = useWindowDimensions();
+  const galleryItemSize = Math.max(72, (width - Spacing.lg * 2 - Spacing.xl * 2 - GALLERY_GAP * (GALLERY_COLS - 1)) / GALLERY_COLS);
   const [loading, setLoading] = useState(true);
   const [driver, setDriver] = useState<any>(driverData || null);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
@@ -118,10 +118,10 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
   };
 
   const statusColor = driver?.status === 'active'
-    ? '#10B981'
+    ? colors.success
     : driver?.status === 'suspended'
-    ? '#EF4444'
-    : '#F59E0B';
+    ? colors.danger
+    : colors.warning;
 
   const statusLabel = driver?.status === 'active'
     ? 'Active'
@@ -131,7 +131,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
         <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {/* Header */}
           <View style={styles.header}>
@@ -148,7 +148,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
 
           {loading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <ActivityIndicator size="large" color={colors.primaryText} />
               <Text style={[styles.loadingText, { color: colors.textMuted }]}>Loading driver profile...</Text>
             </View>
           ) : driver ? (
@@ -159,7 +159,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
                   <Image source={{ uri: driver.photoURL }} style={styles.avatar} />
                 ) : (
                   <View style={[styles.avatarPlaceholder, { backgroundColor: `${colors.primary}15` }]}>
-                    <Text style={{ fontSize: 36, fontWeight: '900', color: colors.primary }}>
+                    <Text style={{ fontSize: 36, fontWeight: '900', color: colors.primaryText }}>
                       {(driver.name || driver.fullName || 'D').charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -174,20 +174,20 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
               <View style={styles.actionRow}>
                 {driver.phone ? (
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
+                    style={[styles.actionBtn, { backgroundColor: `${colors.success}15`, borderColor: `${colors.success}33` }]}
                     onPress={() => handleCall(driver.phone)}
                   >
-                    <Ionicons name="call-outline" size={18} color="#10B981" />
-                    <Text style={[styles.actionText, { color: '#10B981' }]}>Call</Text>
+                    <Ionicons name="call-outline" size={18} color={colors.success} />
+                    <Text style={[styles.actionText, { color: colors.success }]}>Call</Text>
                   </TouchableOpacity>
                 ) : null}
                 {driver.email ? (
                   <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#2563EB15', borderColor: '#2563EB33' }]}
+                    style={[styles.actionBtn, { backgroundColor: `${colors.infoBorder}15`, borderColor: `${colors.infoBorder}33` }]}
                     onPress={() => Linking.openURL(`mailto:${driver.email}`)}
                   >
-                    <Ionicons name="mail-outline" size={18} color="#2563EB" />
-                    <Text style={[styles.actionText, { color: '#2563EB' }]}>Email</Text>
+                    <Ionicons name="mail-outline" size={18} color={colors.infoBorder} />
+                    <Text style={[styles.actionText, { color: colors.infoBorder }]}>Email</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -240,7 +240,7 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
                   </Text>
                   <View style={styles.galleryGrid}>
                     {verificationImages.map((img, idx) => (
-                      <View key={idx} style={styles.galleryItem}>
+                      <View key={idx} style={[styles.galleryItem, { width: galleryItemSize, height: galleryItemSize }]}>
                         {imageErrors[img.jobId] ? (
                           <View style={[styles.galleryFallback, { backgroundColor: `${colors.primary}08`, borderColor: colors.border }]}>
                             <Ionicons name="image-outline" size={20} color={colors.textTertiary} />
@@ -253,9 +253,9 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
                               style={styles.galleryImage}
                               onError={() => setImageErrors((prev) => ({ ...prev, [img.jobId]: true }))}
                             />
-                            <View style={styles.galleryOverlay}>
-                              <Text style={styles.galleryJobId} numberOfLines={1}>{img.jobId}</Text>
-                              <Text style={styles.galleryTimestamp}>{formatEAT(img.timestamp)}</Text>
+                            <View style={[styles.galleryOverlay, { backgroundColor: colors.mediaScrim }]}>
+                              <Text style={[styles.galleryJobId, { color: colors.onMedia }]} numberOfLines={1}>{img.jobId}</Text>
+                              <Text style={[styles.galleryTimestamp, { color: colors.onMedia }]}>{formatEAT(img.timestamp)}</Text>
                             </View>
                           </>
                         )}
@@ -313,7 +313,6 @@ export default function DriverProfileModal({ visible, driverId, driverData, jobI
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.42)',
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -346,7 +345,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    gap: Spacing.md,
+    gap: Gap,
   },
   loadingText: {
     fontSize: 14,
@@ -362,26 +361,23 @@ const styles = StyleSheet.create({
   avatar: {
     width: 88,
     height: 88,
-    borderRadius: 44,
-    marginBottom: Spacing.md,
+    borderRadius: 44, marginBottom: Spacing.xs,
   },
   avatarPlaceholder: {
     width: 88,
     height: 88,
     borderRadius: 44,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
+    justifyContent: 'center', marginBottom: Spacing.xs,
   },
   driverName: {
     fontSize: 20,
-    fontWeight: '900',
-    marginBottom: Spacing.sm,
+    fontWeight: '900', marginBottom: Spacing.xs,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: Gap,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: Radius.full,
@@ -398,15 +394,14 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: Gap, marginBottom: Spacing.xs,
   },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.xs,
+    gap: Gap,
     paddingVertical: 12,
     borderRadius: Radius.md,
     borderWidth: 1,
@@ -418,20 +413,18 @@ const styles = StyleSheet.create({
   detailCard: {
     borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+    padding: Spacing.md, marginBottom: Spacing.xs,
   },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
+    letterSpacing: 0.5, marginBottom: Spacing.xs,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Gap,
     paddingVertical: 6,
   },
   detailLabel: {
@@ -449,7 +442,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    gap: Spacing.sm,
+    gap: Gap,
   },
   jobIdText: {
     fontSize: 13,
@@ -457,8 +450,7 @@ const styles = StyleSheet.create({
   },
   jobMetaText: {
     fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
+    fontWeight: '600', marginTop: Spacing.xs,
   },
   jobStatusBadge: {
     paddingHorizontal: 8,
@@ -474,18 +466,14 @@ const styles = StyleSheet.create({
   // Verification Gallery
   gallerySubtitle: {
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: -4,
-    marginBottom: Spacing.sm,
+    fontWeight: '600', marginTop: Spacing.xs, marginBottom: Spacing.xs,
   },
   galleryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: GALLERY_GAP,
+    gap: Gap,
   },
   galleryItem: {
-    width: GALLERY_ITEM_SIZE,
-    height: GALLERY_ITEM_SIZE,
     borderRadius: Radius.sm,
     overflow: 'hidden',
     position: 'relative',
@@ -502,7 +490,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: Gap,
   },
   galleryFallbackText: {
     fontSize: 9,
@@ -514,17 +502,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.65)',
     paddingHorizontal: 4,
     paddingVertical: 3,
   },
   galleryJobId: {
-    color: '#FFFFFF',
     fontSize: 8,
     fontWeight: '800',
   },
   galleryTimestamp: {
-    color: 'rgba(255,255,255,0.75)',
     fontSize: 7,
     fontWeight: '600',
   },

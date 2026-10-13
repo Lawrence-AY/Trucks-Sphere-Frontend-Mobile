@@ -1,45 +1,41 @@
-import { useEffect, useMemo, useState } from 'react';
+import { ManagementSearchHeader } from '../../components/ManagementSearchHeader';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   RefreshControl,
   ScrollView,
-  Share,
-  StyleSheet,
+   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+   Alert,
+  useWindowDimensions,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Searchbar } from 'react-native-paper';
+import { ManagementHeaderMenuButton } from '../../components/management/ManagementMenuContext';
 import { useTheme } from '../../hooks/useTheme';
-import { Radius, Spacing } from '../../constants/theme';
-import { useAuthStore } from '../../store/authStore';
-import { fetchDeliveryOrders, fetchMaterials } from '../../services/api';
+import { Gap, Radius, Spacing } from '../../constants/theme';
+import { useDeliveryOrders, useDrivers, useMaterials } from '@/store/realtimeData';
+import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { formatEAT } from '../../utils/helpers';
+import { isActiveJob } from '../../utils/jobStatus';
 import {
- 
   DataCard,
-  DetailRow,
   EmptyState,
-  FilterRail,
-  PageShell,
-  SearchField,
+   PageShell,
   SectionTitle,
 } from '../../components/EnterpriseUI';
+import { TripListCard } from '../../components/TripListCard';
 
-const FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'today', label: 'Today' },
-  { key: 'week', label: 'Week' },
-  { key: 'month', label: 'Month' },
-];
-
+// ─── Flag detection ──────────────────────────────────────────────
 function isFlagged(item: any) {
   const net = Number(item.netWeight || 0);
   return net > 0 && (net < 19 || net > 23);
 }
 
+// ─── CSV export helpers ──────────────────────────────────────────
 function escapeCsvField(value: any): string {
   if (value == null || value === undefined) return '';
   const str = String(value);
@@ -55,38 +51,52 @@ function formatCsv(headers: string[], rows: string[][]): string {
   return `${hdr}\n${body}`;
 }
 
+// ─── Filter definitions ──────────────────────────────────────────
+const TIME_FILTERS = [
+  { key: 'all', label: 'All', icon: 'grid-outline' },
+  { key: 'today', label: 'Today', icon: 'today-outline' },
+  { key: 'week', label: 'Week', icon: 'calendar-outline' },
+  { key: 'month', label: 'Month', icon: 'calendar-outline' },
+  { key: 'flagged', label: 'Flagged', icon: 'alert-circle-outline' },
+];
+
 export default function ManagementActiveScreen() {
   const colors = useTheme();
-  const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [materials, setMaterials] = useState<any[]>([]);
+  const styles = buildThemeStyles(colors);
+  const { width } = useWindowDimensions();
+  const headerSearchWidth = width < 430 ? 160 : 220;
+  const refresh = useRealTimeSyncStore((s) => s.refresh);
+
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [materialFilter, setMaterialFilter] = useState('');
   const [matDropdownOpen, setMatDropdownOpen] = useState(false);
   const [matSearch, setMatSearch] = useState('');
 
-  const loadData = async () => {
+  // Realtime data
+  const deliveries = useDeliveryOrders();
+  const drivers = useDrivers();
+  const materials = useMaterials();
+
+  const driverPhotos = useMemo(
+    () =>
+      new Map(
+        drivers.map((driver: any) => [
+          String(driver.id || '').trim(),
+          driver.photoURL || driver.photoUrl || '',
+        ])
+      ),
+    [drivers]
+  );
+
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      const [data, matData] = await Promise.all([
-        fetchDeliveryOrders(),
-        fetchMaterials(),
-      ]);
-      setDeliveries(data || []);
-      setMaterials(matData || []);
-    } catch (error) {
-      console.error('Active deliveries load error:', error);
-    } finally {
-      setRefreshing(false);
-      setLoading(false);
-    }
-  };
+    await Promise.all([refresh('deliveryOrders'), refresh('materials')]);
+    setRefreshing(false);
+  }, [refresh]);
 
-  useEffect(() => { loadData(); }, []);
-
-  /* ─── Time Range Filtering ─── */
+  // ─── Time range helpers ────────────────────────────────────────
   const now = new Date();
   const getStartOfPeriod = (period: string): Date => {
     const d = new Date(now);
@@ -104,35 +114,53 @@ export default function ManagementActiveScreen() {
     return d;
   };
 
+  // ─── Filter logic ──────────────────────────────────────────────
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     const periodStart = getStartOfPeriod(filter);
 
     return deliveries.filter((item) => {
-      const matchesSearch = !query || [
-        item.jobId, item.poNumber, item.driverName, item.plateNumber, item.vendorName, item.materialName,
-      ].some((value) => String(value || '').toLowerCase().includes(query));
+      if (!isActiveJob(item.status)) return false;
+      if (item.isBackorder) return false;
+      if (!item.driverId && !item.driverName && !item.isWarehouseDelivery && !item.warehouseJobId && item.deliveryOrigin !== 'warehouse') return false;
+
+      // Search
+      const matchesSearch = !query ||
+        [
+          item.jobId,
+          item.poNumber,
+          item.driverName,
+          item.plateNumber,
+          item.vendorName,
+          item.materialName,
+        ].some((value) => String(value || '').toLowerCase().includes(query));
       if (!matchesSearch) return false;
 
-      // Time period filter
-      if (filter !== 'all') {
+      // Time filter
+      if (filter !== 'all' && filter !== 'flagged') {
         const itemDate = new Date(item.updatedAt || item.createdAt);
         if (itemDate < periodStart) return false;
       }
 
+      // Flagged filter
+      if (filter === 'flagged') {
+        if (!isFlagged(item)) return false;
+      }
+
       // Material filter
-      const matchesMaterial = !materialFilter || item.materialId === materialFilter;
-      return matchesMaterial;
+      if (materialFilter && item.materialId !== materialFilter) return false;
+
+      return true;
     });
   }, [deliveries, filter, search, materialFilter]);
 
   const matFiltered = matSearch.trim()
-    ? materials.filter(m => (m.name || '').toLowerCase().includes(matSearch.toLowerCase()))
+    ? materials.filter((m) => (m.name || '').toLowerCase().includes(matSearch.toLowerCase()))
     : materials;
 
-  const selectedMaterial = materials.find(m => m.id === materialFilter);
+  const selectedMaterial = materials.find((m) => m.id === materialFilter);
 
-  /* ─── Export Helpers ─── */
+  // ─── Export ──────────────────────────────────────────────────────
   const buildDeliveryRows = (records: any[]): string[][] =>
     records.map((r) => [
       r.jobId || '',
@@ -149,115 +177,292 @@ export default function ManagementActiveScreen() {
       formatEAT(r.updatedAt || r.createdAt),
     ]);
 
-  const deliveryHeaders = [
-    'Job ID', 'PO', 'Driver', 'Plate', 'Vendor', 'Material',
-    'Qty Ordered (t)', 'Weigh In', 'Weigh Out', 'Net', 'Status', 'Updated',
-  ];
+ 
+  
 
-  const handleExportDeliveryCSV = async () => {
-    const rows = buildDeliveryRows(filtered);
-    await Share.share({ message: formatCsv(deliveryHeaders, rows), title: 'Delivery_Orders' });
-  };
-
-  const handleExportDeliveryPDF = async () => {
-    const rows = buildDeliveryRows(filtered);
-    const headerCells = deliveryHeaders.map(h => `<th style="padding:8px 10px;background:#1B2A4A;color:#fff;font-weight:700;text-align:left;border:1px solid #ddd;font-size:11px;">${h}</th>`).join('');
-    const bodyRows = rows.map((row, i) => {
-      const bg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
-      const cells = row.map(cell => `<td style="padding:6px 10px;border:1px solid #ddd;font-size:11px;">${cell || '—'}</td>`).join('');
-      return `<tr style="background:${bg};">${cells}</tr>`;
-    }).join('');
-    const html = `<html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;padding:16px;">
-      <h1>Trucks Sphere — Delivery Orders</h1>
-      <table style="width:100%;border-collapse:collapse;">${headerCells}${bodyRows}</table>
-    </body></html>`;
-    await Share.share({ message: html, title: 'Delivery_Orders' });
-  };
+  const isLoading = deliveries.length === 0 && materials.length === 0;
 
   return (
-    <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
-       <SearchField value={search} onChangeText={setSearch} placeholder="Search job, driver, plate, vendor, material..." />
+    <>
+      <ManagementSearchHeader title="Active Trips" search={search} onChangeSearch={setSearch} icon="navigate-outline" />
 
-      {/* Period Filter */}
-      <FilterRail options={FILTERS} value={filter} onChange={setFilter} />
-
-      {/* Material Filter */}
-      <View style={{ marginBottom: Spacing.xs, marginTop: Spacing.xs }}>
-        <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center', height: 40, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, gap: 6, borderColor: colors.border, backgroundColor: colors.surface }}
-          onPress={() => { setMatDropdownOpen(!matDropdownOpen); setMatSearch(''); }}
+      <PageShell
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+        }
+      >
+        {/* ─── Filter chips ────────────────────────────────────── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContainer}
         >
-          <Ionicons name="cube-outline" size={16} color={colors.textMuted} />
-          <Text style={{ flex: 1, fontSize: 13, color: selectedMaterial ? colors.text : colors.textMuted }} numberOfLines={1}>
-            {selectedMaterial ? selectedMaterial.name : 'Filter by material...'}
-          </Text>
-          {materialFilter ? (
-            <TouchableOpacity onPress={() => setMaterialFilter('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          ) : (
-            <Ionicons name={matDropdownOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
-          )}
-        </TouchableOpacity>
-        {matDropdownOpen && (
-          <View style={{ borderWidth: 1, borderTopWidth: 0, borderBottomLeftRadius: Radius.md, borderBottomRightRadius: Radius.md, overflow: 'hidden', borderColor: colors.border, backgroundColor: colors.surface }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 8, borderBottomWidth: 1, gap: 6, borderBottomColor: colors.border }}>
-              <Ionicons name="search" size={14} color={colors.textMuted} />
-              <TextInput style={{ flex: 1, fontSize: 13, paddingVertical: 2, color: colors.text }} placeholder="Search materials..." placeholderTextColor={colors.textMuted} value={matSearch} onChangeText={setMatSearch} autoFocus />
-            </View>
-            <ScrollView style={{ maxHeight: 150 }}>
-              {matFiltered.map((m: any) => (
-                <TouchableOpacity key={m.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: Spacing.md }} onPress={() => { setMaterialFilter(m.id); setMatDropdownOpen(false); }}>
-                  <Text style={{ color: colors.text, fontSize: 13, flex: 1 }} numberOfLines={1}>{m.name || m.id}</Text>
-                  {m.id === materialFilter && <Ionicons name="checkmark" size={16} color={colors.accent} />}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-      </View>
+          {TIME_FILTERS.map((option) => {
+            const isActive = filter === option.key;
+            let chipBg = isActive ? colors.primary : colors.surface;
+            let textColor = isActive ? colors.onPrimary : colors.text;
+            let borderColor = isActive ? colors.primary : colors.border;
 
-    
+            // Special colour for flagged chip
+            if (option.key === 'flagged' && isActive) {
+              chipBg = colors.danger; // red
+              textColor = colors.onPrimary;
+              borderColor = colors.danger;
+            }
 
-      <SectionTitle title={`${filtered.length} deliveries`} />
-      {loading ? (
-        <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading movement board...</Text></DataCard>
-      ) : filtered.length ? (
-        filtered.map((item) => {
-          return (
-            <DataCard key={item.id} onPress={() => router.push(`/screens/job-details?id=${item.jobId}` as any)}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{item.poNumber || item.jobId}</Text>
-                  <Text style={{ fontSize: 14, color: colors.textMuted }}>{item.vendorName || item.jobId}</Text>
-                </View>
+            return (
+              <TouchableOpacity
+                key={option.key}
+                style={[
+                  styles.filterChip,
+                  { backgroundColor: chipBg, borderColor: borderColor },
+                ]}
+                onPress={() => setFilter(option.key)}
+                activeOpacity={0.7}
+              >
+                 <Text style={[styles.filterChipText, { color: textColor }]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* ─── Material filter dropdown ────────────────────────── */}
+        <View style={styles.matFilterContainer}>
+          <TouchableOpacity
+            style={[
+              styles.matFilterButton,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]}
+            onPress={() => {
+              setMatDropdownOpen(!matDropdownOpen);
+              setMatSearch('');
+            }}
+          >
+            <Ionicons name="cube-outline" size={16} color={colors.textMuted} />
+            <Text
+              style={[
+                styles.matFilterLabel,
+                { color: selectedMaterial ? colors.text : colors.textMuted },
+              ]}
+              numberOfLines={1}
+            >
+              {selectedMaterial ? selectedMaterial.name : 'Filter by material...'}
+            </Text>
+            {materialFilter ? (
+              <TouchableOpacity onPress={() => setMaterialFilter('')}>
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            ) : (
+              <Ionicons name={matDropdownOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+            )}
+          </TouchableOpacity>
+
+          {matDropdownOpen && (
+            <View
+              style={[
+                styles.matDropdown,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                },
+              ]}
+            >
+              <View style={[styles.matSearchRow, { borderBottomColor: colors.border }]}>
+                <Ionicons name="search" size={14} color={colors.textMuted} />
+                <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
+                  style={[styles.matSearchInput, { color: colors.text }]}
+                  placeholder="Search materials..."
+                  placeholderTextColor={colors.textMuted}
+                  value={matSearch}
+                  onChangeText={setMatSearch}
+                  autoFocus
+                />
               </View>
-              <DetailRow icon="person-outline" value={`${item.driverName || 'Unassigned'} · ${item.plateNumber || 'No truck'}`} />
-              <DetailRow icon="cube-outline" value={`${item.materialName || 'Material'} `} />
+              <ScrollView style={styles.matList} nestedScrollEnabled>
+                {matFiltered.map((m: any) => (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={styles.matItem}
+                    onPress={() => {
+                      setMaterialFilter(m.id);
+                      setMatDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={[styles.matItemText, { color: colors.text }]} numberOfLines={1}>
+                      {m.name || m.id}
+                    </Text>
+                    {m.id === materialFilter && (
+                      <Ionicons name="checkmark" size={16} color={colors.accent} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
 
-              {/* Net Weight Badge */}
-              {item.netWeight != null && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: `${colors.success}15`, marginTop: Spacing.xs }}>
-                  <Ionicons name="scale-outline" size={12} color={colors.success} />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.success }}>Net: {item.netWeight.toFixed(1)}T</Text>
-                </View>
-              )}
+        <SectionTitle title={`${filtered.length} active deliveries`} />
 
-              {/* Tracking ID Badge — only shown when tracking is active */}
-              {item.trackingId && ['loaded', 'dispatched', 'in_transit', 'en_route'].includes(item.status) ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: '#2563EB12', borderWidth: 1, borderColor: '#2563EB33', marginTop: Spacing.xs }}>
-                  <Ionicons name="radio-outline" size={12} color="#2563EB" />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#2563EB' }} selectable>Track: {item.trackingId}</Text>
-                </View>
-              ) : null}
+        {isLoading ? (
+          <DataCard>
+            <Text style={{ fontSize: 14, color: colors.textMuted }}>Loading movement board...</Text>
+          </DataCard>
+        ) : filtered.length ? (
+          <View style={styles.tripList}>
+            {filtered.map((item) => {
+              const driverPhoto = driverPhotos.get(String(item.driverId || '').trim());
 
-              <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.updatedAt || item.createdAt)}</Text>
-            </DataCard>
-          );
-        })
-      ) : (
-        <EmptyState icon="file-tray-outline" title="No deliveries found" subtitle="Try a broader search or another filter." />
-      )}
-    </PageShell>
+              return (
+                <TripListCard
+                  key={item.id}
+                  trip={item}
+                  driverPhoto={driverPhoto}
+                  onPress={() => router.push(`/operations/jobs/${item.id}` as any)}
+                  
+                />
+              );
+            })}
+          </View>
+        ) : (
+          <EmptyState
+            icon="file-tray-outline"
+            title="No deliveries found"
+            subtitle="Try a broader search or another filter."
+          />
+        )}
+      </PageShell>
+    </>
   );
 }
+
+// ─── Styles ──────────────────────────────────────────────────────────
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
+  headerLeftGroup: {
+    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Gap,
+  },
+  headerTitle: {
+    width: 92,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  headerSearch: {
+    height: 38,
+    marginRight: 0,
+    borderRadius: Radius.md,
+    
+  },
+  headerSearchInput: {
+    minHeight: 0,
+    fontSize: 14,
+  },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+    gap: Gap,
+  },
+  headerIcon: {
+    padding: 6,
+  },
+  filterContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Gap,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginRight: Spacing.xs,
+   
+  },
+  chipIcon: {
+    marginRight: 6,
+  },
+  filterChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  matFilterContainer: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+    position: 'relative',
+    zIndex: 10,
+  },
+  matFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 40,
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    gap: Gap,
+  },
+  matFilterLabel: {
+    flex: 1,
+    fontSize: 13,
+  },
+  matDropdown: {
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderBottomLeftRadius: Radius.md,
+    borderBottomRightRadius: Radius.md,
+    overflow: 'hidden',
+  },
+  matSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    gap: Gap,
+  },
+  matSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    paddingVertical: 2,
+  },
+  matList: {
+    maxHeight: 150,
+  },
+  matItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+  },
+  matItemText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  tripList: {
+    gap: Gap,
+  },
+  flagBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.redBorder,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: Gap,
+    alignSelf: 'flex-start',
+  },
+  flagBadgeText: {
+    color: colors.onPrimary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+});

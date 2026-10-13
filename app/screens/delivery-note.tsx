@@ -1,24 +1,193 @@
+import { printDocument as printHtmlOnWeb } from '../../utils/printDocument';
+import { deliveryPerson } from '../../utils/deliveryDocuments';
+import { formatTripMaterials, getTripMaterials } from '../../utils/poMaterials';
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Platform, Alert } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
 import { useTheme } from '../../hooks/useTheme';
-import { Spacing, Radius } from '../../constants/theme';
+import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, fetchCheckpoints } from '../../services/api';
-import { formatEAT, formatStatus, getStatusColor, JOURNEY_STEPS } from '../../utils/helpers';
+import { formatEAT } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
+import { formatCapturedGeoLocation, reverseGeocodeRich } from '../../services/geolocation';
 
-const NAVY = '#1B2A4A';
 
+
+/* ---------- Helper: escape HTML ---------- */
+const escapeHtml = (str: string | null | undefined): string => {
+  if (!str) return '';
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  };
+  return str.replace(/[&<>"']/g, (m) => map[m]);
+};
+
+/* ---------- HTML builder (same as before, but now all data escaped) ---------- */
+function buildDeliveryNoteHtml(data: {
+  isWarehouse?: boolean;
+  isCustomSite?: boolean;
+  materialSource?: string;
+  jobId: string;
+  poNumber: string;
+  driverName: string;
+  plateNumber: string;
+  vendorName: string;
+  materialName: string;
+  quarryName: string;
+  quarrySource?: string;
+  quarryCityTown?: string;
+  quarryPersonnel?: string;
+  netWeight?: string;
+  weighInWeight?: string;
+  weighOutWeight?: string;
+  weighOutGeoAddress?: string;
+  weighOutCity?: string;
+  weighOutTown?: string;
+  timestamp: string;
+  warehouseRows?: Array<{ description?: string; materialName?: string; quantity?: any; unit?: string; source?: string; mrfNo?: string; additionalNotes?: string }>;
+  goodsDeliveryNoteFileName?: string;
+  goodsDeliveryNoteSource?: string;
+  workflowType?: string;
+  dispatchedToSiteAt?: string;
+}): string {
+  const {
+    jobId, poNumber, driverName, plateNumber, vendorName,
+    materialName, quarryName, quarrySource, quarryCityTown, quarryPersonnel,
+    netWeight, weighInWeight, weighOutWeight,
+    weighOutGeoAddress, weighOutCity, weighOutTown, timestamp,
+  } = data;
+
+  const isWarehouse = Boolean(data.isWarehouse);
+  const isCustomSite = Boolean(data.isCustomSite);
+  const e = escapeHtml;
+  const warehouseRows = data.warehouseRows || [];
+  const geoLines = [weighOutGeoAddress, weighOutCity, weighOutTown].filter(Boolean);
+  const geoText = geoLines.length > 0 ? geoLines.join(', ') : 'N/A';
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 32px; color: #1E293B; max-width: 600px; margin: auto; }
+    .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+    .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
+    .header .subtitle { color: #64748B; font-size: 13px; }
+    .section { margin-bottom: 20px; }
+    .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #94A3B8; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; }
+    .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+    .row .label { color: #64748B; }
+    .row .value { white-space: pre-line; overflow-wrap: anywhere; font-weight: 700; color: #1E293B; }
+    .highlight-box { background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0; }
+    .highlight-box .net { font-size: 32px; font-weight: 900; color: #16A34A; }
+    .highlight-box .calc { font-size: 11px; color: #64748B; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
+    table th { background: #1B2A4A; color: #FFF; padding: 8px 12px; text-align: left; font-weight: 700; border: 1px solid #DDD; }
+    table td { padding: 8px 12px; border: 1px solid #DDD; }
+    table tr:nth-child(even) td { background: #F8FAFC; }
+    .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #E2E8F0; color: #94A3B8; font-size: 10px; }
+    .signature-line { display: flex; justify-content: space-between; margin-top: 48px; }
+    .sig-block { flex: 1; text-align: center; }
+    .sig-block .line { border-bottom: 1px solid #94A3B8; margin: 32px 20px 8px; }
+    .sig-block .name { font-size: 12px; font-weight: 600; color: #1E293B; }
+    .sig-block .role { font-size: 10px; color: #94A3B8; }
+    @page { size: A4; margin: 20mm 15mm; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Trucks Sphere</h1>
+    <div class="subtitle">Delivery Note / Waybill</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Document Details</div>
+    <div class="row"><span class="label">Delivery Note #</span><span class="value">${e(jobId)}</span></div>
+    <div class="row"><span class="label">${isWarehouse ? 'Warehouse Order' : 'Purchase Order'}</span><span class="value">${e(poNumber) || 'N/A'}</span></div>
+    ${isWarehouse && data.goodsDeliveryNoteFileName ? `<div class="row"><span class="label">Source File</span><span class="value">${e(data.goodsDeliveryNoteFileName)}</span></div>` : ''}
+    <div class="row"><span class="label">Date Created</span><span class="value">${e(timestamp)}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Parties</div>
+    <div class="row"><span class="label">Vendor</span><span class="value">${e(vendorName) || 'N/A'}</span></div>
+    ${`<div class="row"><span class="label">Driver</span><span class="value">${e(driverName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Truck</span><span class="value">${e(plateNumber) || 'N/A'}</span></div>`}
+  </div>
+
+  <div class="section">
+    <div class="section-title">Material</div>
+    ${isWarehouse && warehouseRows.length ? `
+    <table>
+      <tr><th>Description</th><th>Quantity</th><th>Unit</th><th>Source</th><th>MRF No.</th><th>Notes</th></tr>
+      ${warehouseRows.map((line, index) => `<tr><td>${index + 1}. ${e(line.description || line.materialName)}</td><td>${e(String(line.quantity ?? ''))}</td><td>${e(line.unit || '')}</td><td>${e(line.source || 'Warehouse')}</td><td>${e(line.mrfNo || '')}</td><td>${e(line.additionalNotes || '')}</td></tr>`).join('')}
+    </table>
+    ` : `<div class="row"><span class="label">Material</span><span class="value">${e(materialName) || 'N/A'}</span></div>`}
+    ${isWarehouse ? `<div class="row"><span class="label">Dispatched To Site</span><span class="value">${e(data.dispatchedToSiteAt) || 'N/A'}</span></div>` : ''}
+  </div>
+
+  ${isCustomSite ? `<div class="section"><div class="section-title">Origin</div><div class="row"><span class="label">Material Source</span><span class="value">${e(data.materialSource) || 'N/A'}</span></div></div>` : ''}
+  ${!isWarehouse && !isCustomSite ? `<div class="section">
+    <div class="section-title">Route & Geolocation</div>
+    
+    <div class="row"><span class="label">City / Town</span><span class="value">${e(quarryCityTown) || e(weighOutCity) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Weigh-Out Location</span><span class="value">${e(quarrySource) || e(geoText)}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Quarry Personnel</div>
+    <div class="row"><span class="label">Recorded By</span><span class="value">${e(quarryPersonnel) || 'N/A'}</span></div>
+  </div>` : ''}
+
+  ${!isWarehouse && !isCustomSite && (weighInWeight || weighOutWeight || netWeight) ? `
+  <div class="section">
+    <div class="section-title">Weight Record</div>
+    <table>
+      <tr><td>Weigh-In (Gross)</td><td style="font-weight:700;">${e(weighInWeight) || '—'}</td></tr>
+      <tr><td>Weigh-Out (Tare)</td><td style="font-weight:700;">${e(weighOutWeight) || '—'}</td></tr>
+    </table>
+    ${netWeight ? `
+    <div class="highlight-box">
+      <div class="net">${e(netWeight)} tonnes</div>
+      <div class="calc">NET WEIGHT</div>
+    </div>
+    ` : ''}
+  </div>
+  ` : ''}
+
+  
+ 
+</body>
+</html>`;
+}
+
+/* ---------- Web-specific print using hidden iframe ---------- */
+
+
+/* ---------- Main Screen ---------- */
 export default function DeliveryNoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
+const NAVY = colors.primaryText;
+  const styles = buildThemeStyles(colors);
   const [searchJobId, setSearchJobId] = useState(id || '');
   const [delivery, setDelivery] = useState<any>(null);
+  const isWarehouse = Boolean(delivery?.isWarehouseDelivery || delivery?.warehouseJobId) || String(delivery?.deliveryOrigin || delivery?.materialSource || '').toLowerCase() === 'warehouse';
   const [checkpoints, setCheckpoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [exporting, setExporting] = useState<'csv' | null>(null);
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+  const [geoCity, setGeoCity] = useState<string | undefined>();
+  const [geoTown, setGeoTown] = useState<string | undefined>();
+  const [geoAddress, setGeoAddress] = useState<string | undefined>();
 
   const loadData = async (jobId: string) => {
     if (!jobId) return;
@@ -33,7 +202,17 @@ export default function DeliveryNoteScreen() {
         setLoading(false);
         return;
       }
-      setDelivery(deliveries[0]);
+      const d = deliveries[0];
+      setDelivery(d);
+
+      if (d.weighOutLatitude != null && d.weighOutLongitude != null) {
+        reverseGeocodeRich(d.weighOutLatitude, d.weighOutLongitude).then((geo) => {
+          setGeoAddress(geo.address);
+          setGeoCity(geo.city);
+          setGeoTown(geo.town || geo.name);
+        }).catch(() => {});
+      }
+
       const cps = await fetchCheckpoints({ jobId });
       setCheckpoints(cps || []);
     } catch (e: any) {
@@ -48,36 +227,62 @@ export default function DeliveryNoteScreen() {
 
   const handleSearch = () => { loadData(searchJobId.trim()); };
 
-  const sortedCheckpoints = [...checkpoints].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  const completedTypes = new Set(sortedCheckpoints.map(cp => cp.type));
-  const currentStepIdx = (() => {
-    for (let i = JOURNEY_STEPS.length - 1; i >= 0; i--) {
-      if (completedTypes.has(JOURNEY_STEPS[i].type)) return i;
-    }
-    return -1;
-  })();
-
+  const isCustomSite = ['operator_site', 'site_operator'].includes(String(delivery?.createdBy?.role || delivery?.createdBy || '').toLowerCase());
   const netWeight = delivery?.netWeight || (delivery?.weighInWeight && delivery?.weighOutWeight ? (delivery.weighInWeight - delivery.weighOutWeight).toFixed(1) : null);
+  const capturedQuarrySource = formatCapturedGeoLocation(
+    {
+      city: delivery?.weighOutGeoLocation?.city || geoCity,
+      town: delivery?.weighOutGeoLocation?.town || geoTown,
+      district: delivery?.weighOutGeoLocation?.district,
+      address: delivery?.weighOutGeoLocation?.address || geoAddress,
+      name: delivery?.weighOutGeoLocation?.name,
+    },
+    delivery?.weighOutLocation || '',
+  );
+  const quarryCityTown = delivery?.weighOutGeoLocation?.city || delivery?.weighOutGeoLocation?.town || geoCity || geoTown || null;
+  const quarryPersonnel = delivery?.operatorUsername || delivery?.weighOutByName || delivery?.quarryOperatorName || delivery?.weighOutBy || delivery?.weighOutOperator || null;
+  const materialsLabel = formatTripMaterials(delivery) || 'N/A';
+  const warehouseRows = isWarehouse ? getTripMaterials(delivery) : [];
 
-  // Export helpers
   const exportHeaders = ['Field', 'Value'];
   const getExportRows = () => {
     if (!delivery) return [];
     return [
       ['Delivery Note #', delivery.jobId],
-      ['Purchase Order', delivery.poNumber || 'N/A'],
+      [isWarehouse ? 'Warehouse Order' : 'Purchase Order', (isWarehouse ? (delivery.poNumber || delivery.warehouseJobId || delivery.jobId) : delivery.poNumber) || 'N/A'],
       ['Vendor', delivery.vendorName || 'N/A'],
-      ['Driver', delivery.driverName || 'N/A'],
+      ['Driver', deliveryPerson(delivery) || 'Not recorded'],
+      ...(isWarehouse ? [['Origin', 'Warehouse']] : [
       ['Truck', delivery.plateNumber || 'N/A'],
-      ['Material', delivery.materialName || 'N/A'],
-      ['Ordered Qty', `${delivery.quantityOrdered || 0} tonnes`],
-      ['Origin', delivery.quarryName || 'N/A'],
-      ['Destination', delivery.siteName || 'N/A'],
+      ]),
+      ['Materials dispatched', materialsLabel],
+      ...(isWarehouse ? [
+        ['Workflow', delivery.workflowType || 'N/A'],
+        ['Source File', delivery.goodsDeliveryNoteFileName || 'Manual entry'],
+        ['File Source', delivery.goodsDeliveryNoteSource || 'N/A'],
+        ['Dispatched To Site', formatEAT(delivery.dispatchedToSiteAt || delivery.submittedAt || delivery.createdAt)],
+        ...warehouseRows.flatMap((line: any, index: number) => [
+          [`Item ${index + 1} Description`, line.description || line.materialName || ''],
+          [`Item ${index + 1} Quantity`, String(line.quantity ?? '')],
+          [`Item ${index + 1} Unit`, line.unit || ''],
+          [`Item ${index + 1} Source`, line.source || 'Warehouse'],
+          [`Item ${index + 1} MRF No.`, line.mrfNo || ''],
+          [`Item ${index + 1} Notes`, line.additionalNotes || ''],
+        ]),
+      ] : []),
+      ...(isCustomSite ? [['Origin', delivery.materialSource || 'N/A'], ['Material Source', delivery.materialSource || 'N/A']] : []),
+      ...(!isWarehouse && !isCustomSite ? [
+      ['Weigh-Out (Location)', capturedQuarrySource || 'N/A'],
+      ['Recorded By', quarryPersonnel || 'N/A'],
+      ['City / Town', quarryCityTown || 'N/A'],
+      ['Quarry Personnel', quarryPersonnel || 'N/A'],
+      ['Geolocation (Weigh-Out)', capturedQuarrySource || 'N/A'],
       ['Weigh-In', delivery.weighInWeight ? `${delivery.weighInWeight} t` : '—'],
       ['Weigh-Out', delivery.weighOutWeight ? `${delivery.weighOutWeight} t` : '—'],
       ['Net Weight', `${netWeight} tonnes`],
+      ] : []),
       ['Status', (delivery.status || '').replace(/_/g, ' ').toUpperCase()],
-      ['Date Created', delivery.createdAt || ''],
+      ['Date Created', formatEAT(delivery.createdAt)],
     ];
   };
 
@@ -92,15 +297,61 @@ export default function DeliveryNoteScreen() {
     }
   };
 
+  const handlePrintPDF = async () => {
+    if (!delivery) return;
+    setExporting('pdf');
+    try {
+      const pdfData = {
+        isWarehouse,
+        isCustomSite,
+        materialSource: delivery.materialSource || '',
+        jobId: delivery.jobId || '',
+        poNumber: (isWarehouse ? (delivery.poNumber || delivery.warehouseJobId || delivery.jobId) : delivery.poNumber) || '',
+        driverName: deliveryPerson(delivery) || '',
+        plateNumber: delivery.plateNumber || '',
+        vendorName: delivery.vendorName || '',
+        materialName: materialsLabel,
+        quarryName: delivery.quarryName || '',
+        quarrySource: capturedQuarrySource || '',
+        quarryCityTown: quarryCityTown || '',
+        quarryPersonnel: quarryPersonnel || '',
+        netWeight: netWeight ? `${netWeight}` : '',
+        weighInWeight: delivery.weighInWeight ? `${delivery.weighInWeight} t` : '',
+        weighOutWeight: delivery.weighOutWeight ? `${delivery.weighOutWeight} t` : '',
+        weighOutGeoAddress: delivery?.weighOutGeoLocation?.address || geoAddress || delivery?.weighOutLocation || '',
+        weighOutCity: delivery?.weighOutGeoLocation?.city || geoCity || '',
+        weighOutTown: delivery?.weighOutGeoLocation?.town || geoTown || '',
+        timestamp: formatEAT(delivery.createdAt) || new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' }),
+        warehouseRows,
+        goodsDeliveryNoteFileName: delivery.goodsDeliveryNoteFileName || '',
+        goodsDeliveryNoteSource: delivery.goodsDeliveryNoteSource || '',
+        workflowType: delivery.workflowType || '',
+        dispatchedToSiteAt: formatEAT(delivery.dispatchedToSiteAt || delivery.submittedAt || delivery.createdAt),
+      };
+      const html = buildDeliveryNoteHtml(pdfData);
 
+      if (Platform.OS === 'web') {
+        // Use hidden iframe method to reliably print HTML
+        await printHtmlOnWeb(html);
+      } else {
+        // Native: generate PDF file then print it
+        const { uri } = await Print.printToFileAsync({ width: 595, height: 842,  html });
+        await Print.printAsync({ uri });
+      }
+    } catch (error: any) {
+      console.error('PDF generation/print error:', error);
+      Alert.alert('Print Error', error?.message || 'Could not generate PDF. Please try again.');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
-    
       {!id && (
         <View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
           <Ionicons name="search" size={18} color={colors.textMuted} />
-          <TextInput
+          <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
             style={[styles.searchInput, { color: colors.text }]}
             placeholder="Enter Delivery Note number..."
             placeholderTextColor={colors.textMuted}
@@ -110,7 +361,7 @@ export default function DeliveryNoteScreen() {
             returnKeyType="search"
           />
           <TouchableOpacity onPress={handleSearch}>
-            <Ionicons name="arrow-forward-circle" size={22} color={colors.primary} />
+            <Ionicons name="arrow-forward-circle" size={22} color={colors.primaryText} />
           </TouchableOpacity>
         </View>
       )}
@@ -131,63 +382,95 @@ export default function DeliveryNoteScreen() {
 
       {!loading && delivery && (
         <>
-          {/* Receipt */}
-          <View style={[styles.receipt, { backgroundColor: '#FFFDF7', borderColor: '#E5E0D0' }]}>
+          <View style={[styles.receipt, { backgroundColor: colors.receiptBg, borderColor: colors.border }]}>
             <View style={styles.receiptHeader}>
-              <Ionicons name="document-text" size={28} color="#333" />
+              <Ionicons name="document-text" size={28} color={colors.text} />
               <Text style={styles.receiptTitle}>DELIVERY NOTE</Text>
               <Text style={styles.receiptSubtitle}>Job Card / Waybill</Text>
-              <View style={[styles.line, { backgroundColor: '#DDD' }]} />
+              <View style={[styles.line, { backgroundColor: colors.border }]} />
             </View>
             <View style={{ padding: Spacing.sm }}>
-              <Text style={styles.rHead}>{delivery.siteName}</Text>
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <DNRow label="Delivery Note #" value={delivery.jobId} bold />
-              <DNRow label="Purchase Order" value={delivery.poNumber} />
+              <DNRow label={isWarehouse ? "Warehouse Order" : "Purchase Order"} value={isWarehouse ? (delivery.poNumber || delivery.warehouseJobId || delivery.jobId) : delivery.poNumber} />
+              {isWarehouse && delivery.goodsDeliveryNoteFileName ? <DNRow label="Source File" value={delivery.goodsDeliveryNoteFileName} /> : null}
               <DNRow label="Date Created" value={formatEAT(delivery.createdAt)} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>PARTIES</Text>
               <DNRow label="Vendor" value={delivery.vendorName} />
-              <DNRow label="Driver" value={delivery.driverName} />
+              <>
+              <DNRow label="Driver" value={deliveryPerson(delivery) || 'Not recorded'} />
               <DNRow label="Truck" value={delivery.plateNumber} />
+              </>
+              {isWarehouse && <DNRow label="Origin" value="Warehouse" />}
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
               <Text style={styles.rSection}>MATERIAL</Text>
-              <DNRow label="Material" value={delivery.materialName} />
-              <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
-              <Text style={styles.rSection}>ROUTE</Text>
-              <DNRow label="Origin" value={delivery.quarryName} />
-              <DNRow label="Destination" value={delivery.siteName} />
-              {netWeight !== null && (
+              {isWarehouse && (
                 <>
-                  <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
-                  <Text style={styles.rSection}>WEIGHTS</Text>
-                  <DNRow label="Weigh-In" value={delivery.weighInWeight ? `${delivery.weighInWeight} t` : '—'} />
-                  <DNRow label="Weigh-Out" value={delivery.weighOutWeight ? `${delivery.weighOutWeight} t` : '—'} />
-                  <DNRow label="Net Weight" value={`${netWeight} tonnes`} bold />
+                  {warehouseRows.length ? warehouseRows.map((line: any, index: number) => (
+                    <View key={`${delivery.id || delivery.jobId}-${index}`} style={styles.warehouseLine}>
+                      <Text style={styles.warehouseLineTitle}>{index + 1}. {line.description || line.materialName || 'Material'}</Text>
+                      <Text style={styles.warehouseLineMeta}>{line.quantity ?? ''} {line.unit || ''} | Source: {line.source || 'Warehouse'} | MRF: {line.mrfNo || '-'}</Text>
+                      {line.additionalNotes ? <Text style={styles.warehouseLineMeta}>Notes: {line.additionalNotes}</Text> : null}
+                    </View>
+                  )) : <DNRow label="Materials dispatched" value={materialsLabel} />}
+                  <DNRow label="Dispatched To Site" value={formatEAT(delivery.dispatchedToSiteAt || delivery.submittedAt || delivery.createdAt)} />
                 </>
               )}
+              {!isWarehouse && <DNRow label="Materials dispatched" value={materialsLabel} />}
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
-            
+              {isCustomSite && <><DNRow label="Origin" value={delivery.materialSource || 'N/A'} /><DNRow label="Material Source" value={delivery.materialSource || 'N/A'} /></>}
+              {!isWarehouse && !isCustomSite && <>
+              <Text style={styles.rSection}>ROUTE </Text>
+              <DNRow label="Weight out location" value={capturedQuarrySource || 'N/A'} />
               <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
+              {quarryPersonnel ? (
+                <>
+                  <Text style={styles.rSection}>QUARRY PERSONNEL</Text>
+                  <DNRow label="Recorded By" value={quarryPersonnel} bold />
+                  <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
+                </>
+              ) : null}
+              {netWeight !== null && (
+                <>
+                  <Text style={styles.rSection}>WEIGHTS</Text>
+                  <DNRow label="Quarry Weigh-In" value={delivery.weighInWeight ? `${delivery.weighInWeight} t` : '—'} />
+                  <DNRow label="Quarry Weigh-Out" value={delivery.weighOutWeight ? `${delivery.weighOutWeight} t` : '—'} />
+                  <DNRow label="Quarry Net Weight" value={`${netWeight} tonnes`} bold />
+                  <Text style={styles.rDash}>- - - - - - - - - - - - - - - - -</Text>
+                </>
+              )}
+              </>}
               <Text style={styles.rBarcode}>||| ||| ||| ||| ||| ||| |||</Text>
-              <Text style={styles.rFooter}>Site Operator Confirmation</Text>
+              <Text style={styles.rFooter}>{isWarehouse ? 'Warehouse Confirmation' : isCustomSite ? 'Site Operator Confirmation' : 'Quarry Operator Confirmation'}</Text>
               <Text style={styles.rThanks}>Thank you</Text>
             </View>
           </View>
 
-          {/* Download actions — CSV only */}
           <View style={styles.actionRow}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: '#2563EB' }]}
+              style={[styles.actionBtn, { backgroundColor: colors.primary }]}
               onPress={handleDownloadCSV}
               disabled={exporting !== null}
             >
               {exporting === 'csv' ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
-                <Ionicons name="document-text-outline" size={18} color="#FFFFFF" />
+                <Ionicons name="document-text-outline" size={18} color={colors.onPrimary} />
               )}
               <Text style={styles.actionBtnText}>Download CSV</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+              onPress={handlePrintPDF}
+              disabled={exporting !== null}
+            >
+              {exporting === 'pdf' ? (
+                <ActivityIndicator size="small" color={colors.onPrimary} />
+              ) : (
+                <Ionicons name="print-outline" size={18} color={colors.onPrimary} />
+              )}
+              <Text style={styles.actionBtnText}>Print PDF</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -203,49 +486,46 @@ export default function DeliveryNoteScreen() {
   );
 }
 
-const DNRow = ({ label, value, bold }: { label: string; value: string | number; bold?: boolean }) => (
+/* ---------- Reusable receipt row ---------- */
+const DNRow = ({ label, value, bold }: { label: string; value: string | number; bold?: boolean }) => {
+  const colors = useTheme();
+  return (
   <View style={dnStyles.row}>
-    <Text style={dnStyles.label}>{label}</Text>
-    <Text style={[dnStyles.value, bold && { fontWeight: '700' }]} numberOfLines={3}>{value}</Text>
+    <Text style={[dnStyles.label, { color: colors.textMuted }]}>{label}</Text>
+    <Text style={[dnStyles.value, { color: colors.text }, bold && { fontWeight: '700' }]}>{value}</Text>
   </View>
 );
+};
 
 const dnStyles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 3, gap: 8 },
-  label: { fontSize: 14, color: '#666', flexShrink: 0, marginTop: 1 },
-  value: { fontSize: 14, color: '#333', flex: 1, textAlign: 'right', flexWrap: 'wrap' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 3, gap: Gap},
+  label: { fontSize: 14, flexShrink: 0, marginTop: Spacing.xs},
+  value: { fontSize: 14, flex: 1, textAlign: 'right', flexWrap: 'wrap' },
 });
 
-const styles = StyleSheet.create({
+const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: Spacing.md, paddingBottom: Spacing['4xl'], gap: Spacing.sm },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, height: 46, gap: Spacing.sm },
+  content: { padding: Spacing.md, paddingBottom: Spacing['4xl'], gap: Gap},
+  searchWrap: { flexDirection: 'row', alignItems: 'center', borderRadius: Radius.md, borderWidth: 1, paddingHorizontal: Spacing.md, height: 46, gap: Gap},
   searchInput: { flex: 1, fontSize: 14 },
-  center: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Spacing.sm },
+  center: { alignItems: 'center', paddingVertical: Spacing['4xl'], gap: Gap},
   loadingText: { fontSize: 14 },
   errorText: { fontSize: 14, textAlign: 'center' },
   receipt: { borderWidth: 1.5, borderRadius: Radius.md, padding: Spacing.lg },
-  receiptHeader: { alignItems: 'center', marginBottom: Spacing.md },
-  receiptTitle: { fontSize: 16, fontWeight: '700', color: '#333', letterSpacing: 1, marginTop: 4 },
-  receiptSubtitle: { fontSize: 14, color: '#999', marginTop: 2 },
-  line: { width: '80%', height: 1, marginTop: Spacing.sm },
-  rHead: { fontSize: 14, fontWeight: '700', color: '#333', textAlign: 'center' },
-  rDash: { textAlign: 'center', color: '#CCC', marginVertical: 4, fontSize: 11 },
-  rSection: { fontSize: 14, fontWeight: '700', color: '#999', letterSpacing: 1, marginTop: 4, marginBottom: 2 },
-  stamp: { alignItems: 'center', paddingVertical: 8, borderRadius: 6, borderWidth: 1, marginVertical: 8 },
-  stampText: { fontSize: 14, fontWeight: '700', letterSpacing: 1 },
-  statusBadge: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.xs, borderRadius: Radius.full },
-  rBarcode: { textAlign: 'center', fontSize: 14, color: '#333', letterSpacing: 2, marginTop: 8 },
-  rFooter: { textAlign: 'center', fontSize: 14, color: '#999', marginTop: 2 },
-  rThanks: { textAlign: 'center', fontSize: 14, color: '#666', marginTop: 4, fontStyle: 'italic' },
-  sectTitle: { fontSize: 16, fontWeight: '700', marginBottom: Spacing.sm },
-  timelineWrap: { borderRadius: Radius.lg, borderWidth: 1, padding: Spacing.md },
-  tRow: { flexDirection: 'row' },
-  tLeft: { alignItems: 'center', width: 30, marginRight: Spacing.sm },
-  tDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  tLine: { width: 2, flex: 1, marginTop: 2, marginBottom: 2 },
-  tContent: { flex: 1, borderRadius: Radius.sm, borderWidth: 1, padding: Spacing.md, marginBottom: Spacing.sm, borderColor: '#E2E8F0' },
-  actionRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  receiptHeader: { alignItems: 'center', marginBottom: Spacing.xs},
+  receiptTitle: { fontSize: 16, fontWeight: '700', color: colors.text, letterSpacing: 1, marginTop: Spacing.xs},
+  receiptSubtitle: { fontSize: 14, color: colors.textMuted, marginTop: Spacing.xs},
+  line: { width: '80%', height: 1, marginTop: Spacing.xs},
+  rHead: { fontSize: 14, fontWeight: '700', color: colors.text, textAlign: 'center' },
+  rDash: { textAlign: 'center', color: colors.border, marginVertical: Spacing.xs, fontSize: 11 },
+  rSection: { fontSize: 14, fontWeight: '700', color: colors.textMuted, letterSpacing: 1, marginTop: Spacing.xs, marginBottom: Spacing.xs},
+  rBarcode: { textAlign: 'center', fontSize: 14, color: colors.text, letterSpacing: 2, marginTop: Spacing.xs},
+  rFooter: { textAlign: 'center', fontSize: 14, color: colors.textMuted, marginTop: Spacing.xs},
+  rThanks: { textAlign: 'center', fontSize: 14, color: colors.textMuted, marginTop: Spacing.xs, fontStyle: 'italic' },
+  warehouseLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingVertical: Spacing.xs },
+  warehouseLineTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
+  warehouseLineMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: Gap, marginTop: Spacing.xs},
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -253,7 +533,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
-    gap: Spacing.sm,
+    gap: Gap,
   },
-  actionBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  actionBtnText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700' },
 });

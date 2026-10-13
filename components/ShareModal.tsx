@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { Spacing, Radius } from '../constants/theme';
-import { exportDataAsCSV, ExportEntity } from '../utils/exportData';
+import { Gap, Radius, Spacing } from '../constants/theme';
+import { ExportEntity, fetchExportData, buildCsvContent, shareCsvAsFile } from '../utils/exportData';
 
 const EXPORT_ENTITIES: { key: ExportEntity; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'all', label: 'All Data', icon: 'albums-outline' },
@@ -31,32 +31,38 @@ interface ShareModalProps {
 
 export default function ShareModal({ visible, onClose }: ShareModalProps) {
   const colors = useTheme();
-  const [exporting, setExporting] = useState<{ entity: string; format: string } | null>(null);
 
-  const handleExport = async (entity: ExportEntity) => {
-    setExporting({ entity, format: 'csv' });
+  const [exporting, setExporting] = useState<string | null>(null);
+
+  const handleDownloadCSV = async (entity: ExportEntity) => {
+    setExporting(entity);
     try {
-      await exportDataAsCSV(entity);
+      const data = await fetchExportData(entity);
+      const csv = buildCsvContent(data.headers, data.rows);
+      await shareCsvAsFile(data.title, csv);
     } catch (e) {
-      console.error('Export error:', e);
     } finally {
       setExporting(null);
     }
   };
 
+  const handleClose = () => {
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
+      <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
         <View style={[styles.container, { backgroundColor: colors.surface }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>Share / Export Data</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <Text style={[styles.title, { color: colors.text }]}>Export Data</Text>
+            <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
               <Ionicons name="close" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Export data as CSV. Linked exports include vendors, drivers, jobs, trucks, delivered and linked records.
+            Download as CSV.
           </Text>
 
           <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
@@ -65,7 +71,7 @@ export default function ShareModal({ visible, onClose }: ShareModalProps) {
               return (
                 <View key={entity.key} style={[styles.entityRow, { borderColor: colors.border }]}>
                   <View style={styles.entityInfo}>
-                    <Ionicons name={entity.icon} size={22} color={colors.primary} />
+                    <Ionicons name={entity.icon} size={22} color={colors.primaryText} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.entityLabel, { color: colors.text }]}>{entity.label}</Text>
                       {isInterlinked && (
@@ -83,13 +89,16 @@ export default function ShareModal({ visible, onClose }: ShareModalProps) {
                   <View style={styles.actionBtns}>
                     <TouchableOpacity
                       style={[styles.formatBtn, { backgroundColor: colors.primary }]}
-                      onPress={() => handleExport(entity.key)}
+                      onPress={() => handleDownloadCSV(entity.key)}
                       disabled={exporting !== null}
                     >
-                      {exporting?.entity === entity.key && exporting?.format === 'csv' ? (
-                        <ActivityIndicator size="small" color="#FFF" />
+                      {exporting === entity.key ? (
+                        <ActivityIndicator size="small" color={colors.onPrimary} />
                       ) : (
-                        <Text style={styles.formatBtnText}>CSV</Text>
+                        <>
+                          <Ionicons name="download-outline" size={16} color={colors.onPrimary} />
+                          <Text style={[styles.formatBtnText, { color: colors.onPrimary }]}>CSV</Text>
+                        </>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -98,7 +107,7 @@ export default function ShareModal({ visible, onClose }: ShareModalProps) {
             })}
           </ScrollView>
 
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={handleClose}>
             <Text style={[styles.cancelText, { color: colors.textSecondary }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
@@ -110,7 +119,6 @@ export default function ShareModal({ visible, onClose }: ShareModalProps) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
   container: {
@@ -124,33 +132,34 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
+    alignItems: 'center', marginBottom: Spacing.xs,
   },
   title: {
     fontSize: 16,
     fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
   },
   closeBtn: {
     padding: Spacing.sm,
+    width: 40,
+    alignItems: 'center',
   },
   subtitle: {
-    fontSize: 14,
-    marginBottom: Spacing.lg,
+    fontSize: 14, marginBottom: Spacing.xs,
     lineHeight: 20,
   },
-  list: {
-    marginBottom: Spacing.lg,
+  list: { marginBottom: Spacing.xs,
   },
   entityRow: {
     borderBottomWidth: 1,
     paddingVertical: Spacing.md,
-    gap: Spacing.sm,
+    gap: Gap,
   },
   entityInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    gap: Gap,
   },
   entityLabel: {
     fontSize: 16,
@@ -158,23 +167,22 @@ const styles = StyleSheet.create({
   },
   interlinked: {
     fontSize: 14,
-    fontWeight: '400',
-    marginTop: 3,
+    fontWeight: '400', marginTop: Spacing.xs,
   },
   actionBtns: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
+    gap: Gap, marginTop: Spacing.xs,
   },
   formatBtn: {
+    flexDirection: 'row',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.md,
     minWidth: 64,
     alignItems: 'center',
+    gap: Gap,
   },
   formatBtnText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },
