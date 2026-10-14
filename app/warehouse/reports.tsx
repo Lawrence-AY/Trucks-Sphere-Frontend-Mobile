@@ -10,6 +10,7 @@ import { WarehouseJob } from '@/store/types';
 import { ReportActions } from '../../components/ReportActions';
 import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
 import { Alert } from 'react-native';
+import { DateRangeFilter, defaultDateRange, DateRange } from '../../components/DateRangeFilter';
 
 export default function WarehouseReportsScreen() {
   const colors = useTheme();
@@ -18,7 +19,12 @@ export default function WarehouseReportsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const mine = useMemo(() => jobs.filter(job => job.createdByUid === user?.uid), [jobs, user?.uid]);
+  const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange());
+  const inRange = (value: any) => {
+    const date = String(value || '').slice(0, 10);
+    return (!dateRange.startDate || date >= dateRange.startDate) && (!dateRange.endDate || date <= dateRange.endDate);
+  };
+  const mine = useMemo(() => jobs.filter(job => job.createdByUid === user?.uid && inRange(job.submittedAt || job.createdAt)), [jobs, user?.uid, dateRange]);
   const exportReport = async (format: string) => {
     setExporting(true);
     try {
@@ -52,6 +58,7 @@ export default function WarehouseReportsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.primary} />}
     >
       <Text style={[styles.intro, { color: colors.textMuted }]}>A summary of your warehouse shipments.</Text>
+      <DateRangeFilter value={dateRange} onApply={setDateRange} />
       <View style={styles.grid}>
         <Metric icon="cube-outline" label="Shipments" value={report.shipments} color={colors.blueText} />
         <Metric icon="time-outline" label="Awaiting acceptance" value={report.awaiting} color={colors.warning} />

@@ -45,6 +45,7 @@ const UNITS: { id: MeasurementUnit; name: string }[] = [
   { id: 'Tonnes', name: 'Tonnes' },
   { id: 'Bags', name: 'Bags' },
   { id: 'Pieces', name: 'Pieces' },
+  { id: 'Sets', name: 'Sets' },
   { id: 'Millimetres', name: 'Millimetres' },
   { id: 'Metres', name: 'Metres' },
   { id: 'Litres', name: 'Litres' },

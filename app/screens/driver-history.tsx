@@ -27,8 +27,12 @@ export default function DriverHistoryScreen() {
         const foundTruck = vehicles.find(t => t.id === foundDriver.assignedTruckId);
         setTruck(foundTruck || null);
       }
+      const driverNameKey = String(foundDriver?.fullName || foundDriver?.name || '').trim().toLowerCase();
       const driverTrips = deliveries
-        .filter((d: any) => d.driverId === id)
+        .filter((d: any) => {
+          if (d.driverId || d.driverCode) return String(d.driverId || d.driverCode) === String(id);
+          return Boolean(driverNameKey) && String(d.driverName || '').trim().toLowerCase() === driverNameKey;
+        })
         .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setTrips(driverTrips);
     }).catch(() => {});

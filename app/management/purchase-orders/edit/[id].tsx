@@ -224,6 +224,7 @@ export default function EditPurchaseOrderScreen() {
               { id: 'Tonnes', name: 'Tonnes' },
               { id: 'Bags', name: 'Bags' },
               { id: 'Pieces', name: 'Pieces' },
+              { id: 'Sets', name: 'Sets' },
               { id: 'Litres', name: 'Litres' },
               { id: 'Cubic Metres', name: 'Cubic Metres' },
               { id: 'Kilograms', name: 'Kilograms' },

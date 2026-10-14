@@ -38,10 +38,14 @@ const PUBLIC_ERROR_MESSAGES: Record<string, string> = {
   FMS_TRANSACTION_AMBIGUOUS: 'More than one fuel transaction matches. Reconcile the transactions before finalizing.',
   FMS_REFERENCE_MISMATCH: 'The selected job, driver or truck does not match this authorization. Reopen the fuel job.',
   WAREHOUSE_JOB_INVALID: 'Enter a product name and a quantity greater than zero for every product.',
+  WAREHOUSE_DRIVER_REQUIRED: 'Select or enter a driver before submitting the warehouse delivery.',
+  WAREHOUSE_TRUCK_REQUIRED: 'Select or enter a truck before submitting the warehouse delivery.',
   WAREHOUSE_PURCHASE_ORDER_REQUIRED: 'The selected purchase order is no longer available. Refresh and select it again.',
   WAREHOUSE_MATERIAL_REQUIRED: 'This purchase order must reference an existing warehouse material. Update the purchase order and try again.',
   WAREHOUSE_PURCHASE_ORDER_CANCELLED: 'This purchase order is cancelled. Select an active order.',
   WAREHOUSE_VENDOR_REQUIRED: 'The purchase order vendor could not be found. Update the purchase order vendor and try again.',
+  WAREHOUSE_REFERENCE_REQUIRED: 'The selected purchase order has no valid warehouse reference. Update the PO and try again.',
+  WAREHOUSE_JOB_NUMBER_CONFLICT: 'A delivery number conflict occurred. Please submit again once.',
   WAREHOUSE_POMAT_REQUIRED: 'The purchase order material needs a valid material number before dispatch.',
   WAREHOUSE_PREVIEW_FILE_REQUIRED: 'Select a CSV or Excel file to preview.',
   WAREHOUSE_PREVIEW_FILE_INVALID: 'Select a CSV or Excel .xlsx file.',
@@ -504,7 +508,7 @@ export async function fetchStockMovements(stockId: string): Promise<any[]> {
   return backendRequest<any>('get', `/api/stocks/${stockId}/movements`).then((data) => Array.isArray(data) ? data : data?.items || data?.data || []);
 }
 
-export async function recordStockMovement(stockId: string, payload: { type: 'receipt' | 'usage'; quantity: number; reason: string }): Promise<any> {
+export async function recordStockMovement(stockId: string, payload: { type: 'receipt' | 'usage'; quantity: number; unit?: string; reason: string }): Promise<any> {
   return backendRequest<any>('post', `/api/stocks/${stockId}/movements`, { ...payload, requestId: `${Date.now()}${Math.random().toString(36).slice(2, 10)}` });
 }
 
@@ -1019,15 +1023,15 @@ function blobToText(blob: Blob): Promise<string> {
  */
 export async function downloadReportExcel(params?: {
   filter?: string;
-  start_date?: string;
-  end_date?: string;
+  startDate?: string;
+  endDate?: string;
 }): Promise<any> {
   try {
     const token = await getStoredToken();
     const query = new URLSearchParams();
     if (params?.filter) query.set('filter', params.filter);
-    if (params?.start_date) query.set('start_date', params.start_date);
-    if (params?.end_date) query.set('end_date', params.end_date);
+    if (params?.startDate) query.set('startDate', params.startDate);
+    if (params?.endDate) query.set('endDate', params.endDate);
 
     const url = `${API_BASE_URL}/api/admin/reports/export?${query.toString()}`;
 
@@ -1078,14 +1082,14 @@ export async function downloadReportExcel(params?: {
  */
 export async function downloadCategoryCSV(
   category: string,
-  params?: { filter?: string; start_date?: string; end_date?: string },
+  params?: { filter?: string; startDate?: string; endDate?: string },
 ): Promise<void> {
   try {
     const token = await getStoredToken();
     const query = new URLSearchParams();
     if (params?.filter) query.set('filter', params.filter);
-    if (params?.start_date) query.set('start_date', params.start_date);
-    if (params?.end_date) query.set('end_date', params.end_date);
+    if (params?.startDate) query.set('startDate', params.startDate);
+    if (params?.endDate) query.set('endDate', params.endDate);
 
     const url = `${API_BASE_URL}/api/admin/reports/export/csv/${category}?${query.toString()}`;
 
@@ -1132,14 +1136,14 @@ export async function downloadCategoryCSV(
  */
 export async function downloadVendorCategoryCSV(
   category: string,
-  params?: { filter?: string; start_date?: string; end_date?: string },
+  params?: { filter?: string; startDate?: string; endDate?: string },
 ): Promise<void> {
   try {
     const token = await getStoredToken();
     const query = new URLSearchParams();
     if (params?.filter) query.set('filter', params.filter);
-    if (params?.start_date) query.set('start_date', params.start_date);
-    if (params?.end_date) query.set('end_date', params.end_date);
+    if (params?.startDate) query.set('startDate', params.startDate);
+    if (params?.endDate) query.set('endDate', params.endDate);
 
     const url = `${API_BASE_URL}/api/vendor/reports/export/csv/${category}?${query.toString()}`;
 

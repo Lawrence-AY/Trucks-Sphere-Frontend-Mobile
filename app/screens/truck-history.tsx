@@ -28,8 +28,6 @@ function getPlate(matchValue: any, truckPlate: string, truckPlateNumber: string)
   if (!p1 && !p2) return false;
   // Exact match (after normalization)
   if ((p1 && t === p1) || (p2 && t === p2)) return true;
-  // Bidirectional substring — either contains the other
-  if ((p1 && (t.includes(p1) || p1.includes(t))) || (p2 && (t.includes(p2) || p2.includes(t)))) return true;
   return false;
 }
 
@@ -81,9 +79,7 @@ export default function TruckHistoryScreen() {
     return allDeliveries.filter((d: any) => {
       const tripPlate = d.plateNumber || d.truckPlate || '';
       const tripId = d.vehicleId || '';
-      return getPlate(tripPlate, truckPlate, truckPlateNumber)
-        || tripId === id
-        || (d.vehicleId && d.vehicleId === id);
+      return tripId === id || getPlate(tripPlate, truckPlate, truckPlateNumber);
     });
   }, [allDeliveries, truck, id, plate]);
 

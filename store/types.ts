@@ -233,6 +233,7 @@ export type MeasurementUnit =
   | 'Tonnes'
   | 'Bags'
   | 'Pieces'
+  | 'Sets'
   | 'Millimetres'
   | 'Metres'
   | 'Litres'

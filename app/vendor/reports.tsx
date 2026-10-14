@@ -24,6 +24,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Gap, Radius, Spacing } from '../../constants/theme';
 import { PageShell, } from '../../components/EnterpriseUI';
 import { downloadVendorCategoryCSV } from '../../services/api';
+import { DateRangeFilter, defaultDateRange, DateRange } from '../../components/DateRangeFilter';
 
 const VENDOR_CATEGORIES = [
   { key: 'fulfilled-purchase-orders', label: 'Fulfilled Purchase Orders', icon: 'checkmark-done-outline', color: '#10B981' },
@@ -48,12 +49,15 @@ export default function VendorReportsScreen() {
   const vendorOrders = purchaseOrders.filter(order => normalizeVendorId(order.vendorId) === normalizeVendorId(vendorId));
   const [filter, setFilter] = useState('all');
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange());
 
   const handleDownload = async (category: string) => {
     setDownloading(category);
     try {
       await downloadVendorCategoryCSV(category, {
         filter: filter !== 'all' ? filter : undefined,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
       });
     } catch (error: any) {
       Alert.alert('Download Failed', error?.message || 'Could not download the report.');
@@ -64,6 +68,7 @@ export default function VendorReportsScreen() {
 
   return (
     <PageShell>
+      <DateRangeFilter value={dateRange} onApply={setDateRange} />
     
       {/* Time filter chips */}
       <ScrollView

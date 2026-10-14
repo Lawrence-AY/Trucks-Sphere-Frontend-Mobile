@@ -30,6 +30,7 @@ import {
 import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { downloadReportExcel, downloadCategoryCSV } from '../../services/api';
 import { PageShell, SectionTitle } from '../../components/EnterpriseUI';
+import { DateRangeFilter, defaultDateRange, DateRange } from '../../components/DateRangeFilter';
 
 const FILTERS = [
   { key: 'all', label: 'All Time' },
@@ -84,6 +85,7 @@ const CATEGORIES = [
   const [exporting, setExporting] = useState(false);
   const [csvDownloading, setCsvDownloading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange());
 
   // Realtime hooks
   const deliveries = useDeliveryOrders();
@@ -111,11 +113,15 @@ const CATEGORIES = [
   useWebLiveRefresh(handleRefresh);
 
   const metrics = useMemo(() => {
+    const inRange = (value: any) => {
+      const date = String(value || '').slice(0, 10);
+      return (!dateRange.startDate || date >= dateRange.startDate) && (!dateRange.endDate || date <= dateRange.endDate);
+    };
     const fDel = deliveries.filter((d) =>
-      withinTimeframe(d.createdAt || d.updatedAt, filter)
+      withinTimeframe(d.createdAt || d.updatedAt, filter) && inRange(d.createdAt || d.updatedAt)
     );
     const fFuel = fuelRecords.filter((r) =>
-      withinTimeframe(r.createdAt || r.timestamp || r.dispensedAt, filter)
+      withinTimeframe(r.createdAt || r.timestamp || r.dispensedAt, filter) && inRange(r.createdAt || r.timestamp || r.dispensedAt)
     );
     const fuelByJob: Record<string, { totalLitres: number; attendantName: string }> = {};
     fFuel.forEach((f: any) => {
@@ -214,7 +220,7 @@ const CATEGORIES = [
       },
       fuelByJob,
     };
-  }, [deliveries, drivers, vehicles, vendors, materials, purchaseOrders, fuelRecords, filter]);
+  }, [deliveries, drivers, vehicles, vendors, materials, purchaseOrders, fuelRecords, filter, dateRange]);
 
   const d: any = metrics[activeTab as keyof typeof metrics];
   const currentCat = CATEGORIES.find((c) => c.key === activeTab) || CATEGORIES[0];
@@ -224,7 +230,7 @@ const CATEGORIES = [
   const handleExportMaster = async () => {
     setExporting(true);
     try {
-      await downloadReportExcel({ filter: filter !== 'all' ? filter : undefined });
+      await downloadReportExcel({ filter: filter !== 'all' ? filter : undefined, startDate: dateRange.startDate, endDate: dateRange.endDate });
     } catch (error: any) {
       Alert.alert('Export Failed', error?.message || 'Could not download the file.');
     } finally {
@@ -242,7 +248,7 @@ const CATEGORIES = [
         warehouse: 'warehouse',
       };
       const catKey = categoryMap[activeTab] || activeTab;
-      await downloadCategoryCSV(catKey, { filter: filter !== 'all' ? filter : undefined });
+      await downloadCategoryCSV(catKey, { filter: filter !== 'all' ? filter : undefined, startDate: dateRange.startDate, endDate: dateRange.endDate });
     } catch (error: any) {
       Alert.alert('Export Failed', error?.message || 'Could not download the file.');
     } finally {
@@ -269,6 +275,7 @@ const CATEGORIES = [
         />
       }
     >
+      <DateRangeFilter value={dateRange} onApply={setDateRange} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -301,7 +308,7 @@ const CATEGORIES = [
       </ScrollView>
 
       {activeTab === 'purchaseOrders' ? <>
-        <TouchableOpacity disabled={csvDownloading} onPress={async () => { setCsvDownloading(true); try { await downloadCategoryCSV('fulfilled-purchase-orders', { filter: filter !== 'all' ? filter : undefined }); } catch (error: any) { Alert.alert('Download failed', error.message); } finally { setCsvDownloading(false); } }}><Text style={{ color: colors.primary, padding: 12 }}>Download Fulfilled Purchase Orders CSV</Text></TouchableOpacity>
+      <TouchableOpacity disabled={csvDownloading} onPress={async () => { setCsvDownloading(true); try { await downloadCategoryCSV('fulfilled-purchase-orders', { filter: filter !== 'all' ? filter : undefined, startDate: dateRange.startDate, endDate: dateRange.endDate }); } catch (error: any) { Alert.alert('Download failed', error.message); } finally { setCsvDownloading(false); } }}><Text style={{ color: colors.primary, padding: 12 }}>Download Fulfilled Purchase Orders CSV</Text></TouchableOpacity>
         <FulfilledPurchaseOrders orders={purchaseOrders} />
       </> : null}
 

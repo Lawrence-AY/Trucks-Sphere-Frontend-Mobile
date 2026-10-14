@@ -28,7 +28,7 @@ import { useAuthStore } from '@/store/authStore';
 import { isActiveJob } from '../../utils/jobStatus';
 import { normalizeRole } from '../../utils/access';
 
-type DraftLine = { id: string; productName: string; quantity: string; unit: string; source?: string; mrfNo?: string; additionalNotes?: string; sourceData?: Record<string, string> };
+type DraftLine = { id: string; productName: string; quantity: string; unit: string; piecesPerSet?: string; loosePieces?: string; source?: string; mrfNo?: string; additionalNotes?: string; sourceData?: Record<string, string> };
 type PackagingPhoto = UploadFile & { displayName: string };
 type DispatchMethod = 'purchase_order' | 'file_upload';
 const REQUIRED_CSV_COLUMNS = ['Description', 'Quantity', 'Unit', 'MRF No.', 'Additional Notes'];
@@ -44,6 +44,7 @@ const UNIT_OPTIONS = [
   { id: 'kilograms', name: 'Kilograms' },
   { id: 'bags', name: 'Bags' },
   { id: 'pieces', name: 'Pieces' },
+  { id: 'sets', name: 'Sets' },
   { id: 'litres', name: 'Litres' },
   { id: 'metres', name: 'Metres' },
 ];
@@ -180,7 +181,7 @@ export default function WarehouseQueueScreen() {
       setDispatchMethod('file_upload');
       setCsvFileName(asset.name || 'warehouse-delivery.csv');
       const preview = await previewWarehouseShipmentFile(asset);
-      const previewLines = preview.rows.map((row, index) => ({
+      const previewLines: DraftLine[] = preview.rows.map((row, index) => ({
         id: `upload-${Date.now()}-${index}`,
         productName: row.item.productName,
         quantity: row.item.quantity,
@@ -189,6 +190,8 @@ export default function WarehouseQueueScreen() {
         mrfNo: row.item.mrfNo,
         additionalNotes: row.item.additionalNotes,
         sourceData: row.item.sourceData,
+        piecesPerSet: (row.item as any).piecesPerSet ? String((row.item as any).piecesPerSet) : '',
+        loosePieces: (row.item as any).loosePieces ? String((row.item as any).loosePieces) : '',
       }));
       setLines(previewLines);
       setCsvHeaders(preview.headers || []);
@@ -272,8 +275,11 @@ export default function WarehouseQueueScreen() {
   };
 
   const hasValidShipmentLines = lines.length > 0 &&
-    lines.every((line) => line.productName.trim() && Number.isFinite(Number(line.quantity)) && Number(line.quantity) > 0);
+    lines.every((line) => line.productName.trim() && Number.isFinite(Number(line.quantity)) && Number(line.quantity) > 0 &&
+      (line.unit !== 'sets' || (Number.isInteger(Number(line.piecesPerSet)) && Number(line.piecesPerSet) > 0 && Number.isInteger(Number(line.loosePieces || 0)) && Number(line.loosePieces || 0) >= 0)));
   const canSubmit = Boolean(
+    driverName.trim() &&
+    plateNumber.trim() &&
     purchaseOrderId &&
     hasValidShipmentLines &&
     !csvPreviewError &&
@@ -282,7 +288,7 @@ export default function WarehouseQueueScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      Alert.alert('Complete the submission', 'Choose the purchase order and confirm each product has a description and quantity greater than zero.');
+      Alert.alert('Complete the submission', 'Enter the driver name and truck registration, choose the purchase order, and confirm each product has a description and quantity greater than zero.');
       return;
     }
 
@@ -301,6 +307,9 @@ export default function WarehouseQueueScreen() {
           productName: line.productName.trim(),
           quantity: Number(line.quantity),
           unit: line.unit.trim() || 'tonnes',
+          piecesPerSet: line.unit === 'sets' ? Number(line.piecesPerSet) : undefined,
+          loosePieces: line.unit === 'sets' ? Number(line.loosePieces || 0) : undefined,
+          totalBasePieces: line.unit === 'sets' ? Number(line.quantity) * Number(line.piecesPerSet) + Number(line.loosePieces || 0) : undefined,
           source: String(line.source || 'Warehouse').trim(),
           description: line.productName.trim(),
           mrfNo: String(line.mrfNo || '').trim(),
@@ -471,8 +480,8 @@ export default function WarehouseQueueScreen() {
                 </TouchableOpacity>
               </View>
 
-              <Input label="Shipment driver name" value={driverName} onChangeText={setDriverName} placeholder="Enter the driver's name" />
-              <Input label="Shipment truck registration" value={plateNumber} onChangeText={value => setPlateNumber(value.toUpperCase())} placeholder="Enter truck registration" />
+              <Input label="Shipment driver name" value={driverName} onChangeText={setDriverName} placeholder="Enter the driver's name" required />
+              <Input label="Shipment truck registration" value={plateNumber} onChangeText={value => setPlateNumber(value.toUpperCase())} placeholder="Enter truck registration" required />
               <Text style={{ color: colors.textMuted, fontSize: 12 }}>These shipment details do not create fleet driver or vehicle records.</Text>
               <Select
                 nativeModal
@@ -585,6 +594,11 @@ export default function WarehouseQueueScreen() {
                     required
                     placeholder="Select unit"
                   />
+                  {line.unit === 'sets' ? <>
+                      <Input label="Pieces per Set" value={line.piecesPerSet || ''} onChangeText={(piecesPerSet) => updateLine(line.id, { piecesPerSet })} keyboardType="numeric" required placeholder="e.g. 6" />
+                    <Input label="Loose Pieces" value={line.loosePieces || ''} onChangeText={(loosePieces) => updateLine(line.id, { loosePieces })} keyboardType="numeric" placeholder="Optional" />
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>Total base pieces: {(Number(line.quantity) || 0) * (Number(line.piecesPerSet) || 0) + (Number(line.loosePieces) || 0)}</Text>
+                  </> : null}
                   <Input
                     label="MRF No."
                     value={line.mrfNo || ''}
@@ -648,7 +662,7 @@ export default function WarehouseQueueScreen() {
                 disabled={!canSubmit || saving}
               >
                 {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Ionicons name="checkmark-circle-outline" size={20} color={colors.onPrimary} />}
-                <Text style={styles.submitText}>{saving ? 'Submitting...' : 'Submit to Storekeeper'}</Text>
+                <Text style={styles.submitText}>{saving ? 'Submitting...' : 'Submit'}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>

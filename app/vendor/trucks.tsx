@@ -57,7 +57,11 @@ export default function VendorTrucksScreen() {
     return vehicles
       .map((vehicle) => {
         const assignedDriver = drivers.find((d) => d.id === vehicle.assignedDriverId);
-        const vehicleTrips = deliveries.filter((d) => d.vehicleId === vehicle.id || d.plateNumber === vehicle.plateNumber);
+        const vehiclePlate = String(vehicle.plateNumber || vehicle.registrationNumber || vehicle.plate || '').trim().toLowerCase().replace(/[\s-]/g, '');
+        const vehicleTrips = deliveries.filter((d) => {
+          const tripPlate = String(d.plateNumber || d.truckPlate || '').trim().toLowerCase().replace(/[\s-]/g, '');
+          return d.vehicleId === vehicle.id || (Boolean(vehiclePlate) && tripPlate === vehiclePlate);
+        });
         const completedTrips = vehicleTrips.filter((d) =>
           ['completed', 'delivered', 'received'].includes(d.status)
         );
