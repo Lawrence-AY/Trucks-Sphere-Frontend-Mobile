@@ -155,6 +155,7 @@ export async function saveAuthData(data: {
   refreshToken?: string;
   userData?: string;
 }): Promise<void> {
+  if (!isJwt(data.token)) throw new Error('Cannot store an invalid Firebase ID token.');
   await setItem('auth_token', data.token);
   if (data.refreshToken) {
     await setItem('refresh_token', data.refreshToken);
@@ -186,11 +187,22 @@ export async function clearAuthData(): Promise<void> {
 
 /** Get stored auth token */
 export async function getStoredToken(): Promise<string | null> {
-  return getItem('auth_token');
+  const token = await getItem('auth_token');
+  if (!isJwt(token)) {
+    if (token) await clearAuthData();
+    return null;
+  }
+  return token;
+}
+
+function isJwt(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().split('.').length === 3
+    && value.trim().split('.').every((part) => part.length > 0);
 }
 
 /** Save credentials (token + email) */
 export async function saveCredentials(token: string, email: string): Promise<void> {
+  if (!isJwt(token)) throw new Error('Cannot store an invalid Firebase ID token.');
   await setItem('auth_token', token);
   await setItem('user_email', email);
 }
