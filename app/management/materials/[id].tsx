@@ -1,3 +1,4 @@
+import { normalizeMaterialCategory } from '../../../utils/materialCategories';
 import { BackButton } from '../../../components/ui/BackButton';
 /**
  * Material Detail Screen - Full material information with dynamic properties
@@ -34,7 +35,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { LoadingSkeleton } from '../../../components/ui/LoadingSkeleton';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { materialRepository } from '../../../services/repositories/MaterialRepository';
-import { Material } from '@/store/types';
+import { Material, MaterialCategory } from '@/store/types';
 import { formatEAT } from '../../../utils/helpers';
 import { UserActionInfo } from '../../../components/UserActionInfo';
 
@@ -78,7 +79,7 @@ export default function MaterialDetailScreen() {
   async function loadMaterial() {
     try {
       const m = await materialRepository.getById(id!);
-      setMaterial(m);
+      setMaterial(m ? { ...m, category: normalizeMaterialCategory(m.category, m.isWarehouseMaterial) as MaterialCategory } : m);
     } catch {
       Alert.alert('Error', 'Failed to load material');
       goBackToMaterials();

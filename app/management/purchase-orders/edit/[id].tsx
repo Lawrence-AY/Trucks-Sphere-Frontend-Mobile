@@ -1,39 +1,23 @@
-import { ResponsiveGrid } from '../../../../components/ResponsiveGrid';
-import { vendorOptions as buildVendorOptions } from '../../../../utils/vendorOptions';
-/**
- * Edit Purchase Order Screen - Update PO details
- *
- * Features:
- *   - Pre-populated form with existing data
- *   - Update PO fields (only when in Draft status)
- *   - Validation
- *   - Audit logging
- */
-
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, ScrollView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { router } from '../../../../utils/router';
+import { showAlert } from '../../../../utils/webAlert';
 import { useTheme } from '../../../../hooks/useTheme';
-import { Gap, Radius, Spacing } from '../../../../constants/theme';
+import { Spacing } from '../../../../constants/theme';
 import { Card } from '../../../../components/ui/Card';
 import { Input } from '../../../../components/ui/Input';
 import { Select } from '../../../../components/ui/Select';
 import { Button } from '../../../../components/ui/Button';
-import { LoadingSkeleton } from '../../../../components/ui/LoadingSkeleton';
+import { StackScreen } from '../../../../components/ui/StackScreen';
 import { purchaseOrderRepository } from '../../../../services/repositories/PurchaseOrderRepository';
 import { vendorRepository } from '../../../../services/repositories/VendorRepository';
 import { materialRepository } from '../../../../services/repositories/MaterialRepository';
+import { vendorOptions } from '../../../../utils/vendorOptions';
+import { getPurchaseOrderMaterials } from '../../../../utils/poMaterials';
 import { PurchaseOrder, Vendor, Material } from '@/store/types';
+
+type Line = { materialId: string; quantity: string };
 
 export default function EditPurchaseOrderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,250 +25,71 @@ export default function EditPurchaseOrderScreen() {
   const [po, setPo] = useState<PurchaseOrder | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [vendorId, setVendorId] = useState('');
+  const [lines, setLines] = useState<Line[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    vendorId: '',
-    materialId: '',
-    quantity: '',
-    unit: 'Tonnes',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (id) loadData();
+    Promise.all([purchaseOrderRepository.getById(id), vendorRepository.getAll(), materialRepository.getAll()])
+      .then(([order, v, m]) => {
+        if (!order) throw new Error('Purchase order not found.');
+        setPo(order); setVendors(v); setMaterials(m); setVendorId(order.vendorId || '');
+        setLines(getPurchaseOrderMaterials(order).map(line => ({ materialId: line.materialId || '', quantity: line.quantity == null ? '' : String(line.quantity) })));
+      }).catch(err => setError(err?.message || 'Unable to load purchase order.'))
+      .finally(() => setLoading(false));
   }, [id]);
 
-  async function loadData() {
+  function updateLine(index: number, patch: Partial<Line>) {
+    setLines(current => current.map((line, i) => i === index ? { ...line, ...patch } : line));
+    setError('');
+  }
+
+  async function save() {
+    if (saving || !po) return;
+    if (!vendorId || !lines.length || lines.some(line => {
+      const material = materials.find(m => m.id === line.materialId);
+      return !material || (!material.isWarehouseMaterial && (!Number.isFinite(Number(line.quantity)) || Number(line.quantity) <= 0));
+    })) { setError('Select a vendor and material, and enter a positive quantity for each material.'); return; }
+    if (lines.length > 1 && lines.some(line => materials.find(m => m.id === line.materialId)?.isWarehouseMaterial)) {
+      setError('A warehouse reference purchase order can contain only one material.'); return;
+    }
+    setSaving(true); setError('');
     try {
-      const [p, v, m] = await Promise.all([
-        purchaseOrderRepository.getById(id!),
-        vendorRepository.getAll(),
-        materialRepository.getAll(),
-      ]);
-      if (!p) {
-        Alert.alert('Error', 'Purchase order not found');
-        router.back();
-        return;
-      }
-      setPo(p);
-      setVendors(v);
-      setMaterials(m);
-      setForm({
-        vendorId: p.vendorId || '',
-        materialId: p.materialId || '',
-        quantity: String(p.quantity || ''),
-        unit: p.unit || 'Tonnes',
-      });
-    } catch {
-      Alert.alert('Error', 'Failed to load purchase order');
-      router.back();
-    } finally {
-      setLoading(false);
-    }
+      await purchaseOrderRepository.update(id, {
+        vendorId,
+        materials: lines.map(line => ({ materialId: line.materialId, quantity: materials.find(m => m.id === line.materialId)?.isWarehouseMaterial ? null : Number(line.quantity) })),
+      } as any);
+      router.replace(`/management/purchase-orders/${id}` as any);
+      await showAlert('Saved', 'Purchase order updated successfully.');
+    } catch (err: any) { setError(err?.response?.data?.error || err?.message || 'Unable to save purchase order.'); }
+    finally { setSaving(false); }
   }
 
-  function updateField(field: string, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (field === 'vendorId') {
-      setForm((prev) => ({ ...prev, materialId: '' }));
-    }
-    if (errors[field]) {
-      setErrors((prev) => {
-        const copy = { ...prev };
-        delete copy[field];
-        return copy;
-      });
-    }
-  }
-
-  function validate(): boolean {
-    const newErrors: Record<string, string> = {};
-    if (!form.vendorId) newErrors.vendorId = 'Vendor is required';
-    if (!form.materialId) newErrors.materialId = 'Material is required';
-    if (!form.quantity || isNaN(Number(form.quantity)) || Number(form.quantity) <= 0) {
-      newErrors.quantity = 'Valid quantity is required';
-    }
-    if (!form.unit) newErrors.unit = 'Unit is required';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }
-
-  async function handleSave() {
-    if (!validate()) return;
-    setSaving(true);
-    try {
-      const selectedVendor = vendors.find((v) => v.id === form.vendorId);
-      const selectedMaterial = materials.find((m) => m.id === form.materialId);
-
-      await purchaseOrderRepository.update(id!, {
-        vendorId: form.vendorId,
-        vendorNumber: String(selectedVendor?.vendorId || selectedVendor?.id || '').replace(/^V/i, ''),
-        vendorName: selectedVendor?.companyName || (selectedVendor as any)?.name || '',
-        materialId: form.materialId,
-        materialNumber: String(selectedMaterial?.id || '').replace(/^MAT/i, ''),
-        materialName: selectedMaterial?.name || '',
-        quantity: parseFloat(form.quantity),
-        unit: form.unit,
-        updatedAt: new Date().toISOString(),
-      });
-
-      Alert.alert('Saved', 'Purchase order updated successfully', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to update purchase order');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const filteredMaterials = materials.filter(
-    (m) => m.status === 'active'
-  );
-
-  if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <LoadingSkeleton lines={8} variant="card" />
-      </View>
-    );
-  }
-
+  const editable = po && !['cancelled', 'archived', 'completed'].includes(po.status);
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>Edit Purchase Order</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Update {po?.poNumber || 'purchase order'}
-          </Text>
-        </View>
-
+    <StackScreen title="Edit purchase order" subtitle={po?.poNumber} fallbackHref="/management/purchase-orders" loading={loading} scroll={false}>
+      {!loading && !editable ? <Text style={{ color: colors.danger }}>{error || 'This purchase order is closed and cannot be edited.'}</Text> : null}
+      {!loading && editable ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: Spacing.md, paddingBottom: Spacing.xl }}>
         <Card>
-          <Select
-            label="Vendor"
-            value={form.vendorId}
-            options={buildVendorOptions(vendors)}
-            onSelect={(v) => updateField('vendorId', v)}
-            icon="business-outline"
-            required
-            error={errors.vendorId}
-            placeholder="Select vendor..."
-          />
-
-          {po?.status === 'draft' ? (
-            <Select
-              label="Material"
-              value={form.materialId}
-              options={filteredMaterials.map((m) => ({
-                id: m.id,
-                name: `${String(m.id).replace(/^MAT/i, '')} - ${m.name}`,
-              }))}
-              onSelect={(v) => updateField('materialId', v)}
-              icon="cube-outline"
-              required
-              error={errors.materialId}
-              placeholder={form.vendorId ? 'Select material...' : 'Select vendor first...'}
-            />
-          ) : (
-            <View style={{ marginBottom: Spacing.xs}}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: Spacing.xs}}>
-                Material *
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', height: 44, borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 16, gap: Gap, borderColor: colors.border, backgroundColor: colors.surface }}>
-                <Ionicons name="cube-outline" size={18} color={colors.textMuted} />
-                <Text style={{ flex: 1, fontSize: 14, color: colors.text }}>
-                  {po?.materialName || 'N/A'}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          <ResponsiveGrid minItemWidth={280} maxColumns={2}>
-<Input
-            label="Quantity"
-            value={form.quantity}
-            onChangeText={(v) => updateField('quantity', v)}
-            placeholder="e.g. 100"
-            icon="scale-outline"
-            keyboardType="numeric"
-            required
-            error={errors.quantity}
-            suffix={form.unit}
-          />
-
-          <Select
-            label="Unit"
-            value={form.unit}
-            options={[
-              { id: 'Tonnes', name: 'Tonnes' },
-              { id: 'Bags', name: 'Bags' },
-              { id: 'Pieces', name: 'Pieces' },
-              { id: 'Sets', name: 'Sets' },
-              { id: 'Litres', name: 'Litres' },
-              { id: 'Cubic Metres', name: 'Cubic Metres' },
-              { id: 'Kilograms', name: 'Kilograms' },
-            ]}
-            onSelect={(v) => updateField('unit', v)}
-            icon="speedometer-outline"
-            required
-            error={errors.unit}
-          />
-</ResponsiveGrid>
-
+          <Select label="Vendor" value={vendorId} options={vendorOptions(vendors)} onSelect={setVendorId} required />
+          {lines.map((line, index) => {
+            const material = materials.find(m => m.id === line.materialId);
+            return <View key={index} style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
+              <Select label={`Material ${index + 1}`} value={line.materialId}
+                options={materials.filter(m => (m.status !== 'inactive' && (m as any).active !== false) || m.id === line.materialId).map(m => ({ id: m.id, name: `${m.id} - ${m.name}` }))}
+                onSelect={value => updateLine(index, { materialId: value, quantity: '' })} required />
+              {!material?.isWarehouseMaterial ? <Input label="Quantity" value={line.quantity} onChangeText={value => updateLine(index, { quantity: value })} keyboardType="numeric" suffix={material?.measurementType || material?.defaultUnit || (material as any)?.unit || ''} required /> : null}
+              {lines.length > 1 ? <Button title="Remove material" variant="ghost" onPress={() => setLines(current => current.filter((_, i) => i !== index))} /> : null}
+            </View>;
+          })}
+          <Button title="Add material" variant="secondary" onPress={() => setLines(current => [...current, { materialId: '', quantity: '' }])} />
         </Card>
-
-        <View style={styles.actions}>
-          <Button
-            title="Cancel"
-            onPress={() => { setForm({
-    vendorId: '',
-    materialId: '',
-    quantity: '',
-    unit: 'Tonnes',
-  }); setErrors({}); (() => router.back())(); }}
-            variant="secondary"
-            style={styles.actionBtn}
-          />
-          <Button
-            title="Save Changes"
-            onPress={handleSave}
-            icon="checkmark-circle"
-            style={styles.actionBtn}
-            loading={saving}
-          />
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        {error ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text> : null}
+        <Button title="Save Changes" onPress={save} loading={saving} disabled={saving} />
+        <Button title="Cancel" variant="secondary" onPress={() => router.back()} disabled={saving} />
+      </ScrollView> : null}
+    </StackScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: Spacing.lg,
-    paddingBottom: Spacing['4xl'],
-  },
-  header: { marginBottom: Spacing.xs,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  subtitle: {
-    fontSize: 14, marginTop: Spacing.xs,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Gap, marginTop: Spacing.xs,
-  },
-  actionBtn: {
-    flex: 1,
-  },
-});

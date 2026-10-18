@@ -1,3 +1,4 @@
+import { normalizeMaterialCategories } from '../../utils/materialCategories';
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, StyleSheet, Text, TouchableOpacity, View, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +21,7 @@ export default function OperatorSiteMaterialsScreen() {
   const loadData = async () => {
     setRefreshing(true);
     try {
-      setMaterials((await fetchMaterials()) || []);
+      setMaterials(normalizeMaterialCategories((await fetchMaterials()) || []));
     } catch {
     } finally {
       setRefreshing(false);

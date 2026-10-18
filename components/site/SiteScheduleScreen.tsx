@@ -96,6 +96,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
   const [allDrivers, setAllDrivers] = useState<any[]>([]);
   const [allVehicles, setAllVehicles] = useState<any[]>([]);
   const [fabDataLoaded, setFabDataLoaded] = useState(false);
+  const [fabPoLoading, setFabPoLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -175,10 +176,12 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
 
   // Lazy-load FAB data (drivers, POs, vehicles) only when opening the FAB
   const loadFabData = async () => {
+    setFabPoLoading(true);
+    setFabSubmitError('');
     try {
       const [driverData, orders, vehicleData] = await Promise.all([
         fetchDrivers(),
-        fetchPurchaseOrders(),
+        fetchPurchaseOrders(undefined, { throwOnError: true }),
         fetchVehicles(),
       ]);
       setAllDrivers(driverData || []);
@@ -188,7 +191,8 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
       (driverData || []).forEach((d: any) => { if (d.id) map[d.id] = d; });
       setDriverMap(map);
       setFabDataLoaded(true);
-    } catch { /* keep the current data if a refresh fails */ }
+    } catch { setFabSubmitError('Unable to load purchase orders, drivers, or vehicles. Try loading them again.'); }
+    finally { setFabPoLoading(false); }
   };
 
   // Refresh handler — uses the realtime store refresh
@@ -200,7 +204,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
       try {
         const [driverData, orders, vehicleData] = await Promise.all([
           fetchDrivers(),
-          fetchPurchaseOrders(),
+          fetchPurchaseOrders(undefined, { throwOnError: true }),
           fetchVehicles(),
         ]);
         setAllDrivers(driverData || []);
@@ -490,8 +494,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
           !term ||
           order.poNumber?.toLowerCase().includes(term) ||
           order.vendorName?.toLowerCase().includes(term),
-      )
-      .slice(0, 6);
+      );
   }, [fabPoSearch, purchaseOrders]);
 
   const fabVendorDrivers = useMemo(() => {
@@ -1265,10 +1268,11 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
       {/* ─── FAB: Register Unscheduled Arrival ─── */}
       {!jobId ? <TouchableOpacity
         style={[styles.fabBtn, { backgroundColor: colors.primary }]}
+        accessibilityLabel="Create job from purchase order"
         onPress={() => { loadFabData(); setFabVisible(true); }}
         activeOpacity={0.86}
       >
-        <Ionicons name="add" size={28} color={colors.onPrimary} />
+        <Ionicons name="add" size={28} color={colors.onPrimary} /><Text style={{ color: colors.onPrimary, fontWeight: '700' }}>Create Job</Text>
       </TouchableOpacity> : null}
 
       {/* ─── FAB Modal: Register Unscheduled Arrival ─── */}
@@ -1278,7 +1282,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
             <ScrollView style={{ flex: 1, minHeight: 0 }} showsVerticalScrollIndicator keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" nestedScrollEnabled contentContainerStyle={{ gap: Gap, paddingBottom: Spacing.xl }}>
               <View style={styles.sheetHead}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.sheetTitle, { color: colors.text }]}>Register Unscheduled Arrival</Text>
+                  <Text style={[styles.sheetTitle, { color: colors.text }]}>Create Job</Text>
                   <Text style={[styles.sheetSub, { color: colors.textMuted }]}>
                     Enter a Purchase Order, assign driver and vehicle, and specify the destination lot.
                   </Text>
@@ -1293,7 +1297,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
                 <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
                 <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
                   style={[styles.fabInput, { color: colors.text }]}
-                  placeholder="Search PO (e.g. POMAT004/V01)"
+                  placeholder="Search PO (e.g. PO0004/V001)"
                   placeholderTextColor={colors.textTertiary}
                   value={fabSelectedPo ? fabSelectedPo.poNumber : fabPoSearch}
                   onChangeText={(value) => { setFabPoSearch(value); setFabSelectedPo(null); setFabSelectedDriver(null); setFabSelectedVehicle(null); }}
@@ -1302,6 +1306,15 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
 
               {!fabSelectedPo ? (
                 <View style={styles.fabOptionList}>
+                  {fabPoLoading ? <ActivityIndicator accessibilityLabel="Loading purchase orders" color={colors.primary} /> : null}
+                  {!fabPoLoading && !fabMatchingPOs.length ? (
+                    <View style={{ gap: Gap }}>
+                      <Text style={{ color: colors.textMuted }}>{fabSubmitError || (fabPoSearch.trim() ? 'No purchase orders match your search.' : 'No open purchase orders are available.')}</Text>
+                      <TouchableOpacity onPress={() => { void loadFabData(); }} accessibilityRole="button">
+                        <Text style={{ color: colors.primaryText, fontWeight: '700' }}>Reload purchase orders</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
                   {fabMatchingPOs.map((order) => (
                     <TouchableOpacity
                       key={order.id}
@@ -1930,7 +1943,7 @@ const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.cre
   lotInputWrap: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: Gap, paddingHorizontal: Spacing.md, marginBottom: Spacing.xs},
   lotInputField: { flex: 1, height: 46, fontSize: 14, fontWeight: '700' },
   // FAB Button
-  fabBtn: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
+  fabBtn: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, minWidth: 58, height: 58, paddingHorizontal: Spacing.md, borderRadius: 29, flexDirection: 'row', gap: Gap, alignItems: 'center', justifyContent: 'center' },
   uploadedWarehouseBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   uploadedWarehouseSheet: { maxHeight: '84%', borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, borderBottomWidth: 0, padding: Spacing.lg },
   uploadedWarehouseProducts: { maxHeight: 320, marginVertical: Spacing.md },

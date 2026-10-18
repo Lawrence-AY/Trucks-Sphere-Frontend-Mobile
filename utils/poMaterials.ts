@@ -25,11 +25,17 @@ export function selectedDispatchMaterials(lines: any[], selectedKeys: string[]):
 export function isPurchaseOrderOpen(order: any): boolean {
   if (!order || ['completed', 'complete', 'delivered', 'fulfilled', 'closed', 'cancelled', 'canceled', 'archived', 'excess', 'overdelivered', 'over_delivered'].includes(String(order.status || '').trim().toLowerCase())) return false;
   return getPurchaseOrderMaterials(order).some((line, index) => {
-    if (line.isWarehouseMaterial) return true;
+    if (line.isWarehouseMaterial || order.isWarehouseMaterial) return true;
     if (line.remainingQuantity != null && line.remainingQuantity !== '') return Number(line.remainingQuantity) > 0;
+    const target = line.quantity ?? line.quantityOrdered;
+    // Weighbridge-imported POs have a vendor and material but no ordered
+    // target. Missing quantities are unknown, not zero or exhausted.
+    if (target == null || String(target).trim() === '') {
+      return Boolean(order.vendorId && (line.materialId || line.materialName));
+    }
     const allocated = line.allocatedQuantity ?? line.quantityDelivered ?? line.deliveredQuantity
       ?? (index === 0 ? order.allocatedQuantity ?? order.quantityDelivered ?? order.deliveredQuantity : 0) ?? 0;
-    return Number(line.quantity ?? line.quantityOrdered ?? 0) > Number(allocated);
+    return Number(target) > Number(allocated);
   });
 }
 

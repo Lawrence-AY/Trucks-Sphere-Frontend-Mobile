@@ -75,11 +75,11 @@ export default function CreateJobScreen() {
         driverRepository.getAll(),
         vehicleRepository.getAll(),
       ]);
-      setPos(p.filter((po) => isPurchaseOrderOpen(po) && (po.status === 'approved' || po.status === 'in_progress')));
+      setPos(p.filter(isPurchaseOrderOpen));
       setDrivers(d);
       setVehicles(v);
     } catch {
-      // Silent
+      setErrors(prev => ({ ...prev, purchaseOrderId: 'Unable to load purchase orders. Please reopen this screen to retry.' }));
     }
   }
 

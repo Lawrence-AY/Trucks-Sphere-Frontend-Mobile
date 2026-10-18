@@ -1,3 +1,4 @@
+import { VendorLoginAccount } from '../../../components/VendorLoginAccount';
 import { useRealtimeCollection } from '@/store/realtimeData';
 import { BackButton } from '../../../components/ui/BackButton';
 /**
@@ -230,7 +231,10 @@ export default function VendorDetailScreen() {
 
       {/* Tab Content */}
       <ScrollView style={{ flex: 1, minHeight: 0 }} contentContainerStyle={styles.tabContent} showsVerticalScrollIndicator nestedScrollEnabled>
-        {activeTab === 'overview' && <OverviewTab vendor={vendor} colors={colors} />}
+        {activeTab === 'overview' && <>
+          <OverviewTab vendor={vendor} colors={colors} />
+          {canWriteVendors ? <VendorLoginAccount key={vendor.id} vendor={vendor} onCreated={setVendor} /> : null}
+        </>}
         {activeTab === 'drivers' && (
           <DriversTab
             drivers={drivers}

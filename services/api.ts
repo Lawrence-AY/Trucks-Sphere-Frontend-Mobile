@@ -323,21 +323,18 @@ export async function fetchMaterials(params?: {
   category?: string;
 }): Promise<any[]> {
   return safeFetch("materials", () =>
-    backendRequest<any>("get", "/api/materials", undefined, params).then(
-      unwrapItems,
-    ),
+    allPages<any>(page => backendRequest<any>("get", "/api/materials", undefined, { ...params, page, limit: 200 })),
   );
 }
 
 export async function fetchPurchaseOrders(params?: {
   search?: string;
   status?: string;
-}): Promise<any[]> {
-  return safeFetch("purchase-orders", () =>
-    backendRequest<any>("get", "/api/purchase-orders", undefined, params).then(
-      unwrapItems,
-    ),
-  );
+}, options?: { throwOnError?: boolean }): Promise<any[]> {
+  const fetchOrders = () => allPages<any>(page => backendRequest<any>("get", "/api/purchase-orders", undefined, { ...params, page, limit: 200 }));
+  // Job selectors must distinguish an unavailable collection from an empty one.
+  if (options?.throwOnError) return fetchOrders();
+  return safeFetch("purchase-orders", fetchOrders);
 }
 
 export async function fetchDeliveryOrders(params?: {

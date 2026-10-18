@@ -58,6 +58,7 @@ export default function OperatorQuarryDashboardScreen() {
   const purchaseOrders = usePurchaseOrders();
   const materials = useMaterials();
   const [freshPurchaseOrders, setFreshPurchaseOrders] = useState<any[]>([]);
+  const [poLoading, setPoLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [addVisible, setAddVisible] = useState(false);
@@ -72,16 +73,19 @@ export default function OperatorQuarryDashboardScreen() {
   const [selectedDriverData, setSelectedDriverData] = useState<any>(null);
 
   const loadData = async (silent?: boolean) => {
+    setPoLoading(true);
     if (!silent) setRefreshing(true);
     try {
       const [orders] = await Promise.all([
-        fetchPurchaseOrders(),
+        fetchPurchaseOrders(undefined, { throwOnError: true }),
         refresh('purchaseOrders'),
         refresh('deliveryOrders'),
       ]);
       setFreshPurchaseOrders(orders || []);
     } catch {
+      setSubmitError('Unable to refresh purchase orders. Your current list is still available. Close and reopen the form to retry.');
     } finally {
+      setPoLoading(false);
       setRefreshing(false);
       setLoading(false);
     }
@@ -404,6 +408,7 @@ export default function OperatorQuarryDashboardScreen() {
 
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.primary }]}
+        accessibilityLabel="Create job from purchase order"
         onPress={() => { void loadData(true); setAddVisible(true); }}
         activeOpacity={0.86}
       >
@@ -433,7 +438,7 @@ export default function OperatorQuarryDashboardScreen() {
               <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
               <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
                 style={[styles.poInput, { color: colors.text }]}
-                placeholder="Search PO (e.g. POMAT004/V01)"
+                placeholder="Search PO (e.g. PO0004/V0001)"
                 placeholderTextColor={colors.textTertiary}
                 value={selectedPo ? selectedPo.poNumber : poSearch}
                 onChangeText={(value) => { setPoSearch(value); setSelectedPo(null); setSelectedDriver(null); setSelectedVehicle(null); }}
@@ -452,6 +457,7 @@ export default function OperatorQuarryDashboardScreen() {
                 keyboardShouldPersistTaps="handled"
               >
                 <View style={styles.optionList}>
+                  {poLoading ? <ActivityIndicator accessibilityLabel="Loading purchase orders" color={colors.primary} /> : null}
                   {matchingPurchaseOrders.length ? (
                     matchingPurchaseOrders.map((order) => (
                       <TouchableOpacity
@@ -474,7 +480,7 @@ export default function OperatorQuarryDashboardScreen() {
                     ))
                   ) : (
                     <Text style={[styles.emptyDrivers, { color: colors.textMuted }]}>
-                      {poSearch.trim()
+                      {poLoading ? 'Loading purchase orders...' : poSearch.trim()
                         ? 'No matching purchase orders found.'
                         : 'No active purchase orders are available.'}
                     </Text>
@@ -616,16 +622,16 @@ const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.cre
   queueDriverPhoto: { width: 24, height: 24, borderRadius: 12 },
   searchHint: { fontSize: 12, lineHeight: 17, marginTop: Spacing.xs},
   modalDriverPhoto: { width: 32, height: 32, borderRadius: 16 },
-  fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
+  fab: { position: 'absolute', right: Spacing.xl, bottom: Spacing.xl, minWidth: 58, height: 58, paddingHorizontal: Spacing.md, borderRadius: 29, flexDirection: 'row', gap: Gap, alignItems: 'center', justifyContent: 'center' },
   modalBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
-  addSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, maxHeight: '90%', gap: Gap},
+  addSheet: { borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, borderWidth: 1, padding: Spacing.lg, height: '90%', minHeight: 0, gap: Gap},
   sheetHead: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: Gap},
   sheetTitle: { fontSize: 18, fontWeight: '900' },
   sheetSub: { fontSize: 13, lineHeight: 18, marginTop: Spacing.xs},
   iconButton: { width: 38, height: 38, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   inputWrap: { minHeight: 48, borderWidth: 1, borderRadius: Radius.md, flexDirection: 'row', alignItems: 'center', gap: Gap, paddingHorizontal: Spacing.md },
   poInput: { flex: 1, height: 46, fontSize: 14, fontWeight: '700' },
-  poScrollView: { maxHeight: 400 },
+  poScrollView: { flex: 1, minHeight: 0 },
   selectScrollView: { maxHeight: 250 },
   optionList: { gap: Gap},
   optionRow: { minHeight: 58, borderWidth: 1, borderRadius: Radius.md, padding: Spacing.md, flexDirection: 'row', alignItems: 'center', gap: Gap},

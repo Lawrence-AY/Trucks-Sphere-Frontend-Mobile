@@ -49,6 +49,15 @@ class VendorRepository extends BaseRepository<Vendor> {
     return result;
   }
 
+  async createAccount(id: string, account: { password: string; isActive?: boolean }) {
+    const response = await api.post(`/api/vendors/${encodeURIComponent(id)}/account`, account);
+    const result = response.data as { vendor: Vendor; user: unknown; username: string };
+    if (!result.vendor?.id || !result.username) throw new Error('Account creation was not confirmed. Refresh the vendor before retrying.');
+    await collectionCache.updateInCollection(this.config.cacheKey, id, result.vendor);
+    useRealTimeSyncStore.getState().optimisticUpdate('vendors', result.vendor);
+    return result;
+  }
+
   /**
    * Get drivers for a specific vendor.
    * Passes vendorId as a top-level query parameter so the backend

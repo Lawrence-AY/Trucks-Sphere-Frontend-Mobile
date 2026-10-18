@@ -13,7 +13,8 @@
  *   - Audit log
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -62,9 +63,9 @@ export default function PurchaseOrderDetailScreen() {
   const [showArchive, setShowArchive] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (id) loadPO();
-  }, [id]);
+  }, [id]));
 
   async function loadPO() {
     setLoading(true);
@@ -163,7 +164,7 @@ export default function PurchaseOrderDetailScreen() {
   const canCancelPurchaseOrder = canEditPurchaseOrder && !['completed', 'cancelled', 'archived'].includes(po.status);
   const poTabs = [
     ...BASE_PO_TABS,
-    ...(canEditPurchaseOrder && po.status === 'draft'
+    ...(canEditPurchaseOrder && !['cancelled', 'archived', 'completed'].includes(po.status)
       ? [{ name: 'edit', label: 'Edit', icon: 'create-outline' as const }]
       : []),
     ...(canCancelPurchaseOrder

@@ -1,3 +1,4 @@
+import { normalizeMaterialCategory } from '../../../../utils/materialCategories';
 /**
  * Edit Material Screen - Update material details
  *
@@ -85,7 +86,7 @@ export default function EditMaterialScreen() {
       setForm({
         isWarehouseMaterial: Boolean(m.isWarehouseMaterial),
         name: m.name || '',
-        category: m.category || 'Aggregates',
+        category: normalizeMaterialCategory(m.category, m.isWarehouseMaterial) as MaterialCategory,
         measurementType: m.measurementType || '' as MeasurementUnit,
         defaultUnit: m.defaultUnit || '',
         description: m.description || '',

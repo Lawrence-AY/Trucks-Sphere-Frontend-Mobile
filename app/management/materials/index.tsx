@@ -1,3 +1,4 @@
+import { normalizeMaterialCategory as normalizeCategory } from '../../../utils/materialCategories';
 /**
  * Materials List Screen - Full CRUD with categories and dynamic properties
  *
@@ -61,16 +62,6 @@ const CATEGORY_COLORS: Record<string, string> = {
  * Normalize a category string for case-insensitive comparison.
  * Maps backend lowercase / variant categories to the standard TitleCase categories.
  */
-function normalizeCategory(cat: string | undefined): string {
-  const lower = cat?.toLowerCase() || '';
-  if (lower === 'aggregate' || lower === 'aggregates') return 'Aggregates';
-  if (lower === 'steel') return 'Steel';
-  if (lower === 'cement' || lower === 'binder') return 'Cement';
-  if (lower === 'liquid') return 'Liquid';
-  if (lower === 'warehouse') return 'Warehouse';
-  if (lower === 'blocks') return 'Blocks';
-  return 'Other';
-}
 
 /**
  * Check if a material's category matches a filter category (case-insensitive).
@@ -169,7 +160,7 @@ export default function MaterialsListScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.materialName, { color: colors.text }]}>{item.name}</Text>
             <Text style={[styles.materialCategory, { color: colors.textMuted }]}>
-              {item.isWarehouseMaterial ? 'Warehouse' : `${item.category || 'Other'}${item.defaultUnit || item.measurementType ? ` ${item.defaultUnit || item.measurementType}` : ''}`}
+              {item.isWarehouseMaterial ? 'Warehouse' : `${normalizedCategory}${item.defaultUnit || item.measurementType ? ` ${item.defaultUnit || item.measurementType}` : ''}`}
             </Text>
           </View>
         </View>

@@ -11,6 +11,7 @@ import { fetchPurchaseOrders, fetchDeliveryOrders, fetchVendors, fetchMaterials 
 import { formatEAT, generatePONumber } from '../../utils/helpers';
 import api from '../../services/api';
 import { useAuthStore } from '@/store/authStore';
+import { hasManagementPermission } from '../../utils/access';
 
 function PORow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   const colors = useTheme();
@@ -289,6 +290,11 @@ export default function PurchaseOrderScreen() {
               <PORow label="Materials on PO" value={getPurchaseOrderMaterials(order).map(function (item: any, index: number) { return (index + 1) + '. ' + (item.materialName || 'Material') + (item.quantity != null ? ' (' + item.quantity + ' ' + (item.unit || '') + ')' : ''); }).join('\n')} />
 
               <PORow label="Vendor" value={order.vendorName} />
+              {hasManagementPermission(user?.role, 'purchaseOrders.edit') && !['cancelled', 'archived', 'completed'].includes(order.status) && (
+                <TouchableOpacity style={[styles.retryBtn, { borderColor: colors.border }]} onPress={() => router.push(`/management/purchase-orders/edit/${order.id}` as any)}>
+                  <Text style={{ color: colors.primaryText, fontWeight: '700' }}>Edit purchase order</Text>
+                </TouchableOpacity>
+              )}
               {!order.isWarehouseMaterial && getPurchaseOrderMaterials(order).length === 1 && <PORow label="Quantity" value={order.quantity + ' ' + order.unit} bold />}
               <PORow label="Created At" value={order.createdAt ? formatEAT(order.createdAt) : '-'} />
             </View>

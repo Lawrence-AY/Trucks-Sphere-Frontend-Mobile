@@ -1,3 +1,4 @@
+import { normalizeMaterialCategories } from '../../utils/materialCategories';
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { router } from 'expo-router';
@@ -19,7 +20,7 @@ export default function OperatorQuarryMaterialsScreen() {
 
   const loadData = async () => {
     setRefreshing(true);
-    try { setMaterials((await fetchMaterials()) || []); } catch {
+    try { setMaterials(normalizeMaterialCategories((await fetchMaterials()) || [])); } catch {
     } finally { setRefreshing(false); setLoading(false); }
   };
 
