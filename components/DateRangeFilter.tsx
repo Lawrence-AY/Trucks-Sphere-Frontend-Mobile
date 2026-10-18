@@ -10,6 +10,16 @@ function today() { return isoDate(new Date()); }
 export type DateRange = { startDate: string; endDate: string };
 export function defaultDateRange(): DateRange { return { startDate: monthStart(), endDate: today() }; }
 
+export function isInDateRange(value: any, range: DateRange | null): boolean {
+  if (!range) return true;
+  const date = typeof value?.toDate === 'function' ? value.toDate() : value && typeof value === 'object' && typeof value.seconds === 'number' ? new Date(value.seconds * 1000) : new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return false;
+  const parts = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+  const get = (type: string) => parts.find(part => part.type === type)?.value;
+  const key = `${get('year')}-${get('month')}-${get('day')}`;
+  return (!range.startDate || key >= range.startDate) && (!range.endDate || key <= range.endDate);
+}
+
 function CalendarField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   const colors = useTheme(); const [open, setOpen] = useState(false); const [month, setMonth] = useState(() => parseDate(value));
   const firstDay = new Date(month.getFullYear(), month.getMonth(), 1).getDay(); const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();

@@ -1,3 +1,4 @@
+import { DateRangeFilter, defaultDateRange, DateRange, isInDateRange } from '../../components/DateRangeFilter';
 import { printDocument } from '../../utils/printDocument';
 import { ReportActions } from '../../components/ReportActions';
 import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
@@ -65,6 +66,7 @@ const DOWNLOAD_OPTIONS: DownloadOption[] = [
 ];
   const styles = buildThemeStyles(colors);
   const insets = useSafeAreaInsets();
+  const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange());
   const [loading, setLoading] = useState<string | null>(null);
   const { user } = useAuthStore();
 
@@ -87,7 +89,7 @@ const DOWNLOAD_OPTIONS: DownloadOption[] = [
         d.receivedByUid === operatorUid
       );
     }
-    return filtered;
+    return filtered.filter(d => isInDateRange(d.siteWeighOutAt || d.receivedAt || d.siteWeighInAt || d.updatedAt || d.createdAt, dateRange));
   };
 
   const generateDeliveryOrdersPDF = async () => {
@@ -386,6 +388,7 @@ const DOWNLOAD_OPTIONS: DownloadOption[] = [
           ) : null}
         </View>
 
+        <DateRangeFilter value={dateRange} onApply={setDateRange} />
         <ReportActions categories={DOWNLOAD_OPTIONS.map(o => ({ key: o.id, label: o.title + ' PDF', icon: o.icon }))} busy={!!loading} onExport={handleDownload} />
 
         {/* Upload Section */}

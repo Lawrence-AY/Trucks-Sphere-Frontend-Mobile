@@ -1,3 +1,4 @@
+import { DateRangeFilter, defaultDateRange, DateRange, isInDateRange } from '../../components/DateRangeFilter';
 ﻿import { useMemo, useState } from 'react';
 import { Alert, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SearchField } from '../../components/EnterpriseUI';
@@ -10,18 +11,20 @@ import { receivedLines, receivingDate, receivingStatusLabel } from '../../utils/
 export default function StoremanHistoryScreen() {
   const colors = useTheme();
   const jobs = useDeliveryOrders();
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState<any>(null);
   const [exporting, setExporting] = useState(false);
   const filtered = useMemo(() => jobs.filter(job => {
     if (!job.receivingStatus && !job.materialInspection?.materialReceipts?.length) return false;
+    if (!isInDateRange(job.storeReceiving?.receivedAt || job.materialInspection?.inspectedAt || job.updatedAt || job.createdAt, dateRange)) return false;
     const failed = job.receivingFlag?.status === 'flagged' || receivedLines(job).some(line => line.initialVisualInspection === 'Failed');
     if (filter === 'flagged' && !failed) return false;
     if (filter === 'pending' && job.receivingStatus !== 'received_pending_inspection') return false;
     if (filter === 'approved' && (failed || (job.receivingStatus && job.receivingStatus !== 'inventory_added'))) return false;
     return !search.trim() || [job.jobId, job.poNumber, job.vendorName, ...receivedLines(job).map(line => line.materialName)].some(value => String(value || '').toLowerCase().includes(search.trim().toLowerCase()));
-  }), [jobs, filter, search]);
+  }), [jobs, filter, search, dateRange]);
   const exportHistory = async () => {
     setExporting(true);
     try {
@@ -33,6 +36,7 @@ export default function StoremanHistoryScreen() {
   };
   return <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
+      <DateRangeFilter value={dateRange || defaultDateRange()} onApply={setDateRange} />
       <SearchField title="Receiving history" icon="time-outline" value={search} onChangeText={setSearch} placeholder="Search job, PO, vendor or material" />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{[['all', 'All'], ['pending', 'Pending Inspection'], ['approved', 'Approved'], ['flagged', 'Flagged']].map(([key, label]) => <TouchableOpacity key={key} onPress={() => setFilter(key)} style={{ padding: 10, borderRadius: 8, backgroundColor: filter === key ? colors.primary : colors.surface }}><Text style={{ color: filter === key ? colors.onPrimary : colors.text }}>{label}</Text></TouchableOpacity>)}</View>
       <TouchableOpacity disabled={exporting} onPress={() => void exportHistory()}><Text style={{ color: colors.primary }}>{exporting ? 'Exporting…' : 'Download CSV'}</Text></TouchableOpacity>

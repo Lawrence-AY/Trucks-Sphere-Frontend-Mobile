@@ -1,4 +1,6 @@
-import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
+import { DateRangeFilter, defaultDateRange, DateRange, isInDateRange } from '../../components/DateRangeFilter';
+import { FilterRail } from '../../components/EnterpriseUI';
+import { formatPurchaseOrderMaterials, getPurchaseOrderMaterials } from '../../utils/poMaterials';
 import { useEffect, useMemo, useState } from 'react';
 import {
   RefreshControl,
@@ -43,6 +45,8 @@ export default function OperatorQuarryHistoryScreen() {
   const refresh = useRealTimeSyncStore((s) => s.refresh);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [materialFilter, setMaterialFilter] = useState('');
   const [filter, setFilter] = useState<FilterPeriod>('today');
 
   const handleRefresh = async () => {
@@ -154,10 +158,16 @@ export default function OperatorQuarryHistoryScreen() {
     );
   }, [operatorDeliveries]);
 
+  const materialOptions = useMemo(() => Array.from(new Set(operatorDeliveries.flatMap(record => getPurchaseOrderMaterials(record).map(line => String(line.materialName || line.productName || line.materialId || '')).filter(Boolean)))).sort().map(name => ({ key: name, label: name })), [operatorDeliveries]);
+  const matchesMaterial = (record: any) => !materialFilter || getPurchaseOrderMaterials(record).some(line => String(line.materialName || line.productName || line.materialId || '') === materialFilter);
+  const rangeLabel = dateRange ? `${dateRange.startDate} to ${dateRange.endDate}` : FILTER_LABELS[filter];
+
   const completedRecords = useMemo(() => {
     return operatorDeliveries
       .filter(isDispatchRecord)
       .filter((d) => {
+        if (!matchesMaterial(d)) return false;
+        if (dateRange) return isInDateRange(recordTimestamp(d), dateRange);
         const timestamp = recordTimestamp(d);
         const dispatchedAt = timestamp ? new Date(timestamp) : null;
         return Boolean(dispatchedAt && !Number.isNaN(dispatchedAt.getTime()) && dispatchedAt >= startDate);
@@ -166,7 +176,7 @@ export default function OperatorQuarryHistoryScreen() {
         (a, b) =>
           new Date(recordTimestamp(b)).getTime() - new Date(recordTimestamp(a)).getTime(),
       );
-  }, [operatorDeliveries, startDate]);
+  }, [operatorDeliveries, startDate, dateRange, materialFilter]);
 
   /* ─── Export Logic ─── */
 
@@ -212,7 +222,7 @@ export default function OperatorQuarryHistoryScreen() {
   const handleDownloadCSV = async () => {
     const rows = buildExportRows(completedRecords);
     const csvContent = buildCsvContent(exportHeaders, rows);
-    await shareCsvAsFile(`Quarry_History_${FILTER_LABELS[filter]}`, csvContent);
+    await shareCsvAsFile(`Quarry_History_${rangeLabel}`, csvContent);
   };
 
   /* ─── Per-Delivery Note Export ─── */
@@ -266,9 +276,12 @@ export default function OperatorQuarryHistoryScreen() {
       }
     >
       {/* Filter Pills */}
+      <DateRangeFilter value={dateRange || defaultDateRange()} onApply={setDateRange} />
+      <Text style={{ color: colors.textMuted }}>Filter by material</Text>
+      <FilterRail options={[{ key: '', label: 'All materials' }, ...materialOptions]} value={materialFilter} onChange={setMaterialFilter} />
       <View style={styles.filterRow}>
         {(['today', 'week', 'month'] as FilterPeriod[]).map((period) => {
-          const active = filter === period;
+          const active = !dateRange && filter === period;
           return (
             <TouchableOpacity
               key={period}
@@ -281,7 +294,7 @@ export default function OperatorQuarryHistoryScreen() {
                   borderColor: active ? colors.primary : colors.border,
                 },
               ]}
-              onPress={() => setFilter(period)}
+              onPress={() => { setFilter(period); setDateRange(null); }}
             >
               <Ionicons
                 name={
@@ -315,7 +328,7 @@ export default function OperatorQuarryHistoryScreen() {
 
       {/* Completed Submissions */}
       <SectionTitle
-        title={`Completed — ${FILTER_LABELS[filter]} (${completedRecords.length})`}
+        title={`Completed — ${rangeLabel} (${completedRecords.length})`}
       />
       {loading ? (
         <DataCard>
@@ -426,7 +439,7 @@ export default function OperatorQuarryHistoryScreen() {
         <EmptyState
           icon="checkmark-done-outline"
           title="No completed records"
-          subtitle={`No submissions found for ${FILTER_LABELS[filter].toLowerCase()}.`}
+          subtitle={`No submissions found for ${rangeLabel.toLowerCase()}.`}
         />
       )}
 

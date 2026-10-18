@@ -92,7 +92,7 @@ test('site history includes listener and other operators across all sites and da
   {id: 'other-shift', siteId: 'B', status: 'COMPLETED', receivedByUid: 'other', receivedAt: '2026-10-13T08:00:00Z'},
   {id: 'active', siteId: 'C', status: 'SITE_WEIGHED_IN'},
  ];
- const context = { allDeliveries, filter: 'all', startDate: new Date('2026-10-13T00:00:00Z'), useMemo: fn => fn(), normalizeJobStatus, generateReceiptNoteId: () => 'receipt' };
+ const context = { allDeliveries, dateRange: null, materialFilter: '', matchesMaterial: () => true, filter: 'all', startDate: new Date('2026-10-13T00:00:00Z'), useMemo: fn => fn(), normalizeJobStatus, generateReceiptNoteId: () => 'receipt' };
  const result = loadDeclarations('../app/operator-site/history.tsx', ['deliveries', 'completedRecords'], context);
  assert.deepEqual(Array.from(result.completedRecords, job => job.id), ['other-shift', 'listener']);
  const today = loadDeclarations('../app/operator-site/history.tsx', ['deliveries', 'completedRecords'], {...context, filter: 'today'});
@@ -105,4 +105,35 @@ test('site history retains listener attribution without requiring an app user UI
  assert.equal(receiver({siteWeighOutByName: 'Final operator', receivedByName: 'Arrival operator'}), 'Final operator');
  assert.equal(receiver({}), 'Not recorded');
  assert.equal(listenerRecord({accessBridgeKey: 'capture'}), true);
+});
+
+
+test('history material filter matches additional material lines and can be cleared', () => {
+ const getPurchaseOrderMaterials = record => record.materials || [record, ...(record.additionalItems || [])];
+ for (const role of ['operator-site', 'operator-quarry']) {
+  const load = materialFilter => loadDeclarations(`../app/${role}/history.tsx`, ['matchesMaterial'], { materialFilter, getPurchaseOrderMaterials }).matchesMaterial;
+  const record = { materialName: 'Sand', additionalItems: [{ materialName: 'Stone' }] };
+  assert.equal(load('Stone')(record), true);
+  assert.equal(load('Cement')(record), false);
+  assert.equal(load('')(record), true);
+  assert.equal(load('Stone')({ materials: [{ materialName: 'Sand' }, { materialName: 'Stone' }] }), true);
+ }
+});
+
+test('report date range includes both boundary days in Nairobi time', () => {
+ const source = fs.readFileSync(path.join(__dirname, '../components/DateRangeFilter.tsx'), 'utf8');
+ const ast = ts.createSourceFile('filter.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+ const declaration = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'isInDateRange');
+ const module = { exports: {} };
+ vm.runInNewContext(ts.transpileModule(declaration.getText(ast), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText, { exports: module.exports });
+ const check = module.exports.isInDateRange;
+ const range = { startDate: '2026-10-01', endDate: '2026-10-18' };
+ assert.equal(check('2026-09-30T21:00:00Z', range), true);
+ assert.equal(check('2026-10-18T20:59:59Z', range), true);
+ assert.equal(check('2026-09-30T20:59:59Z', range), false);
+ assert.equal(check('2026-10-18T21:00:00Z', range), false);
+ assert.equal(check('invalid', range), false);
+ assert.equal(check(null, range), false);
+ assert.equal(check({ seconds: Date.parse('2026-10-10T00:00:00Z') / 1000 }, range), true);
+ assert.equal(check(null, null), true);
 });

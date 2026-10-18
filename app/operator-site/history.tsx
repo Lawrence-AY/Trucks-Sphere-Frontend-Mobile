@@ -1,4 +1,6 @@
-import { formatPurchaseOrderMaterials } from '../../utils/poMaterials';
+import { DateRangeFilter, defaultDateRange, DateRange, isInDateRange } from '../../components/DateRangeFilter';
+import { FilterRail } from '../../components/EnterpriseUI';
+import { formatPurchaseOrderMaterials, getPurchaseOrderMaterials } from '../../utils/poMaterials';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -53,6 +55,8 @@ export default function OperatorSiteHistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
+  const [materialFilter, setMaterialFilter] = useState('');
   const [filter, setFilter] = useState<FilterPeriod>("all");
   const [detailView, setDetailView] = useState<DetailView>("overview");
 
@@ -150,10 +154,16 @@ export default function OperatorSiteHistoryScreen() {
       );
   }, [deliveries]);
 
+  const materialOptions = useMemo(() => Array.from(new Set(deliveries.flatMap(record => getPurchaseOrderMaterials(record).map(line => String(line.materialName || line.productName || line.materialId || '')).filter(Boolean)))).sort().map(name => ({ key: name, label: name })), [deliveries]);
+  const matchesMaterial = (record: any) => !materialFilter || getPurchaseOrderMaterials(record).some(line => String(line.materialName || line.productName || line.materialId || '') === materialFilter);
+  const rangeLabel = dateRange ? `${dateRange.startDate} to ${dateRange.endDate}` : FILTER_LABELS[filter];
+
   const completedRecords = useMemo(() => {
     return deliveries
       .filter((d) => Boolean(d.warehouseAcceptedAt) || ['SITE_WEIGHED_OUT', 'COMPLETED'].includes(normalizeJobStatus(d.status)))
       .filter((d) => {
+        if (!matchesMaterial(d)) return false;
+        if (dateRange) return isInDateRange(d.warehouseAcceptedAt || d.siteWeighOutAt || d.receivedAt || d.siteWeighInAt || d.updatedAt || d.createdAt, dateRange);
         if (filter === "all") return true;
         const date = new Date(
           d.warehouseAcceptedAt || d.siteWeighOutAt || d.receivedAt || d.siteWeighInAt || d.updatedAt || d.createdAt,
@@ -173,7 +183,7 @@ export default function OperatorSiteHistoryScreen() {
             a.warehouseAcceptedAt || a.siteWeighOutAt || a.receivedAt || a.siteWeighInAt || a.updatedAt || a.createdAt,
           ).getTime(),
       );
-  }, [deliveries, startDate, filter]);
+  }, [deliveries, startDate, filter, dateRange, materialFilter]);
 
   /* ─── Analytics / Summary Stats ─── */
 
@@ -308,14 +318,14 @@ export default function OperatorSiteHistoryScreen() {
   const handleDownloadCSV = async () => {
     const rows = buildExportRows(completedRecords);
     const csvContent = buildCsvContent(exportHeaders, rows);
-    await shareCsvAsFile(`Site_History_${FILTER_LABELS[filter]}`, csvContent);
+    await shareCsvAsFile(`Site_History_${rangeLabel}`, csvContent);
   };
 
 
   const handleDownloadAllCSV = async () => {
     const rows = buildExportRows(completedRecords);
     const csvContent = buildCsvContent(exportHeaders, rows);
-    await shareCsvAsFile(`Site_History_${FILTER_LABELS[filter]}_Complete`, csvContent);
+    await shareCsvAsFile(`Site_History_${rangeLabel}_Complete`, csvContent);
   };
 
   /* ─── Detail Modal ─── */
@@ -798,9 +808,12 @@ export default function OperatorSiteHistoryScreen() {
      
 
       {/* Filter Pills */}
+      <DateRangeFilter value={dateRange || defaultDateRange()} onApply={setDateRange} />
+      <Text style={{ color: colors.textMuted }}>Filter by material</Text>
+      <FilterRail options={[{ key: '', label: 'All materials' }, ...materialOptions]} value={materialFilter} onChange={setMaterialFilter} />
       <View style={styles.filterRow}>
         {(["all", "today", "week", "month"] as FilterPeriod[]).map((period) => {
-          const active = filter === period;
+          const active = !dateRange && filter === period;
           return (
             <TouchableOpacity
               key={period}
@@ -811,7 +824,7 @@ export default function OperatorSiteHistoryScreen() {
                   borderColor: active ? colors.primary : colors.border,
                 },
               ]}
-              onPress={() => setFilter(period)}
+              onPress={() => { setFilter(period); setDateRange(null); }}
             >
               <Ionicons
                 name={
@@ -981,7 +994,7 @@ export default function OperatorSiteHistoryScreen() {
 
       {/* ─── Completed Records ─── */}
       <SectionTitle
-        title={`Completed — ${FILTER_LABELS[filter]} (${completedRecords.length})`}
+        title={`Completed — ${rangeLabel} (${completedRecords.length})`}
       />
       {loading ? (
         <DataCard>
@@ -1136,7 +1149,7 @@ export default function OperatorSiteHistoryScreen() {
         <EmptyState
           icon="checkmark-done-outline"
           title="No completed records"
-          subtitle={`No finalized deliveries found for ${FILTER_LABELS[filter].toLowerCase()}.`}
+          subtitle={`No finalized deliveries found for ${rangeLabel.toLowerCase()}.`}
         />
       )}
 
