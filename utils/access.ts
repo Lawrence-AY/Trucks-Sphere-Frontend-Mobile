@@ -125,7 +125,7 @@ const MANAGEMENT_ROUTE_ACCESS: Array<{ prefix: string; roles: ManagementRole[] }
   { prefix: '/management/fuel', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/trips', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/active', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
-  { prefix: '/management/materials', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
+  { prefix: '/management/materials', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN, MANAGEMENT_ROLES.ADMIN_LITE] },
   { prefix: '/management/purchase-orders/edit', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/vendors/create', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE, MANAGEMENT_ROLES.ADMIN] },
   { prefix: '/management/vendors/edit', roles: [MANAGEMENT_ROLES.SUPER_ADMIN, MANAGEMENT_ROLES.ADMIN_LITE, MANAGEMENT_ROLES.ADMIN] },

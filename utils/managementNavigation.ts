@@ -63,6 +63,7 @@ export const AdminSidebar: ManagementNavigationSection[] = [
     { label: 'Vendors', icon: 'business-outline', route: '/management/vendors' },
     { label: 'Trucks', icon: 'car-outline', route: '/management/trucks' },
     { label: 'Drivers', icon: 'people-outline', route: '/management/drivers' },
+    { label: 'Materials', icon: 'cube-outline', route: '/management/materials' },
   ] },
   { title: 'Intelligence', icon: 'bar-chart-outline', items: [
     { label: 'Reports', icon: 'bar-chart-outline', route: '/management/reports' },
@@ -81,6 +82,7 @@ export const AdminLiteSidebar: ManagementNavigationSection[] = [
     
     { label: 'Trucks', icon: 'car-outline', route: '/management/trucks' },
     { label: 'Drivers', icon: 'people-outline', route: '/management/drivers' },
+    { label: 'Materials', icon: 'cube-outline', route: '/management/materials' },
   ] },
  
   { title: 'Account', icon: 'person-outline', items: [
