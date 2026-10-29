@@ -7,6 +7,7 @@ export default function TrackLayout() {
       <Stack.Screen name="index" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="session" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
       <Stack.Screen name="[plate]" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
+      <Stack.Screen name="document" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
     </Stack>
   );
 }

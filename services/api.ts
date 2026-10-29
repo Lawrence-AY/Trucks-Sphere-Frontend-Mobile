@@ -865,6 +865,22 @@ export async function selectSecurityTrackingVehicle(sessionId: string, token: st
   return response.data;
 }
 
+export async function createPendingGatePass(sessionId: string, token: string, truckNumber: string, driverName: string): Promise<any> {
+  const response = await axios.post(`${API_BASE_URL}/api/track/sessions/${encodeURIComponent(sessionId)}/document`, { token, truckNumber, driverName }, { timeout: 10000 });
+  return response.data;
+}
+
+export async function uploadPendingGatePassPhoto(sessionId: string, token: string, documentId: string, photoType: 'truck' | 'driver', photo: { uri: string; mimeType?: string | null; fileName?: string | null }): Promise<any> {
+  const body: any = new FormData();
+  body.append('token', token);
+  const name = photo.fileName || `${photoType}-photo.jpg`;
+  if (Platform.OS === 'web') body.append('file', await fetch(photo.uri).then(response => response.blob()), name);
+  else body.append('file', { uri: photo.uri, name, type: photo.mimeType || 'image/jpeg' } as any);
+  const response = await axios.post(`${API_BASE_URL}/api/track/sessions/${encodeURIComponent(sessionId)}/document/${encodeURIComponent(documentId)}/${photoType}`, body, { timeout: 45000 });
+  return response.data;
+}
+
+
 export async function recordSecurityTrackingDecision(sessionId: string, token: string, outcome: 'verified' | 'flagged', reason?: string): Promise<any> {
   const response = await axios.post(`${API_BASE_URL}/api/track/sessions/${encodeURIComponent(sessionId)}/decision`, { token, outcome, reason }, { timeout: 8000, headers: { 'Content-Type': 'application/json' } });
   return response.data;
