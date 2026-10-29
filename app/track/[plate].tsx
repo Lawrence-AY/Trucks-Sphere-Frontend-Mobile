@@ -32,7 +32,7 @@ import { fetchPublicTrackingByPlate, recordSecurityTrackingDecision, selectSecur
 import { getItem, removeItem } from '../../services/database';
 import { Colors, Gap, Radius, Spacing } from '../../constants/theme';
 import { canControlStatusBarAppearance } from '../../utils/statusBar';
-import DocumentGatePassScreen from '../seucritydocument';
+import DocumentGatePassScreen from '../securitydocument';
 
 const TRACK_SESSION_KEY = 'user_track';
 const LEGACY_TRACK_SESSION_KEY = 'track_session';

@@ -6,7 +6,6 @@ import { createPendingGatePass, startSecurityTrackingSession, uploadPendingGateP
 
 const SESSION_KEY = 'user_track';
 type Photo = { uri: string; mimeType?: string | null; fileName?: string | null };
-
 export default function SecurityDocumentScreen() {
   const [truckNumber, setTruckNumber] = useState(''); const [driverName, setDriverName] = useState('');
   const [truckPhoto, setTruckPhoto] = useState<Photo | null>(null); const [driverPhoto, setDriverPhoto] = useState<Photo | null>(null);
