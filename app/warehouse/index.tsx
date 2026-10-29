@@ -247,7 +247,7 @@ export default function WarehouseQueueScreen() {
   const attachMissingPackagingPhoto = async (job: WarehouseJob) => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Photo library permission needed', 'Allow photo library access to attach the required packaging photo.');
+      Alert.alert('Photo library permission needed', 'Allow photo library access to attach an optional packaging photo.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
@@ -282,8 +282,7 @@ export default function WarehouseQueueScreen() {
     plateNumber.trim() &&
     purchaseOrderId &&
     hasValidShipmentLines &&
-    !csvPreviewError &&
-    (dispatchMethod === 'file_upload' || packagingPhoto),
+    !csvPreviewError
   );
 
   const handleSubmit = async () => {
@@ -623,7 +622,7 @@ export default function WarehouseQueueScreen() {
                           <Ionicons name="camera-outline" size={20} color={colors.primaryText} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.packagingTitle, { color: colors.text }]}>Dispatch photo</Text>
+                          <Text style={[styles.packagingTitle, { color: colors.text }]}>Dispatch photo (optional)</Text>
                          
                         </View>
                       </View>
