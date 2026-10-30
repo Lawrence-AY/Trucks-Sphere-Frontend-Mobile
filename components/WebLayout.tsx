@@ -17,7 +17,7 @@ import { Gap } from '../constants/theme';
 import { WorkspaceHeader } from './WorkspaceHeader';
 
 const AUTH_ROUTES = ['/(auth)', '/login', '/auth'];
-const HIDE_SIDEBAR_ROUTES = ['/track', '/session', '/security'];
+const HIDE_SIDEBAR_ROUTES = ['/track', '/session', '/security', '/gatepass'];
 const DESKTOP_BREAKPOINT = 1024;
 
 interface WebLayoutProps {
