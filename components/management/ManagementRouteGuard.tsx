@@ -6,7 +6,7 @@ import { canAccessRoute, homeRouteForRole } from '../../utils/access';
 
 // Tracking access uses its own security session and must never be routed
 // through account login. `/security` remains a supported alias for old links.
-const PUBLIC_PREFIXES = ['/(auth)', '/login', '/forgot-password', '/track', '/session', '/security'];
+const PUBLIC_PREFIXES = ['/(auth)', '/login', '/forgot-password', '/track', '/session', '/security', '/gatepass'];
 function isPublicRoute(pathname: string) {
   return pathname === '/' || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
