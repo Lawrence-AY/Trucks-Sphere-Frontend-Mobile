@@ -10,7 +10,7 @@ import { createPendingGatePass, startSecurityTrackingSession } from '../services
 const SESSION_KEY = 'user_track';
 type Photo = { uri: string; mimeType?: string | null; fileName?: string | null };
 
-export default function SecurityDocumentScreen() {
+export default function GatepassScreen() {
   const colors = Colors.light; const [truckNumber, setTruckNumber] = useState(''); const [driverName, setDriverName] = useState('');
   const [photo, setPhoto] = useState<Photo | null>(null); const [securityCode, setSecurityCode] = useState(''); const [session, setSession] = useState<any>(null); const [saving, setSaving] = useState(false); const [error, setError] = useState('');
   const login = async () => { try { const next = await startSecurityTrackingSession(securityCode); const active = { id: next.id, token: next.token, personnelName: next.personnelName, securityLocation: next.securityLocation, expiresAt: next.expiresAt }; await setItem(SESSION_KEY, JSON.stringify(active)); setSession(active); setError(''); } catch (e: any) { setError(e?.response?.data?.error || 'The security code could not be verified.'); } };

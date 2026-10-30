@@ -32,7 +32,7 @@ import { fetchPublicTrackingByPlate, recordSecurityTrackingDecision, selectSecur
 import { getItem, removeItem } from '../../services/database';
 import { Colors, Gap, Radius, Spacing } from '../../constants/theme';
 import { canControlStatusBarAppearance } from '../../utils/statusBar';
-import DocumentGatePassScreen from '../securitydocument';
+import GatepassScreen from '../gatepass';
 
 const TRACK_SESSION_KEY = 'user_track';
 const LEGACY_TRACK_SESSION_KEY = 'track_session';
@@ -77,7 +77,7 @@ export default function PublicTrackingScreen() {
   // Some static-hosted Expo Router manifests can resolve /track/document
   // through this dynamic route. Keep a fallback so it never becomes a plate
   // lookup, while the dedicated document route remains the primary path.
-  if (String(plate || '').toLowerCase() === 'document') return <DocumentGatePassScreen />;
+  if (String(plate || '').toLowerCase() === 'document') return <GatepassScreen />;
   const [securitySession, setSecuritySession] = useState<{ id: string; token: string; plate: string; securityLocation?: string; expiresAt?: string } | null>(null);
   const [searchPlate, setSearchPlate] = useState((plate || '').toUpperCase());
   const [state, setState] = useState<PageState>(
