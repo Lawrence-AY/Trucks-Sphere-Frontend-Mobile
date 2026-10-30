@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Spacing } from '../constants/theme';
 import { useAuthStore } from '@/store/authStore';
 import { isManagementRole, managementHomeRoute } from '../utils/access';
+import GatepassScreen from './gatepass';
 
 const LOADING_MESSAGES = [
   'Loading fleet',
@@ -16,6 +17,7 @@ const LOADING_MESSAGES = [
 export default function IndexScreen() {
   const useNativeDriver = Platform.OS !== 'web';
   const { isAuthenticated, isLoading } = useAuthStore();
+  const isGatepassPath = Platform.OS === 'web' && typeof window !== 'undefined' && window.location.pathname.replace(/\/$/, '') === '/gatepass';
   const [messageIndex, setMessageIndex] = useState(0);
   const truckX = useRef(new Animated.Value(-120)).current;
   const logoScale = useRef(new Animated.Value(0.86)).current;
@@ -62,6 +64,7 @@ export default function IndexScreen() {
 
   useEffect(() => {
     if (isLoading) return;
+    if (isGatepassPath) return;
 
     const timer = setTimeout(() => {
       if (!isAuthenticated) {
@@ -86,7 +89,7 @@ export default function IndexScreen() {
     }, 900);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isGatepassPath, isLoading]);
 
   const progressWidth = progress.interpolate({
     inputRange: [0, 1],
@@ -97,6 +100,8 @@ export default function IndexScreen() {
     inputRange: [0, 1],
     outputRange: [0.15, 0.55],
   });
+
+  if (isGatepassPath) return <GatepassScreen />;
 
   return (
     <View style={styles.container}>
