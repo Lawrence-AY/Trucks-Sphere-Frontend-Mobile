@@ -3,9 +3,9 @@ import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, T
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { Colors, Radius, Spacing } from '../constants/theme';
-import { getItem, setItem } from '../services/database';
-import { createPendingGatePass, startSecurityTrackingSession } from '../services/api';
+import { Colors, Radius, Spacing } from '../../constants/theme';
+import { getItem, setItem } from '../../services/database';
+import { createPendingGatePass, startSecurityTrackingSession } from '../../services/api';
 
 const SESSION_KEY = 'user_track';
 type Photo = { uri: string; mimeType?: string | null; fileName?: string | null };
