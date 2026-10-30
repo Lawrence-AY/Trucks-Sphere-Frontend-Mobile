@@ -112,8 +112,13 @@ export default function EditVendorScreen() {
     setSaving(true);
     try {
       await vendorRepository.update(id!, {
+        companyName: form.companyName,
         contactPerson: form.contactPerson,
         phone: form.phone,
+        email: form.email,
+        address: form.address,
+        kraPin: form.kraPin,
+        registrationNumber: form.registrationNumber,
         updatedAt: new Date().toISOString(),
       });
       Alert.alert('Saved', 'Vendor updated successfully', [
