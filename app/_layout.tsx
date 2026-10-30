@@ -84,7 +84,6 @@ export default function RootLayout() {
             <Stack.Screen name="inspector" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="screens" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="session" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
-            <Stack.Screen name="gatepass" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             <Stack.Screen name="track" options={CLEAR_HIDDEN_STACK_SCREEN_OPTIONS} />
             </Stack>
           </WebLayout>
