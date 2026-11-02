@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../hooks/useTheme';
-import { useDeliveryOrders } from '../store/realtimeData';
+import { useRealtimeCollection } from '../store/realtimeData';
 import { useRealTimeSyncStore } from '../store/realTimeSyncStore';
 import { receiveStoreDelivery, inspectStoreDelivery } from '../services/api';
 import { uploadReceivingPhoto } from '../services/uploadService';
@@ -16,7 +16,7 @@ import { StoreReceiptDetails } from './StoreReceiptDetails';
 
 export default function StoreReceivingWorkflow({ inspection = false }: { inspection?: boolean }) {
   const colors = useTheme();
-  const jobs = useDeliveryOrders();
+  const { data: jobs, error: deliveryError } = useRealtimeCollection('deliveryOrders');
   const params = useLocalSearchParams<{ id?: string; jobId?: string }>();
   const [selectedId, setSelectedId] = useState<string | null>(params.id || params.jobId || null);
   const [search, setSearch] = useState('');
@@ -77,6 +77,7 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
     <Text style={{ color: colors.text, fontSize: 25, fontWeight: '800' }}>{inspection ? 'Quality Inspection' : 'Store Receiving'}</Text>
     <Text style={{ color: colors.textMuted, marginVertical: 10 }}>{inspection ? 'Review the received materials and photo evidence before approving inventory.' : 'Count materials, record their initial condition, and capture a photo for each material.'}</Text>
     {message ? <Text accessibilityRole="alert" style={{ color: colors.success, marginVertical: 10 }}>{message}</Text> : null}
+    {deliveryError ? <Text accessibilityRole="alert" style={{ color: colors.danger, marginVertical: 10 }}>Could not load deliveries: {deliveryError}. Please sign in again or contact an administrator.</Text> : null}
     {error ? <Text accessibilityRole="alert" style={{ color: colors.danger, marginVertical: 10 }}>{error}</Text> : null}
     {selectedId ? <>
       <TouchableOpacity disabled={saving} onPress={reset}><Text style={{ color: colors.primary, paddingVertical: 12 }}>← Back to {inspection ? 'inspection queue' : 'receiving'}</Text></TouchableOpacity>

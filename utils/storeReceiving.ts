@@ -12,7 +12,7 @@ export function isStoreIncoming(job: any): boolean {
     if ((job.siteWeighInWeight != null || job.siteArrivalWeight != null) && job.siteWeighOutWeight == null) return false;
     return Boolean(job.warehouseAcceptedAt);
   }
-  return job.siteWeighInWeight != null || job.siteArrivalWeight != null || Boolean(job.arrivedAtSiteAt) || ['ARRIVED_AT_SITE', 'SITE_WEIGHED_IN', 'SITE_WEIGHED_OUT', 'COMPLETED'].includes(status);
+  return job.siteWeighInWeight != null || job.siteArrivalWeight != null || Boolean(job.arrivedAtSiteAt || job.siteInTime) || ['ARRIVED_AT_SITE', 'SITE_WEIGHED_IN', 'SITE_WEIGHED_OUT', 'COMPLETED'].includes(status);
 }
 export const isStorePendingInspection = (job: any): boolean => job.receivingStatus === 'received_pending_inspection' && job.storeReceiving?.condition === 'Pass';
 export const receivingStatusLabel = (job: any): string => ({
