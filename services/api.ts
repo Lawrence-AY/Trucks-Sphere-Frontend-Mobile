@@ -632,6 +632,7 @@ export async function fetchFuelRecords(params?: {
   vendorId?: string;
   jobId?: string;
   plateNumber?: string;
+  limit?: number;
 }): Promise<any[]> {
   return safeFetch("fuel-records", () =>
     backendRequest<any>("get", "/api/fuel", undefined, params).then(

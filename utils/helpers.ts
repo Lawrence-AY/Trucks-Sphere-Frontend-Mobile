@@ -26,6 +26,32 @@ export function formatEAT(dateStr: any): string {
   }
 }
 
+/** Return an EAT (Africa/Nairobi) calendar range as absolute Dates. */
+export function getEATDateRange(filter: string): { start: Date; end: Date } | null {
+  if (!['daily', 'monthly', 'yearly'].includes(filter)) return null;
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Nairobi', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(now).reduce<Record<string, number>>((out, part) => {
+    if (part.type !== 'literal') out[part.type] = Number(part.value);
+    return out;
+  }, {});
+  let year = parts.year;
+  let month = parts.month;
+  let day = parts.day;
+  if (filter === 'monthly') day = 1;
+  if (filter === 'yearly') { month = 1; day = 1; }
+  const startUtc = Date.UTC(year, month - 1, day) - 3 * 60 * 60 * 1000;
+  const endParts = new Date(Date.UTC(year, month - 1, day));
+  if (filter === 'daily') endParts.setUTCDate(endParts.getUTCDate() + 1);
+  if (filter === 'monthly') endParts.setUTCMonth(endParts.getUTCMonth() + 1);
+  if (filter === 'yearly') endParts.setUTCFullYear(endParts.getUTCFullYear() + 1);
+  return {
+    start: new Date(startUtc),
+    end: new Date(endParts.getTime() - 3 * 60 * 60 * 1000),
+  };
+}
+
 /**
  * Format a date to relative time (e.g., "2 hours ago")
  */

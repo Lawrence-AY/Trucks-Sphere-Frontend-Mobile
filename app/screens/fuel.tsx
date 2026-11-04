@@ -6,7 +6,7 @@ import { useTheme } from "../../hooks/useTheme";
 import { Gap, Spacing } from "../../constants/theme";
 import { fetchFuelRecords } from "../../services/api";
 import { useAuthStore } from "@/store/authStore";
-import { formatEAT, normalizeVendorId } from "../../utils/helpers";
+import { formatEAT, getEATDateRange, normalizeVendorId } from "../../utils/helpers";
 import {
   DataCard,
   DetailRow,
@@ -24,30 +24,6 @@ const TIME_FILTERS = [
   { key: "yearly", label: "Yearly" },
 ];
 
-function getTimeFilterRange(filter: string): { start: Date; end: Date } | null {
-  const now = new Date();
-  switch (filter) {
-    case "daily": {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const end = new Date(start);
-      end.setDate(end.getDate() + 1);
-      return { start, end };
-    }
-    case "monthly": {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      return { start, end };
-    }
-    case "yearly": {
-      const start = new Date(now.getFullYear(), 0, 1);
-      const end = new Date(now.getFullYear() + 1, 0, 1);
-      return { start, end };
-    }
-    default:
-      return null;
-  }
-}
-
 export default function FuelScreen() {
   const colors = useTheme();
   const { user } = useAuthStore();
@@ -55,7 +31,7 @@ export default function FuelScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [timeFilter, setTimeFilter] = useState("all");
+  const [timeFilter, setTimeFilter] = useState("daily");
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const vendorId = user?.vendorId;
@@ -76,8 +52,8 @@ export default function FuelScreen() {
     try {
       // Vendors only see their own fuel records — always pass vendorId for server-side filtering
       const params = normalizedUserVendorId
-        ? { vendorId: normalizedUserVendorId }
-        : undefined;
+        ? { vendorId: normalizedUserVendorId, limit: 500 }
+        : { limit: 500 };
       let data = (await fetchFuelRecords(params)) || [];
       // Double-enforce: client-side filter ensures ONLY this vendor's records are shown
       const isVendor = user?.role === "vendor";
@@ -119,7 +95,7 @@ export default function FuelScreen() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    const range = getTimeFilterRange(timeFilter);
+    const range = getEATDateRange(timeFilter);
 
     return records.filter((r) => {
       // Search filter

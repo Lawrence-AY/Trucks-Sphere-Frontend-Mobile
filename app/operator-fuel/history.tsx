@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 import { Gap, Spacing } from "../../constants/theme";
 import { fetchFuelRecords } from "../../services/api";
-import { formatEAT } from "../../utils/helpers";
+import { formatEAT, getEATDateRange } from "../../utils/helpers";
 import { buildCsvContent, shareCsvAsFile } from "../../utils/exportData";
 import {
   DataCard,
@@ -40,30 +40,6 @@ const TIME_FILTERS = [
   { key: "yearly", label: "Yearly" },
 ];
 
-function getTimeFilterRange(filter: string): { start: Date; end: Date } | null {
-  const now = new Date();
-  switch (filter) {
-    case "daily": {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const end = new Date(start);
-      end.setDate(end.getDate() + 1);
-      return { start, end };
-    }
-    case "monthly": {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      return { start, end };
-    }
-    case "yearly": {
-      const start = new Date(now.getFullYear(), 0, 1);
-      const end = new Date(now.getFullYear() + 1, 0, 1);
-      return { start, end };
-    }
-    default:
-      return null;
-  }
-}
-
 export default function FuelHistoryScreen() {
   const colors = useTheme();
   const styles = buildThemeStyles(colors);
@@ -72,13 +48,13 @@ export default function FuelHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
-  const [timeFilter, setTimeFilter] = useState("all");
+  const [timeFilter, setTimeFilter] = useState("daily");
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
     setRefreshing(true);
     try {
-      const data = (await fetchFuelRecords()) || [];
+      const data = (await fetchFuelRecords({ limit: 500 })) || [];
       setRecords(data);
     } catch {
     } finally {
@@ -100,7 +76,7 @@ export default function FuelHistoryScreen() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    const range = getTimeFilterRange(timeFilter);
+    const range = getEATDateRange(timeFilter);
 
     let result = records.filter((r) => {
       if (

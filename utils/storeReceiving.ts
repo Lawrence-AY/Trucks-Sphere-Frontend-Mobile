@@ -9,8 +9,15 @@ export function isStoreIncoming(job: any): boolean {
   const status = String(job.status || '').toUpperCase();
   if (status === 'CANCELLED' || isBulkMaterial(job)) return false;
   if (isWarehouseJob(job)) {
-    if ((job.siteWeighInWeight != null || job.siteArrivalWeight != null) && job.siteWeighOutWeight == null) return false;
-    return Boolean(job.warehouseAcceptedAt);
+    // Warehouse deliveries are also weighed at site. Once the site has
+    // recorded arrival, store receiving must be able to see the delivery;
+    // waiting for site weigh-out here left the queue at zero indefinitely.
+    return Boolean(
+      job.warehouseAcceptedAt
+      || job.siteWeighInWeight != null
+      || job.siteArrivalWeight != null
+      || ['ARRIVED_AT_SITE', 'SITE_WEIGHED_IN', 'SITE_WEIGHED_OUT', 'COMPLETED'].includes(status),
+    );
   }
   return job.siteWeighInWeight != null || job.siteArrivalWeight != null || Boolean(job.arrivedAtSiteAt || job.siteInTime) || ['ARRIVED_AT_SITE', 'SITE_WEIGHED_IN', 'SITE_WEIGHED_OUT', 'COMPLETED'].includes(status);
 }

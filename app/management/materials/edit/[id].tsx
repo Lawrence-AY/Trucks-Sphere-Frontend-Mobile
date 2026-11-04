@@ -41,6 +41,7 @@ const CATEGORIES: { id: MaterialCategory; name: string }[] = [
   { id: 'Blocks', name: 'Blocks' },
   { id: 'Other', name: 'Other' },
 ];
+const CEMENT_SUBTYPES = [{ id: 'Cement', name: 'Cement (Bulk)' }, { id: 'Cement-Bagged', name: 'Cement-Bagged' }];
 
 const UNITS: { id: MeasurementUnit; name: string }[] = [
   { id: 'Tonnes', name: 'Tonnes' },
@@ -64,6 +65,7 @@ export default function EditMaterialScreen() {
     isWarehouseMaterial: false,
     name: '',
     category: 'Aggregates' as MaterialCategory,
+    cementSubtype: 'Cement',
     measurementType: '' as MeasurementUnit,
     defaultUnit: 'Tonnes',
     description: '',
@@ -87,6 +89,7 @@ export default function EditMaterialScreen() {
         isWarehouseMaterial: Boolean(m.isWarehouseMaterial),
         name: m.name || '',
         category: normalizeMaterialCategory(m.category, m.isWarehouseMaterial) as MaterialCategory,
+        cementSubtype: m.cementSubtype || 'Cement',
         measurementType: m.measurementType || '' as MeasurementUnit,
         defaultUnit: m.defaultUnit || '',
         description: m.description || '',
@@ -128,6 +131,7 @@ export default function EditMaterialScreen() {
         isWarehouseMaterial: form.isWarehouseMaterial,
         ...(form.isWarehouseMaterial ? { category: 'Warehouse' as MaterialCategory } : {
         category: form.category,
+        ...(form.category === 'Cement' ? { cementSubtype: form.cementSubtype } : {}),
         measurementType: form.measurementType,
         defaultUnit: form.defaultUnit,
         description: form.description,
@@ -181,6 +185,14 @@ export default function EditMaterialScreen() {
             required
             error={errors.category}
           />
+
+          {form.category === 'Cement' && <Select
+            label="Cement Type"
+            value={form.cementSubtype}
+            options={CEMENT_SUBTYPES}
+            onSelect={(v) => updateField('cementSubtype', v)}
+            icon="cube-outline"
+          />}
 
           <Select
             label="Measurement Type"

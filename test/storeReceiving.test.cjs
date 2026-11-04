@@ -27,8 +27,18 @@ test('queues separate receiving, pending inspection, rejection, approval and leg
     assert.equal(workflow.isStorePendingInspection(job), false);
   }
   assert.equal(workflow.isStoreIncoming({ ...incoming, materialInspection: { materialReceipts: [{}] } }), false);
-  assert.equal(workflow.isStoreIncoming({ ...incoming, warehouseAcceptedAt: null }), false);
-  assert.equal(workflow.isStoreIncoming({ ...incoming, siteWeighInWeight: 12 }), false);
+  assert.equal(workflow.isStoreIncoming({ ...incoming, warehouseAcceptedAt: null, status: 'DISPATCHED' }), false);
+  assert.equal(workflow.isStoreIncoming({ ...incoming, warehouseAcceptedAt: null, siteWeighInWeight: 12 }), true);
+});
+
+test('non-bulk materials appear after site weigh-in', () => {
+  assert.equal(workflow.isStoreIncoming({
+    id: 'counted-1',
+    status: 'SITE_WEIGHED_IN',
+    siteWeighInWeight: 8,
+    materialName: 'Bolts',
+    unit: 'pieces',
+  }), true);
 });
 
 function fixture({ inspection = false, failUpload = false, failSave = false } = {}) {

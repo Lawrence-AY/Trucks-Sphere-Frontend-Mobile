@@ -42,6 +42,7 @@ const CATEGORIES: { id: MaterialCategory; name: string }[] = [
   { id: 'Blocks', name: 'Blocks' },
   { id: 'Other', name: 'Other' },
 ];
+const CEMENT_SUBTYPES = [{ id: 'Cement', name: 'Cement (Bulk)' }, { id: 'Cement-Bagged', name: 'Cement-Bagged' }];
 
 const MEASUREMENT_UNITS: { id: MeasurementUnit; name: string }[] = [
   { id: 'Tonnes', name: 'Tonnes' },
@@ -63,6 +64,7 @@ export default function CreateMaterialScreen() {
   const [form, setForm] = useState({
     name: '',
     category: '' as string,
+    cementSubtype: 'Cement',
     measurementType: '' as string,
     description: '',
     barcode: '',
@@ -99,6 +101,7 @@ export default function CreateMaterialScreen() {
         name: form.name.trim(),
         ...(!form.isWarehouseMaterial ? {
         category: form.category as MaterialCategory,
+        ...(form.category === 'Cement' ? { cementSubtype: form.cementSubtype } : {}),
         ...(form.measurementType ? { measurementType: form.measurementType as MeasurementUnit } : {}),
         description: form.description.trim() || undefined,
         } : {}),
@@ -108,7 +111,7 @@ export default function CreateMaterialScreen() {
 
       materialRepository.invalidateCache();
       setForm({
-        name: '', category: '', measurementType: '',
+        name: '', category: '', cementSubtype: 'Cement', measurementType: '',
         description: '', barcode: '',
         isWarehouseMaterial: false,
       });
@@ -176,6 +179,14 @@ export default function CreateMaterialScreen() {
             error={errors.category}
             placeholder="Select category..."
           />
+
+          {form.category === 'Cement' && <Select
+            label="Cement Type"
+            value={form.cementSubtype}
+            options={CEMENT_SUBTYPES}
+            onSelect={(v) => updateField('cementSubtype', v)}
+            icon="cube-outline"
+          />}
 
           <Select
             label="Measurement Type"
