@@ -11,10 +11,13 @@ import { ReportActions } from '../../components/ReportActions';
 import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
 import { Alert } from 'react-native';
 import { DateRangeFilter, defaultDateRange, DateRange } from '../../components/DateRangeFilter';
+import { normalizeRole } from '../../utils/access';
 
 export default function WarehouseReportsScreen() {
   const colors = useTheme();
   const user = useAuthStore((state) => state.user);
+  const role = normalizeRole(user?.role);
+  const canViewAllWarehouseReports = ['management', 'admin', 'admin_lite', 'superadmin', 'storeman'].includes(role);
   const [jobs, setJobs] = useState<WarehouseJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -24,12 +27,15 @@ export default function WarehouseReportsScreen() {
     const date = String(value || '').slice(0, 10);
     return (!dateRange.startDate || date >= dateRange.startDate) && (!dateRange.endDate || date <= dateRange.endDate);
   };
-  const mine = useMemo(() => jobs.filter(job => job.createdByUid === user?.uid && inRange(job.submittedAt || job.createdAt)), [jobs, user?.uid, dateRange]);
+  const visibleJobs = useMemo(() => jobs.filter(job =>
+    (canViewAllWarehouseReports || job.createdByUid === user?.uid)
+    && inRange(job.submittedAt || job.createdAt)
+  ), [jobs, user?.uid, canViewAllWarehouseReports, dateRange]);
   const exportReport = async (format: string) => {
     setExporting(true);
     try {
       const headers = ['Job ID', 'Purchase Order', 'Vendor', 'Driver', 'Truck Registration', 'Status', 'Product', 'Quantity', 'Unit', 'MRF Source', 'MRF Number', 'Dispatched At'];
-      const rows = mine.flatMap(job => (job.items?.length ? job.items : [{}]).map((item: any) => [job.jobId, job.poNumber || '', job.vendorName || '', job.driverName || '', job.plateNumber || '', job.status, item.materialName || item.productName || item.description || '', String(item.quantity ?? ''), item.unit || '', Array.isArray(item.source) ? item.source.join(' | ') : item.source || item.mrfSource || '', item.mrfNo || item.mrfNumber || '', job.dispatchedToSiteAt || job.submittedAt || '']));
+      const rows = visibleJobs.flatMap(job => (job.items?.length ? job.items : [{}]).map((item: any) => [job.jobId, job.poNumber || '', job.vendorName || '', job.driverName || '', job.plateNumber || '', job.status, item.materialName || item.productName || item.description || '', String(item.quantity ?? ''), item.unit || '', Array.isArray(item.source) ? item.source.join(' | ') : item.source || item.mrfSource || '', item.mrfNo || item.mrfNumber || '', job.dispatchedToSiteAt || job.submittedAt || '']));
       if (format === 'csv') await shareCsvAsFile('Warehouse Shipments', buildCsvContent(headers, rows));
       else await sharePdfAsFile('Warehouse Shipments', buildHtmlContent(headers, rows, 'Warehouse Shipments'));
     } catch (error: any) { Alert.alert('Export failed', error?.message || 'Could not export shipments.'); }
@@ -43,12 +49,12 @@ export default function WarehouseReportsScreen() {
   useWebLiveRefresh(load);
 
   const report = useMemo(() => {
-    const mine = jobs.filter((job) => job.createdByUid === user?.uid);
+    const mine = visibleJobs;
     const products = mine.reduce((total, job) => total + (job.items?.length || 0), 0);
     const vendors = new Set(mine.map((job) => job.vendorId).filter(Boolean)).size;
     const latest = mine[0]?.submittedAt ? new Date(mine[0].submittedAt).toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi' }) : '—';
     return { shipments: mine.length, products, vendors, latest, awaiting: mine.filter((job) => job.status === 'SUBMITTED').length, accepted: mine.filter((job) => (job.status as string) === 'ACCEPTED').length, inspected: mine.filter((job) => (job.status as string) === 'INSPECTED').length };
-  }, [jobs, user?.uid]);
+  }, [visibleJobs]);
 
   if (loading) return <View style={[styles.centered, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.primaryText} /></View>;
   return (
@@ -64,13 +70,13 @@ export default function WarehouseReportsScreen() {
         <Metric icon="time-outline" label="Awaiting acceptance" value={report.awaiting} color={colors.warning} />
         <Metric icon="checkmark-circle-outline" label="Awaiting inspection" value={report.accepted} color={colors.blueText} />
         <Metric icon="clipboard-outline" label="Inspected" value={report.inspected} color={colors.success} />
-        <Metric icon="close-circle-outline" label="Denied / cancelled" value={jobs.filter(job => job.createdByUid === user?.uid && ['DENIED', 'CANCELLED'].includes(job.status)).length} color={colors.danger} />
+        <Metric icon="close-circle-outline" label="Denied / cancelled" value={visibleJobs.filter(job => ['DENIED', 'CANCELLED'].includes(job.status)).length} color={colors.danger} />
         <Metric icon="layers-outline" label="Products" value={report.products} color={colors.success} />
         <Metric icon="business-outline" label="Vendors" value={report.vendors} color={colors.warning} />
         <Metric icon="calendar-outline" label="Latest shipment" value={report.latest} color={colors.purple} />
       </View>
       <ReportActions categories={[{ key: 'csv', label: 'Shipments CSV' }, { key: 'pdf', label: 'Shipments PDF' }]} busy={exporting} onExport={key => { void exportReport(key); }} />
-      {mine.map((job, index) => <View key={job.id} style={[styles.metric, { width: '100%', backgroundColor: colors.surface, borderColor: colors.border, marginTop: 12 }]}>
+      {visibleJobs.map((job, index) => <View key={job.id} style={[styles.metric, { width: '100%', backgroundColor: colors.surface, borderColor: colors.border, marginTop: 12 }]}> 
         <Text style={{ color: colors.text, fontWeight: '700' }}>{index + 1}. {job.jobId}</Text>
         <Text style={{ color: colors.text }}>Driver: {job.driverName || 'Not captured'}</Text>
         <Text style={{ color: colors.text }}>Truck: {job.plateNumber || 'Not captured'}</Text>

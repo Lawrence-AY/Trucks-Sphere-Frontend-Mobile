@@ -65,7 +65,7 @@ export default function ManagementTrucksScreen() {
   const filtered = useMemo(() => {
     const query = search.toLowerCase();
     return vehicles.filter((item) => !query ||
-      [item.plateNumber, item.model, item.make, item.driverName, getVendorName(item)]
+      [item.plateNumber, item.model, item.make, getVendorName(item)]
         .some((value) => String(value || '').toLowerCase().includes(query)));
   }, [vehicles, search, vendors]);
 
@@ -76,7 +76,6 @@ export default function ManagementTrucksScreen() {
       { key: 'plate', label: 'Registration', value: item => item.registrationNumber || item.plateNumber || item.id },
       { key: 'model', label: 'Make / model', value: item => [item.make, item.model].filter(Boolean).join(' ') },
       { key: 'vendor', label: 'Vendor', value: getVendorName },
-      { key: 'driver', label: 'Assigned driver', value: item => item.currentDriverName || item.driverName || 'Unassigned' },
       { key: 'capacity', label: 'Capacity', value: item => `${item.capacity ?? '—'} ${item.capacityUnit || ''}` },
       { key: 'status', label: 'Status', value: item => item.status || '—' },
     ]} />;
@@ -97,7 +96,6 @@ export default function ManagementTrucksScreen() {
                   <Text style={{ fontSize: 14, color: colors.textMuted }}>{[item.make, item.model].filter(Boolean).join(' ')}{item.year ? ` (${item.year})` : ''}</Text>
                 </View>
               </View>
-              {item.driverName ? <DetailRow icon="person-outline" value={`Driver: ${item.driverName}`} /> : null}
               {getVendorName(item) ? <DetailRow icon="business-outline" value={`Vendor: ${getVendorName(item)}`} /> : null}
             </DataCard>
           ))}

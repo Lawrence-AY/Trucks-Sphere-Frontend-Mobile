@@ -216,6 +216,7 @@ export default function CreateMaterialScreen() {
             onPress={() => { setForm({
     name: '',
     category: '' as string,
+    cementSubtype: 'Cement',
     measurementType: '' as string,
     description: '',
     barcode: '',
