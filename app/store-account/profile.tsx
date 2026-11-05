@@ -1,3 +1,7 @@
-// Storekeepers use the same editable profile, password and account controls
-// as site operators.
-export { default } from '../operator-site/profile';
+import OperatorSiteProfileScreen from '../operator-site/profile';
+
+// Storekeepers share the account design and controls used by operational users,
+// while displaying store-specific identity information.
+export default function StorekeeperProfileScreen() {
+  return <OperatorSiteProfileScreen accountType="storekeeper" />;
+}

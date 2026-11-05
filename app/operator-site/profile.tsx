@@ -10,10 +10,18 @@ import { getPasswordChangeError, PASSWORD_REQUIREMENTS } from '../../utils/passw
 import { changePassword, updateProfile } from '../../services/api';
 import { AccountDeletionRequest } from '../../components/AccountDeletionRequest';
 
-export default function OperatorSiteProfileScreen() {
+type ProfileScreenProps = {
+  accountType?: 'site-operator' | 'storekeeper';
+};
+
+export default function OperatorSiteProfileScreen({ accountType = 'site-operator' }: ProfileScreenProps) {
   const colors = useTheme();
   const styles = buildThemeStyles(colors);
   const { user } = useAuthStore();
+  const isStorekeeper = accountType === 'storekeeper';
+  const fallbackName = isStorekeeper ? 'Storekeeper' : 'Site Operator';
+  const identifierLabel = isStorekeeper ? 'Store / Site ID' : 'Site ID';
+  const identifierValue = user?.siteId;
 
   // Edit profile state
   const [editingProfile, setEditingProfile] = useState(false);
@@ -83,9 +91,9 @@ export default function OperatorSiteProfileScreen() {
         <DataCard>
           <View style={{ alignItems: 'center', gap: Gap}}>
             <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 28, fontWeight: '700', color: colors.primaryText }}>{(user?.displayName || 'S').charAt(0).toUpperCase()}</Text>
+              <Text style={{ fontSize: 28, fontWeight: '700', color: colors.primaryText }}>{(user?.displayName || (isStorekeeper ? 'K' : 'S')).charAt(0).toUpperCase()}</Text>
             </View>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || 'Site Operator'}</Text>
+            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{user?.displayName || fallbackName}</Text>
             <Text style={{ fontSize: 14, color: colors.textMuted }}>{user?.email || ''}</Text>
           </View>
 
@@ -146,7 +154,7 @@ export default function OperatorSiteProfileScreen() {
           <DetailRow icon="mail-outline" label="Email" value={user?.email || 'N/A'} />
           <DetailRow icon="shield-checkmark-outline" label="Role" value={getRoleLabel(user?.role || '')} />
           <DetailRow icon="call-outline" label="Phone" value={user?.phone || 'Not set'} />
-          <DetailRow icon="location-outline" label="Site ID" value={user?.siteId || 'N/A'} />
+          <DetailRow icon="location-outline" label={identifierLabel} value={identifierValue || 'N/A'} />
         </DataCard>
 
         {/* Change Password */}

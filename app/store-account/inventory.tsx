@@ -6,6 +6,28 @@ import { useTheme } from '../../hooks/useTheme';
 import { Gap } from '../../constants/theme';
 import { isBulkMaterial } from '../../utils/warehouse';
 
+const number = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
+
+function aggregateInventory(stocks: any[]) {
+  const grouped = new Map<string, any>();
+  stocks.forEach((item) => {
+    const key = [item.siteId || item.siteName || '', item.materialId || item.materialName || '', item.unit || ''].join('|').toLowerCase();
+    const current = grouped.get(key);
+    if (!current) {
+      grouped.set(key, { ...item, sourceStockIds: [item.id] });
+      return;
+    }
+    current.sourceStockIds.push(item.id);
+    ['dispatchedQuantity', 'receivedQuantity', 'usableQuantity', 'damagedQuantity', 'quarantinedQuantity', 'excessQuantity', 'shortageQuantity', 'consumedQuantity', 'remainingQuantity', 'receivedBasePieces', 'remainingBasePieces'].forEach((field) => {
+      current[field] = number(current[field]) + number(item[field]);
+    });
+    if (current.remainingSets != null || item.remainingSets != null) current.remainingSets = Math.floor(number(current.remainingBasePieces) / Math.max(1, number(current.piecesPerSet || item.piecesPerSet)));
+    if (current.remainingLoosePieces != null || item.remainingLoosePieces != null) current.remainingLoosePieces = number(current.remainingBasePieces) % Math.max(1, number(current.piecesPerSet || item.piecesPerSet));
+    current.receiptStatus = current.receiptStatus === item.receiptStatus ? current.receiptStatus : 'Inspected - Pass';
+  });
+  return [...grouped.values()];
+}
+
 export default function InventoryScreen() {
   const colors = useTheme();
   const [items, setItems] = useState<any[]>([]);
@@ -15,10 +37,10 @@ export default function InventoryScreen() {
     let active = true;
     setLoading(true);
     setError('');
-    fetchStocks().then((stocks) => { if (active) setItems(stocks.filter((item: any) =>
+    fetchStocks().then((stocks) => { if (active) setItems(aggregateInventory(stocks.filter((item: any) =>
       (String(item.origin || '').toLowerCase() === 'warehouse' || !isBulkMaterial(item)) &&
       !['Dispatched', 'Accepted - awaiting receiving', 'Accepted - awaiting inspection', 'received_pending_inspection', 'receiving_rejected', 'inspection_rejected'].includes(item.receiptStatus),
-    )); })
+    ))); })
       .catch(() => { if (active) setError('Unable to load inventory. Reopen this screen to retry.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
