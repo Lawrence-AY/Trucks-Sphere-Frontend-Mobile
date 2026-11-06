@@ -1560,8 +1560,8 @@ export default function FuelDispenseScreen() {
                         />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.inputTitle, { color: colors.text }]}>Fuel Pump Photo</Text>
-                        <Text style={[styles.inputSub, { color: colors.textMuted }]}>Capture the pump photo before dispensing.</Text>
+                        <Text style={[styles.inputTitle, { color: colors.text }]}>Fuel Photo</Text>
+                        <Text style={[styles.inputSub, { color: colors.textMuted }]}>Capture the evidence photo after dispensing.</Text>
                       </View>
                     </View>
 

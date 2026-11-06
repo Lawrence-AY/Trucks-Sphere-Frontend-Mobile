@@ -36,8 +36,8 @@ export default function StoremanHistoryScreen() {
   const exportHistory = async () => {
     setExporting(true);
     try {
-      const headers = ['Job ID', 'PO', 'Vendor', 'Material', 'Received Quantity', 'Unit', 'Workflow Status', 'Initial Condition', 'Rejection Reason', 'Received By', 'Received At (EAT)', 'Inspector', 'Inspected At (EAT)'];
-      const rows = filtered.flatMap(job => receivedLines(job).map(line => [job.jobId || job.id, job.poNumber || job.purchaseOrderId || '', job.vendorName || '', line.materialName || '', String(line.receivedQuantity), line.unit || '', receivingStatusLabel(job), job.storeReceiving?.condition || line.initialVisualInspection || '', job.receivingFlag?.reason || line.failureReason || '', job.storeReceiving?.receivedByName || '', receivingDate(job.storeReceiving?.receivedAt), job.materialInspection?.inspectorName || '', receivingDate(job.materialInspection?.inspectedAt)]));
+      const headers = ['Job ID', 'PO', 'Vendor', 'Material', 'Received Quantity', 'Unit', 'Workflow Status', 'Initial Condition', 'Rejection Reason', 'Received By', 'Received At (EAT)', 'Inspector', 'Inspected At (EAT)', 'Inspection Photos'];
+      const rows = filtered.flatMap(job => receivedLines(job).map(line => [job.jobId || job.id, job.poNumber || job.purchaseOrderId || '', job.vendorName || '', line.materialName || '', String(line.receivedQuantity), line.unit || '', receivingStatusLabel(job), job.storeReceiving?.condition || line.initialVisualInspection || '', job.receivingFlag?.reason || line.failureReason || '', job.storeReceiving?.receivedByName || '', receivingDate(job.storeReceiving?.receivedAt), job.materialInspection?.inspectorName || '', receivingDate(job.materialInspection?.inspectedAt), (line.photoURLs || job.materialInspection?.photoURLs || []).join(' | ')]));
       await shareCsvAsFile(`Store Receiving ${new Date().toISOString().slice(0, 10)}`, buildCsvContent(headers, rows));
     } catch (error: any) { Alert.alert('Export failed', error.message || 'Could not export history.'); }
     finally { setExporting(false); }

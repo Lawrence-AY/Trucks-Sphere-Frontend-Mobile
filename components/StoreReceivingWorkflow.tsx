@@ -43,12 +43,12 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
   const photoFor = (index: number) => photos[index] || selected?.receivingEvidence?.find((photo: any) => photo.lineIndex === index)?.url;
   const decisionReady = inspection ? storemanInspectionReady(decision, checks, reason) : decision === 'Pass' || (decision === 'Failed' && Boolean(reason.trim()));
   const ready = Boolean(selected && eligible(selected) && decisionReady && (inspection || (Boolean(deliveredBy.trim() || selected.driverName) && lines.every((_, index) => quantities[index]?.trim() && Number.isFinite(Number(quantities[index])) && Number(quantities[index]) >= 0 && photoFor(index)))));
-  const pickPhoto = async (index: number) => {
+  const pickPhoto = async (index: number, source: 'camera' | 'library' = 'camera') => {
     try {
       const permission = Platform.OS === 'web' ? { granted: true } : await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) { setError('Camera permission is needed to capture the material photo.'); return; }
       const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: .75 };
-      const result = Platform.OS === 'web' ? await ImagePicker.launchImageLibraryAsync(options) : await ImagePicker.launchCameraAsync(options);
+      const result = Platform.OS === 'web' || source === 'library' ? await ImagePicker.launchImageLibraryAsync(options) : await ImagePicker.launchCameraAsync(options);
       if (!result.canceled && result.assets[0]?.uri) { setPhotos(current => ({ ...current, [index]: result.assets[0].uri })); delete uploaded.current[index]; }
     } catch (err: any) { setError(err.message || 'Could not capture photo.'); }
   };
@@ -88,7 +88,10 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
             <Text style={{ color: colors.text, fontWeight: '700' }}>{line.materialName || line.productName || 'Material'}</Text>
             <Text style={{ color: colors.textMuted, marginTop: 8 }}>Dispatched: {line.quantity ?? '—'} {line.unit || ''}</Text>
             <TextInput accessibilityLabel={`Received quantity for ${line.materialName || 'material'}`} editable={!saving} inputAccessoryViewID="trucksphere-keyboard-done" placeholder="Received quantity *" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={quantities[index] || ''} onChangeText={value => setQuantities(current => ({ ...current, [index]: value }))} style={input} />
-            <TouchableOpacity disabled={saving} onPress={() => void pickPhoto(index)} style={{ paddingVertical: 12 }}><Text style={{ color: colors.primary }}>{photoFor(index) ? 'Replace material photo' : 'Add material photo *'}</Text></TouchableOpacity>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
+              <TouchableOpacity disabled={saving} onPress={() => void pickPhoto(index, 'camera')} style={{ paddingVertical: 12 }}><Text style={{ color: colors.primary }}>{photoFor(index) ? 'Replace material photo' : 'Capture material photo *'}</Text></TouchableOpacity>
+              <TouchableOpacity disabled={saving} onPress={() => void pickPhoto(index, 'library')} style={{ paddingVertical: 12 }}><Text style={{ color: colors.primary }}>Upload from device</Text></TouchableOpacity>
+            </View>
             {photoFor(index) ? <Image source={{ uri: photoFor(index) }} accessibilityLabel="Material evidence" resizeMode="contain" style={{ width: '100%', height: 180 }} /> : null}
           </View>)}
           <TextInput accessibilityLabel="Personnel who delivered the materials" editable={!saving} placeholder={`Delivered by (defaults to ${selected.driverName || 'driver'})`} placeholderTextColor={colors.textMuted} value={deliveredBy} onChangeText={setDeliveredBy} style={input} />
