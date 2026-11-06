@@ -1,5 +1,5 @@
 import { printDocument as printHtmlOnWeb } from '../../utils/printDocument';
-import { deliveryLot, receivingPerson, receiptReference } from '../../utils/deliveryDocuments';
+import { receivingPerson, receiptReference } from '../../utils/deliveryDocuments';
 import { formatTripMaterials } from '../../utils/poMaterials';
 import { useEffect, useState } from 'react';
 import {
@@ -22,6 +22,8 @@ import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { formatCapturedGeoLocation, reverseGeocode, reverseGeocodeRich } from '../../services/geolocation';
+import { useAuthStore } from '../../store/authStore';
+import { normalizeRole } from '../../utils/access';
 
 /* ─────────── Helper: escape HTML special characters ─────────── */
 const escapeHtml = (str: string | null | undefined): string => {
@@ -41,7 +43,6 @@ const escapeHtml = (str: string | null | undefined): string => {
 
 /* ─────────── Receipt Note PDF HTML Builder (with escaping) ─────────── */
 function buildReceiptNoteHtml(data: {
-  lotNumber?: string;
   isWarehouse?: boolean;
   receiptNoteId: string;
   jobId: string;
@@ -52,7 +53,6 @@ function buildReceiptNoteHtml(data: {
   materialName: string;
   quarryName: string;
   quarryOrigin?: string;
-  banker?: string;
   quarryCityTown?: string;
   quarryPersonnel?: string;
   quarryWeighIn?: string;
@@ -65,6 +65,9 @@ function buildReceiptNoteHtml(data: {
   weighOutGeoAddress?: string;
   timestamp: string;
   operatorName: string;
+  banker?: string;
+  lotNumber?: string;
+  showVendorOnlyFields: boolean;
 }): string {
   const {
     receiptNoteId, jobId, poNumber, driverName, plateNumber,
@@ -119,10 +122,10 @@ function buildReceiptNoteHtml(data: {
   <div class="section">
     <div class="section-title">Document Details</div>
     <div class="row"><span class="label">Receipt Note</span><span class="value">${e(receiptNoteId) || e(jobId)}</span></div>
-    <div class="row"><span class="label">Banker</span><span class="value">${e(data.banker) || 'N/A'}</span></div>
+    ${data.showVendorOnlyFields ? '' : `<div class="row"><span class="label">Banker</span><span class="value">${e(data.banker) || 'N/A'}</span></div>`}
     <div class="row"><span class="label">Job ID</span><span class="value">${e(jobId)}</span></div>
     <div class="row"><span class="label">${data.isWarehouse ? 'Warehouse Order' : 'Purchase Order'}</span><span class="value">${e(poNumber) || 'N/A'}</span></div>
-    <div class="row"><span class="label">Lot Number</span><span class="value">${e(data.lotNumber) || 'Not recorded'}</span></div>
+    ${data.showVendorOnlyFields ? '' : `<div class="row"><span class="label">Lot Number</span><span class="value">${e(data.lotNumber) || 'Not recorded'}</span></div>`}
     <div class="row"><span class="label">Date</span><span class="value">${e(timestamp)}</span></div>
   </div>
 
@@ -189,6 +192,8 @@ function buildReceiptNoteHtml(data: {
 export default function ReceiptNoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const showVendorOnlyFields = normalizeRole(user?.role) !== 'vendor';
   const [loading, setLoading] = useState(true);
   const [delivery, setDelivery] = useState<any>(null);
   const [resolvedQuarryName, setResolvedQuarryName] = useState<string | null>(null);
@@ -257,14 +262,14 @@ export default function ReceiptNoteScreen() {
   }
 
   const rn = delivery.receiptNoteId;
-  const banker = delivery.banker || (delivery.isWarehouseDelivery ? 'Warehouse-banker' : 'N/A');
   const jobId = delivery.jobId;
   const poNumber = delivery.poNumber || 'N/A';
   const driverName = delivery.driverName || 'N/A';
   const plateNumber = delivery.plateNumber || 'N/A';
   const vendorName = delivery.vendorName || 'N/A';
   const materialName = formatTripMaterials(delivery) || 'N/A';
-  const lotNumber = deliveryLot(delivery) || 'Not recorded';
+  const banker = delivery.banker || (delivery.isWarehouseDelivery ? 'Warehouse-banker' : 'N/A');
+  const lotNumber = delivery.storageLot || delivery.lotNumber || delivery.destinationLot || 'Not recorded';
   const sitePersonnel = receivingPerson(delivery) || 'Not recorded';
   const isWarehouse = Boolean(delivery.isWarehouseDelivery || delivery.warehouseJobId || delivery.deliveryOrigin === 'warehouse');
   const quarryName = resolvedQuarryName || delivery.quarryName || 'N/A';
@@ -288,13 +293,12 @@ export default function ReceiptNoteScreen() {
 const exportRows = [
   ['Receipt Note', rn],
   ['Job ID', jobId],
-  ['Lot Number', lotNumber],
+  ...(showVendorOnlyFields ? [['Banker', banker], ['Lot Number', lotNumber]] : []),
   ['Purchase Order', poNumber],
   ['Driver', driverName],
   ['Truck', plateNumber],
   ['Vendor', vendorName],
   ['Material', materialName],
-  ['Banker', banker],
   ['Origin', quarryOrigin || quarryName],
 
   ['Quarry Personnel', quarryPersonnel || 'N/A'],
@@ -324,10 +328,8 @@ const exportRows = [
     setExporting('pdf');
     try {
       const html = buildReceiptNoteHtml({
-        lotNumber,
         isWarehouse,
         receiptNoteId: rn,
-        banker,
         jobId,
         poNumber,
         driverName,
@@ -348,6 +350,9 @@ const exportRows = [
         weighOutGeoAddress: geoAddress,
         timestamp: formatEAT(delivery.receivedAt || delivery.updatedAt),
         operatorName: sitePersonnel,
+        banker,
+        lotNumber,
+        showVendorOnlyFields,
       });
 
       if (Platform.OS === 'web') {
@@ -391,9 +396,9 @@ const exportRows = [
 
         {/* Job Info */}
         <SectionBlock title="DOCUMENT DETAILS" colors={colors}>
-          <RNRow label="Banker" value={banker} colors={colors} />
+          {showVendorOnlyFields ? <RNRow label="Banker" value={banker} colors={colors} /> : null}
           <RNRow label="Job ID" value={jobId} colors={colors} />
-          <RNRow label="Lot Number" value={lotNumber} colors={colors} />
+          {showVendorOnlyFields ? <RNRow label="Lot Number" value={lotNumber} colors={colors} /> : null}
           <RNRow label="Site Personnel" value={sitePersonnel} colors={colors} />
           <RNRow label={isWarehouse ? "Warehouse Order" : "Purchase Order"} value={poNumber} colors={colors} />
           <RNRow

@@ -38,6 +38,12 @@ class VendorRepository extends BaseRepository<Vendor> {
     return vendor;
   }
 
+  override async update(id: string, updates: Partial<Vendor>): Promise<Vendor> {
+    const vendor = await super.update(id, updates);
+    useRealTimeSyncStore.getState().optimisticUpdate('vendors', vendor);
+    return vendor;
+  }
+
   /** Create a vendor and its login account, then publish it to local lists. */
   async createWithAccount(payload: { vendor: Partial<Vendor>; account: { email: string; password: string; isActive: boolean } }) {
     const response = await api.post('/api/vendors/with-account', payload);

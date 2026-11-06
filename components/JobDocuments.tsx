@@ -2,7 +2,7 @@ import { purchaseOrderRepository } from '../services/repositories/PurchaseOrderR
 import { getPurchaseOrderMaterials } from '../utils/poMaterials';
 import { showAlert } from '../utils/webAlert';
 import { formatTripMaterials } from '../utils/poMaterials';
-import { hasReceipt, receiptReference, deliveryLot, receivingPerson, deliveryPerson } from '../utils/deliveryDocuments';
+import { hasReceipt, receiptReference, receivingPerson, deliveryPerson } from '../utils/deliveryDocuments';
 import { isWarehouseJob } from '../utils/warehouse';
 import { readableTextColor } from '../utils/contrast';
 import { useState } from 'react';
@@ -89,7 +89,6 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
       color: colors.successText,
       rows: [
         ['Receipt Note #', receiptNoteId],
-        ['Lot Number', deliveryLot(job) || 'Not recorded'],
         ['Site Personnel', receivingPerson(job) || 'Not recorded'],
         ...baseRows,
         ['Delivered Quantity', `${job?.quantityDelivered || job?.siteNetWeight || '—'} ${job?.unit || ''}`.trim()],
