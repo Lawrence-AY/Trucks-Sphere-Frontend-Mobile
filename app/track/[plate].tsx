@@ -170,6 +170,13 @@ export default function PublicTrackingScreen() {
       // Server returned a tracking-specific error (404, expired, etc.)
       if (err?.isTrackingError) {
         const isExpired = err.errorCode === 'TRACKING_EXPIRED';
+        if (!isExpired && err.errorCode === 'TRACKING_NOT_FOUND' && securitySession) {
+          // Keep the existing security session and hand unregistered/non-dispatched
+          // vehicles to the existing gatepass flow. Other tracking failures remain
+          // on the tracking page.
+          router.replace('/gatepass' as any);
+          return;
+        }
         if (isExpired) {
           setState({ kind: 'expired', message: err.message });
         } else {
@@ -182,7 +189,7 @@ export default function PublicTrackingScreen() {
       // Generic fallback (should not normally be reached)
       setState({ kind: 'error', message: err?.message || 'An unexpected error occurred.' });
     }
-  }, []);
+  }, [securitySession]);
 
   // Keep a ref to the latest state to avoid stale closure in interval
   const stateRef = useRef(state);

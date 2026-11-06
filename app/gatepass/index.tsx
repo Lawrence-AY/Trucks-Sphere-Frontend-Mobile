@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ type Photo = { uri: string; mimeType?: string | null; fileName?: string | null }
 export default function GatepassScreen() {
   const colors = Colors.light; const [truckNumber, setTruckNumber] = useState(''); const [driverName, setDriverName] = useState('');
   const [photo, setPhoto] = useState<Photo | null>(null); const [securityCode, setSecurityCode] = useState(''); const [session, setSession] = useState<any>(null); const [saving, setSaving] = useState(false); const [error, setError] = useState('');
+  useEffect(() => { void getItem(SESSION_KEY).then(raw => { try { const active = raw ? JSON.parse(raw) : null; if (active?.id && active?.token && Date.parse(active.expiresAt) > Date.now()) setSession(active); } catch { /* ignore invalid saved session */ } }); }, []);
   const login = async () => { try { const next = await startSecurityTrackingSession(securityCode); const active = { id: next.id, token: next.token, personnelName: next.personnelName, securityLocation: next.securityLocation, expiresAt: next.expiresAt }; await setItem(SESSION_KEY, JSON.stringify(active)); setSession(active); setError(''); } catch (e: any) { setError(e?.response?.data?.error || 'The security code could not be verified.'); } };
   const capture = async () => { const permission = await ImagePicker.requestCameraPermissionsAsync(); if (!permission.granted) return Alert.alert('Permission needed', 'Camera access is required.'); const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 }); if (!result.canceled && result.assets[0]) setPhoto({ uri: result.assets[0].uri, mimeType: result.assets[0].mimeType, fileName: result.assets[0].fileName }); };
   const submit = async () => { if (!truckNumber.trim() || !driverName.trim() || !photo) return setError('Enter the truck and driver, then capture one photo showing both.'); setSaving(true); try { const active = session || JSON.parse((await getItem(SESSION_KEY)) || 'null'); if (!active?.id || !active?.token) throw new Error('Verify the security code first.'); await createPendingGatePass(active.id, active.token, truckNumber, driverName, photo); Alert.alert('Gate pass pending', 'The unregistered truck has been recorded for review.'); setTruckNumber(''); setDriverName(''); setPhoto(null); setError(''); } catch (e: any) { setError(e?.response?.data?.error || e.message || 'Please try again.'); } finally { setSaving(false); } };

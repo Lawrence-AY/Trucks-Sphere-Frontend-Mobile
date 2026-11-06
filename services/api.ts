@@ -517,7 +517,7 @@ export async function receiveStoreDelivery(id: string, payload: { requestId: str
   return unwrapOne(await backendRequest('post', `/api/delivery-orders/${encodeURIComponent(id)}/store-receiving`, payload), {});
 }
 
-export async function inspectStoreDelivery(id: string, payload: { requestId: string; result: 'Pass' | 'Failed'; qualityChecks: Record<string, boolean>; reason: string }): Promise<any> {
+export async function inspectStoreDelivery(id: string, payload: { requestId: string; result: 'Pass' | 'Failed'; qualityChecks: Record<string, boolean>; reason: string; lineDecisions?: Array<{ acceptedQuantity: number; rejectedQuantity: number; failureReason?: string }> }): Promise<any> {
   return unwrapOne(await backendRequest('post', `/api/delivery-orders/${encodeURIComponent(id)}/store-inspection`, payload), {});
 }
 
