@@ -134,17 +134,31 @@ export default function MaterialDetailsScreen() {
               <DetailRow icon="git-branch-outline" value={`${jobs.length} linked jobs`} />
               <Text style={[styles.timestamp, { color: colors.textTertiary }]}>{formatEAT(order.createdAt)}</Text>
 
-              {jobs.map((job) => (
-                <View key={job.id} style={[styles.jobLine, { borderColor: colors.border }]}>
-                  <Text style={[styles.jobId, { color: colors.text }]} onPress={() => router.push(`/screens/job-details?id=${job.jobId}`)}>
-                    {job.jobId}
-                  </Text>
-                  <Text style={[styles.jobMeta, { color: colors.textMuted }]}>
-                    {job.driverName || 'Unassigned'} - {job.plateNumber || 'No vehicle'}
-                  </Text>
-                 
-                </View>
-              ))}
+              {jobs.map((job) => {
+                const netWeight = job.siteNetWeight ?? (
+                  job.siteWeighInWeight != null && job.siteWeighOutWeight != null
+                    ? Number(job.siteWeighInWeight) - Number(job.siteWeighOutWeight)
+                    : job.netWeight ?? (
+                      job.weighInWeight != null && job.weighOutWeight != null
+                        ? Number(job.weighInWeight) - Number(job.weighOutWeight)
+                        : null
+                    )
+                );
+                const netWeightLabel = netWeight != null && Number.isFinite(Number(netWeight))
+                  ? `${Number(netWeight).toFixed(1)} t`
+                  : 'Not recorded';
+                return (
+                  <View key={job.id} style={[styles.jobLine, { borderColor: colors.border }]}>
+                    <Text style={[styles.jobId, { color: colors.text }]} onPress={() => router.push(`/screens/job-details?id=${job.jobId}`)}>
+                      {job.jobId}
+                    </Text>
+                    <Text style={[styles.jobMeta, { color: colors.textMuted }]}>
+                      {job.driverName || 'Unassigned'} - {job.plateNumber || 'No vehicle'}
+                    </Text>
+                    <DetailRow icon="scale-outline" value={`Net delivered: ${netWeightLabel}`} />
+                  </View>
+                );
+              })}
             </DataCard>
           );
         })

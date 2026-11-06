@@ -57,11 +57,12 @@ export default function VendorOrdersScreen() {
   return (
     <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={colors.primary} />}>
        <SearchField title="Orders" icon="receipt-outline" value={search} onChangeText={setSearch} placeholder="Search PO, material..." />
+      <View style={{ gap: 6 }}>
       <SectionTitle title={`${filtered.length} orders`} />
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading orders...</Text></DataCard>
       ) : filtered.length ? (
-        filtered.map((item) => (
+        <View style={{ gap: 6 }}>{filtered.map((item) => (
           <DataCard key={item.id} onPress={() => router.push(`/screens/purchase-order?id=${item.id}` as any)}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <View style={{ flex: 1 }}>
@@ -72,10 +73,11 @@ export default function VendorOrdersScreen() {
             <PurchaseOrderMaterials order={item} />
             <Text style={{ fontSize: 14, color: colors.textTertiary }}>{formatEAT(item.createdAt)}</Text>
           </DataCard>
-        ))
+        ))}</View>
       ) : (
         <EmptyState icon="document-text-outline" title="No orders" subtitle="No purchase orders found." />
       )}
+      </View>
     </PageShell>
   );
 }

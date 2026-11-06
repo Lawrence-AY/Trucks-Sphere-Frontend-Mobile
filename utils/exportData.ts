@@ -79,7 +79,8 @@ async function shareCsvFile(title: string, headers: string[], rows: string[][]) 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Let the browser start consuming the download before revoking its URL.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       return;
     }
 
@@ -349,7 +350,8 @@ export async function shareCsvAsFile(title: string, csvContent: string): Promise
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // Let the browser start consuming the download before revoking its URL.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       return;
     }
 

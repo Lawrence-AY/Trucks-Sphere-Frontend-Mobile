@@ -129,6 +129,8 @@ export function MetricTile({
   onPress,
   compact = false,
   emphasized = false,
+  singleLineLabel = false,
+  singleLineValue = false,
 }: {
   icon: IconName;
   label: string;
@@ -137,6 +139,8 @@ export function MetricTile({
   onPress?: () => void;
   compact?: boolean;
   emphasized?: boolean;
+  singleLineLabel?: boolean;
+  singleLineValue?: boolean;
 }) {
   const colors = useTheme();
   return (
@@ -155,10 +159,16 @@ export function MetricTile({
             <View style={[styles.metricIcon, { backgroundColor: `${tone}18` }]}>
               <Ionicons name={icon} size={20} color={tone} />
             </View>
-            {compact ? <Text variant="titleMedium" style={[styles.metricCompactValue, emphasized && styles.metricCompactValueEmphasized, { color: colors.text }]}>{value}</Text> : null}
+            {compact ? <Text variant="titleMedium" numberOfLines={singleLineValue ? 1 : undefined} adjustsFontSizeToFit={singleLineValue} minimumFontScale={singleLineValue ? 0.7 : undefined} style={[styles.metricCompactValue, emphasized && styles.metricCompactValueEmphasized, { color: colors.text }]}>{value}</Text> : null}
           </View>
           {!compact ? <Text variant="titleMedium" style={{ color: colors.text }}>{value}</Text> : null}
-          <Text variant="bodyMedium" style={[compact && styles.metricCompactLabel, emphasized && styles.metricCompactLabelEmphasized, { color: colors.textMuted }]}>{label}</Text>
+          <Text
+            variant="bodyMedium"
+            numberOfLines={singleLineLabel ? 1 : undefined}
+            adjustsFontSizeToFit={singleLineLabel}
+            minimumFontScale={singleLineLabel ? 0.75 : undefined}
+            style={[compact && styles.metricCompactLabel, emphasized && styles.metricCompactLabelEmphasized, { color: colors.textMuted }]}
+          >{label}</Text>
         </View>
       </TouchableRipple>
       {emphasized ? <View pointerEvents="none" style={[styles.metricAccent, { backgroundColor: tone }]} /> : null}

@@ -19,11 +19,14 @@ export default function StoreAccountLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   if (role !== 'storeman') return <Redirect href="/(auth)/login" />;
   const go = (route: '/store-account' | '/store-account/history' | '/store-account/profile' | '/store-account/inventory' | '/screens/issues') => { setMenuOpen(false); router.push(route as any); };
-  const header = () => <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Issues" onPress={() => go('/screens/issues')} style={{ padding: 8 }}><Ionicons name="chatbubble-ellipses-outline" size={24} color={colors.primary} /></TouchableOpacity><TouchableOpacity onPress={() => setMenuOpen(true)} accessibilityLabel="Open store account menu"><Ionicons name="menu-outline" size={28} color={colors.text} /></TouchableOpacity></View>;
+  // WebLayout owns web navigation (persistent sidebar on desktop, drawer on
+  // narrow screens). Keep this account menu only on native to avoid a second
+  // hamburger beside the shared web navigation.
+  const header = Platform.OS === 'web' ? undefined : () => <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Issues" onPress={() => go('/screens/issues')} style={{ padding: 8 }}><Ionicons name="chatbubble-ellipses-outline" size={24} color={colors.primary} /></TouchableOpacity><TouchableOpacity onPress={() => setMenuOpen(true)} accessibilityLabel="Open store account menu"><Ionicons name="menu-outline" size={28} color={colors.text} /></TouchableOpacity></View>;
   const back = Platform.OS === 'web' || pathname === '/store-account' ? undefined : () => <BackButton onPress={() => router.back()} accessibilityLabel="Go back" />;
   return <>
     <Tabs screenOptions={{
-      headerShown: true,
+      headerShown: Platform.OS !== 'web',
       headerLeft: back,
       headerRight: header,
       headerStyle: { backgroundColor: colors.surface },

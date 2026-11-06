@@ -96,12 +96,13 @@ export default function VendorTrucksScreen() {
 
 
       <SearchField title="Trucks" icon="bus-outline" value={search} onChangeText={setSearch} placeholder="Search plate, make, model, driver..." />
+      <View style={{ gap: 6 }}>
       <SectionTitle title={`${vehiclesWithStats.length} trucks`} />
 
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading trucks...</Text></DataCard>
       ) : vehiclesWithStats.length ? (
-        vehiclesWithStats.map((vehicle) => (
+        <View style={{ gap: 6 }}>{vehiclesWithStats.map((vehicle) => (
           <DataCard
             key={vehicle.id}
             style={vehicle.securityFlag?.status === 'cleared' ? { borderColor: '#A78BFA', borderWidth: 1.5 } : undefined}
@@ -135,16 +136,10 @@ export default function VendorTrucksScreen() {
                   {vehicle.totalTrips} trips
                 </Text>
               </View>
-              <View style={styles.miniStat}>
-                <Ionicons name="checkmark-done-outline" size={14} color={colors.success} />
-                <Text style={[styles.miniStatText, { color: colors.textSecondary }]}>
-                  {vehicle.completedTrips} done
-                </Text>
-              </View>
             </ResponsiveGrid>
             {vehicle.securityFlag?.status === 'cleared' ? <Text style={[styles.clearedLabel, { color: colors.primaryText }]}>Unsuspended after security clearance</Text> : null}
           </DataCard>
-        ))
+        ))}</View>
       ) : (
         <EmptyState
           icon="car-outline"
@@ -152,6 +147,7 @@ export default function VendorTrucksScreen() {
           subtitle="No trucks linked to your vendor account."
         />
       )}
+      </View>
     </PageShell>
   );
 }

@@ -1,4 +1,4 @@
-import { hasReceipt, receiptReference } from '../../utils/deliveryDocuments';
+import { hasReceipt } from '../../utils/deliveryDocuments';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +19,7 @@ import {
   fetchPurchaseOrders,
   fetchVehicles,
 } from '../../services/api';
-import { formatEAT, formatStatus, generateReceiptNoteId, getStatusColor } from '../../utils/helpers';
+import { formatEAT, formatStatus, getStatusColor } from '../../utils/helpers';
 import { normalizeJobStatus } from '../../utils/jobStatus';
 import { getJobPurchaseOrderMaterials } from '../../utils/poMaterials';
 
@@ -109,7 +109,6 @@ export default function JobDetailsScreen() {
 
   const isReceiptReady = hasReceipt(job);
   const orderMaterials = getJobPurchaseOrderMaterials(job, purchaseOrder ? [purchaseOrder] : []);
-  const receiptNoteId = isReceiptReady ? receiptReference(job) || generateReceiptNoteId(job?.jobId || job?.id) : null;
 
   if (loading) {
     return (
@@ -162,35 +161,6 @@ export default function JobDetailsScreen() {
             
           </DataCard>
         ) : null}
-
-        <DataCard>
-          {/* Receipt Note (RN) for completed jobs — tappable */}
-        {receiptNoteId && (
-          <TouchableOpacity
-            style={[styles.rnBadge, { backgroundColor: '#10B98115', borderColor: '#10B98133' }]}
-            onPress={() => router.push(`/screens/receipt-note?id=${encodeURIComponent(job.jobId || job.id)}` as any)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="receipt-outline" size={16} color={colors.success} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rnLabel, { color: colors.textMuted }]}>Receipt Note</Text>
-              <Text style={[styles.rnValue, { color: colors.success }]} numberOfLines={3}>{receiptNoteId}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.success} />
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.primaryAction, { backgroundColor: colors.primary }]} onPress={() => router.push(`/screens/delivery-note?id=${job.jobId}` as any)}>
-            <Ionicons name="receipt-outline" size={18} color={colors.onPrimary} />
-            <Text style={styles.primaryActionText}>Delivery note</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.secondaryAction, { borderColor: colors.border }]} onPress={() => router.push(`/screens/purchase-order?id=${job.purchaseOrderId || job.poNumber}` as any)}>
-            <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
-            <Text style={[styles.secondaryActionText, { color: colors.textSecondary }]}>Purchase order</Text>
-          </TouchableOpacity>
-        </View>
-      </DataCard>
 
       {job.securityFlag?.status === 'cleared' ? (
         <DataCard style={styles.clearanceCard}>
@@ -305,38 +275,6 @@ const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.cre
   summarySub: { fontSize: 12, fontWeight: '700', marginTop: Spacing.xs},
   priorityBadge: { borderRadius: 20, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
   priorityText: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
-  actionRow: { flexDirection: 'row', gap: Gap},
-  primaryAction: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: Gap,
-  },
-  primaryActionText: { color: colors.onPrimary, fontSize: 13, fontWeight: '900' },
-  secondaryAction: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: Gap,
-  },
-  secondaryActionText: { fontSize: 13, fontWeight: '900' },
-  rnBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Gap,
-    borderRadius: 8,
-    borderWidth: 1,
-    padding: Spacing.md, marginTop: Spacing.xs,
-  },
-  rnLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: Spacing.xs},
-  rnValue: { fontSize: 15, fontWeight: '900' },
   timelineItem: { flexDirection: 'row', gap: Gap, alignItems: 'flex-start' },
   timelineIcon: { width: 36, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   timelineCopy: { flex: 1 },

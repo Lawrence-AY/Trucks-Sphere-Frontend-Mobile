@@ -18,7 +18,9 @@ import { WorkspaceHeader } from './WorkspaceHeader';
 
 const AUTH_ROUTES = ['/(auth)', '/login', '/auth'];
 const HIDE_SIDEBAR_ROUTES = ['/track', '/session', '/security', '/gatepass'];
-const DESKTOP_BREAKPOINT = 1024;
+// Keep the persistent sidebar for wide desktop viewports. At laptop and tablet
+// widths the drawer leaves substantially more room for operational forms.
+const DESKTOP_BREAKPOINT = 1200;
 
 interface WebLayoutProps {
   children: React.ReactNode;
@@ -26,8 +28,8 @@ interface WebLayoutProps {
 
 /**
  * WebLayout provides a responsive layout for web:
- * - Desktop (>= 1024px): Fixed sidebar + full-width workspace
- * - Mobile web (< 1024px): Top navbar with hamburger → slide-in drawer
+ * - Desktop (>= 1200px): Fixed sidebar + full-width workspace
+ * - Compact web (< 1200px): Top navbar with hamburger → slide-in drawer
  * - Native (iOS/Android): Pass-through (tabs handle navigation)
  * - Track & Auth routes: Pass-through (no sidebar/navbar)
  */
@@ -42,8 +44,8 @@ export default function WebLayout({ children }: WebLayoutProps) {
   const overlayAnim = useRef(new Animated.Value(0)).current;
 
   const isWeb = Platform.OS === 'web';
-  // A sidebar at tablet widths leaves too little room for operational forms
-  // and data cards, so tablet web uses the compact drawer layout.
+  // A sidebar at laptop and tablet widths leaves too little room for
+  // operational forms and data cards, so compact web uses a drawer.
   const isDesktopWeb = isWeb && width >= DESKTOP_BREAKPOINT;
   const isMobileWeb = isWeb && width < DESKTOP_BREAKPOINT;
 
@@ -134,7 +136,7 @@ export default function WebLayout({ children }: WebLayoutProps) {
     );
   }
 
-  // ── Mobile Web: Top Navbar + Drawer ──
+  // ── Compact Web: Top Navbar + Drawer ──
   if (isMobileWeb) {
     if (isAuthScreen || isSplashScreen || isHideSidebarRoute || isLoading) {
       return <>{children}</>;

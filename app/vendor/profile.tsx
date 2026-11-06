@@ -14,7 +14,6 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 import { Gap, Radius, Spacing } from '../../constants/theme';
 import {
-  CommandHeader,
   DataCard,
   DetailRow,
   PageShell,
@@ -92,12 +91,6 @@ export default function VendorProfileScreen() {
 
   return (
     <PageShell>
-      <CommandHeader
-        eyebrow="Account"
-        title="Profile & Settings"
-        subtitle={`${getRoleLabel(user?.role || '')} · ${user?.displayName || 'User'}`}
-      />
-
       {/* Avatar */}
       <DataCard>
         <View style={{ alignItems: 'center', gap: Gap}}>
@@ -163,12 +156,12 @@ export default function VendorProfileScreen() {
             <View style={styles.editActions}>
               <TouchableOpacity
                 style={[styles.editCancelBtn, { borderColor: colors.border }]}
-                onPress={() => { setDisplayName(user?.displayName || ''); setPhone(user?.phone || ''); setEmail(user?.email || ''); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); (() => {
+                onPress={() => {
                   setEditingProfile(false);
                   setDisplayName(user?.displayName || '');
                   setPhone(user?.phone || '');
                   setEmail(user?.email || '');
-                })(); }}
+                }}
                 disabled={profileSaving}
               >
                 <Text style={[styles.editCancelText, { color: colors.textSecondary }]}>Cancel</Text>
@@ -246,12 +239,12 @@ export default function VendorProfileScreen() {
             <View style={styles.editActions}>
               <TouchableOpacity
                 style={[styles.editCancelBtn, { borderColor: colors.border }]}
-                onPress={() => { setDisplayName(user?.displayName || ''); setPhone(user?.phone || ''); setEmail(user?.email || ''); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); (() => {
+                onPress={() => {
                   setChangingPassword(false);
                   setCurrentPassword('');
                   setNewPassword('');
                   setConfirmPassword('');
-                })(); }}
+                }}
                 disabled={passwordSaving}
               >
                 <Text style={[styles.editCancelText, { color: colors.textSecondary }]}>Cancel</Text>

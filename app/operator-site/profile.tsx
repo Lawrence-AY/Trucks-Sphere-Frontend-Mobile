@@ -22,6 +22,8 @@ export default function OperatorSiteProfileScreen({ accountType = 'site-operator
   const fallbackName = isStorekeeper ? 'Storekeeper' : 'Site Operator';
   const identifierLabel = isStorekeeper ? 'Store / Site ID' : 'Site ID';
   const identifierValue = user?.siteId;
+  const hasStoreIdentifier = Boolean(identifierValue?.trim()) && identifierValue?.trim().toLowerCase() !== 'n/a';
+  const hasStoreEmail = Boolean(user?.email?.trim()) && user?.email?.trim().toLowerCase() !== 'n/a';
 
   // Edit profile state
   const [editingProfile, setEditingProfile] = useState(false);
@@ -151,10 +153,10 @@ export default function OperatorSiteProfileScreen({ accountType = 'site-operator
         <SectionTitle title="Account details" />
         <DataCard>
           <DetailRow icon="person-outline" label="Name" value={user?.displayName || 'N/A'} />
-          <DetailRow icon="mail-outline" label="Email" value={user?.email || 'N/A'} />
+          {isStorekeeper && !hasStoreEmail ? null : <DetailRow icon="mail-outline" label="Email" value={user?.email || 'N/A'} />}
           <DetailRow icon="shield-checkmark-outline" label="Role" value={getRoleLabel(user?.role || '')} />
           <DetailRow icon="call-outline" label="Phone" value={user?.phone || 'Not set'} />
-          <DetailRow icon="location-outline" label={identifierLabel} value={identifierValue || 'N/A'} />
+          {isStorekeeper && !hasStoreIdentifier ? null : <DetailRow icon="location-outline" label={identifierLabel} value={identifierValue || 'N/A'} />}
         </DataCard>
 
         {/* Change Password */}

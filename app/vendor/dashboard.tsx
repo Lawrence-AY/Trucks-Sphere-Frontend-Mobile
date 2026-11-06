@@ -1,5 +1,5 @@
 import { isActiveJob, normalizeJobStatus } from '../../utils/jobStatus';
-import { TripMaterials } from '../../components/TripMaterials';
+import { TripListCard } from '../../components/TripListCard';
 import { ResponsiveGrid } from '../../components/ResponsiveGrid';
 import { useMemo, useState } from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
@@ -106,10 +106,10 @@ export default function VendorDashboardScreen() {
       .slice(0, 5);
   }, [deliveries]);
 
-  const getJobFuel = (jobId: string) =>
-    vendorFuelRecords
-      .filter((f) => f.jobId === jobId)
-      .reduce((sum, f) => sum + (Number(f.fuelAmount ?? f.litres) || 0), 0);
+  const driverPhotos = useMemo(
+    () => new Map(drivers.map((driver: any) => [String(driver.id || '').trim(), driver.photoURL || driver.photoUrl || ''])),
+    [drivers],
+  );
 
   // Recent fuel records (last 5)
   const recentFuelRecords = useMemo(() => {
@@ -134,13 +134,15 @@ export default function VendorDashboardScreen() {
     >
       {/* Summary note: fuel authorization requests appear at the root vendor level (via _layout.tsx) */}
 
-      <ResponsiveGrid minItemWidth={150} maxColumns={3}>
+      <View style={styles.metricGrid}>
+      <ResponsiveGrid sideBySide maxColumns={2} style={styles.metricRow}>
         <MetricTile
           icon="document-text"
           label="Orders Summary"
           value={orders.length}
           tone={colors.primary}
           compact
+          emphasized
           onPress={() => router.push("/vendor/orders" as any)}
         />
         <MetricTile
@@ -149,6 +151,7 @@ export default function VendorDashboardScreen() {
           value={drivers.length}
           tone={colors.accent}
           compact
+          emphasized
           onPress={() => router.push("/vendor/drivers" as any)}
         />
 
@@ -158,6 +161,7 @@ export default function VendorDashboardScreen() {
           value={vehicles.length}
           tone={colors.success}
           compact
+          emphasized
           onPress={() => router.push("/vendor/trucks" as any)}
         />
         <MetricTile
@@ -166,6 +170,7 @@ export default function VendorDashboardScreen() {
           value={deliveries.length}
           tone={colors.warning}
           compact
+          emphasized
           onPress={() => router.push("/vendor/trips" as any)}
         />
 
@@ -176,6 +181,7 @@ export default function VendorDashboardScreen() {
           tone={colors.success}
           onPress={() => router.push("/vendor/trips?status=completed" as any)}
           compact
+          emphasized
         />
         <MetricTile
           icon="water"
@@ -183,21 +189,24 @@ export default function VendorDashboardScreen() {
           value={`${totalFuelForVendor.toFixed(1)}L`}
           tone={colors.warning}
           compact
+          emphasized
           onPress={() => router.push("/vendor/fuel" as any)}
         />
       </ResponsiveGrid>
+      </View>
 
-      <SectionTitle
-        title="Recent trips"
-        action={
-          <Text
-            style={{ fontSize: 13, fontWeight: "600", color: colors.accent }}
-            onPress={() => router.push("/vendor/trips" as any)}
-          >
-            View all
-          </Text>
-        }
-      />
+      <View style={{ gap: 6 }}>
+        <SectionTitle
+          title="Recent trips"
+          action={
+            <Text
+              style={{ fontSize: 13, fontWeight: "600", color: colors.accent }}
+              onPress={() => router.push("/vendor/trips" as any)}
+            >
+              View all
+            </Text>
+          }
+        />
       {loading ? (
         <DataCard>
           <Text style={{ fontSize: 14, color: colors.textMuted }}>
@@ -205,79 +214,16 @@ export default function VendorDashboardScreen() {
           </Text>
         </DataCard>
       ) : recentDeliveries.length ? (
-        recentDeliveries.map((item) => {
-          const jobFuel = getJobFuel(item.jobId || "");
-          return (
-            <DataCard
+        <View style={{ gap: 6 }}>
+          {recentDeliveries.map((item) => (
+            <TripListCard
               key={item.id}
-              onPress={() =>
-                router.push(
-                  `/screens/job-details?id=${item.jobId || item.id}` as any,
-                )
-              }
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "700",
-                      color: colors.text,
-                    }}
-                  >
-                    {item.jobId || item.id}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: colors.textMuted, marginTop: Spacing.xs,
-                    }}
-                  >
-                    PO: {item.poNumber || "N/A"}
-                  </Text>
-                </View>
-              </View>
-              <DetailRow
-                icon="person-outline"
-                value={`${item.driverName || "Unassigned"} · ${item.plateNumber || "No vehicle"}`}
-              />
-              <TripMaterials trip={item} />
-              {jobFuel > 0 && (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    alignSelf: "flex-start",
-                    gap: Gap,
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderRadius: 20,
-                    backgroundColor: "#F59E0B10",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: "700",
-                      color: colors.warning,
-                    }}
-                  >
-                    {jobFuel.toFixed(1)} L fuel
-                  </Text>
-                </View>
-              )}
-              <Text style={{ fontSize: 12, color: colors.textTertiary }}>
-                {formatEAT(item.updatedAt || item.createdAt)}
-              </Text>
-            </DataCard>
-          );
-        })
+              trip={item}
+              driverPhoto={driverPhotos.get(String(item.driverId || '').trim())}
+              onPress={() => router.push(`/screens/job-details?id=${item.jobId || item.id}` as any)}
+            />
+          ))}
+        </View>
       ) : (
         <EmptyState
           icon="cube-outline"
@@ -285,10 +231,11 @@ export default function VendorDashboardScreen() {
           subtitle="No deliveries yet for your vendor account."
         />
       )}
+      </View>
 
       {/* Recent Fuel Records Section */}
       {recentFuelRecords.length > 0 && (
-        <>
+        <View style={{ gap: 6 }}>
           <SectionTitle
             title="Recent Fuel Dispensed"
             action={
@@ -304,7 +251,7 @@ export default function VendorDashboardScreen() {
               </Text>
             }
           />
-          {recentFuelRecords.map((item) => {
+          <View style={{ gap: 6 }}>{recentFuelRecords.map((item) => {
             const authCode =
               item.authorizationCode || item.authorizationId || "";
             return (
@@ -391,13 +338,14 @@ export default function VendorDashboardScreen() {
                 </Text>
               </DataCard>
             );
-          })}
-        </>
+          })}</View>
+        </View>
       )}
     </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  metricRow: { flexDirection: "row", gap: Gap},
+  metricGrid: { gap: Gap },
+  metricRow: { gap: Gap },
 });

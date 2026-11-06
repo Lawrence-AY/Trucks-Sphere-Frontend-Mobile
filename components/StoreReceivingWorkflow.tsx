@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Image, Platform, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Platform, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -13,6 +13,7 @@ import { STOREMAN_GENERAL_METRICS, storemanInspectionReady } from '../utils/stor
 import { InspectionChoice } from './InspectionChoice';
 import { SearchField } from './EnterpriseUI';
 import { StoreReceiptDetails } from './StoreReceiptDetails';
+import { CommandHeader, PageShell } from './EnterpriseUI';
 
 export default function StoreReceivingWorkflow({ inspection = false }: { inspection?: boolean }) {
   const colors = useTheme();
@@ -71,11 +72,10 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
     } catch (err: any) { setError(err?.response?.data?.error || err.message || 'Could not save. Your entries have been kept for retry.'); }
     finally { savingRef.current = false; setSaving(false); }
   };
-  const card = { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 12, padding: 16, marginTop: 12 };
+  const card = { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 12, padding: 16 };
   const input = { color: colors.text, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 };
-  return <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 20, paddingBottom: 48, maxWidth: 960, width: '100%', alignSelf: 'center' }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); try { await refresh('deliveryOrders'); } finally { setRefreshing(false); } }} />}>
-    <Text style={{ color: colors.text, fontSize: 25, fontWeight: '800' }}>{inspection ? 'Quality Inspection' : 'Store Receiving'}</Text>
-    <Text style={{ color: colors.textMuted, marginVertical: 10 }}>{inspection ? 'Review the received materials and photo evidence before approving inventory.' : 'Count materials, record their initial condition, and capture a photo for each material.'}</Text>
+  return <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); try { await refresh('deliveryOrders'); } finally { setRefreshing(false); } }} />}>
+    <CommandHeader title={inspection ? 'Quality inspection' : 'Store receiving'} subtitle={inspection ? 'Review received materials and photo evidence before approving inventory.' : 'Count materials, record their condition, and capture a photo for each material.'} />
     {message ? <Text accessibilityRole="alert" style={{ color: colors.success, marginVertical: 10 }}>{message}</Text> : null}
     {deliveryError ? <Text accessibilityRole="alert" style={{ color: colors.danger, marginVertical: 10 }}>Could not load deliveries: {deliveryError}. Please sign in again or contact an administrator.</Text> : null}
     {error ? <Text accessibilityRole="alert" style={{ color: colors.danger, marginVertical: 10 }}>{error}</Text> : null}
@@ -104,7 +104,7 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
     </> : <>
       <SearchField title={inspection ? 'Pending Inspection' : 'Incoming deliveries'} icon="search-outline" value={search} onChangeText={setSearch} placeholder="Search job, PO, vendor, truck or material" />
       <Text style={{ color: colors.textMuted, marginTop: 12 }}>{queue.length} {inspection ? 'awaiting inspection' : 'awaiting receiving'}</Text>
-      {!queue.length ? <Text style={{ color: colors.textMuted, paddingVertical: 24 }}>{inspection ? 'No materials pending inspection.' : 'No incoming deliveries.'}</Text> : queue.map(job => <TouchableOpacity key={job.id} style={card} onPress={() => { reset(); setMessage(''); setSelectedId(job.id); }}><Text style={{ color: colors.primary, fontWeight: '800' }}>{job.jobId || job.id}</Text><Text style={{ color: colors.text, marginTop: 8 }}>{receivingLines(job).map(line => line.materialName || line.productName).filter(Boolean).join(', ')}</Text><Text style={{ color: colors.textMuted, marginTop: 8 }}>{job.vendorName || '—'} · {job.plateNumber || '—'}</Text>{inspection ? <Text style={{ color: colors.textMuted, marginTop: 8 }}>Received: {receivingDate(job.storeReceiving?.receivedAt)}</Text> : null}</TouchableOpacity>)}
+      {!queue.length ? <Text style={{ color: colors.textMuted, paddingVertical: 24 }}>{inspection ? 'No materials pending inspection.' : 'No incoming deliveries.'}</Text> : <View style={{ gap: 6 }}>{queue.map(job => <TouchableOpacity key={job.id} style={card} onPress={() => { reset(); setMessage(''); setSelectedId(job.id); }}><Text style={{ color: colors.primary, fontWeight: '800' }}>{job.jobId || job.id}</Text><Text style={{ color: colors.text, marginTop: 8 }}>{receivingLines(job).map(line => line.materialName || line.productName).filter(Boolean).join(', ')}</Text><Text style={{ color: colors.textMuted, marginTop: 8 }}>{job.vendorName || '—'} · {job.plateNumber || '—'}</Text>{inspection ? <Text style={{ color: colors.textMuted, marginTop: 8 }}>Received: {receivingDate(job.storeReceiving?.receivedAt)}</Text> : null}</TouchableOpacity>)}</View>}
     </>}
-  </ScrollView>;
+  </PageShell>;
 }

@@ -1,8 +1,10 @@
 import { DateRangeFilter, defaultDateRange, DateRange, isInDateRange } from '../../components/DateRangeFilter';
 ﻿import { useMemo, useState } from 'react';
 import { Alert, Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SearchField } from '../../components/EnterpriseUI';
+import { Ionicons } from '@expo/vector-icons';
+import { Searchbar } from 'react-native-paper';
 import { StoreReceiptDetails } from '../../components/StoreReceiptDetails';
+import { CommandHeader, DataCard, EmptyState, FilterRail, PageShell, SectionTitle } from '../../components/EnterpriseUI';
 import { useDeliveryOrders } from '../../store/realtimeData';
 import { useTheme } from '../../hooks/useTheme';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
@@ -16,6 +18,12 @@ export default function StoremanHistoryScreen() {
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState<any>(null);
   const [exporting, setExporting] = useState(false);
+  const filters = [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending inspection' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'flagged', label: 'Flagged' },
+  ];
   const filtered = useMemo(() => jobs.filter(job => {
     if (!job.receivingStatus && !job.materialInspection?.materialReceipts?.length) return false;
     if (!isInDateRange(job.storeReceiving?.receivedAt || job.materialInspection?.inspectedAt || job.updatedAt || job.createdAt, dateRange)) return false;
@@ -34,26 +42,72 @@ export default function StoremanHistoryScreen() {
     } catch (error: any) { Alert.alert('Export failed', error.message || 'Could not export history.'); }
     finally { setExporting(false); }
   };
-  return <View style={{ flex: 1, backgroundColor: colors.background }}>
-    <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
+  return <>
+    <PageShell>
+      <CommandHeader title="Receiving history" subtitle="Review completed receipts and export the current results." right={
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Download receiving history as CSV" disabled={exporting} onPress={() => void exportHistory()} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.primary, opacity: exporting ? 0.65 : 1 }}>
+          <Ionicons name="download-outline" size={18} color={colors.onPrimary} />
+          <Text style={{ color: colors.onPrimary, fontWeight: '800' }}>{exporting ? 'Preparing CSV…' : 'Download CSV'}</Text>
+        </TouchableOpacity>
+      } />
+      <Searchbar
+        placeholder="Search job, PO, vendor or material"
+        value={search}
+        onChangeText={setSearch}
+        accessibilityLabel="Search receiving history"
+        iconColor={colors.textMuted}
+        placeholderTextColor={colors.textMuted}
+        style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 12, elevation: 0 }}
+        inputStyle={{ color: colors.text, minHeight: 0, fontSize: 14 }}
+      />
+      <FilterRail options={filters} value={filter} onChange={setFilter} />
       <DateRangeFilter value={dateRange || defaultDateRange()} onApply={setDateRange} />
-      <SearchField title="Receiving history" icon="time-outline" value={search} onChangeText={setSearch} placeholder="Search job, PO, vendor or material" />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>{[['all', 'All'], ['pending', 'Pending Inspection'], ['approved', 'Approved'], ['flagged', 'Flagged']].map(([key, label]) => <TouchableOpacity key={key} onPress={() => setFilter(key)} style={{ padding: 10, borderRadius: 8, backgroundColor: filter === key ? colors.primary : colors.surface }}><Text style={{ color: filter === key ? colors.onPrimary : colors.text }}>{label}</Text></TouchableOpacity>)}</View>
-      <TouchableOpacity disabled={exporting} onPress={() => void exportHistory()}><Text style={{ color: colors.primary }}>{exporting ? 'Exporting…' : 'Download CSV'}</Text></TouchableOpacity>
-      {!filtered.length ? <Text style={{ color: colors.textMuted }}>No receiving records found.</Text> : filtered.map(job => <TouchableOpacity key={job.id} onPress={() => setSelected(job)} style={{ padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, gap: 8 }}>
-        <Text style={{ color: colors.text, fontWeight: '800' }}>{job.jobId || job.id}</Text>
-        <Text style={{ color: job.receivingFlag?.status === 'flagged' ? colors.danger : colors.primary }}>{receivingStatusLabel(job)}</Text>
-        <Text style={{ color: colors.textMuted }}>{job.vendorName || '—'} · Received: {receivingDate(job.storeReceiving?.receivedAt || job.materialInspection?.inspectedAt)}</Text>
-        <Text style={{ color: colors.text }}>{receivedLines(job).map(line => `${line.materialName}: ${line.receivedQuantity} ${line.unit || ''}`).join('\n')}</Text>
-        <Text style={{ color: colors.primary }}>View details and photos</Text>
-      </TouchableOpacity>)}
-    </ScrollView>
+      <SectionTitle title={`${filtered.length} receipt${filtered.length === 1 ? '' : 's'}`} />
+      {!filtered.length ? (
+        <EmptyState icon="file-tray-outline" title="No receiving records found" subtitle="Try changing your search, status, or date range." />
+      ) : (
+        <View style={{ gap: 10 }}>
+          {filtered.map(job => {
+            const flagged = job.receivingFlag?.status === 'flagged' || receivedLines(job).some(line => line.initialVisualInspection === 'Failed');
+            return (
+              <DataCard key={job.id} onPress={() => setSelected(job)} contentStyle={{ padding: 16, gap: 12 }}>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                  <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                    <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>{job.jobId || job.id}</Text>
+                    <Text style={{ color: colors.textMuted }}>{job.vendorName || 'Unknown vendor'} · PO {job.poNumber || job.purchaseOrderId || '—'}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: flagged ? `${colors.danger}16` : `${colors.primary}14`, maxWidth: '100%' }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: flagged ? colors.danger : colors.primary }} />
+                    <Text style={{ color: flagged ? colors.danger : colors.primaryText, fontSize: 11, fontWeight: '800' }}>{receivingStatusLabel(job)}</Text>
+                  </View>
+                </View>
+                <View style={{ gap: 7 }}>
+                  {receivedLines(job).map((line, index) => (
+                    <View key={`${job.id}-line-${index}`} style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ color: colors.textSecondary, flex: 1, minWidth: 120 }}>{line.materialName || 'Material'}</Text>
+                      <Text style={{ color: colors.text, fontWeight: '700', flexShrink: 1 }}>{line.receivedQuantity} {line.unit || ''}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, gap: 8 }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>Received {receivingDate(job.storeReceiving?.receivedAt || job.materialInspection?.inspectedAt)}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text style={{ color: colors.primaryText, fontSize: 12, fontWeight: '700' }}>Details</Text>
+                    <Ionicons name="chevron-forward" size={14} color={colors.primaryText} />
+                  </View>
+                </View>
+              </DataCard>
+            );
+          })}
+        </View>
+      )}
+    </PageShell>
     <Modal visible={Boolean(selected)} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
-      <View style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 }}><View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 20, maxHeight: '90%' }}>
+      <View style={{ flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', alignItems: 'center', padding: 20 }}><View style={{ backgroundColor: colors.surface, borderRadius: 14, padding: 20, maxHeight: '90%', width: '100%', maxWidth: 680 }}>
         <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 14 }}>{selected?.jobId || 'Receiving details'}</Text>
         <ScrollView>{selected ? <StoreReceiptDetails job={selected} /> : null}</ScrollView>
         <TouchableOpacity onPress={() => setSelected(null)} style={{ padding: 14 }}><Text style={{ color: colors.primary, textAlign: 'center' }}>Close</Text></TouchableOpacity>
       </View></View>
     </Modal>
-  </View>;
+  </>;
 }

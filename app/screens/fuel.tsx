@@ -11,6 +11,7 @@ import {
   DataCard,
   DetailRow,
   EmptyState,
+  MetricTile,
   PageShell,
   SearchField,
   SectionTitle,
@@ -152,50 +153,13 @@ export default function FuelScreen() {
         onChange={setTimeFilter}
       />
 
-      <ResponsiveGrid sideBySide style={styles.statsRow}>
-        <View
-          style={[
-            styles.statCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-        >
-          <Ionicons name="water" size={18} color={colors.warning} />
-          <Text style={[styles.statValue, { color: colors.text }]}>
-            {totalFuel.toFixed(1)} L
-          </Text>
-          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-            Total Fuel
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.statCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-        >
-          <Ionicons name="car-outline" size={18} color="#3B82F6" />
-          <Text style={[styles.statValue, { color: colors.text }]}>
-            {uniqueTrucks}
-          </Text>
-          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-            Trucks Served
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.statCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-          ]}
-        >
-          <Ionicons name="receipt-outline" size={18} color={colors.success} />
-          <Text style={[styles.statValue, { color: colors.text }]}>
-            {filtered.length}
-          </Text>
-          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-            Records
-          </Text>
-        </View>
-      </ResponsiveGrid>
+      <View style={styles.metricGrid}>
+        <ResponsiveGrid sideBySide maxColumns={3} style={styles.metricRow}>
+          <MetricTile icon="water" label="Total Fuel" value={`${totalFuel.toFixed(1)}L`} tone={colors.warning} compact emphasized />
+          <MetricTile icon="car" label="Trucks Served" value={uniqueTrucks} tone="#3B82F6" compact emphasized />
+          <MetricTile icon="receipt" label="Records" value={filtered.length} tone={colors.success} compact emphasized />
+        </ResponsiveGrid>
+      </View>
 
      
 
@@ -204,6 +168,7 @@ export default function FuelScreen() {
         onChangeText={setSearch}
         placeholder="Search job, driver, plate..."
       />
+      <View style={{ gap: 6 }}>
       <SectionTitle
         title={
           normalizedUserVendorId
@@ -219,7 +184,7 @@ export default function FuelScreen() {
           </Text>
         </DataCard>
       ) : filtered.length ? (
-        filtered.map((item) => {
+        <View style={{ gap: 6 }}>{filtered.map((item) => {
           const authCode = item.authorizationCode || item.authorizationId || "";
           return (
             <DataCard key={item.id}>
@@ -307,7 +272,7 @@ export default function FuelScreen() {
               </Text>
             </DataCard>
           );
-        })
+        })}</View>
       ) : (
         <EmptyState
           icon="water-outline"
@@ -321,22 +286,14 @@ export default function FuelScreen() {
           }
         />
       )}
+      </View>
     </PageShell>
   );
 }
 
 const styles = StyleSheet.create({
-  statsRow: { flexDirection: "row", gap: Gap, marginBottom: Spacing.xs},
-  statCard: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: Spacing.xs,
-    alignItems: "center",
-    gap: Gap,
-  },
-  statValue: { fontSize: 16, fontWeight: "800" },
-  statLabel: { fontSize: 11, fontWeight: "600" },
+  metricGrid: { gap: Gap },
+  metricRow: { gap: Gap },
   fuelBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
  
 });

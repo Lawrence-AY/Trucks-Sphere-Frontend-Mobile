@@ -46,7 +46,7 @@ export default function VendorReportsScreen() {
   const colors = useTheme();
   const vendorId = useAuthStore(state => state.user?.vendorId || '');
   const { data: purchaseOrders } = useRealtimeCollection('purchaseOrders');
-  const vendorOrders = purchaseOrders.filter(order => normalizeVendorId(order.vendorId) === normalizeVendorId(vendorId));
+  const vendorOrders = purchaseOrders.filter(order => order && normalizeVendorId(order.vendorId) === normalizeVendorId(vendorId));
   const [filter, setFilter] = useState('all');
   const [downloading, setDownloading] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange());

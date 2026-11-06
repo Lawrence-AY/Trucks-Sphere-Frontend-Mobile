@@ -91,12 +91,13 @@ export default function VendorDriversScreen() {
     
 
       <SearchField title="Drivers" icon="people-outline" value={search} onChangeText={setSearch} placeholder="Search driver name, plate..." />
+      <View style={{ gap: 6 }}>
       <SectionTitle title={`${driverWithStats.length} drivers`} />
 
       {loading ? (
         <DataCard><Text style={{ fontSize: 14, color: colors.textMuted }}>Loading drivers...</Text></DataCard>
       ) : driverWithStats.length ? (
-        driverWithStats.map((driver) => (
+        <View style={{ gap: 6 }}>{driverWithStats.map((driver) => (
           <DataCard
             key={driver.id}
             style={driver.securityFlag?.status === 'cleared' ? { borderColor: '#A78BFA', borderWidth: 1.5 } : undefined}
@@ -134,18 +135,12 @@ export default function VendorDriversScreen() {
                   {driver.totalTrips} trips
                 </Text>
               </View>
-              <View style={styles.miniStat}>
-                <Ionicons name="checkmark-done-outline" size={14} color={colors.success} />
-                <Text style={[styles.miniStatText, { color: colors.textSecondary }]}>
-                  {driver.completedTrips} done
-                </Text>
-              </View>
             </ResponsiveGrid>
                        <DetailRow icon="id-card-outline" value={`National ID: ${driver.nationalId || 'N/A'}`} />
           {driver.securityFlag?.status === 'cleared' ? <Text style={[styles.clearedLabel, { color: colors.primaryText }]}>Unsuspended after security clearance</Text> : null}
 
           </DataCard>
-        ))
+        ))}</View>
       ) : (
         <EmptyState
           icon="people-outline"
@@ -153,6 +148,7 @@ export default function VendorDriversScreen() {
           subtitle="No drivers linked to your vendor account."
         />
       )}
+      </View>
     </PageShell>
   );
 }
