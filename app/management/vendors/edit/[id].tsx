@@ -69,8 +69,8 @@ export default function EditVendorScreen() {
       setVendor(v);
       setForm({
         companyName: v.companyName || '',
-        contactPerson: v.contactPerson || '',
-        phone: v.phone || '',
+        contactPerson: v.contactPerson || v.contact || '',
+        phone: v.phone || (v as any).phoneNumber || '',
         email: v.email || '',
         address: v.address || '',
         kraPin: v.kraPin || '',
@@ -98,8 +98,6 @@ export default function EditVendorScreen() {
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!form.companyName.trim()) newErrors.companyName = 'Company name is required';
-    if (!form.contactPerson.trim()) newErrors.contactPerson = 'Contact person is required';
-    if (!form.phone.trim()) newErrors.phone = 'Phone is required';
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       newErrors.email = 'Invalid email format';
     }
