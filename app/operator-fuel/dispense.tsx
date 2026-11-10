@@ -536,7 +536,7 @@ export default function FuelDispenseScreen() {
       loadData();
       Alert.alert('Fuel receipt ready', `${girVolume.toFixed(1)} litres recorded. Receipt: ${createdFuel.id}`, [
         { text: 'Done' },
-        { text: 'View receipts', onPress: () => router.push('/operator-fuel/history' as any) },
+        { text: 'View fuel receipt', onPress: () => router.push(`/operator-fuel/fuel-receipt?id=${encodeURIComponent(createdFuel.id)}` as any) },
       ]);
     } catch (error: any) {
       const message =
