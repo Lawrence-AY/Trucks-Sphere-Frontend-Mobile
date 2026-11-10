@@ -174,7 +174,7 @@ export default function DriverListScreen() {
     recordHref={item => `/management/drivers/${encodeURIComponent(item.id)}`}
     columns={[
       { key: 'name', label: 'Driver', value: getDriverName },
-      { key: 'id', label: 'Driver ID', value: item => item.driverId || item.id },
+      { key: 'id', label: 'Driver ID', value: item => item.driverCode || item.driverNumber || item.driverId || item.id },
       { key: 'vendor', label: 'Vendor', value: item => item.vendorName || vendorNameMap[item.vendorId] || '—' },
       { key: 'phone', label: 'Phone', value: item => item.phone || '—' },
       { key: 'license', label: 'License', value: item => item.licenseNumber || '—' },
