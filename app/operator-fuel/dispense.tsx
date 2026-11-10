@@ -1464,6 +1464,24 @@ export default function FuelDispenseScreen() {
 
                   </>}
 
+                  {!confirmedFuel && (
+                    <View style={[styles.inputCard, { backgroundColor: colors.surface, borderColor: colors.warningBorder }]}>
+                      <View style={styles.inputHeader}>
+                        <View style={[styles.inputIcon, { backgroundColor: `${colors.warning}15` }]}>
+                          <Ionicons name="water-outline" size={22} color={colors.warningText} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.inputTitle, { color: colors.text }]}>Confirm dispensed volume</Text>
+                          <Text style={[styles.inputSub, { color: colors.textMuted }]}>Tap Confirm Fuel after dispensing. The exact volume will be retrieved from GIR/FMS.</Text>
+                        </View>
+                      </View>
+                      <TouchableOpacity style={[styles.submitBtn, { backgroundColor: colors.warning, opacity: store.submitting ? 0.6 : 1 }]} onPress={handleFlowSubmit} disabled={store.submitting}>
+                        {store.submitting ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Ionicons name="checkmark-circle-outline" size={20} color={colors.onPrimary} />}
+                        <Text style={styles.submitBtnText}>{store.submitting ? "Checking GIR/FMS..." : "Confirm Fuel"}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+
                   {/* Fuel volume is supplied by GIR/FMS after dispensing. */}
                   {store.flowFuelAmount && fuelPrice > 0 ? (
                     <View
@@ -1536,6 +1554,8 @@ export default function FuelDispenseScreen() {
                     </View>
                   ) : null}
 
+                  {confirmedFuel && <>
+                  {/* Screen 3: evidence photo and finalization */}
                   {/* Pump photo capture */}
                   <View
                     style={[
@@ -1642,7 +1662,7 @@ export default function FuelDispenseScreen() {
                       ) : null;
                     })()}
 
-                  {/* Confirm / Complete button */}
+                  {/* Final submit: creates the completed fuel receipt. */}
                   <TouchableOpacity
                     style={[
                       styles.submitBtn,
@@ -1664,9 +1684,10 @@ export default function FuelDispenseScreen() {
                       />
                     )}
                     <Text style={styles.submitBtnText}>
-                      {store.submitting ? "Processing..." : confirmedFuel?.authorizationId === store.authId ? "Finalize fuel & receipt" : "Confirm Fuel"}
+                      {store.submitting ? "Finalizing..." : "Finalize fuel & receipt"}
                     </Text>
                   </TouchableOpacity>
+                  </>}
                 </>
               )}
             </ScrollView>
