@@ -45,8 +45,9 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
   const reset = () => { setSelectedId(null); setQuantities({}); setPhotos({}); uploaded.current = {}; setDecision(undefined); setReason(''); setDeliveredBy(''); setChecks({}); setAccepted({}); setRejected({}); setFailureReasons({}); requestId.current = ''; setError(''); };
   const photoFor = (index: number) => photos[index] || selected?.receivingEvidence?.find((photo: any) => photo.lineIndex === index)?.url;
   const decisionReady = inspection ? storemanInspectionReady(decision, checks, reason) : decision === 'Pass' || (decision === 'Failed' && Boolean(reason.trim()));
+  const hasSplit = inspection && Object.keys({ ...accepted, ...rejected, ...failureReasons }).length > 0;
   const ready = Boolean(selected && eligible(selected) && decisionReady && (inspection
-    ? lines.every((line, index) => { const total = Number(line.receivedQuantity) || 0; const yes = Number(accepted[index] ?? total); const no = Number(rejected[index] ?? 0); return Number.isFinite(yes) && Number.isFinite(no) && yes >= 0 && no >= 0 && Math.abs(yes + no - total) < 1e-6 && (no === 0 || Boolean(failureReasons[index]?.trim())); })
+    ? (!hasSplit || lines.every((line, index) => { const total = Number(line.receivedQuantity) || 0; const yes = Number(accepted[index]); const no = Number(rejected[index]); return Number.isFinite(yes) && Number.isFinite(no) && yes >= 0 && no >= 0 && Math.abs(yes + no - total) < 1e-6 && (no === 0 || Boolean(failureReasons[index]?.trim())); }))
     : (Boolean(deliveredBy.trim() || selected.driverName) && lines.every((_, index) => quantities[index]?.trim() && Number.isFinite(Number(quantities[index])) && Number(quantities[index]) >= 0 && photoFor(index)))));
   const pickPhoto = async (index: number, source: 'camera' | 'library' = 'camera') => {
     try {
@@ -68,7 +69,7 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
         }
       }
       const saved = inspection
-        ? await inspectStoreDelivery(selected.id, { requestId: requestId.current, result: decision, qualityChecks: checks, reason, lineDecisions: lines.map((line, index) => ({ acceptedQuantity: Number(accepted[index] ?? line.receivedQuantity) || 0, rejectedQuantity: Number(rejected[index] ?? 0) || 0, failureReason: failureReasons[index] || '' })) })
+        ? await inspectStoreDelivery(selected.id, { requestId: requestId.current, result: decision, qualityChecks: checks, reason, ...(hasSplit ? { lineDecisions: lines.map((line, index) => ({ acceptedQuantity: Number(accepted[index]), rejectedQuantity: Number(rejected[index]), failureReason: failureReasons[index] || '' })) } : {}) })
         : await receiveStoreDelivery(selected.id, { requestId: requestId.current, quantities: lines.map((_, index) => quantities[index]), condition: decision, reason, deliveredByName: deliveredBy.trim() || selected.driverName || '' });
       useRealTimeSyncStore.getState().optimisticUpdate('deliveryOrders', saved);
       if (saved.receivingStatus === 'inventory_added') void refresh('purchaseOrders').catch(() => {});
@@ -91,8 +92,8 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
         {inspection ? <View style={card}><StoreReceiptDetails job={selected} />
           {lines.map((line, index) => <View key={`split-${index}`} style={{ marginTop: 16, gap: 8 }}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>{line.materialName || 'Material'} — Received: {line.receivedQuantity} {line.unit || ''}</Text>
-            <TextInput editable={!saving} keyboardType="decimal-pad" placeholder={`Accepted ${line.unit || 'quantity'}`} placeholderTextColor={colors.textMuted} value={accepted[index] ?? String(line.receivedQuantity ?? '')} onChangeText={value => setAccepted(current => ({ ...current, [index]: value }))} style={input} />
-            <TextInput editable={!saving} keyboardType="decimal-pad" placeholder={`Rejected ${line.unit || 'quantity'}`} placeholderTextColor={colors.textMuted} value={rejected[index] ?? '0'} onChangeText={value => setRejected(current => ({ ...current, [index]: value }))} style={input} />
+            <TextInput editable={!saving} keyboardType="decimal-pad" placeholder={`Accepted ${line.unit || 'quantity'}`} placeholderTextColor={colors.textMuted} value={accepted[index] ?? String(line.receivedQuantity ?? '')} onChangeText={value => { setAccepted(current => ({ ...current, [index]: value })); if (rejected[index] == null) setRejected(current => ({ ...current, [index]: '0' })); }} style={input} />
+            <TextInput editable={!saving} keyboardType="decimal-pad" placeholder={`Rejected ${line.unit || 'quantity'}`} placeholderTextColor={colors.textMuted} value={rejected[index] ?? '0'} onChangeText={value => { setRejected(current => ({ ...current, [index]: value })); if (accepted[index] == null) setAccepted(current => ({ ...current, [index]: String(Math.max(0, (Number(line.receivedQuantity) || 0) - (Number(value) || 0))) })); }} style={input} />
             {Number(rejected[index] ?? 0) > 0 ? <TextInput editable={!saving} multiline placeholder="Failure reason for rejected quantity *" placeholderTextColor={colors.textMuted} value={failureReasons[index] || ''} onChangeText={value => setFailureReasons(current => ({ ...current, [index]: value }))} style={input} /> : null}
           </View>)}
         </View> : <>
