@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet } from 'react-native';
+import { View, Animated, Platform, StyleSheet } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { Gap, Radius, Spacing } from '../../constants/theme';
 
@@ -23,12 +23,12 @@ export function LoadingSkeleton({
         Animated.timing(opacity, {
           toValue: 1,
           duration: 800,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(opacity, {
           toValue: 0.3,
           duration: 800,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ])
     );

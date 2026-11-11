@@ -16,7 +16,7 @@ export function StoreReceiptDetails({ job }: { job: any }) {
     {job.receivingFlag?.status === 'flagged' ? <Text style={{ color: colors.danger, fontWeight: '700' }}>Flagged: {job.receivingFlag.reason}</Text> : null}
     {receivedLines(job).map((line, index) => <View key={index} style={{ paddingVertical: 12, borderBottomWidth: 1, borderColor: colors.border, gap: 8 }}>
       <Text style={{ color: colors.text, fontWeight: '700' }}>{line.materialName || 'Material'}</Text>
-      <Text style={{ color: colors.text }}>Received: {line.receivedQuantity} {line.unit} · Ordered: {line.orderedQuantity}</Text>
+      <Text style={{ color: colors.text }}>Received: {line.receivedQuantity} {line.unit || 'units'} · Ordered: {line.orderedQuantity} {line.unit || 'units'}</Text>
       {(line.photoURLs || []).map((uri: string) => <Image key={uri} accessibilityLabel={`Received ${line.materialName || 'material'} photo`} source={{ uri }} resizeMode="contain" style={{ width: '100%', height: 220, backgroundColor: colors.background, borderRadius: 8 }} />)}
     </View>)}
   </View>;

@@ -75,13 +75,15 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
       if (saved.receivingStatus === 'inventory_added') void refresh('purchaseOrders').catch(() => {});
       setMessage(decision === 'Failed' ? 'Delivery rejected and flagged. No inventory added.' : inspection ? 'Inspection passed. Materials added to inventory.' : 'Receiving saved. This delivery is now Pending Inspection.');
       reset();
-    } catch (err: any) { setError(err?.response?.data?.error || err.message || 'Could not save. Your entries have been kept for retry.'); }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.response?.data?.error || err.message || 'Could not save. Your entries have been kept for retry.');
+    }
     finally { savingRef.current = false; setSaving(false); }
   };
   const card = { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 12, padding: 16 };
   const input = { color: colors.text, borderColor: colors.border, borderWidth: 1, borderRadius: 8, padding: 12, marginTop: 8 };
   return <PageShell refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); try { await refresh('deliveryOrders'); } finally { setRefreshing(false); } }} />}>
-    <CommandHeader title={inspection ? 'Quality inspection' : 'Store receiving'} subtitle={inspection ? 'Review received materials and photo evidence before approving inventory.' : 'Count materials, record their condition, and capture a photo for each material.'} />
+    <CommandHeader title={inspection ? 'Material quality inspection' : 'Receive store materials'} subtitle={inspection ? 'Check each material received, record accepted or rejected quantities, and approve stock entry.' : 'Count each material in its purchase-order unit, record its condition, and capture evidence.'} />
     {message ? <Text accessibilityRole="alert" style={{ color: colors.success, marginVertical: 10 }}>{message}</Text> : null}
     {deliveryError ? <Text accessibilityRole="alert" style={{ color: colors.danger, marginVertical: 10 }}>Could not load deliveries: {deliveryError}. Please sign in again or contact an administrator.</Text> : null}
     {error ? <Text accessibilityRole="alert" style={{ color: colors.danger, marginVertical: 10 }}>{error}</Text> : null}
@@ -91,7 +93,7 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
         <View style={card}><Text style={{ color: colors.text, fontWeight: '800', fontSize: 19 }}>{selected.jobId || selected.id}</Text><Text style={{ color: colors.textMuted, marginTop: 8 }}>PO: {selected.poNumber || selected.purchaseOrderId || '—'} · Vendor: {selected.vendorName || '—'}</Text><Text style={{ color: colors.textMuted, marginTop: 8 }}>Driver: {selected.driverName || '—'} · Truck: {selected.plateNumber || '—'}</Text></View>
         {inspection ? <View style={card}><StoreReceiptDetails job={selected} />
           {lines.map((line, index) => <View key={`split-${index}`} style={{ marginTop: 16, gap: 8 }}>
-            <Text style={{ color: colors.text, fontWeight: '700' }}>{line.materialName || 'Material'} — Received: {line.receivedQuantity} {line.unit || ''}</Text>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>{line.materialName || 'Material'} — Received: {line.receivedQuantity} {line.unit || 'units'}</Text>
             <TextInput editable={!saving} keyboardType="decimal-pad" placeholder={`Accepted ${line.unit || 'quantity'}`} placeholderTextColor={colors.textMuted} value={accepted[index] ?? String(line.receivedQuantity ?? '')} onChangeText={value => { setAccepted(current => ({ ...current, [index]: value })); if (rejected[index] == null) setRejected(current => ({ ...current, [index]: '0' })); }} style={input} />
             <TextInput editable={!saving} keyboardType="decimal-pad" placeholder={`Rejected ${line.unit || 'quantity'}`} placeholderTextColor={colors.textMuted} value={rejected[index] ?? '0'} onChangeText={value => { setRejected(current => ({ ...current, [index]: value })); if (accepted[index] == null) setAccepted(current => ({ ...current, [index]: String(Math.max(0, (Number(line.receivedQuantity) || 0) - (Number(value) || 0))) })); }} style={input} />
             {Number(rejected[index] ?? 0) > 0 ? <TextInput editable={!saving} multiline placeholder="Failure reason for rejected quantity *" placeholderTextColor={colors.textMuted} value={failureReasons[index] || ''} onChangeText={value => setFailureReasons(current => ({ ...current, [index]: value }))} style={input} /> : null}
@@ -99,8 +101,8 @@ export default function StoreReceivingWorkflow({ inspection = false }: { inspect
         </View> : <>
           {lines.map((line, index) => <View key={index} style={card}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>{line.materialName || line.productName || 'Material'}</Text>
-            <Text style={{ color: colors.textMuted, marginTop: 8 }}>Dispatched: {line.quantity ?? '—'} {line.unit || ''}</Text>
-            <TextInput accessibilityLabel={`Received quantity for ${line.materialName || 'material'}`} editable={!saving} inputAccessoryViewID="trucksphere-keyboard-done" placeholder="Received quantity *" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={quantities[index] || ''} onChangeText={value => setQuantities(current => ({ ...current, [index]: value }))} style={input} />
+            <Text style={{ color: colors.textMuted, marginTop: 8 }}>Expected at store: {line.quantity ?? '—'} {line.unit || 'units'}</Text>
+            <TextInput accessibilityLabel={`Received ${line.unit || 'quantity'} for ${line.materialName || 'material'}`} editable={!saving} inputAccessoryViewID="trucksphere-keyboard-done" placeholder={`Actual ${line.unit || 'quantity'} received *`} placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={quantities[index] || ''} onChangeText={value => setQuantities(current => ({ ...current, [index]: value }))} style={input} />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
               <TouchableOpacity disabled={saving} onPress={() => void pickPhoto(index, 'camera')} style={{ paddingVertical: 12 }}><Text style={{ color: colors.primary }}>{photoFor(index) ? 'Replace material photo' : 'Capture material photo *'}</Text></TouchableOpacity>
               <TouchableOpacity disabled={saving} onPress={() => void pickPhoto(index, 'library')} style={{ paddingVertical: 12 }}><Text style={{ color: colors.primary }}>Upload from device</Text></TouchableOpacity>

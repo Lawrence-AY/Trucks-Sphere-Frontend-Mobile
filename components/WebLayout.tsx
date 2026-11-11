@@ -61,12 +61,12 @@ export default function WebLayout({ children }: WebLayoutProps) {
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 280,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(overlayAnim, {
         toValue: 1,
         duration: 280,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
   }, [slideAnim, overlayAnim]);
@@ -76,12 +76,12 @@ export default function WebLayout({ children }: WebLayoutProps) {
       Animated.timing(slideAnim, {
         toValue: -drawerWidth,
         duration: 220,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(overlayAnim, {
         toValue: 0,
         duration: 220,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start(() => setDrawerOpen(false));
   }, [slideAnim, overlayAnim, drawerWidth]);

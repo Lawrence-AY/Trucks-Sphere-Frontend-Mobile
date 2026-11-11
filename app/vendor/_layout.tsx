@@ -157,15 +157,15 @@ export default function VendorLayout() {
   const toggleMenu = useCallback(() => {
     if (menuOpen) {
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: menuWidth, duration: 200, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: menuWidth, duration: 200, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: Platform.OS !== 'web' }),
       ]).start(() => setMenuOpen(false));
     } else {
       setMenuOpen(true);
       slideAnim.setValue(menuWidth);
       Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: Platform.OS !== 'web' }),
       ]).start();
     }
   }, [menuOpen, slideAnim, fadeAnim, menuWidth]);
