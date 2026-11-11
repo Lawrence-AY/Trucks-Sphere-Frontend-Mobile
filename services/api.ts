@@ -94,7 +94,11 @@ const PUBLIC_ERROR_MESSAGES: Record<string, string> = {
 
 export function toPublicError(error: any): Error {
   const code = getErrorCode(error);
-  return Object.assign(new Error(PUBLIC_ERROR_MESSAGES[code] || 'Unable to complete the request. Please try again.'), {
+  const serverMessage = String(error?.response?.data?.error || error?.response?.data?.message || '').trim();
+  const message = code === 'STORE_RECEIVING_INVALID' && serverMessage
+    ? serverMessage
+    : (PUBLIC_ERROR_MESSAGES[code] || 'Unable to complete the request. Please try again.');
+  return Object.assign(new Error(message), {
     code,
     statusCode: error?.response?.status || null,
     isPublicError: true,
