@@ -23,7 +23,9 @@ export default function StoreAccountLayout() {
   // narrow screens). Keep this account menu only on native to avoid a second
   // hamburger beside the shared web navigation.
   const header = Platform.OS === 'web' ? undefined : () => <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Issues" onPress={() => go('/screens/issues')} style={{ padding: 8 }}><Ionicons name="chatbubble-ellipses-outline" size={24} color={colors.primary} /></TouchableOpacity><TouchableOpacity onPress={() => setMenuOpen(true)} accessibilityLabel="Open store account menu"><Ionicons name="menu-outline" size={28} color={colors.text} /></TouchableOpacity></View>;
-  const back = Platform.OS === 'web' || pathname === '/store-account' ? undefined : () => <BackButton onPress={() => router.back()} accessibilityLabel="Go back" />;
+  const isBottomNavScreen = ['/store-account', '/store-account/inspection', '/store-account/inventory', '/store-account/history'].includes(pathname);
+  const isInventoryDetail = pathname.startsWith('/store-account/inventory/');
+  const back = Platform.OS === 'web' || isBottomNavScreen ? undefined : () => <BackButton onPress={() => isInventoryDetail ? router.replace('/store-account/inventory' as any) : router.back()} accessibilityLabel="Go back" />;
   return <>
     <Tabs screenOptions={{
       headerShown: Platform.OS !== 'web',

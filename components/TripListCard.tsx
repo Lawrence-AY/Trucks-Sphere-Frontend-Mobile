@@ -9,16 +9,19 @@ import { Gap, Spacing } from '../constants/theme';
 import { formatEAT } from '../utils/helpers';
 import { getDeliveryFlagReason, isDeliveryFlagged, isSecurityCleared, isSecurityFlagged, isSiteWeightFlagged } from '../utils/siteFlags';
 import { DataCard } from './EnterpriseUI';
+import { formatStoreQuantity, storeMaterialUnit } from '../utils/storeReceiving';
 
 type TripListCardProps = {
   trip: any;
   driverPhoto?: string;
   onPress: () => void;
   bottomAction?: React.ReactNode;
+  storeReceivingLayout?: boolean;
+  storeReceivedQuantities?: boolean;
 };
 
 /** A single source of truth for the compact dashboard and active-trip cards. */
-export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripListCardProps) {
+export function TripListCard({ trip, driverPhoto, onPress, bottomAction, storeReceivingLayout = false, storeReceivedQuantities = false }: TripListCardProps) {
   const colors = useTheme();
   const isWarehouse = Boolean(trip.isWarehouseDelivery || trip.warehouseJobId) || String(trip.deliveryOrigin || trip.materialSource || '').toLowerCase() === 'warehouse';
   const jobCardNumber = trip.jobCardNumber || trip.jobId || (trip.isBackorder ? 'Awaiting assignment' : '—');
@@ -45,6 +48,32 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
       onPress={() => { useFlagViewsStore.getState().markViewed(useAuthStore.getState().user?.uid || '', trip); onPress(); }}
     >
       <View style={styles.row}>
+        {storeReceivingLayout ? (
+          <>
+            <View style={[styles.materialDetails, styles.receivingMaterialDetails]}>
+              <TripMaterials trip={trip} align="left" />
+              <Text style={[styles.poReference, styles.receivingText, { color: colors.textMuted }]} numberOfLines={1}>
+                PO: {String(trip.poNumber || '—').toUpperCase()}
+              </Text>
+            </View>
+            {storeReceivedQuantities ? <View style={[styles.driverDetails, styles.receivingDriverDetails]}>
+              <Text style={[styles.receivedLabel, { color: colors.textMuted }]}>RECEIVED</Text>
+              {(trip.storeReceiving?.materialReceipts || []).map((line: any, index: number) => {
+                const unit = storeMaterialUnit(line, line.unit || '');
+                return <Text key={`received-${index}`} style={[styles.receivedQuantity, { color: colors.primaryText }]} numberOfLines={1}>
+                  {formatStoreQuantity(line.receivedQuantity, unit)} {unit}
+                </Text>;
+              })}
+            </View> : <View style={[styles.driverDetails, styles.receivingDriverDetails]}>
+              <Text style={[styles.driverName, { color: colors.text }]} numberOfLines={1}>
+                {isWarehouse ? 'From warehouse' : trip.driverName || 'Unassigned driver'}
+              </Text>
+              {!isWarehouse ? <Text style={[styles.truckName, styles.receivingText, { color: colors.textMuted }]} numberOfLines={1}>
+                {trip.plateNumber || 'No truck assigned'}
+              </Text> : null}
+            </View>}
+          </>
+        ) : <>
         {isWarehouse ? (
           <Ionicons name="business-outline" size={28} color={colors.primaryText} />
         ) : driverPhoto ? (
@@ -68,6 +97,7 @@ export function TripListCard({ trip, driverPhoto, onPress, bottomAction }: TripL
             PO: {String(trip.poNumber || '—').toUpperCase()}
           </Text>
         </View>
+        </>}
       </View>
       <View style={styles.footer}>
         <Text style={[styles.vendorName, { color: colors.textMuted }]} numberOfLines={1}>
@@ -130,6 +160,11 @@ const styles = StyleSheet.create({
     minWidth: 0,
     alignItems: 'flex-end',
   },
+  receivingMaterialDetails: { alignItems: 'flex-start' },
+  receivingDriverDetails: { alignItems: 'flex-end' },
+  receivingText: { textAlign: 'left' },
+  receivedLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 0.4 },
+  receivedQuantity: { fontSize: 14, fontWeight: '700', textAlign: 'right' },
   materialName: {
     fontSize: 13,
     fontWeight: '700',

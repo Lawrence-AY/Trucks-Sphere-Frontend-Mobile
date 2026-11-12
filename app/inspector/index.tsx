@@ -9,7 +9,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { Gap, Radius, Spacing } from '../../constants/theme';
 import { fetchDeliveryOrders, fetchPurchaseOrders, updateDeliveryOrder } from '../../services/api';
 import { useAuthStore } from '@/store/authStore';
-import { getInspectorSelection, setInspectorSelection } from '../../utils/inspectorSelection';
+import { getInspectorSelection, setInspectorSelection, clearInspectorSelection } from '../../utils/inspectorSelection';
 import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
 import { useDeliveryOrders } from '@/store/realtimeData';
 import { isWarehouseJob } from '../../utils/warehouse';
@@ -48,7 +48,7 @@ export default function InspectorScreen() {
     const requestedId = id || jobId;
     // Render the selected card immediately; the API refresh below only
     // reconciles it in the background.
-    if (!requestedId) setActive(null);
+    if (!requestedId) { setActive(null); clearInspectorSelection(); }
     const selected = requestedId ? getInspectorSelection(requestedId) : null;
     if (selected) setActive(selected);
     const [data, orders] = await Promise.all([fetchDeliveryOrders(), fetchPurchaseOrders()]);
@@ -168,7 +168,7 @@ export default function InspectorScreen() {
   <Modal visible={Boolean(confirmation)} transparent animationType="fade" onRequestClose={() => setConfirmation(null)}>
     <View style={styles.confirmBackdrop}><View style={[styles.confirmCard,{backgroundColor:colors.surface,borderColor:colors.border}]}>
       <View style={styles.confirmIcon}><Ionicons name="checkmark" size={34} color={colors.onPrimary}/></View>
-      <Text style={[styles.confirmTitle,{color:colors.text}]}>Inspection submitted</Text><Text style={{color:colors.textMuted,textAlign:'center'}}>The inspection was saved successfully. You can now print or export the inspection documents.</Text><View style={{ flexDirection: 'row', gap: Gap, width: '100%', marginTop: 12 }}><TouchableOpacity onPress={() => { void printInspectionPdf(); }} disabled={printing} style={[styles.confirmButton,styles.printButton,{flex:1,opacity:printing ? .6 : 1}]}><Ionicons name="print-outline" size={18} color={colors.onPrimary}/><Text style={styles.saveText}>{printing?'Preparing PDF…':'Print PDF'}</Text></TouchableOpacity><TouchableOpacity onPress={() => { void exportInspectionCsv(); }} style={[styles.confirmButton,{flex:1,backgroundColor:colors.primary}]}><Ionicons name="download-outline" size={18} color={colors.onPrimary}/><Text style={styles.saveText}>Export CSV</Text></TouchableOpacity></View><TouchableOpacity onPress={() => { setConfirmation(null); setActive(null); }} style={[styles.confirmButton,{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,marginTop:10}]}><Text style={{color:colors.text,fontWeight:'800'}}>Done</Text></TouchableOpacity></View></View></Modal>
+      <Text style={[styles.confirmTitle,{color:colors.text}]}>Inspection submitted</Text><Text style={{color:colors.textMuted,textAlign:'center'}}>The inspection was saved successfully. You can now print or export the inspection documents.</Text><View style={{ flexDirection: 'row', gap: Gap, width: '100%', marginTop: 12 }}><TouchableOpacity onPress={() => { void printInspectionPdf(); }} disabled={printing} style={[styles.confirmButton,styles.printButton,{flex:1,opacity:printing ? .6 : 1}]}><Ionicons name="print-outline" size={18} color={colors.onPrimary}/><Text style={styles.saveText}>{printing?'Preparing PDF…':'Print PDF'}</Text></TouchableOpacity><TouchableOpacity onPress={() => { void exportInspectionCsv(); }} style={[styles.confirmButton,{flex:1,backgroundColor:colors.primary}]}><Ionicons name="download-outline" size={18} color={colors.onPrimary}/><Text style={styles.saveText}>Export CSV</Text></TouchableOpacity></View>      <TouchableOpacity onPress={() => { setConfirmation(null); setActive(null); clearInspectorSelection(); }} style={[styles.confirmButton,{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,marginTop:10}]}><Text style={{color:colors.text,fontWeight:'800'}}>Done</Text></TouchableOpacity></View></View></Modal>
   </ScrollView></KeyboardAvoidingView>;
 }
 const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.create({ page:{flex:1}, content:{padding: Spacing.md,paddingTop:0,

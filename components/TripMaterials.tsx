@@ -6,16 +6,16 @@ import { getTripMaterials } from '../utils/poMaterials';
 import { useTheme } from '../hooks/useTheme';
 import { Gap } from '../constants/theme';
 
-export function TripMaterials({ trip }: { trip: any }) {
+export function TripMaterials({ trip, align = 'right' }: { trip: any; align?: 'left' | 'right' }) {
   const colors = useTheme();
   const [expanded, setExpanded] = useState(false);
   const orders = usePurchaseOrders();
   const lines = getTripMaterials(trip, orders);
 
   return <View>
-    <TouchableOpacity accessibilityRole="button" accessibilityLabel="View trip materials" accessibilityState={{ expanded }} onPress={(event) => { event.stopPropagation(); setExpanded(true); }} style={styles.trigger}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel="View trip materials" accessibilityState={{ expanded }} onPress={(event) => { event.stopPropagation(); setExpanded(true); }} style={[styles.trigger, align === 'left' && styles.leftTrigger]}>
       {lines.length > 1 ? <Ionicons name="layers-outline" size={17} color={colors.text} /> : null}
-      <Text style={{ color: colors.text, fontWeight: '700' }}>{lines.length === 1 ? lines[0].materialName || lines[0].productName || 'Material' : lines.length + ' materials'}</Text>
+      <Text numberOfLines={1} style={{ color: colors.text, fontWeight: '700', flexShrink: 1, textAlign: align }}>{lines.length === 1 ? lines[0].materialName || lines[0].productName || 'Material' : lines.length + ' materials'}</Text>
       {lines.length > 1 ? <Ionicons name="chevron-down" size={16} color={colors.text} /> : null}
     </TouchableOpacity>
     <Modal visible={expanded} transparent animationType="fade" onRequestClose={() => setExpanded(false)}>
@@ -46,7 +46,8 @@ export function TripMaterials({ trip }: { trip: any }) {
 }
 
 const styles = StyleSheet.create({
-  trigger: { flexDirection: 'row', alignItems: 'center', gap: Gap, minHeight: 44, paddingHorizontal: 10, paddingVertical: 8 },
+  trigger: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Gap, minHeight: 44, paddingHorizontal: 10, paddingVertical: 8 },
+  leftTrigger: { justifyContent: 'flex-start', width: '100%', paddingHorizontal: 0 },
   overlay: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   panel: { width: '100%', maxWidth: 520, maxHeight: '80%', borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
   header: { flexDirection: 'row', alignItems: 'center', gap: Gap, padding: 16 },

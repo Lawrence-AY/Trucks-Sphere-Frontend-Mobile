@@ -7,6 +7,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { fetchDeliveryOrders } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import { buildCsvContent, buildHtmlContent, shareCsvAsFile, sharePdfAsFile } from '../../utils/exportData';
+import { formatStoreQuantity, storeMaterialUnit } from '../../utils/storeReceiving';
 
 const statusColor = (value?: string) => value === 'Passed' ? '#059669' : value === 'Failed' ? '#DC2626' : '#64748B';
 
@@ -40,13 +41,16 @@ export default function MaterialInspectionReportScreen() {
     if (receipts.length) return receipts.map((receipt: any) => {
       const source = poMaterials.find((material: any) => receipt.materialId && String(material.materialId || material.id || '') === String(receipt.materialId))
         || poMaterials.find((material: any) => receipt.materialName && material.materialName === receipt.materialName);
-      return { material: { ...source, materialId: receipt.materialId, materialName: receipt.materialName || source?.materialName, quantity: receipt.orderedQuantity ?? source?.quantity, unit: receipt.unit || source?.unit }, receipt };
+      const material = { ...source, ...receipt, materialId: receipt.materialId, materialName: receipt.materialName || source?.materialName, quantity: receipt.orderedQuantity ?? source?.quantity };
+      material.unit = storeMaterialUnit(material, receipt.unit || source?.unit || '');
+      return { material, receipt: { ...receipt, unit: material.unit } };
     });
-    return poMaterials.map((material: any) => {
+    return poMaterials.map((sourceMaterial: any) => {
+      const material = { ...sourceMaterial, unit: storeMaterialUnit(sourceMaterial, sourceMaterial.unit || '') };
       const receipt = receipts.find((item: any) => String(item.materialId || '') === String(material.materialId || material.id || ''))
         || receipts.find((item: any) => item.materialName === material.materialName)
         || null;
-      return { material, receipt };
+      return { material, receipt: receipt ? { ...receipt, unit: storeMaterialUnit({ ...material, ...receipt }, receipt.unit || material.unit) } : receipt };
     });
   }, [job]);
 
@@ -63,8 +67,8 @@ export default function MaterialInspectionReportScreen() {
       ['Inspected At', inspection.inspectedAt ? formatEAT(inspection.inspectedAt) : '—'],
     ];
     const materialRows = materials.flatMap(({ material, receipt }: any) => [
-      [`${material.materialName || 'Material'} — Dispatched Quantity`, material.quantity != null ? `${material.quantity} ${material.unit || ''}`.trim() : '—'],
-      [`${material.materialName || 'Material'} — Received Quantity`, receipt?.receivedQuantity != null ? `${receipt.receivedQuantity} ${receipt.unit || material.unit || ''}`.trim() : 'Not captured'],
+      [`${material.materialName || 'Material'} — Dispatched Quantity`, material.quantity != null ? `${formatStoreQuantity(material.quantity, material.unit || '')} ${material.unit || ''}`.trim() : '—'],
+      [`${material.materialName || 'Material'} — Received Quantity`, receipt?.receivedQuantity != null ? `${formatStoreQuantity(receipt.receivedQuantity, receipt.unit || material.unit || '')} ${receipt.unit || material.unit || ''}`.trim() : 'Not captured'],
       [`${material.materialName || 'Material'} — Initial Visual Inspection`, receipt?.initialVisualInspection || (inspection.mrfNumber ? 'N/A' : 'Pending')],
       ...(receipt?.failureReason ? [[`${material.materialName || 'Material'} — Failure Reason`, receipt.failureReason]] : []),
       ...(receipt?.deficiency ? [[`${material.materialName || 'Material'} — Deficiency`, receipt.deficiency]] : []),
@@ -113,8 +117,8 @@ export default function MaterialInspectionReportScreen() {
         const photoURLs = Array.isArray(receipt?.photoURLs) ? receipt.photoURLs.filter(Boolean) : [];
         return <View key={`${material.materialId || material.id || material.materialName}-${index}`} style={[styles.materialCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.materialName, { color: colors.text }]}>{material.materialName || 'Material'}</Text>
-          <Row label="PO Quantity" value={material.quantity != null ? `${material.quantity} ${material.unit || ''}`.trim() : '—'} colors={colors} />
-          <Row label="Received Quantity" value={receipt?.receivedQuantity != null ? `${receipt.receivedQuantity} ${receipt.unit || material.unit || ''}`.trim() : 'Not captured'} colors={colors} />
+          <Row label="PO Quantity" value={material.quantity != null ? `${formatStoreQuantity(material.quantity, material.unit || '')} ${material.unit || ''}`.trim() : '—'} colors={colors} />
+          <Row label="Received Quantity" value={receipt?.receivedQuantity != null ? `${formatStoreQuantity(receipt.receivedQuantity, receipt.unit || material.unit || '')} ${receipt.unit || material.unit || ''}`.trim() : 'Not captured'} colors={colors} />
           <Row label="Initial Visual Inspection" value={result} colors={colors} valueColor={statusColor(result)} />
           {receipt?.failureReason ? <Row label="Failure Reason" value={receipt.failureReason} colors={colors} /> : null}
           {receipt?.deficiency ? <Row label="Deficiency" value={receipt.deficiency} colors={colors} /> : null}

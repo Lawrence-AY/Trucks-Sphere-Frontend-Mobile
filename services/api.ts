@@ -94,7 +94,7 @@ const PUBLIC_ERROR_MESSAGES: Record<string, string> = {
 
 export function toPublicError(error: any): Error {
   const code = getErrorCode(error);
-  const serverMessage = String(error?.response?.data?.error || error?.response?.data?.message || '').trim();
+  const serverMessage = String(error?.response?.data?.message || error?.response?.data?.error || '').trim();
   const message = code === 'STORE_RECEIVING_INVALID' && serverMessage
     ? serverMessage
     : (PUBLIC_ERROR_MESSAGES[code] || 'Unable to complete the request. Please try again.');
@@ -505,6 +505,10 @@ export async function fetchStocks(): Promise<any[]> {
   return backendRequest<any>('get', '/api/stocks').then((data) => Array.isArray(data) ? data : data?.items || data?.data || []);
 }
 
+export async function fetchAllStockMovements(): Promise<any[]> {
+  return backendRequest<any>('get', '/api/stocks/movements').then((data) => Array.isArray(data) ? data : data?.items || data?.data || []);
+}
+
 export async function fetchStockMovements(stockId: string): Promise<any[]> {
   return backendRequest<any>('get', `/api/stocks/${stockId}/movements`).then((data) => Array.isArray(data) ? data : data?.items || data?.data || []);
 }
@@ -517,11 +521,11 @@ export async function acceptWarehouseDelivery(id: string): Promise<any> {
   return unwrapOne(await backendRequest('post', `/api/delivery-orders/${id}/accept-warehouse`), {});
 }
 
-export async function receiveStoreDelivery(id: string, payload: { requestId: string; quantities: string[]; condition: 'Pass' | 'Failed'; reason: string; deliveredByName: string }): Promise<any> {
+export async function receiveStoreDelivery(id: string, payload: { requestId: string; quantities: string[]; units?: string[]; condition: 'Pass' | 'Failed'; reason: string; deliveredByName: string }): Promise<any> {
   return unwrapOne(await backendRequest('post', `/api/delivery-orders/${encodeURIComponent(id)}/store-receiving`, payload), {});
 }
 
-export async function inspectStoreDelivery(id: string, payload: { requestId: string; result: 'Pass' | 'Failed'; qualityChecks: Record<string, boolean>; reason: string; lineDecisions?: Array<{ acceptedQuantity: number; rejectedQuantity: number; failureReason?: string }> }): Promise<any> {
+export async function inspectStoreDelivery(id: string, payload: { requestId: string; result: 'Pass' | 'Failed'; qualityChecks: Record<string, boolean>; reason: string; lineDecisions?: Array<{ acceptedQuantity: number; rejectedQuantity: number; unit?: string; failureReason?: string }> }): Promise<any> {
   return unwrapOne(await backendRequest('post', `/api/delivery-orders/${encodeURIComponent(id)}/store-inspection`, payload), {});
 }
 

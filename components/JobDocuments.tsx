@@ -8,6 +8,7 @@ import { readableTextColor } from '../utils/contrast';
 import { useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { formatStoreQuantity, storeMaterialUnit } from '../utils/storeReceiving';
 import { router } from 'expo-router';
 import { Gap, Radius, Spacing } from '../constants/theme';
 import { useTheme } from '../hooks/useTheme';
@@ -66,7 +67,7 @@ export function JobDocuments({ job, showReceiptNote = true }: JobDocumentsProps)
         ['MIF #', String(job?.materialInspection?.mrfNumber || 'Pending')],
         ['Materials dispatched', materialsLabel || '—'],
         ['Inspector', String(job?.materialInspection?.inspectorName || '—')],
-        ['Material Inspection Details', (job?.materialInspection?.materialReceipts || []).map((line: any) => `${line.materialName || 'Material'}: ${line.receivedQuantity ?? ''} ${line.unit || ''} — ${line.initialVisualInspection || 'Pending'}${line.failureReason ? ` (${line.failureReason})` : ''}${line.deficiency ? `; deficiency: ${line.deficiency}` : ''}`).join('; ') || '—'],
+        ['Material Inspection Details', (job?.materialInspection?.materialReceipts || []).map((line: any) => { const unit = storeMaterialUnit(line, line.unit || job?.unit || ''); return `${line.materialName || 'Material'}: ${formatStoreQuantity(line.receivedQuantity, unit)} ${unit} — ${line.initialVisualInspection || 'Pending'}${line.acceptedQuantity != null ? `; accepted ${formatStoreQuantity(line.acceptedQuantity, unit)} ${unit}` : ''}${line.rejectedQuantity != null ? `; rejected ${formatStoreQuantity(line.rejectedQuantity, unit)} ${unit}` : ''}${line.failureReason ? ` (${line.failureReason})` : ''}${line.deficiency ? `; deficiency: ${line.deficiency}` : ''}`; }).join('; ') || '—'],
       ],
       available: Boolean(job?.materialInspection?.mrfNumber),
       unavailableMessage: 'The material inspection must be completed before site weigh-out.',
