@@ -26,7 +26,6 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -60,10 +59,6 @@ export default function CreateDriverScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [iprsEnabled, setIprsEnabled] = useState(false);
-  const [backupLookup, setBackupLookup] = useState(false);
-  const [manualEntry, setManualEntry] = useState(false);
-  const [lookupState, setLookupState] = useState<'idle' | 'loading' | 'found' | 'failed'>('idle');
   const [form, setForm] = useState({
     vendorId: params.vendorId || '',
     firstName: '',
@@ -79,11 +74,6 @@ export default function CreateDriverScreen() {
     status: 'active' as string,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  useEffect(() => {
-    api.get<{ iprsEnabled?: boolean }>('/api/feature-flags')
-      .then(({ data }) => setIprsEnabled(data.iprsEnabled === true))
-      .catch(() => setIprsEnabled(false));
-  }, []);
   // A late result for an earlier spelling must never overwrite a corrected name.
   const identityCheckVersion = useRef(0);
   const saveAttemptVersion = useRef(0);
@@ -101,40 +91,6 @@ export default function CreateDriverScreen() {
     // Reload the repository cache as soon as that write completes.
     void loadVendors();
   }), []);
-
-  useEffect(() => {
-    if (isEditMode) return;
-    const nationalId = form.nationalId.trim();
-    if (!nationalId) return;
-    const requestVersion = ++identityCheckVersion.current;
-    const timer = setTimeout(async () => {
-      setLookupState('loading');
-      try {
-        const response = await api.post<{ firstName?: string; middleName?: string; surname?: string; source?: string; noMatch?: boolean }>('/api/drivers/lookup-identity', { nationalId });
-        if (requestVersion !== identityCheckVersion.current) return;
-        if (response.data.firstName || response.data.surname) {
-          setForm((prev) => ({
-            ...prev,
-            firstName: response.data.firstName || prev.firstName,
-            middleName: response.data.middleName || '',
-            surname: response.data.surname || prev.surname,
-          }));
-          setManualEntry(false);
-          setBackupLookup(response.data.source === 'IPRS_BACKUP');
-          setLookupState('found');
-          setErrors((prev) => { const next = { ...prev }; delete next.firstName; delete next.surname; return next; });
-        } else {
-          setLookupState('failed');
-        }
-      } catch {
-        if (requestVersion === identityCheckVersion.current) {
-          setLookupState('failed');
-          setForm((prev) => ({ ...prev, firstName: '', middleName: '', surname: '' }));
-        }
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [form.nationalId, isEditMode]);
 
   async function loadDriver(id: string) {
     try {
@@ -291,7 +247,7 @@ export default function CreateDriverScreen() {
         middleName: form.middleName?.trim() || undefined,
         surname: form.surname.trim(),
         fullName: [form.firstName.trim(), form.middleName?.trim(), form.surname.trim()].filter(Boolean).join(' '),
-        registrationSource: manualEntry ? 'MANUAL' : backupLookup ? 'IPRS_BACKUP' : 'IPRS',
+        registrationSource: 'MANUAL',
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
         nationalId: form.nationalId.trim() || undefined,
@@ -407,9 +363,6 @@ export default function CreateDriverScreen() {
             placeholder="Select vendor..."
           />
 
-          {lookupState === 'found' && !manualEntry ? (
-            <Text style={[styles.manualEntryTitle, { color: colors.success }]}>{backupLookup ? 'Name retrieved from IPRS backup' : 'Name retrieved from IPRS'}</Text>
-          ) : null}
           <Input
             label="National ID"
             value={form.nationalId}
@@ -422,23 +375,11 @@ export default function CreateDriverScreen() {
             error={errors.nationalId}
           />
 
-          {!isEditMode && iprsEnabled ? (
-            <View style={styles.manualEntryRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.manualEntryTitle, { color: colors.text }]}>Enter Driver Details Manually</Text>
-                {lookupState === 'loading' ? <Text style={{ color: colors.textMuted }}>Checking IPRS…</Text> : null}
-                {lookupState === 'failed' ? <Text style={{ color: colors.danger }}>Unable to retrieve driver details from IPRS. You can proceed by entering the driver's details manually.</Text> : null}
-                {manualEntry ? <Text style={{ color: colors.warning || colors.primary }}>Manual entry</Text> : null}
-              </View>
-              <Switch value={manualEntry} onValueChange={setManualEntry} />
-            </View>
-          ) : null}
-
           <ResponsiveGrid minItemWidth={280} maxColumns={2}>
           <Input
             label="First Name"
             value={form.firstName}
-            editable={!iprsEnabled || manualEntry || lookupState !== 'found'}
+            editable
             onChangeText={(v) => updateField('firstName', v)}
             placeholder="Enter first name"
             icon="person-outline"
@@ -448,7 +389,7 @@ export default function CreateDriverScreen() {
           <Input
             label="Middle Name (optional)"
             value={form.middleName || ''}
-            editable={!iprsEnabled || manualEntry || lookupState !== 'found'}
+            editable
             onChangeText={(v) => updateField('middleName', v)}
             placeholder="Enter middle name"
             icon="person-outline"
@@ -456,7 +397,7 @@ export default function CreateDriverScreen() {
           <Input
             label="Surname"
             value={form.surname}
-            editable={!iprsEnabled || manualEntry || lookupState !== 'found'}
+            editable
             onChangeText={(v) => updateField('surname', v)}
             placeholder="Enter surname"
             icon="person-outline"
@@ -669,8 +610,6 @@ const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.cre
     borderWidth: 1,
   },
   photoRemoveText: { fontSize: 13, fontWeight: '700' },
-  manualEntryRow: { flexDirection: 'row', alignItems: 'center', gap: Gap, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.xs },
-  manualEntryTitle: { fontWeight: '700', marginBottom: 3 },
   actions: { flexDirection: 'row', gap: Gap, marginTop: Spacing.xs},
   actionBtn: { flex: 1 },
 });
