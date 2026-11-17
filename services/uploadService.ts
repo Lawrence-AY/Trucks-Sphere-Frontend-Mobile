@@ -106,6 +106,10 @@ export async function uploadWarehousePackagingPhoto(warehouseJobId: string, file
   );
 }
 
+export async function uploadWarehouseSignoff(deliveryOrderId: string, kind: 'signature' | 'stamp', file: string | UploadFile): Promise<UploadResult> {
+  return uploadFile(`warehouse-signoff/${encodeURIComponent(deliveryOrderId)}/${kind}`, file, 'file', `warehouse-${kind}-${deliveryOrderId}`);
+}
+
 /**
  * Upload a receipt note image.
  * Storage folder: "Receipt note/"

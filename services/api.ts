@@ -1122,7 +1122,9 @@ export async function downloadCategoryCSV(
     const response = await axios.get(url, {
       responseType: 'blob',
       headers: { Authorization: `Bearer ${token}` },
-      timeout: 15000,
+      // CSV exports can contain the full filtered operational history and may
+      // take longer than ordinary API requests to generate.
+      timeout: 60000,
     });
 
     if (Platform.OS === 'web') {
@@ -1176,7 +1178,7 @@ export async function downloadVendorCategoryCSV(
     const response = await axios.get(url, {
       responseType: 'blob',
       headers: { Authorization: `Bearer ${token}` },
-      timeout: 15000,
+      timeout: 60000,
     });
 
     if (Platform.OS === 'web') {
@@ -1279,6 +1281,42 @@ export async function updateProfile(payload: {
     const msg = error?.response?.data?.error || error?.message || 'Failed to update profile.';
     throw new Error(msg);
   }
+}
+
+export async function fetchBranding(): Promise<{ logoURL?: string }> {
+  return backendRequest<{ logoURL?: string }>('get', '/api/auth/branding');
+}
+
+export async function fetchVendorById(id: string): Promise<{ logoURL?: string }> {
+  const response = await api.get(`/api/vendors/${encodeURIComponent(id)}`);
+  return response.data || {};
+}
+
+export async function uploadProfileLogo(asset: { uri: string; name?: string | null; mimeType?: string | null }) {
+  const token = await getStoredToken();
+  const formData = new FormData();
+  const name = asset.name || 'logo.png';
+  if (Platform.OS === 'web') {
+    formData.append('file', await fetch(asset.uri).then(response => response.blob()), name);
+  } else {
+    formData.append('file', { uri: asset.uri, name, type: asset.mimeType || 'image/png' } as any);
+  }
+  const response = await axios.post('/api/uploads/profile-logo', formData, {
+    baseURL: API_BASE_URL,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    timeout: 30000,
+  });
+  return response.data as { logoURL: string; width: number; height: number };
+}
+
+export async function uploadVendorLogo(vendorId: string, asset: { uri: string; name?: string | null; mimeType?: string | null }) {
+  const token = await getStoredToken();
+  const formData = new FormData();
+  const name = asset.name || 'logo.png';
+  if (Platform.OS === 'web') formData.append('file', await fetch(asset.uri).then(response => response.blob()), name);
+  else formData.append('file', { uri: asset.uri, name, type: asset.mimeType || 'image/png' } as any);
+  const response = await axios.post(`/api/uploads/vendor-logo/${encodeURIComponent(vendorId)}`, formData, { baseURL: API_BASE_URL, headers: token ? { Authorization: `Bearer ${token}` } : {}, timeout: 30000 });
+  return response.data as { logoURL: string; width: number; height: number };
 }
 
 // ============== Password Self-Service ==============

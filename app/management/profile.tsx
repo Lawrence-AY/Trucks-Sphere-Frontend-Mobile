@@ -87,6 +87,7 @@ export default function ManagementProfileScreen() {
     }
   };
 
+
   return (
     <PageShell>
       {/* Profile Card */}
@@ -175,6 +176,7 @@ export default function ManagementProfileScreen() {
         )}
       </DataCard>
 
+      {/* Account Details */}
       {/* Account Details */}
       <SectionTitle title="Account details" />
       <DataCard>

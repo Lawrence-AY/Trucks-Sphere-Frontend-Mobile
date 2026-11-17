@@ -186,13 +186,13 @@ function buildReceiptHtml(data: {
       <div class="section">
         <div class="section-title">Weight Record</div>
         <table>
-          <tr><td>Site Arrival Weight (Gross)</td><td style="font-weight:700;">${weightIn.toFixed(1)} T</td></tr>
-          <tr><td>Post-Offload Weight (Tare)</td><td style="font-weight:700;">${weightOut.toFixed(1)} T</td></tr>
+          <tr><td>Site Arrival Weight (Gross)</td><td style="font-weight:700;">${weightIn.toFixed(3)} T</td></tr>
+          <tr><td>Post-Offload Weight (Tare)</td><td style="font-weight:700;">${weightOut.toFixed(3)} T</td></tr>
         </table>
 
         <div class="highlight-box">
-          <div class="net">${netWeight.toFixed(1)} Tonnes</div>
-          <div class="calc">NET WEIGHT = ${weightIn.toFixed(1)}T (Gross) − ${weightOut.toFixed(1)}T (Tare)</div>
+          <div class="net">${netWeight.toFixed(3)} Tonnes</div>
+          <div class="calc">NET WEIGHT = ${weightIn.toFixed(3)}T (Gross) − ${weightOut.toFixed(3)}T (Tare)</div>
         </div>
       </div>
 
@@ -381,7 +381,7 @@ export default function OperatorSiteWeightsScreen() {
     if (quarryOutWeight > 0 && siteWeighIn < quarryOutWeight) {
       Alert.alert(
         'Weight Discrepancy',
-        `⚠️ Site arrival weight (${siteWeighIn.toFixed(1)}T) is lower than quarry loaded weight (${quarryOutWeight.toFixed(1)}T). This may indicate material loss in transit. Please verify before proceeding.`,
+        `⚠️ Site arrival weight (${siteWeighIn.toFixed(3)}T) is lower than quarry loaded weight (${quarryOutWeight.toFixed(3)}T). This may indicate material loss in transit. Please verify before proceeding.`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Proceed Anyway', onPress: () => setReviewVisible(true) },
@@ -424,7 +424,7 @@ export default function OperatorSiteWeightsScreen() {
         siteWeightDifference: weightDifference,
         differenceNote:
           weightDifference != null
-            ? `Quarry net: ${quarryNetWeight.toFixed(1)}T | Site net: ${siteNetWeight.toFixed(1)}T | Diff: ${weightDifference > 0 ? '+' : ''}${weightDifference.toFixed(2)}T`
+            ? `Quarry net: ${quarryNetWeight.toFixed(3)}T | Site net: ${siteNetWeight.toFixed(3)}T | Diff: ${weightDifference > 0 ? '+' : ''}${weightDifference.toFixed(3)}T`
             : null,
         receivedAt: now,
         receivedLocation: activeJob.siteName || 'Site',
@@ -536,9 +536,9 @@ export default function OperatorSiteWeightsScreen() {
         ['Banker', data.banker || 'N/A'],
         ['Origin', data.quarryOrigin || data.materialSource || data.quarryName],
         ['Destination (Site)', data.siteName],
-        ['Site Arrival Weight (Gross)', `${data.weightIn.toFixed(1)} T`],
-        ['Weight Out (Tare)', `${data.weightOut.toFixed(1)} T`],
-        ['Net Weight', `${data.netWeight.toFixed(1)} T`],
+        ['Site Arrival Weight (Gross)', `${data.weightIn.toFixed(3)} T`],
+        ['Weight Out (Tare)', `${data.weightOut.toFixed(3)} T`],
+        ['Net Weight', `${data.netWeight.toFixed(3)} T`],
         ['Lot Number', data.lotNumber || '—'],
         ['Status', 'COMPLETED'],
         ['Operator', data.operatorName],
@@ -634,7 +634,7 @@ export default function OperatorSiteWeightsScreen() {
                   Gross Weight
                 </Text>
                 <Text style={[styles.recordedWeightValue, { color: colors.success }]}>
-                  {siteWeighIn.toFixed(1)} Tonnes
+                  {siteWeighIn.toFixed(3)} Tonnes
                 </Text>
               </View>
             </View>
@@ -649,19 +649,19 @@ export default function OperatorSiteWeightsScreen() {
                   <View style={styles.qwCell}>
                     <Text style={[styles.qwLabel, { color: colors.textMuted }]}>Quarry In</Text>
                     <Text style={[styles.qwValue, { color: colors.purpleText }]}>
-                      {quarryIn.toFixed(1)}T
+                      {quarryIn.toFixed(3)}T
                     </Text>
                   </View>
                   <View style={styles.qwCell}>
                     <Text style={[styles.qwLabel, { color: colors.textMuted }]}>Quarry Out</Text>
                     <Text style={[styles.qwValue, { color: colors.purpleText }]}>
-                      {quarryOut.toFixed(1)}T
+                      {quarryOut.toFixed(3)}T
                     </Text>
                   </View>
                   <View style={styles.qwCell}>
                     <Text style={[styles.qwLabel, { color: colors.textMuted }]}>Quarry Net</Text>
                     <Text style={[styles.qwValue, { color: colors.success }]}>
-                      {quarryNet.toFixed(1)}T
+                      {quarryNet.toFixed(3)}T
                     </Text>
                   </View>
                 </View>
@@ -741,10 +741,10 @@ export default function OperatorSiteWeightsScreen() {
                   NET WEIGHT
                 </Text>
                 <Text style={[styles.netValue, { color: colors.purpleText }]}>
-                  {netWeight.toFixed(1)} Tonnes
+                  {netWeight.toFixed(3)} Tonnes
                 </Text>
                 <Text style={[styles.netCalc, { color: colors.textTertiary }]}>
-                  {siteWeighIn.toFixed(1)}T (Gross) − {weightOutNum.toFixed(1)}T (Tare)
+                  {siteWeighIn.toFixed(3)}T (Gross) − {weightOutNum.toFixed(3)}T (Tare)
                 </Text>
               </View>
             )}
@@ -868,7 +868,7 @@ export default function OperatorSiteWeightsScreen() {
                     Site Arrival (Gross)
                   </Text>
                   <Text style={[styles.grnValue, { color: colors.warningText }]}>
-                    {siteWeighIn.toFixed(1)} T
+                    {siteWeighIn.toFixed(3)} T
                   </Text>
                 </View>
                 <View style={styles.grnRow}>
@@ -876,7 +876,7 @@ export default function OperatorSiteWeightsScreen() {
                     Weight Out (Tare)
                   </Text>
                   <Text style={[styles.grnValue, { color: colors.purpleText }]}>
-                    {weightOutNum.toFixed(1)} T
+                    {weightOutNum.toFixed(3)} T
                   </Text>
                 </View>
                 <View style={[styles.grnDivider, { marginTop: Spacing.xs}]} />
@@ -895,7 +895,7 @@ export default function OperatorSiteWeightsScreen() {
                       { color: colors.success, fontWeight: '900', fontSize: 18 },
                     ]}
                   >
-                    {netWeight !== null ? netWeight.toFixed(1) : '—'} T
+                    {netWeight !== null ? netWeight.toFixed(3) : '—'} T
                   </Text>
                 </View>
               </View>
@@ -1013,7 +1013,7 @@ export default function OperatorSiteWeightsScreen() {
                       Gross (Site In)
                     </Text>
                     <Text style={[styles.grnValue, { color: colors.warningText }]}>
-                      {siteWeighIn.toFixed(1)} T
+                      {siteWeighIn.toFixed(3)} T
                     </Text>
                   </View>
                   <View style={styles.grnRow}>
@@ -1021,7 +1021,7 @@ export default function OperatorSiteWeightsScreen() {
                       Tare (Weight Out)
                     </Text>
                     <Text style={[styles.grnValue, { color: colors.purpleText }]}>
-                      {weightOutNum.toFixed(1)} T
+                      {weightOutNum.toFixed(3)} T
                     </Text>
                   </View>
                   <View style={[styles.grnDivider, { marginTop: Spacing.xs}]} />
@@ -1040,7 +1040,7 @@ export default function OperatorSiteWeightsScreen() {
                         { color: colors.success, fontWeight: '900', fontSize: 18 },
                       ]}
                     >
-                      {(grnData.siteNetWeight || netWeight || 0).toFixed(1)} T
+                      {(grnData.siteNetWeight || netWeight || 0).toFixed(3)} T
                     </Text>
                   </View>
                   {/* Backorder creation notice hidden from users (internal only) */}
@@ -1186,7 +1186,7 @@ export default function OperatorSiteWeightsScreen() {
                 <Text
                   style={{ fontSize: 12, fontWeight: '700', color: colors.success }}
                 >
-                  Site Arrival: {siteIn.toFixed(1)} T
+                  Site Arrival: {siteIn.toFixed(3)} T
                 </Text>
               </View>
 

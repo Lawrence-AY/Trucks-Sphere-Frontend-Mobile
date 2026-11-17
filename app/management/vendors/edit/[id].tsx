@@ -32,6 +32,8 @@ import { vendorRepository } from '../../../../services/repositories/VendorReposi
 import { Vendor } from '@/store/types';
 import { useAuthStore } from '@/store/authStore';
 import { MANAGEMENT_ROLES, normalizeRole } from '../../../../utils/access';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadVendorLogo } from '../../../../services/api';
 
 export default function EditVendorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -53,6 +55,7 @@ export default function EditVendorScreen() {
     registrationNumber: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [logoAsset, setLogoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   useEffect(() => {
     if (id) loadVendor();
@@ -69,7 +72,7 @@ export default function EditVendorScreen() {
       setVendor(v);
       setForm({
         companyName: v.companyName || '',
-        contactPerson: v.contactPerson || v.contact || '',
+        contactPerson: v.contactPerson || (v as any).contact || '',
         phone: v.phone || (v as any).phoneNumber || '',
         email: v.email || '',
         address: v.address || '',
@@ -119,6 +122,7 @@ export default function EditVendorScreen() {
         registrationNumber: form.registrationNumber,
         updatedAt: new Date().toISOString(),
       });
+      if (logoAsset) await uploadVendorLogo(id!, { uri: logoAsset.uri, name: logoAsset.fileName, mimeType: logoAsset.mimeType });
       Alert.alert('Saved', 'Vendor updated successfully', [
         { text: 'OK', onPress: () => router.back() },
       ]);
@@ -223,6 +227,12 @@ export default function EditVendorScreen() {
             multiline
           />
 </ResponsiveGrid>
+        </Card>
+
+        <Card>
+          <Text style={{ color: colors.text, fontWeight: '800', marginBottom: Spacing.sm }}>Vendor Logo (optional)</Text>
+          <Button title={logoAsset ? 'Logo selected' : 'Choose PNG/WebP logo'} onPress={async () => { const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 }); if (!r.canceled) { const a = r.assets[0]; const ratio = (a.width || 0) / (a.height || 1); if (!['image/png','image/webp'].includes(a.mimeType || '') || (a.fileSize || 0) > 2 * 1024 * 1024 || (a.width || 0) < 200 || (a.height || 0) < 75 || !(ratio >= 1.4 || (ratio >= .85 && ratio <= 1.15))) { Alert.alert('Invalid logo', 'Use PNG/WebP, max 2 MB, minimum 200 × 75 px, horizontal or square.'); return; } setLogoAsset(a); } }} icon="image-outline" variant="secondary" />
+          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: Spacing.sm }}>Optional. Appears beside this vendor on Delivery Notes only. Recommended: 400 × 150 px or 250 × 250 px.</Text>
         </Card>
 
         <View style={styles.actions}>

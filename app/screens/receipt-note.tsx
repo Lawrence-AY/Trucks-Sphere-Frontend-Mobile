@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import { useTheme } from '../../hooks/useTheme';
 import { Gap, Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders } from '../../services/api';
+import { fetchDeliveryOrders, fetchVendorById } from '../../services/api';
 import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { formatCapturedGeoLocation, reverseGeocode, reverseGeocodeRich } from '../../services/geolocation';
@@ -43,6 +43,7 @@ const escapeHtml = (str: string | null | undefined): string => {
 
 /* ─────────── Receipt Note PDF HTML Builder (with escaping) ─────────── */
 function buildReceiptNoteHtml(data: {
+  logoURL?: string;
   isWarehouse?: boolean;
   receiptNoteId: string;
   jobId: string;
@@ -90,6 +91,10 @@ function buildReceiptNoteHtml(data: {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 32px; padding-top:3px; color: #1E293B; max-width: 600px; margin: auto; }
     .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 5px; margin-bottom: 10px; }
+    .logo-box { height: 72px; width: 100%; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+    .logo-box img { max-width: 240px; max-height: 64px; width: auto; height: auto; object-fit: contain; }
+    .vendor-value { display: inline-flex; align-items: center; gap: 8px; }
+    .vendor-value img { width: 52px; height: 28px; object-fit: contain; }
     .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 2px; }
     .header .subtitle { color: #64748B; font-size: 13px; }
     .section { margin-bottom: 14px; }
@@ -115,6 +120,7 @@ function buildReceiptNoteHtml(data: {
 </head>
 <body>
   <div class="header">
+    ${data.logoURL ? `<div class="logo-box"><img src="${e(data.logoURL)}" alt="Organization logo" /></div>` : ''}
     <h1>Trucks Sphere</h1>
     <div class="subtitle">Goods Receipt Note (GRN)</div>
   </div>
@@ -131,7 +137,7 @@ function buildReceiptNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Parties</div>
-    <div class="row"><span class="label">Vendor</span><span class="value">${e(vendorName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Vendor</span><span class="value vendor-value">${data.logoURL ? `<img src="${e(data.logoURL)}" alt="Vendor logo" />` : ''}${e(vendorName) || 'N/A'}</span></div>
     <div class="row"><span class="label">Driver : Truck Plate </span><span class="value">${e(driverName) || 'N/A'} : ${e(plateNumber) || 'N/A'}</span></div>
    </div>
 
@@ -327,7 +333,9 @@ const exportRows = [
   const handlePrintPDF = async () => {
     setExporting('pdf');
     try {
+      const branding: { logoURL?: string } = delivery.vendorId ? await fetchVendorById(delivery.vendorId).catch(() => ({})) : {};
       const html = buildReceiptNoteHtml({
+        logoURL: branding.logoURL,
         isWarehouse,
         receiptNoteId: rn,
         jobId,

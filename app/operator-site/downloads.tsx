@@ -193,12 +193,12 @@ const DOWNLOAD_OPTIONS: DownloadOption[] = [
           <td>${i + 1}</td>
           <td>${w.jobId || '-'}</td>
           <td>${w.receiptNoteId || w.receiptNote || '-'}</td>
-          <td>${w.weighInWeight != null ? w.weighInWeight.toFixed(1) + ' T' : '—'}</td>
-          <td>${w.weighOutWeight != null ? w.weighOutWeight.toFixed(1) + ' T' : '—'}</td>
-          <td>${w.netWeight != null ? w.netWeight.toFixed(1) + ' T' : '—'}</td>
-          <td>${w.siteWeighInWeight != null ? w.siteWeighInWeight.toFixed(1) + ' T' : '—'}</td>
-          <td>${w.siteWeighOutWeight != null ? w.siteWeighOutWeight.toFixed(1) + ' T' : '—'}</td>
-          <td>${w.siteNetWeight != null ? w.siteNetWeight.toFixed(1) + ' T' : '—'}</td>
+          <td>${w.weighInWeight != null ? Number(w.weighInWeight).toFixed(3) + ' T' : '—'}</td>
+          <td>${w.weighOutWeight != null ? Number(w.weighOutWeight).toFixed(3) + ' T' : '—'}</td>
+          <td>${w.netWeight != null ? Number(w.netWeight).toFixed(3) + ' T' : '—'}</td>
+          <td>${w.siteWeighInWeight != null ? Number(w.siteWeighInWeight).toFixed(3) + ' T' : '—'}</td>
+          <td>${w.siteWeighOutWeight != null ? Number(w.siteWeighOutWeight).toFixed(3) + ' T' : '—'}</td>
+          <td>${w.siteNetWeight != null ? Number(w.siteNetWeight).toFixed(3) + ' T' : '—'}</td>
           <td>${w.operatorUsername || w.weighOutByName || '-'}</td>
           <td>${w.quarryName || '-'}</td>
           <td>${w.weighOutGeoLocation?.address || w.weighOutGeoLocation?.city || w.weighOutLocation || '-'}</td>

@@ -330,10 +330,9 @@ export default function WarehouseQueueScreen() {
       setJobs((current) => current.filter((entry) => entry.id !== completedJob.id));
       setSheetVisible(false);
       resetSheet();
-      Alert.alert(
-        'Warehouse delivery submitted',
-        `${job.jobId}\nThe delivery is now in Storekeeper Receiving for acceptance and inspection.`,
-      );
+      Alert.alert('Warehouse delivery submitted', `${job.jobId}\nThe delivery note is ready for sign-off.`, [
+        { text: 'Open Delivery Note', onPress: () => router.push(`/screens/delivery-note?id=${encodeURIComponent(job.jobId)}` as any) },
+      ]);
     } catch (error: any) {
       Alert.alert('Could not submit delivery', error?.message || 'Please try again.');
     } finally {

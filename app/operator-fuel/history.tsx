@@ -124,7 +124,7 @@ export default function FuelHistoryScreen() {
       item.driverName || "N/A",
       item.plateNumber || "N/A",
       item.vendorName || "N/A",
-      item.fuelAmount != null ? item.fuelAmount.toFixed(1) : "0.0",
+      item.fuelAmount != null ? Number(item.fuelAmount).toFixed(3) : "0.000",
       item.authorizationCode || item.authorizationId || "",
       formatEAT(item.dispensedAt || item.createdAt || ""),
     ]);
@@ -189,7 +189,7 @@ export default function FuelHistoryScreen() {
           >
             <Ionicons name="water" size={16} color={colors.warningText} />
             <Text style={[styles.statValue, { color: colors.text }]}>
-              {stats.totalLiters.toFixed(1)} L
+              {stats.totalLiters.toFixed(3)} L
             </Text>
             <Text style={[styles.statLabel, { color: colors.textMuted }]}>
               Fuel
@@ -307,7 +307,7 @@ export default function FuelHistoryScreen() {
                           color: colors.warningText,
                         }}
                       >
-                        {item.fuelAmount?.toFixed(1)} L
+                        {item.fuelAmount != null ? Number(item.fuelAmount).toFixed(3) : '0.000'} L
                       </Text>
                     </View>
                   ) : null}

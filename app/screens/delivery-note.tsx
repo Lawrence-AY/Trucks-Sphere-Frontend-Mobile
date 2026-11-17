@@ -2,16 +2,19 @@ import { printDocument as printHtmlOnWeb } from '../../utils/printDocument';
 import { deliveryPerson } from '../../utils/deliveryDocuments';
 import { formatTripMaterials, getTripMaterials } from '../../utils/poMaterials';
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Platform, Alert, Image } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { useTheme } from '../../hooks/useTheme';
 import { Gap, Radius, Spacing } from '../../constants/theme';
-import { fetchDeliveryOrders, fetchCheckpoints } from '../../services/api';
+import { fetchDeliveryOrders, fetchCheckpoints, fetchVendorById } from '../../services/api';
 import { formatEAT } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { formatCapturedGeoLocation, reverseGeocodeRich } from '../../services/geolocation';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadWarehouseSignoff } from '../../services/uploadService';
 
 
 
@@ -30,6 +33,7 @@ const escapeHtml = (str: string | null | undefined): string => {
 
 /* ---------- HTML builder (same as before, but now all data escaped) ---------- */
 function buildDeliveryNoteHtml(data: {
+  logoURL?: string;
   isWarehouse?: boolean;
   isCustomSite?: boolean;
   materialSource?: string;
@@ -55,6 +59,8 @@ function buildDeliveryNoteHtml(data: {
   goodsDeliveryNoteSource?: string;
   workflowType?: string;
   dispatchedToSiteAt?: string;
+  warehouseSignatureURL?: string;
+  warehouseStampURL?: string;
 }): string {
   const {
     jobId, poNumber, driverName, plateNumber, vendorName,
@@ -79,6 +85,10 @@ function buildDeliveryNoteHtml(data: {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 32px; color: #1E293B; max-width: 600px; margin: auto; }
     .header { text-align: center; border-bottom: 3px solid #1B2A4A; padding-bottom: 16px; margin-bottom: 24px; }
+    .logo-box { height: 72px; width: 100%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+    .logo-box img { max-width: 240px; max-height: 64px; width: auto; height: auto; object-fit: contain; }
+    .vendor-value { display: inline-flex; align-items: center; gap: 8px; }
+    .vendor-value img { width: 52px; height: 28px; object-fit: contain; }
     .header h1 { color: #1B2A4A; font-size: 20px; margin-bottom: 4px; }
     .header .subtitle { color: #64748B; font-size: 13px; }
     .section { margin-bottom: 20px; }
@@ -99,6 +109,10 @@ function buildDeliveryNoteHtml(data: {
     .sig-block .line { border-bottom: 1px solid #94A3B8; margin: 32px 20px 8px; }
     .sig-block .name { font-size: 12px; font-weight: 600; color: #1E293B; }
     .sig-block .role { font-size: 10px; color: #94A3B8; }
+    .signoff { display: flex; gap: 24px; margin-top: 32px; }
+    .signoff > div { flex: 1; text-align: center; min-height: 80px; }
+    .signoff img { max-width: 150px; max-height: 65px; width: auto; height: auto; object-fit: contain; display: block; margin: 8px auto; }
+    .sign-line { border-bottom: 1px solid #94A3B8; margin: 40px 20px 8px; }
     @page { size: A4; margin: 20mm 15mm; }
   </style>
 </head>
@@ -118,7 +132,7 @@ function buildDeliveryNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Parties</div>
-    <div class="row"><span class="label">Vendor</span><span class="value">${e(vendorName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Vendor</span><span class="value vendor-value">${data.logoURL ? `<img src="${e(data.logoURL)}" alt="Vendor logo" />` : ''}${e(vendorName) || 'N/A'}</span></div>
     ${`<div class="row"><span class="label">Driver</span><span class="value">${e(driverName) || 'N/A'}</span></div>
     <div class="row"><span class="label">Truck</span><span class="value">${e(plateNumber) || 'N/A'}</span></div>`}
   </div>
@@ -163,6 +177,8 @@ function buildDeliveryNoteHtml(data: {
   </div>
   ` : ''}
 
+  ${isWarehouse ? `<div class="signoff"><div><strong>Authorized Signature</strong>${data.warehouseSignatureURL ? `<img src="${e(data.warehouseSignatureURL)}" />` : '<div class="sign-line"></div>'}</div><div><strong>Official Stamp</strong>${data.warehouseStampURL ? `<img src="${e(data.warehouseStampURL)}" />` : '<div class="sign-line"></div>'}</div></div>` : ''}
+
   
  
 </body>
@@ -188,6 +204,7 @@ const NAVY = colors.primaryText;
   const [geoCity, setGeoCity] = useState<string | undefined>();
   const [geoTown, setGeoTown] = useState<string | undefined>();
   const [geoAddress, setGeoAddress] = useState<string | undefined>();
+  const [uploadingSignoff, setUploadingSignoff] = useState<'signature' | 'stamp' | null>(null);
 
   const loadData = async (jobId: string) => {
     if (!jobId) return;
@@ -226,6 +243,19 @@ const NAVY = colors.primaryText;
   }, [id]);
 
   const handleSearch = () => { loadData(searchJobId.trim()); };
+
+  const attachSignoff = async (kind: 'signature' | 'stamp') => {
+    if (!delivery?.id) return;
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 });
+    if (result.canceled || !result.assets[0]) return;
+    setUploadingSignoff(kind);
+    try {
+      const asset = result.assets[0];
+      const uploaded = await uploadWarehouseSignoff(delivery.id, kind, { uri: asset.uri, name: asset.fileName || undefined, mimeType: asset.mimeType || undefined });
+      setDelivery((current: any) => ({ ...current, [kind === 'signature' ? 'warehouseSignatureURL' : 'warehouseStampURL']: uploaded.photoURL }));
+    } catch (error: any) { Alert.alert('Upload failed', error?.message || `Could not attach ${kind}.`); }
+    finally { setUploadingSignoff(null); }
+  };
 
   const isCustomSite = ['operator_site', 'site_operator'].includes(String(delivery?.createdBy?.role || delivery?.createdBy || '').toLowerCase());
   const netWeight = delivery?.netWeight || (delivery?.weighInWeight && delivery?.weighOutWeight ? (delivery.weighInWeight - delivery.weighOutWeight).toFixed(1) : null);
@@ -301,7 +331,9 @@ const NAVY = colors.primaryText;
     if (!delivery) return;
     setExporting('pdf');
     try {
+      const branding: { logoURL?: string } = delivery.vendorId ? await fetchVendorById(delivery.vendorId).catch(() => ({})) : {};
       const pdfData = {
+        logoURL: branding.logoURL,
         isWarehouse,
         isCustomSite,
         materialSource: delivery.materialSource || '',
@@ -327,6 +359,8 @@ const NAVY = colors.primaryText;
         goodsDeliveryNoteSource: delivery.goodsDeliveryNoteSource || '',
         workflowType: delivery.workflowType || '',
         dispatchedToSiteAt: formatEAT(delivery.dispatchedToSiteAt || delivery.submittedAt || delivery.createdAt),
+        warehouseSignatureURL: delivery.warehouseSignatureURL,
+        warehouseStampURL: delivery.warehouseStampURL,
       };
       const html = buildDeliveryNoteHtml(pdfData);
 
@@ -344,6 +378,34 @@ const NAVY = colors.primaryText;
     } finally {
       setExporting(null);
     }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!delivery) return;
+    setExporting('pdf');
+    try {
+      const branding: { logoURL?: string } = delivery.vendorId ? await fetchVendorById(delivery.vendorId).catch(() => ({})) : {};
+      const html = buildDeliveryNoteHtml({
+        logoURL: branding.logoURL, isWarehouse, isCustomSite, materialSource: delivery.materialSource || '',
+        jobId: delivery.jobId || '', poNumber: (isWarehouse ? (delivery.poNumber || delivery.warehouseJobId || delivery.jobId) : delivery.poNumber) || '',
+        driverName: deliveryPerson(delivery) || '', plateNumber: delivery.plateNumber || '', vendorName: delivery.vendorName || '',
+        materialName: materialsLabel, quarryName: delivery.quarryName || '', quarrySource: capturedQuarrySource || '', quarryCityTown: quarryCityTown || '', quarryPersonnel: quarryPersonnel || '',
+        netWeight: netWeight ? `${netWeight}` : '', weighInWeight: delivery.weighInWeight ? `${delivery.weighInWeight} t` : '', weighOutWeight: delivery.weighOutWeight ? `${delivery.weighOutWeight} t` : '',
+        weighOutGeoAddress: delivery?.weighOutGeoLocation?.address || geoAddress || delivery?.weighOutLocation || '', weighOutCity: delivery?.weighOutGeoLocation?.city || geoCity || '', weighOutTown: delivery?.weighOutGeoLocation?.town || geoTown || '',
+        timestamp: formatEAT(delivery.createdAt) || new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' }), warehouseRows,
+        goodsDeliveryNoteFileName: delivery.goodsDeliveryNoteFileName || '', goodsDeliveryNoteSource: delivery.goodsDeliveryNoteSource || '', workflowType: delivery.workflowType || '',
+        dispatchedToSiteAt: formatEAT(delivery.dispatchedToSiteAt || delivery.submittedAt || delivery.createdAt), warehouseSignatureURL: delivery.warehouseSignatureURL, warehouseStampURL: delivery.warehouseStampURL,
+      });
+      if (Platform.OS === 'web') {
+        await printHtmlOnWeb(html);
+      } else {
+        const { uri } = await Print.printToFileAsync({ width: 595, height: 842, html });
+        if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Download Delivery Note PDF' });
+        else Alert.alert('PDF ready', uri);
+      }
+    } catch (error: any) {
+      Alert.alert('Download Error', error?.message || 'Could not create the PDF.');
+    } finally { setExporting(null); }
   };
 
   return (
@@ -444,11 +506,14 @@ const NAVY = colors.primaryText;
               <Text style={styles.rBarcode}>||| ||| ||| ||| ||| ||| |||</Text>
               <Text style={styles.rFooter}>{isWarehouse ? 'Warehouse Confirmation' : isCustomSite ? 'Site Operator Confirmation' : 'Quarry Operator Confirmation'}</Text>
               <Text style={styles.rThanks}>Thank you</Text>
+              {isWarehouse && <View style={styles.signoffRow}><View style={styles.signoffBox}>{delivery.warehouseSignatureURL ? <Image source={{ uri: delivery.warehouseSignatureURL }} style={styles.signoffImage} /> : <Text style={styles.signoffPlaceholder}>Signature</Text>}<Text style={styles.signoffLabel}>Authorized Signature</Text></View><View style={styles.signoffBox}>{delivery.warehouseStampURL ? <Image source={{ uri: delivery.warehouseStampURL }} style={styles.signoffImage} /> : <Text style={styles.signoffPlaceholder}>Stamp</Text>}<Text style={styles.signoffLabel}>Official Stamp</Text></View></View>}
             </View>
           </View>
 
+          {isWarehouse && <View style={styles.signoffActions}><Text style={styles.signoffTitle}>Warehouse sign-off</Text><TouchableOpacity style={styles.signoffButton} onPress={() => { void attachSignoff('signature'); }} disabled={uploadingSignoff !== null}><Text style={styles.signoffButtonText}>{uploadingSignoff === 'signature' ? 'Uploading...' : 'Attach e-signature'}</Text></TouchableOpacity><TouchableOpacity style={styles.signoffButton} onPress={() => { void attachSignoff('stamp'); }} disabled={uploadingSignoff !== null}><Text style={styles.signoffButtonText}>{uploadingSignoff === 'stamp' ? 'Uploading...' : 'Attach company stamp'}</Text></TouchableOpacity></View>}
+
           <View style={styles.actionRow}>
-            <TouchableOpacity
+            {!isWarehouse && <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.primary }]}
               onPress={handleDownloadCSV}
               disabled={exporting !== null}
@@ -459,7 +524,11 @@ const NAVY = colors.primaryText;
                 <Ionicons name="document-text-outline" size={18} color={colors.onPrimary} />
               )}
               <Text style={styles.actionBtnText}>Download CSV</Text>
-            </TouchableOpacity>
+            </TouchableOpacity>}
+            {isWarehouse && <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={handleDownloadPDF} disabled={exporting !== null}>
+              {exporting === 'pdf' ? <ActivityIndicator size="small" color={colors.onPrimary} /> : <Ionicons name="download-outline" size={18} color={colors.onPrimary} />}
+              <Text style={styles.actionBtnText}>Download as PDF</Text>
+            </TouchableOpacity>}
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.primary }]}
               onPress={handlePrintPDF}
@@ -470,7 +539,7 @@ const NAVY = colors.primaryText;
               ) : (
                 <Ionicons name="print-outline" size={18} color={colors.onPrimary} />
               )}
-              <Text style={styles.actionBtnText}>Print PDF</Text>
+              <Text style={styles.actionBtnText}>{isWarehouse ? 'Print' : 'Print PDF'}</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -525,6 +594,15 @@ const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.cre
   warehouseLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingVertical: Spacing.xs },
   warehouseLineTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
   warehouseLineMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  signoffRow: { flexDirection: 'row', gap: Gap, marginTop: Spacing.md },
+  signoffBox: { flex: 1, minHeight: 80, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'flex-end', padding: Spacing.xs },
+  signoffImage: { width: '100%', height: 60, resizeMode: 'contain' },
+  signoffPlaceholder: { color: colors.textMuted, fontSize: 12, marginBottom: Spacing.sm },
+  signoffLabel: { color: colors.textMuted, fontSize: 11, marginTop: Spacing.xs },
+  signoffActions: { gap: Gap, marginTop: Spacing.sm, padding: Spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: Radius.md },
+  signoffTitle: { fontWeight: '800', color: colors.text },
+  signoffButton: { backgroundColor: colors.primary, padding: Spacing.sm, borderRadius: Radius.md, alignItems: 'center' },
+  signoffButtonText: { color: colors.onPrimary, fontWeight: '700' },
   actionRow: { flexDirection: 'row', gap: Gap, marginTop: Spacing.xs},
   actionBtn: {
     flex: 1,

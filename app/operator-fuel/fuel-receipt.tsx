@@ -32,7 +32,7 @@ export default function FuelReceiptScreen() {
   const html = `<!doctype html><html><body style="font-family:Arial;padding:28px;color:#1E293B"><h1>Fuel Receipt</h1><p><b>Status:</b> Completed</p><hr/>${[
     ['Receipt ID', receipt.id], ['Receipt Note', receipt.receiptNoteId], ['Job ID', receipt.jobId],
     ['Driver', receipt.driverName], ['Truck', receipt.plateNumber], ['Vendor', receipt.vendorName],
-    ['Fuel dispensed', `${Number(receipt.fuelAmount || 0).toFixed(1)} L`],
+    ['Fuel dispensed', `${Number(receipt.fuelAmount || 0).toFixed(3)} L`],
     ['Price per litre', receipt.pricePerLiter ? `KES ${Number(receipt.pricePerLiter).toFixed(2)}` : 'N/A'],
     ['Total cost', `KES ${Number(receipt.totalCost || 0).toFixed(2)}`], ['Dispensed', formatEAT(receipt.dispensedAt || receipt.createdAt)],
   ].map(([label, value]) => `<p><span style="color:#64748B">${label}</span><br/><b>${value || 'N/A'}</b></p>`).join('')}</body></html>`;
@@ -64,7 +64,7 @@ export default function FuelReceiptScreen() {
           <Row label="Driver" value={receipt.driverName} />
           <Row label="Truck" value={receipt.plateNumber} />
           <Row label="Vendor" value={receipt.vendorName} />
-          <Row label="Fuel dispensed" value={`${Number(receipt.fuelAmount || 0).toFixed(1)} L`} />
+          <Row label="Fuel dispensed" value={`${Number(receipt.fuelAmount || 0).toFixed(3)} L`} />
           <Row label="Price per litre" value={receipt.pricePerLiter ? `KES ${Number(receipt.pricePerLiter).toFixed(2)}` : 'N/A'} />
           <Row label="Total cost" value={`KES ${Number(receipt.totalCost || 0).toFixed(2)}`} />
           <Row label="Dispensed" value={formatEAT(receipt.dispensedAt || receipt.createdAt)} />

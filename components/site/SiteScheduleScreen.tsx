@@ -104,6 +104,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
   // ─── Weight In form state (per job) ───
   const [weightInInputs, setWeightInInputs] = useState<Record<string, string>>({});
   const [lotInputs, setLotInputs] = useState<Record<string, string>>({});
+  const [destinationInputs, setDestinationInputs] = useState<Record<string, string>>({});
   const [materialSourceInputs, setMaterialSourceInputs] = useState<Record<string, string>>({});
   const [materialSourceSearchInputs, setMaterialSourceSearchInputs] = useState<Record<string, string>>({});
   const [materialSourceOpenInputs, setMaterialSourceOpenInputs] = useState<Record<string, boolean>>({});
@@ -164,6 +165,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
     if (!job) return;
     setMaterialSourceInputs((current) => ({ ...current, [jobId]: current[jobId] ?? (isWarehouseMaterial(job) ? 'Warehouse' : job.materialSource || '') }));
     setBankerInputs((current) => ({ ...current, [jobId]: current[jobId] ?? job.banker ?? '' }));
+    setDestinationInputs((current) => ({ ...current, [jobId]: current[jobId] ?? job.destination ?? job.destinationName ?? '' }));
   }, [jobId, rawDeliveries]);
 
   // Safety timeout: if loading persists > 10s, show data anyway
@@ -287,7 +289,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
 
       const setWeightInput = (jobId: string, value: string) => {
     // Only allow numbers and a single decimal point
-    const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+    const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1').replace(/^(\d+\.\d{0,3}).*$/, '$1');
     setWeightInInputs((prev) => ({ ...prev, [jobId]: filtered }));
     // Clear error when user types
     if (submitErrors[jobId]) {
@@ -335,10 +337,10 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
     const arrivalVariance = quarryWeighOut > 0 ? weightInNum - quarryWeighOut : null;
 
     if (arrivalVariance != null && Math.abs(arrivalVariance) > 5.0) {
-      const signedVariance = `${arrivalVariance > 0 ? '+' : ''}${arrivalVariance.toFixed(1)}`;
+      const signedVariance = `${arrivalVariance > 0 ? '+' : ''}${arrivalVariance.toFixed(3)}`;
       Alert.alert(
         'Weight Variance Alert',
-        `Site Arrival Weight (${weightInNum.toFixed(1)}T) is ${signedVariance}T against the Quarry Weigh Out (${quarryWeighOut.toFixed(1)}T). This is outside the ±5.0T tolerance. Do you want to proceed?`,
+        `Site Arrival Weight (${weightInNum.toFixed(3)}T) is ${signedVariance}T against the Quarry Weigh Out (${quarryWeighOut.toFixed(3)}T). This is outside the ±5.0T tolerance. Do you want to proceed?`,
         [
           { text: 'No', style: 'cancel' },
           {
@@ -374,6 +376,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
       const bankerValue = warehouseMaterial
         ? ''
         : (bankerInputs[job.id] ?? job.banker ?? '').trim();
+      const destinationValue = (destinationInputs[job.id] ?? job.destination ?? job.destinationName ?? '').trim();
       if (!warehouseMaterial && !bankerValue) {
         setSubmitErrors((prev) => ({ ...prev, [job.id]: 'Enter the banker for this material.' }));
         setSubmitting((prev) => ({ ...prev, [job.id]: false }));
@@ -381,6 +384,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
       }
       const transitionPayload = {
         siteWeighInWeight: weightInNum,
+        destination: destinationValue,
         siteWeighInAt: now,
         ...(warehouseMaterial ? {} : { materialSource: materialSourceValue || undefined, banker: bankerValue }),
         siteWeighInByUid: user?.uid || '',
@@ -838,7 +842,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
                           <Text
                             style={[styles.quarryWeightLabel, { color: colors.warningText }]}
                           >
-                            Quarry WO: {item.weighOutWeight.toFixed(1)}T
+                            Quarry WO: {item.weighOutWeight.toFixed(3)}T
                           </Text>
                         </View>
                       )}
@@ -852,7 +856,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
                           <Text
                             style={[styles.quarryWeightLabel, { color: colors.infoText }]}
                           >
-                            Quarry Net: {quarryNet.toFixed(1)}T
+                            Quarry Net: {quarryNet.toFixed(3)}T
                           </Text>
                         </View>
                       )}
@@ -928,7 +932,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
                     <View style={[styles.tapHint, { backgroundColor: item.siteArrivalWeightVarianceFlagged ? colors.dangerBg : colors.successBg }]}>
                       <Ionicons name={item.siteArrivalWeightVarianceFlagged ? 'warning-outline' : 'checkmark-circle-outline'} size={12} color={item.siteArrivalWeightVarianceFlagged ? colors.danger : colors.success} />
                       <Text style={[styles.tapHintText, { color: item.siteArrivalWeightVarianceFlagged ? colors.danger : colors.successText }]}>
-                        Arrival variance: {item.siteArrivalWeightVariance > 0 ? '+' : ''}{Number(item.siteArrivalWeightVariance).toFixed(1)}T {item.siteArrivalWeightVarianceFlagged ? '— flagged' : '— within tolerance'}
+                        Arrival variance: {item.siteArrivalWeightVariance > 0 ? '+' : ''}{Number(item.siteArrivalWeightVariance).toFixed(3)}T {item.siteArrivalWeightVarianceFlagged ? '— flagged' : '— within tolerance'}
                       </Text>
                     </View>
                   ) : null}
@@ -1049,7 +1053,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
                     >
                       <TextInput inputAccessoryViewID="trucksphere-keyboard-done"
                         style={[styles.weightInputField, { color: colors.text }]}
-                        placeholder="0.0"
+                        placeholder="0.000"
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="decimal-pad"
                         value={weightInVal}
@@ -1067,6 +1071,16 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
                         Tonnes
                       </Text>
                     </View>
+
+                    <Text style={[styles.destinationLabel, { color: colors.text }]}>Destination</Text>
+                    <TextInput
+                      inputAccessoryViewID="trucksphere-keyboard-done"
+                      style={[styles.destinationInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBg }]}
+                      placeholder="Enter destination"
+                      placeholderTextColor={colors.textTertiary}
+                      value={destinationInputs[item.id] || ''}
+                      onChangeText={(value) => setDestinationInputs((current) => ({ ...current, [item.id]: value }))}
+                    />
 
                     {arrivalVariance != null ? (
                       <View
@@ -1087,7 +1101,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
                           color={isArrivalVarianceFlagged ? colors.danger : colors.success}
                         />
                         <Text style={{ flex: 1, fontSize: 12, fontWeight: '700', color: isArrivalVarianceFlagged ? colors.danger : colors.successText }}>
-                          Arrival variance: {arrivalVariance > 0 ? '+' : ''}{arrivalVariance.toFixed(1)}T
+                          Arrival variance: {arrivalVariance > 0 ? '+' : ''}{arrivalVariance.toFixed(3)}T
                           {isArrivalVarianceFlagged ? ' — outside ±5.0T tolerance' : ' — within ±5.0T tolerance'}
                         </Text>
                       </View>
@@ -1650,7 +1664,7 @@ export default function SiteScheduleScreen({ jobId }: { jobId?: string } = {}) {
             </Text>
             <Text style={[styles.successSub, { color: colors.textMuted }]}>
               {successJob
-                ? `Site Arrival Weight of ${successJob.siteWeighInWeight?.toFixed(1)}T recorded for ${successJob.jobId}.`
+                ? `Site Arrival Weight of ${successJob.siteWeighInWeight?.toFixed(3)}T recorded for ${successJob.jobId}.`
                 : 'Site arrival weight has been recorded successfully.'}
             </Text>
             <Text style={[styles.successHint, { color: colors.textMuted }]}>
@@ -1787,6 +1801,8 @@ const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.cre
   },
   tapHintText: { fontSize: 11, fontWeight: '700' },
   // Weight In Form (expanded)
+  destinationLabel: { fontSize: 13, fontWeight: '700', marginTop: Spacing.sm, marginBottom: Spacing.xs },
+  destinationInput: { minHeight: 44, borderWidth: 1, borderRadius: Radius.md, paddingHorizontal: Spacing.md, fontSize: 14 },
   weightInSection: { marginTop: Spacing.xs,
   },
   weightInDivider: {

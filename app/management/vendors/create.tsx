@@ -35,6 +35,8 @@ import api from '../../../services/api';
 import { vendorRepository } from '../../../services/repositories/VendorRepository';
 import { Vendor } from '@/store/types';
 import { generateStrongPassword, getStrongPasswordError, PASSWORD_REQUIREMENTS } from '../../../utils/passwordPolicy';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadVendorLogo } from '../../../services/api';
 
 const STATUS_OPTIONS = [
   { id: 'active', name: 'Active' },
@@ -89,6 +91,7 @@ export default function CreateVendorScreen() {
   const [kraChecking, setKraChecking] = useState(false);
   const [kraVerifiedName, setKraVerifiedName] = useState('');
   const [kraEnabled, setKraEnabled] = useState(false);
+  const [logoAsset, setLogoAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   useEffect(() => {
     api.get<{ kraEnabled?: boolean }>('/api/feature-flags')
@@ -221,6 +224,7 @@ export default function CreateVendorScreen() {
       if (!result || typeof result !== 'object' || !result.vendor?.id) {
         throw new Error('The server did not confirm the saved vendor. Check the Vendors list before retrying.');
       }
+      if (logoAsset) await uploadVendorLogo(result.vendor.id, { uri: logoAsset.uri, name: logoAsset.fileName, mimeType: logoAsset.mimeType });
       const savedUsername = (result as { username?: string }).username;
       if (createAccount && !savedUsername) throw new Error('The server did not confirm the login username. Check the vendor account before retrying.');
       const confirmation = savedUsername
@@ -256,6 +260,7 @@ export default function CreateVendorScreen() {
       });
       setGeneratedUsername('');
       setKraVerifiedName('');
+      setLogoAsset(null);
       Alert.alert('Success', confirmation, [
         { text: 'View Vendors', onPress: () => router.back() },
       ]);
@@ -376,6 +381,12 @@ export default function CreateVendorScreen() {
             icon="checkmark-done-outline"
           />
 </ResponsiveGrid>
+        </Card>
+
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Vendor Logo (optional)</Text>
+        <Card>
+          <Button title={logoAsset ? 'Logo selected' : 'Choose PNG/WebP logo'} onPress={async () => { const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 }); if (!r.canceled) { const a = r.assets[0]; const ratio = (a.width || 0) / (a.height || 1); if (!['image/png','image/webp'].includes(a.mimeType || '') || (a.fileSize || 0) > 2 * 1024 * 1024 || (a.width || 0) < 200 || (a.height || 0) < 75 || !(ratio >= 1.4 || (ratio >= .85 && ratio <= 1.15))) { Alert.alert('Invalid logo', 'Use PNG/WebP, max 2 MB, minimum 200 × 75 px, horizontal or square.'); return; } setLogoAsset(a); } }} icon="image-outline" variant="secondary" />
+          <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: Spacing.sm }}>Optional. The vendor logo appears beside the vendor/company name on Delivery Notes. It is not shown on Goods Receipt Notes. Recommended: 400 × 150 px or 250 × 250 px.</Text>
         </Card>
 
         {/* Insurance Details */}

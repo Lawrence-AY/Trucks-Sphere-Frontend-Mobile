@@ -524,7 +524,7 @@ export default function FuelDispenseScreen() {
       showToast(
         "success",
         "Fuel Dispensed",
-        `${girVolume.toFixed(1)} litres recorded as ${createdFuel.id || fuelId}. Job card removed from completed jobs.`,
+        `${girVolume.toFixed(3)} litres recorded as ${createdFuel.id || fuelId}. Job card removed from completed jobs.`,
       );
 
       setPumpPhotoUri(null);
@@ -534,7 +534,7 @@ export default function FuelDispenseScreen() {
       // Close the flow and refresh data
       store.closeFlow();
       loadData();
-      Alert.alert('Fuel receipt ready', `${girVolume.toFixed(1)} litres recorded. Receipt: ${createdFuel.id}`, [
+      Alert.alert('Fuel receipt ready', `${girVolume.toFixed(3)} litres recorded. Receipt: ${createdFuel.id}`, [
         { text: 'Done' },
         { text: 'View fuel receipt', onPress: () => router.push(`/operator-fuel/fuel-receipt?id=${encodeURIComponent(createdFuel.id)}` as any) },
       ]);
@@ -848,7 +848,7 @@ export default function FuelDispenseScreen() {
                                     color: colors.warningText,
                                   }}
                                 >
-                                  {existingFuel.toFixed(1)} L already dispensed
+                                  {existingFuel.toFixed(3)} L already dispensed
                                 </Text>
                               </View>
                             )}
@@ -1451,7 +1451,7 @@ export default function FuelDispenseScreen() {
                         placeholderTextColor={colors.textTertiary}
                         keyboardType="decimal-pad"
                         value={store.flowFuelAmount}
-                        onChangeText={store.setFlowFuelAmount}
+                        onChangeText={(value) => store.setFlowFuelAmount(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1').replace(/^(\d+\.\d{0,3}).*$/, '$1'))}
                         autoFocus
                       />
                       <Text
@@ -1547,7 +1547,7 @@ export default function FuelDispenseScreen() {
                             GIR/FMS FUEL VOLUME
                           </Text>
                           <Text style={{ color: colors.success, fontSize: 22, fontWeight: '900', marginTop: 2 }}>
-                            {store.girFuelAmount.toFixed(1)} L
+                            {store.girFuelAmount.toFixed(3)} L
                           </Text>
                         </View>
                       ) : null}
@@ -1655,7 +1655,7 @@ export default function FuelDispenseScreen() {
                               color: colors.warningText,
                             }}
                           >
-                            {existingFuel.toFixed(1)} L already dispensed for
+                            {existingFuel.toFixed(3)} L already dispensed for
                             this job
                           </Text>
                         </View>
