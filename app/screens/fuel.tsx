@@ -155,7 +155,7 @@ export default function FuelScreen() {
 
       <View style={styles.metricGrid}>
         <ResponsiveGrid sideBySide maxColumns={3} style={styles.metricRow}>
-          <MetricTile icon="water" label="Total Fuel" value={`${totalFuel.toFixed(1)}L`} tone={colors.warning} compact emphasized />
+          <MetricTile icon="water" label="Total Fuel" value={`${totalFuel.toFixed(3)}L`} tone={colors.warning} compact emphasized />
           <MetricTile icon="car" label="Trucks Served" value={uniqueTrucks} tone="#3B82F6" compact emphasized />
           <MetricTile icon="receipt" label="Records" value={filtered.length} tone={colors.success} compact emphasized />
         </ResponsiveGrid>
@@ -236,7 +236,7 @@ export default function FuelScreen() {
                       color: colors.warning,
                     }}
                   >
-                    {item.fuelAmount?.toFixed(1)} L
+                    {item.fuelAmount?.toFixed(3)} L
                   </Text>
                 </View>
               </View>

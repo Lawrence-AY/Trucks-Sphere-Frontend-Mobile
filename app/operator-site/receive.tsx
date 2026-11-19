@@ -338,7 +338,7 @@ export default function OperatorSiteReceiveScreen() {
               value={weightIn}
               onChangeText={(value) => {
                 const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                setWeightIn(filtered);
+                setWeightIn(filtered.replace(/^(\d+\.\d{0,3}).*$/, '$1'));
               }}
               editable={!hasSiteWeighIn}
             />
@@ -382,7 +382,7 @@ export default function OperatorSiteReceiveScreen() {
               value={weightOut}
               onChangeText={(value) => {
                 const filtered = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
-                setWeightOut(filtered);
+                setWeightOut(filtered.replace(/^(\d+\.\d{0,3}).*$/, '$1'));
               }}
               editable={hasSiteWeighIn}
             />

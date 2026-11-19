@@ -189,7 +189,7 @@ function ManagementDashboardContent() {
           <MetricTile
             icon="water"
             label="Fuel Dispensed"
-            value={`${totalFuelDispensed.toFixed(1)}L`}
+            value={`${totalFuelDispensed.toFixed(3)}L`}
             tone={colors.badgeVendor}
             compact
             emphasized

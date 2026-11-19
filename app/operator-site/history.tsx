@@ -579,7 +579,7 @@ export default function OperatorSiteHistoryScreen() {
                         </Text>
                         <Text style={[styles.dwValue, { color: colors.infoText }]}>
                           {item.weighInWeight != null
-                            ? `${item.weighInWeight.toFixed(1)}T`
+                            ? `${item.weighInWeight.toFixed(3)}T`
                             : "—"}
                         </Text>
                       </View>
@@ -591,7 +591,7 @@ export default function OperatorSiteHistoryScreen() {
                         </Text>
                         <Text style={[styles.dwValue, { color: colors.purpleText }]}>
                           {item.weighOutWeight != null
-                            ? `${item.weighOutWeight.toFixed(1)}T`
+                            ? `${item.weighOutWeight.toFixed(3)}T`
                             : "—"}
                         </Text>
                       </View>
@@ -604,7 +604,7 @@ export default function OperatorSiteHistoryScreen() {
                         <Text
                           style={[styles.dwValue, { color: colors.success }]}
                         >
-                          {quarryNet != null ? `${quarryNet.toFixed(1)}T` : "—"}
+                          {quarryNet != null ? `${quarryNet.toFixed(3)}T` : "—"}
                         </Text>
                       </View>
                     </View>
@@ -630,7 +630,7 @@ export default function OperatorSiteHistoryScreen() {
                           In
                         </Text>
                         <Text style={[styles.dwValue, { color: colors.warningText }]}>
-                          {siteIn != null ? `${siteIn.toFixed(1)}T` : "—"}
+                          {siteIn != null ? `${siteIn.toFixed(3)}T` : "—"}
                         </Text>
                       </View>
                       <View style={styles.detailWeightCell}>
@@ -640,7 +640,7 @@ export default function OperatorSiteHistoryScreen() {
                           Out
                         </Text>
                         <Text style={[styles.dwValue, { color: colors.purpleText }]}>
-                          {siteOut != null ? `${siteOut.toFixed(1)}T` : "—"}
+                          {siteOut != null ? `${siteOut.toFixed(3)}T` : "—"}
                         </Text>
                       </View>
                       <View style={styles.detailWeightCell}>
@@ -655,7 +655,7 @@ export default function OperatorSiteHistoryScreen() {
                             { color: colors.success, fontSize: 16 },
                           ]}
                         >
-                          {siteNet != null ? `${siteNet.toFixed(1)}T` : "—"}
+                          {siteNet != null ? `${siteNet.toFixed(3)}T` : "—"}
                         </Text>
                       </View>
                     </View>

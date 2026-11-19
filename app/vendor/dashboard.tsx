@@ -186,7 +186,7 @@ export default function VendorDashboardScreen() {
         <MetricTile
           icon="water"
           label="Fuel Dispensed"
-          value={`${totalFuelForVendor.toFixed(1)}L`}
+          value={`${totalFuelForVendor.toFixed(3)}L`}
           tone={colors.warning}
           compact
           emphasized
@@ -314,7 +314,7 @@ export default function VendorDashboardScreen() {
                         color: colors.warning,
                       }}
                     >
-                      {(Number(item.fuelAmount ?? item.litres) || 0).toFixed(1)} L
+                      {(Number(item.fuelAmount ?? item.litres) || 0).toFixed(3)} L
                     </Text>
                   </View>
                 </View>

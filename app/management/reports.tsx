@@ -417,7 +417,7 @@ function renderCategoryCards(tab: string, d: any, colors: any, m: any) {
     case 'fuel':
       return (
         <>
-          <MetricCard icon="water-outline" label="Litres" value={`${(d.totalLitres ?? 0).toFixed(0)}L`} color={colors.warningText} />
+          <MetricCard icon="water-outline" label="Litres" value={`${(d.totalLitres ?? 0).toFixed(3)}L`} color={colors.warningText} />
           <MetricCard icon="receipt-outline" label="Transactions" value={d.transactions ?? 0} color={colors.warningText} />
         </>
       );

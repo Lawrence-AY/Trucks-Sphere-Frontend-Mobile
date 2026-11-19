@@ -310,12 +310,12 @@ const exportRows = [
   ['Quarry Personnel', quarryPersonnel || 'N/A'],
   ['Weigh-Out Location', geoAddress || 'N/A'],
 
-  ['Quarry Weigh-In (Gross)', quarryWeighIn != null ? `${quarryWeighIn.toFixed(1)} T` : 'N/A'],
-  ['Quarry Weigh-Out (Tare)', quarryWeighOut != null ? `${quarryWeighOut.toFixed(1)} T` : 'N/A'],
-  ['Quarry Net Weight', quarryNet != null ? `${quarryNet.toFixed(1)} T` : 'N/A'],
-  ['Site Arrival (Gross)', siteWeighIn != null ? `${siteWeighIn.toFixed(1)} T` : 'N/A'],
-  ['Site Weigh Out (Tare)', siteWeighOut != null ? `${siteWeighOut.toFixed(1)} T` : 'N/A'],
-  ['Site Net Weight', siteNet != null ? `${siteNet.toFixed(1)} T` : 'N/A'],
+  ['Quarry Weigh-In (Gross)', quarryWeighIn != null ? `${quarryWeighIn.toFixed(3)} T` : 'N/A'],
+  ['Quarry Weigh-Out (Tare)', quarryWeighOut != null ? `${quarryWeighOut.toFixed(3)} T` : 'N/A'],
+  ['Quarry Net Weight', quarryNet != null ? `${quarryNet.toFixed(3)} T` : 'N/A'],
+  ['Site Arrival (Gross)', siteWeighIn != null ? `${siteWeighIn.toFixed(3)} T` : 'N/A'],
+  ['Site Weigh Out (Tare)', siteWeighOut != null ? `${siteWeighOut.toFixed(3)} T` : 'N/A'],
+  ['Site Net Weight', siteNet != null ? `${siteNet.toFixed(3)} T` : 'N/A'],
   ['Site Operator', sitePersonnel],   // <── NEW ROW
   ['Finalized', formatEAT(delivery.receivedAt || delivery.updatedAt)],
 ];

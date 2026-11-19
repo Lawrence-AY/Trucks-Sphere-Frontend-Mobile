@@ -711,7 +711,7 @@ export default function OperatorQuarryWeighOutScreen() {
                 onSubmitEditing={Keyboard.dismiss}
                 inputAccessoryViewID={Platform.OS === 'ios' ? 'weigh-out-keyboard-accessory' : undefined}
                 value={weightOut}
-                onChangeText={setWeightOut}
+            onChangeText={(value) => setWeightOut(value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1').replace(/^(\d+\.\d{0,3}).*$/, '$1'))}
                 autoFocus
               />
               <Text style={[styles.weightSuffix, { color: colors.textMuted }]}>Tonnes</Text>
@@ -803,13 +803,13 @@ export default function OperatorQuarryWeighOutScreen() {
                   </View>
                   <View style={styles.confirmRow}>
                     <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Loaded (Gross)</Text>
-                    <Text style={[styles.confirmValue, { color: colors.purpleText, fontWeight: '800' }]}>{parseFloat(weightOut).toFixed(1)} T</Text>
+                    <Text style={[styles.confirmValue, { color: colors.purpleText, fontWeight: '800' }]}>{parseFloat(weightOut).toFixed(3)} T</Text>
                   </View>
                   <View style={[styles.confirmDivider, { marginTop: Spacing.xs}]} />
                   <View style={styles.confirmRow}>
                     <Text style={[styles.confirmLabel, { color: colors.textMuted }]}>Net Weight</Text>
                     <Text style={[styles.confirmValue, { color: colors.success, fontWeight: '900', fontSize: 18 }]}>
-                      {(parseFloat(weightOut) - wIn).toFixed(1)} T
+                      {(parseFloat(weightOut) - wIn).toFixed(3)} T
                     </Text>
                   </View>
                   {driverPhotoURL && (
