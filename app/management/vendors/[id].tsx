@@ -18,6 +18,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -164,9 +165,18 @@ export default function VendorDetailScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={[styles.avatar, { backgroundColor: colors.primary + '15' }]}>
-            <Text style={[styles.avatarText, { color: colors.primaryText }]}>
-              {vendor.companyName?.charAt(0)?.toUpperCase() || 'V'}
-            </Text>
+            {(vendor as any).logoURL ? (
+              <Image
+                source={{ uri: (vendor as any).logoURL }}
+                accessibilityLabel={`${vendor.companyName || 'Vendor'} logo`}
+                resizeMode="contain"
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={[styles.avatarText, { color: colors.primaryText }]}>
+                {vendor.companyName?.charAt(0)?.toUpperCase() || 'V'}
+              </Text>
+            )}
           </View>
           <View style={styles.headerInfo}>
             <Text style={[styles.vendorName, { color: colors.text }]}>
@@ -554,6 +564,11 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
   },
   avatarText: {
     fontSize: 24,
