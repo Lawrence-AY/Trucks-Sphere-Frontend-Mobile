@@ -13,6 +13,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
@@ -231,6 +232,14 @@ export default function EditVendorScreen() {
 
         <Card>
           <Text style={{ color: colors.text, fontWeight: '800', marginBottom: Spacing.sm }}>Vendor Logo (optional)</Text>
+          {(logoAsset?.uri || (vendor as any)?.logoURL) ? (
+            <Image
+              source={{ uri: logoAsset?.uri || (vendor as any)?.logoURL }}
+              accessibilityLabel="Vendor logo preview"
+              resizeMode="contain"
+              style={styles.logoPreview}
+            />
+          ) : null}
           <Button title={logoAsset ? 'Logo selected' : 'Choose PNG/WebP logo'} onPress={async () => { const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: false, quality: 1 }); if (!r.canceled) { const a = r.assets[0]; const ratio = (a.width || 0) / (a.height || 1); if (!['image/png','image/webp'].includes(a.mimeType || '') || (a.fileSize || 0) > 2 * 1024 * 1024 || (a.width || 0) < 200 || (a.height || 0) < 75 || !(ratio >= 1.4 || (ratio >= .85 && ratio <= 1.15))) { Alert.alert('Invalid logo', 'Use PNG/WebP, max 2 MB, minimum 200 × 75 px, horizontal or square.'); return; } setLogoAsset(a); } }} icon="image-outline" variant="secondary" />
           <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: Spacing.sm }}>Optional. Appears beside this vendor on Delivery Notes only. Recommended: 400 × 150 px or 250 × 250 px.</Text>
         </Card>
@@ -307,5 +316,12 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
+  },
+  logoPreview: {
+    width: '100%',
+    height: 120,
+    marginBottom: Spacing.sm,
+    borderRadius: Radius.md,
+    backgroundColor: '#F8FAFC',
   },
 });
