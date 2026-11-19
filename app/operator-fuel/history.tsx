@@ -16,6 +16,7 @@ import { Gap, Spacing } from "../../constants/theme";
 import { fetchFuelRecords } from "../../services/api";
 import { formatEAT, getEATDateRange } from "../../utils/helpers";
 import { buildCsvContent, shareCsvAsFile } from "../../utils/exportData";
+import { getFuelAttendantName, getFuelAuthorizationCode } from "../../utils/fuelRecord";
 import {
   DataCard,
   DetailRow,
@@ -125,7 +126,7 @@ export default function FuelHistoryScreen() {
       item.plateNumber || "N/A",
       item.vendorName || "N/A",
       item.fuelAmount != null ? Number(item.fuelAmount).toFixed(3) : "0.000",
-      item.authorizationCode || item.authorizationId || "",
+      getFuelAuthorizationCode(item),
       formatEAT(item.dispensedAt || item.createdAt || ""),
     ]);
   }, [filtered]);
@@ -244,7 +245,7 @@ export default function FuelHistoryScreen() {
         <View style={styles.historyList}>
           {filtered.map((item) => {
           const isComplete = item.completed === true;
-          const authCode = item.authorizationCode || item.authorizationId || "";
+          const authCode = getFuelAuthorizationCode(item);
           return (
             <DataCard key={item.id} contentStyle={styles.historyCardContent}>
               <View
@@ -320,6 +321,10 @@ export default function FuelHistoryScreen() {
               <DetailRow
                 icon="business-outline"
                 value={`Vendor: ${item.vendorName || "N/A"}`}
+              />
+              <DetailRow
+                icon="person-circle-outline"
+                value={`Attendant: ${getFuelAttendantName(item)}`}
               />
               <Text
                 style={{

@@ -32,6 +32,7 @@ import { useRealTimeSyncStore } from '@/store/realTimeSyncStore';
 import { downloadReportExcel, downloadCategoryCSV } from '../../services/api';
 import { PageShell, SectionTitle } from '../../components/EnterpriseUI';
 import { DateRangeFilter, defaultDateRange, DateRange } from '../../components/DateRangeFilter';
+import { getFuelAttendantName, getFuelAuthorizationCode } from '../../utils/fuelRecord';
 
 const FILTERS = [
   { key: 'all', label: 'All Time' },
@@ -124,14 +125,16 @@ const CATEGORIES = [
     const fFuel = fuelRecords.filter((r) =>
       withinTimeframe(r.createdAt || r.timestamp || r.dispensedAt, filter) && inRange(r.createdAt || r.timestamp || r.dispensedAt)
     );
-    const fuelByJob: Record<string, { totalLitres: number; attendantName: string }> = {};
+    const fuelByJob: Record<string, { totalLitres: number; attendantName: string; authorizationCode: string }> = {};
     fFuel.forEach((f: any) => {
       const jobId = f.jobId;
       if (jobId) {
-        if (!fuelByJob[jobId]) fuelByJob[jobId] = { totalLitres: 0, attendantName: '' };
+        if (!fuelByJob[jobId]) fuelByJob[jobId] = { totalLitres: 0, attendantName: '', authorizationCode: '' };
         fuelByJob[jobId].totalLitres += Number(f.litres || f.fuelAmount || 0);
         fuelByJob[jobId].attendantName =
-          fuelByJob[jobId].attendantName || f.attendantName || f.dispensedBy || '';
+          fuelByJob[jobId].attendantName || getFuelAttendantName(f);
+        fuelByJob[jobId].authorizationCode =
+          fuelByJob[jobId].authorizationCode || getFuelAuthorizationCode(f);
       }
     });
     return {

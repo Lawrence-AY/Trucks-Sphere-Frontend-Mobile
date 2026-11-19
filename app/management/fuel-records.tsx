@@ -24,6 +24,7 @@ import {
   FilterRail,
 } from "../../components/EnterpriseUI";
 import { ManagementSearchHeader } from "../../components/ManagementSearchHeader";
+import { getFuelAttendantName } from "../../utils/fuelRecord";
 
 const TIME_FILTERS = [
   { key: "all", label: "All" },
@@ -251,7 +252,7 @@ export default function FuelRecordsScreen() {
               />
               <DetailRow
                 icon="person-circle-outline"
-                value={`Attendant: ${item.dispensedByName || item.attendantName || item.dispensedBy || "—"}`}
+                value={`Attendant: ${getFuelAttendantName(item)}`}
               />
               {item.vendorName ? (
                 <DetailRow

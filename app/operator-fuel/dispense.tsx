@@ -504,7 +504,7 @@ export default function FuelDispenseScreen() {
         pricePerLiter: fuelPrice,
         totalCost: fuelPrice > 0 ? amount * fuelPrice : 0,
         unit: "Litres",
-        dispensedBy: user?.email || "Fuel Operator",
+        dispensedBy: user?.displayName || user?.name || "Fuel Operator",
         dispensedByEmail: user?.email || "",
         dispensedByName: user?.displayName || user?.name || "Fuel Operator",
         dispensedAt: new Date().toISOString(),
