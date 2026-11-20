@@ -137,7 +137,7 @@ function buildReceiptNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Parties</div>
-    <div class="row"><span class="label">Vendor</span><span class="value vendor-value">${data.logoURL ? `<img src="${e(data.logoURL)}" alt="Vendor logo" />` : ''}${e(vendorName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Vendor</span><span class="value vendor-value">${e(vendorName) || 'N/A'}</span></div>
     <div class="row"><span class="label">Driver : Truck Plate </span><span class="value">${e(driverName) || 'N/A'} : ${e(plateNumber) || 'N/A'}</span></div>
    </div>
 
