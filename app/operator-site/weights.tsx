@@ -94,6 +94,9 @@ function buildReceiptHtml(data: {
   timestamp: string;
   operatorName: string;
   lotNumber?: string;
+  confirmedBy?: string;
+  receivedBy?: string;
+  comments?: string;
 }): string {
   const {
     jobId,
@@ -112,7 +115,7 @@ function buildReceiptHtml(data: {
     weightOut,
     netWeight,
     timestamp,
-    operatorName,
+    operatorName, confirmedBy, receivedBy, comments,
     lotNumber,
   } = data;
 
@@ -201,6 +204,9 @@ function buildReceiptHtml(data: {
       <div class="section">
         <div class="section-title">Certification</div>
         <div class="row"><span class="label">Operator</span><span class="value">${e(operatorName)}</span></div>
+    <div class="row"><span class="label">Confirmed By</span><span class="value">${e(confirmedBy) || 'Not recorded'}</span></div>
+    <div class="row"><span class="label">Received By</span><span class="value">${e(receivedBy) || 'Not recorded'}</span></div>
+    ${comments ? `<div class="row"><span class="label">Comments</span><span class="value">${e(comments)}</span></div>` : ''}
         <div class="row"><span class="label">Location</span><span class="value">${e(siteName) || 'Site'}</span></div>
       </div>
 
@@ -244,6 +250,9 @@ export default function OperatorSiteWeightsScreen() {
   const [activeJob, setActiveJob] = useState<any>(null);
   const [weightOutInput, setWeightOutInput] = useState('');
   const [lotNumber, setLotNumber] = useState('');
+  const [confirmedBy, setConfirmedBy] = useState('');
+  const [receivedBy, setReceivedBy] = useState('');
+  const [grnComments, setGrnComments] = useState('');
   const [saving, setSaving] = useState(false);
 
   // ─── Review / Receipt Modal ───
@@ -430,7 +439,9 @@ export default function OperatorSiteWeightsScreen() {
             : null,
         receivedAt: now,
         receivedLocation: activeJob.siteName || 'Site',
-        receivedBy: user?.displayName || 'Site Operator',
+        confirmedBy: confirmedBy.trim() || user?.displayName || 'Site Operator',
+        receivedBy: receivedBy.trim() || user?.displayName || 'Site Operator',
+        comments: grnComments.trim(),
         receiptNoteId,
         ...(isWarehouseJob(activeJob) ? {} : { storageLot: lotNumber || undefined }),
         status: 'SITE_WEIGHED_OUT',
@@ -497,6 +508,9 @@ export default function OperatorSiteWeightsScreen() {
         timeZone: 'Africa/Nairobi',
       }),
       operatorName: user?.displayName || 'Site Operator',
+      confirmedBy: grnData.confirmedBy || '',
+      receivedBy: grnData.receivedBy || '',
+      comments: grnData.comments || '',
     };
   };
 
@@ -544,6 +558,9 @@ export default function OperatorSiteWeightsScreen() {
         ['Lot Number', data.lotNumber || '—'],
         ['Status', 'COMPLETED'],
         ['Operator', data.operatorName],
+        ['Confirmed By', data.confirmedBy],
+        ['Received By', data.receivedBy],
+        ['Comments', data.comments],
         ['Date', data.timestamp],
       ];
       const csvContent = buildCsvContent(headers, rows);
@@ -901,6 +918,29 @@ export default function OperatorSiteWeightsScreen() {
                   </Text>
                 </View>
               </View>
+
+              <TextInput
+                style={[styles.grnInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBg }]}
+                placeholder="Confirmed By"
+                placeholderTextColor={colors.textMuted}
+                value={confirmedBy}
+                onChangeText={setConfirmedBy}
+              />
+              <TextInput
+                style={[styles.grnInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBg }]}
+                placeholder="Received By"
+                placeholderTextColor={colors.textMuted}
+                value={receivedBy}
+                onChangeText={setReceivedBy}
+              />
+              <TextInput
+                style={[styles.grnInput, styles.grnCommentsInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.inputBg }]}
+                placeholder="Comments"
+                placeholderTextColor={colors.textMuted}
+                value={grnComments}
+                onChangeText={setGrnComments}
+                multiline
+              />
 
               <View style={styles.grnActions}>
                 <TouchableOpacity
@@ -1470,6 +1510,8 @@ const buildThemeStyles = (colors: ReturnType<typeof useTheme>) => StyleSheet.cre
     height: 1,
     backgroundColor: colors.border, marginVertical: Spacing.xs,
   },
+  grnInput: { borderWidth: 1, borderRadius: Radius.md, minHeight: 44, paddingHorizontal: Spacing.sm, marginTop: Spacing.xs, fontSize: 14 },
+  grnCommentsInput: { minHeight: 76, textAlignVertical: 'top', paddingTop: Spacing.sm },
   backorderNotice: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -68,6 +68,9 @@ function buildReceiptNoteHtml(data: {
   weighOutGeoAddress?: string;
   timestamp: string;
   operatorName: string;
+  confirmedBy?: string;
+  receivedBy?: string;
+  comments?: string;
   banker?: string;
   lotNumber?: string;
   showVendorOnlyFields: boolean;
@@ -77,7 +80,7 @@ function buildReceiptNoteHtml(data: {
     vendorName, materialName, quarryName, quarryOrigin, quarryCityTown,
     quarryPersonnel, quarryWeighIn, quarryWeighOut, quarryNetWeight,
     siteName, siteWeighIn, siteWeighOut, siteNetWeight,
-    weighOutGeoAddress, timestamp, operatorName,
+    weighOutGeoAddress, timestamp, operatorName, confirmedBy, receivedBy, comments,
   } = data;
 
   const e = escapeHtml;
@@ -176,6 +179,12 @@ function buildReceiptNoteHtml(data: {
       <tr><td>Site Arrival Weight (Gross)</td><td style="font-weight:700;">${e(siteWeighIn) || '—'}</td></tr>
       <tr><td>Post-Offload Weight (Tare)</td><td style="font-weight:700;">${e(siteWeighOut) || '—'}</td></tr>
       <tr><td>Site Operator </td><td style="font-weight:700;">${e(operatorName)}</td></tr>
+      <tr><td>Confirmed By</td><td style="font-weight:700;">${e(confirmedBy) || 'Not recorded'}</td></tr>
+      <tr><td>Received By</td><td style="font-weight:700;">${e(receivedBy) || 'Not recorded'}</td></tr>
+      ${comments ? `<tr><td>Comments</td><td style="font-weight:700; white-space:pre-line;">${e(comments)}</td></tr>` : ''}
+      <tr><td>Confirmed By</td><td style="font-weight:700;">${e(confirmedBy) || 'Not recorded'}</td></tr>
+      <tr><td>Received By</td><td style="font-weight:700;">${e(receivedBy) || 'Not recorded'}</td></tr>
+      ${comments ? `<tr><td>Comments</td><td style="font-weight:700; white-space:pre-line;">${e(comments)}</td></tr>` : ''}
     </table>
     ${siteNetWeight ? `
     <div class="highlight-box">
@@ -279,6 +288,9 @@ export default function ReceiptNoteScreen() {
   const banker = delivery.banker || (delivery.isWarehouseDelivery ? 'Warehouse-banker' : 'N/A');
   const lotNumber = delivery.storageLot || delivery.lotNumber || delivery.destinationLot || 'Not recorded';
   const sitePersonnel = receivingPerson(delivery) || 'Not recorded';
+  const confirmedBy = delivery.confirmedBy || 'Not recorded';
+  const receivedBy = delivery.receivedBy || sitePersonnel;
+  const comments = delivery.comments || '';
   const isWarehouse = Boolean(delivery.isWarehouseDelivery || delivery.warehouseJobId || delivery.deliveryOrigin === 'warehouse');
   const quarryName = resolvedQuarryName || delivery.quarryName || 'N/A';
   const isCustomSite = ['operator_site', 'site_operator'].includes(String(delivery.createdBy?.role || delivery.createdBy || '').trim().toLowerCase());
@@ -318,7 +330,10 @@ const exportRows = [
   ['Site Arrival (Gross)', siteWeighIn != null ? `${siteWeighIn.toFixed(3)} T` : 'N/A'],
   ['Site Weigh Out (Tare)', siteWeighOut != null ? `${siteWeighOut.toFixed(3)} T` : 'N/A'],
   ['Site Net Weight', siteNet != null ? `${siteNet.toFixed(3)} T` : 'N/A'],
-  ['Site Operator', sitePersonnel],   // <── NEW ROW
+  ['Site Operator', sitePersonnel],
+  ['Confirmed By', confirmedBy],
+  ['Received By', receivedBy],
+  ['Comments', comments || 'N/A'],
   ['Finalized', formatEAT(delivery.receivedAt || delivery.updatedAt)],
 ];
 
@@ -360,6 +375,9 @@ const exportRows = [
         weighOutGeoAddress: geoAddress,
         timestamp: formatEAT(delivery.receivedAt || delivery.updatedAt),
         operatorName: sitePersonnel,
+        confirmedBy,
+        receivedBy,
+        comments,
         banker,
         lotNumber,
         showVendorOnlyFields,
