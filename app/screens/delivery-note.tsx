@@ -16,6 +16,7 @@ import { formatCapturedGeoLocation, reverseGeocodeRich } from '../../services/ge
 import * as ImagePicker from 'expo-image-picker';
 import { uploadWarehouseSignoff } from '../../services/uploadService';
 
+const SPADES_ATLAS_LOGO = Image.resolveAssetSource(require('../../assets/spades-atlas-logo.jpg')).uri;
 
 
 /* ---------- Helper: escape HTML ---------- */
@@ -118,7 +119,7 @@ function buildDeliveryNoteHtml(data: {
 </head>
 <body>
   <div class="header">
-    ${data.logoURL ? `<div class="logo-box"><img src="${e(data.logoURL)}" alt="Vendor logo" /></div>` : ''}
+    <div class="logo-box"><img src="${e(SPADES_ATLAS_LOGO)}" alt="Spades Atlas logo" /></div>
     <h1>Trucks Sphere</h1>
     <div class="subtitle">Delivery Note / Waybill</div>
   </div>
@@ -133,7 +134,7 @@ function buildDeliveryNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Parties</div>
-    <div class="row"><span class="label">Vendor</span><span class="value vendor-value">${e(vendorName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Vendor</span><span class="value vendor-value">${data.logoURL ? `<img src="${e(data.logoURL)}" alt="Vendor logo" />` : ''}${e(vendorName) || 'N/A'}</span></div>
     ${`<div class="row"><span class="label">Driver</span><span class="value">${e(driverName) || 'N/A'}</span></div>
     <div class="row"><span class="label">Truck</span><span class="value">${e(plateNumber) || 'N/A'}</span></div>`}
   </div>

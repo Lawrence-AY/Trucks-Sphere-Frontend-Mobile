@@ -11,6 +11,7 @@ import {
   View,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { router } from '../../utils/router';
@@ -24,6 +25,8 @@ import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { formatCapturedGeoLocation, reverseGeocode, reverseGeocodeRich } from '../../services/geolocation';
 import { useAuthStore } from '../../store/authStore';
 import { normalizeRole } from '../../utils/access';
+
+const SPADES_ATLAS_LOGO = Image.resolveAssetSource(require('../../assets/spades-atlas-logo.jpg')).uri;
 
 /* ─────────── Helper: escape HTML special characters ─────────── */
 const escapeHtml = (str: string | null | undefined): string => {
@@ -120,7 +123,7 @@ function buildReceiptNoteHtml(data: {
 </head>
 <body>
   <div class="header">
-    ${data.logoURL ? `<div class="logo-box"><img src="${e(data.logoURL)}" alt="Organization logo" /></div>` : ''}
+    <div class="logo-box"><img src="${e(SPADES_ATLAS_LOGO)}" alt="Spades Atlas logo" /></div>
     <h1>Trucks Sphere</h1>
     <div class="subtitle">Goods Receipt Note (GRN)</div>
   </div>
@@ -137,7 +140,7 @@ function buildReceiptNoteHtml(data: {
 
   <div class="section">
     <div class="section-title">Parties</div>
-    <div class="row"><span class="label">Vendor</span><span class="value vendor-value">${e(vendorName) || 'N/A'}</span></div>
+    <div class="row"><span class="label">Vendor</span><span class="value vendor-value">${data.logoURL ? `<img src="${e(data.logoURL)}" alt="Vendor logo" />` : ''}${e(vendorName) || 'N/A'}</span></div>
     <div class="row"><span class="label">Driver : Truck Plate </span><span class="value">${e(driverName) || 'N/A'} : ${e(plateNumber) || 'N/A'}</span></div>
    </div>
 
