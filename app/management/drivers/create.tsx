@@ -59,10 +59,10 @@ export default function CreateDriverScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [iprsEnabled, setIprsEnabled] = useState(false);
   const [form, setForm] = useState({
     vendorId: params.vendorId || '',
     firstName: '',
+    middleName: '',
     surname: '',
     phone: '',
     email: '',
@@ -74,11 +74,6 @@ export default function CreateDriverScreen() {
     status: 'active' as string,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  useEffect(() => {
-    api.get<{ iprsEnabled?: boolean }>('/api/feature-flags')
-      .then(({ data }) => setIprsEnabled(data.iprsEnabled === true))
-      .catch(() => setIprsEnabled(false));
-  }, []);
   // A late result for an earlier spelling must never overwrite a corrected name.
   const identityCheckVersion = useRef(0);
   const saveAttemptVersion = useRef(0);
@@ -97,30 +92,6 @@ export default function CreateDriverScreen() {
     void loadVendors();
   }), []);
 
-  useEffect(() => {
-    if (isEditMode) return;
-    const nationalId = form.nationalId.trim();
-    if (!nationalId) return;
-    const requestVersion = ++identityCheckVersion.current;
-    const timer = setTimeout(async () => {
-      try {
-        const response = await api.post<{ firstName?: string; surname?: string }>('/api/drivers/lookup-identity', { nationalId });
-        if (requestVersion !== identityCheckVersion.current) return;
-        if (response.data.firstName || response.data.surname) {
-          setForm((prev) => ({
-            ...prev,
-            firstName: response.data.firstName || prev.firstName,
-            surname: response.data.surname || prev.surname,
-          }));
-          setErrors((prev) => { const next = { ...prev }; delete next.firstName; delete next.surname; return next; });
-        }
-      } catch {
-        // Final save still performs the authoritative IPRS verification.
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [form.nationalId, isEditMode]);
-
   async function loadDriver(id: string) {
     try {
       const driver = await driverRepository.getById(id);
@@ -133,6 +104,7 @@ export default function CreateDriverScreen() {
       setForm({
         vendorId: driver.vendorId || '',
         firstName: (driver as any).firstName || nameParts[0] || '',
+        middleName: (driver as any).middleName || (nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : ''),
         surname: (driver as any).surname || nameParts.slice(1).join(' ') || '',
         phone: driver.phone || '',
         email: driver.email || '',
@@ -231,6 +203,7 @@ export default function CreateDriverScreen() {
     if (!isEditMode && !form.firstName.trim()) newErrors.firstName = 'First name is required';
     if (!isEditMode && !form.surname.trim()) newErrors.surname = 'Surname is required';
     if (!form.phone.trim()) newErrors.phone = 'Phone number is required';
+    if (!isEditMode && !form.licenseNumber.trim()) newErrors.licenseNumber = 'License number is required';
     if (!isEditMode && !form.nationalId.trim()) newErrors.nationalId = 'National ID is required';
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -247,6 +220,7 @@ export default function CreateDriverScreen() {
     setForm({
       vendorId: '',
       firstName: '',
+      middleName: '',
       surname: '',
       phone: '',
       email: '',
@@ -271,8 +245,10 @@ export default function CreateDriverScreen() {
       const driverPayload = {
         vendorId: form.vendorId,
         firstName: form.firstName.trim(),
+        middleName: form.middleName?.trim() || undefined,
         surname: form.surname.trim(),
-        fullName: `${form.firstName.trim()} ${form.surname.trim()}`,
+        fullName: [form.firstName.trim(), form.middleName?.trim(), form.surname.trim()].filter(Boolean).join(' '),
+        registrationSource: 'MANUAL',
         phone: form.phone.trim(),
         email: form.email.trim() || undefined,
         nationalId: form.nationalId.trim() || undefined,
@@ -320,22 +296,10 @@ export default function CreateDriverScreen() {
     } catch (err: any) {
       if (saveAttempt !== saveAttemptVersion.current) return;
       const code = err?.code || err?.response?.data?.code;
-      if (code === 'IPRS_IDENTITY_MISMATCH') {
-        setErrors((prev) => ({
-          ...prev,
-          nationalId: 'The National ID does not match the first name and surname provided.',
-        }));
-        Alert.alert('IPRS verification failed', 'The National ID does not match the first name and surname provided.');
-        return;
-      }
-      if (code === 'IPRS_IDENTITY_DETAILS_REQUIRED') {
-        setErrors((prev) => ({ ...prev, firstName: 'First name is required for IPRS verification.', surname: 'Surname is required for IPRS verification.' }));
-        return;
-      }
-      const msg = code === 'IPRS_NOT_CONFIGURED'
-        ? 'IPRS verification is enabled but has not been configured.'
-        : code === 'IPRS_UNAVAILABLE' || code === 'IPRS_SESSION_FAILED' || code === 'IPRS_VERIFICATION_FAILED' || code === 'IPRS_RESPONSE_UNRECOGNIZED'
-          ? 'IPRS is currently unavailable. Please try again later.'
+      const msg = code === 'DRIVER_ALREADY_ASSIGNED'
+        ? 'This National ID is already registered under another vendor.'
+        : code === 'DRIVER_NATIONAL_ID_EXISTS'
+          ? 'A driver with this National ID already exists.'
           : err?.message || 'Failed to create driver';
       Alert.alert('Error', msg);
     } finally {
@@ -345,7 +309,7 @@ export default function CreateDriverScreen() {
   }
 
   function handleCancel() {
-    // Prevent a pending availability/IPRS check from continuing into creation.
+    // Prevent a pending National ID availability check from continuing into creation.
     saveAttemptVersion.current += 1;
     identityCheckVersion.current += 1;
     resetForm();
@@ -354,6 +318,10 @@ export default function CreateDriverScreen() {
 
   const vendorOptions = buildVendorOptions(vendors);
   const displayPhotoUri = photoUri || existingPhotoUrl;
+  const requiredFieldsValid = Boolean(
+    form.vendorId.trim() && form.nationalId.trim() && form.firstName.trim() &&
+    form.surname.trim() && form.phone.trim() && form.licenseNumber.trim()
+  );
 
   return (
     <KeyboardAvoidingView
@@ -391,7 +359,7 @@ export default function CreateDriverScreen() {
           <Input
             label="National ID"
             value={form.nationalId}
-            editable={!isEditMode}
+            editable={true}
             onChangeText={(v) => updateField('nationalId', v)}
             placeholder="e.g. 12345678"
             icon="card-outline"
@@ -404,7 +372,7 @@ export default function CreateDriverScreen() {
           <Input
             label="First Name"
             value={form.firstName}
-            editable={!iprsEnabled}
+            editable={true}
             onChangeText={(v) => updateField('firstName', v)}
             placeholder="Enter first name"
             icon="person-outline"
@@ -412,9 +380,17 @@ export default function CreateDriverScreen() {
             error={errors.firstName}
           />
           <Input
+            label="Middle Name (optional)"
+            value={form.middleName || ''}
+            editable={true}
+            onChangeText={(v) => updateField('middleName', v)}
+            placeholder="Enter middle name"
+            icon="person-outline"
+          />
+          <Input
             label="Surname"
             value={form.surname}
-            editable={!iprsEnabled}
+            editable={true}
             onChangeText={(v) => updateField('surname', v)}
             placeholder="Enter surname"
             icon="person-outline"
@@ -424,6 +400,7 @@ export default function CreateDriverScreen() {
           <Input
             label="Phone Number"
             value={form.phone}
+            editable={true}
             onChangeText={(v) => updateField('phone', v)}
             placeholder="e.g. 0712345678"
             icon="call-outline"
@@ -434,6 +411,7 @@ export default function CreateDriverScreen() {
           <Input
             label="Email Address"
             value={form.email}
+            editable={true}
             onChangeText={(v) => updateField('email', v)}
             placeholder="e.g. john@example.com"
             icon="mail-outline"
@@ -442,6 +420,7 @@ export default function CreateDriverScreen() {
           <Input
             label="License Number"
             value={form.licenseNumber}
+            editable={true}
             onChangeText={(v) => updateField('licenseNumber', v)}
             placeholder="e.g. DL123456"
             icon="card-outline"
@@ -451,6 +430,7 @@ export default function CreateDriverScreen() {
           <Input
             label="License Class"
             value={form.licenseClass}
+            editable={true}
             onChangeText={(v) => updateField('licenseClass', v)}
             placeholder="e.g. B, C, E"
             icon="options-outline"
@@ -458,6 +438,7 @@ export default function CreateDriverScreen() {
           <Input
             label="License Expiry"
             value={form.licenseExpiry}
+            editable={true}
             onChangeText={(v) => updateField('licenseExpiry', v)}
             placeholder="e.g. 2025-12-31"
             icon="calendar-outline"
@@ -504,6 +485,7 @@ export default function CreateDriverScreen() {
             onPress={() => { setForm({
     vendorId: params.vendorId || '',
     firstName: '',
+    middleName: '',
     surname: '',
     phone: '',
     email: '',
@@ -524,6 +506,7 @@ export default function CreateDriverScreen() {
             icon="checkmark-circle"
             style={styles.actionBtn}
             loading={saving || uploadingPhoto || loadingDriver}
+            disabled={!isEditMode && !requiredFieldsValid}
           />
         </View>
       </ScrollView>

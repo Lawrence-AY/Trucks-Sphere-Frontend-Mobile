@@ -54,6 +54,7 @@ export function Input({
         accessibilityLabel={label}
         value={value}
         onChangeText={onChangeText}
+        editable={editable}
         placeholder={placeholder}
         placeholderTextColor={colors.textMuted}
         keyboardType={keyboardType}
