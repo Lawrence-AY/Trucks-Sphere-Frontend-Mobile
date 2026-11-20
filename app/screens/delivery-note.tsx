@@ -15,8 +15,8 @@ import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { formatCapturedGeoLocation, reverseGeocodeRich } from '../../services/geolocation';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadWarehouseSignoff } from '../../services/uploadService';
+import { SPADES_ATLAS_LOGO } from '../../utils/documentBranding';
 
-const SPADES_ATLAS_LOGO = Image.resolveAssetSource(require('../../assets/spades-atlas-logo.png')).uri;
 
 
 /* ---------- Helper: escape HTML ---------- */

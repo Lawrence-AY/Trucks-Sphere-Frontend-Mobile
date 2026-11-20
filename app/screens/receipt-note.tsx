@@ -11,7 +11,6 @@ import {
   View,
   Platform,
   Alert,
-  Image,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { router } from '../../utils/router';
@@ -25,8 +24,8 @@ import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { formatCapturedGeoLocation, reverseGeocode, reverseGeocodeRich } from '../../services/geolocation';
 import { useAuthStore } from '../../store/authStore';
 import { normalizeRole } from '../../utils/access';
+import { SPADES_ATLAS_LOGO } from '../../utils/documentBranding';
 
-const SPADES_ATLAS_LOGO = Image.resolveAssetSource(require('../../assets/spades-atlas-logo.png')).uri;
 
 /* ─────────── Helper: escape HTML special characters ─────────── */
 const escapeHtml = (str: string | null | undefined): string => {
