@@ -16,7 +16,7 @@ import { formatCapturedGeoLocation, reverseGeocodeRich } from '../../services/ge
 import * as ImagePicker from 'expo-image-picker';
 import { uploadWarehouseSignoff } from '../../services/uploadService';
 
-const SPADES_ATLAS_LOGO = Image.resolveAssetSource(require('../../assets/spades-atlas-logo.jpg')).uri;
+const SPADES_ATLAS_LOGO = Image.resolveAssetSource(require('../../assets/spades-atlas-logo.png')).uri;
 
 
 /* ---------- Helper: escape HTML ---------- */

@@ -30,6 +30,7 @@ import { formatEAT, generateReceiptNoteId } from '../../utils/helpers';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import { getNextId } from '../../services/counter';
 import { formatCapturedGeoLocation } from '../../services/geolocation';
+import { SPADES_ATLAS_LOGO } from '../../utils/documentBranding';
 import {
   DataCard,
   DetailRow,
@@ -154,6 +155,7 @@ function buildReceiptHtml(data: {
     </head>
     <body>
       <div class="header">
+        <div class="logo-box"><img src="${e(SPADES_ATLAS_LOGO)}" alt="Spades Atlas logo" /></div>
         <h1>Trucks Sphere</h1>
         <div class="subtitle">Goods Receipt Note (GRN)</div>
       </div>

@@ -8,6 +8,7 @@ import { Paths, File } from 'expo-file-system';
 import * as ExpoSharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { fetchDrivers, fetchVehicles, fetchPurchaseOrders, fetchDeliveryOrders, fetchVendors } from '../services/api';
+import { SPADES_ATLAS_LOGO } from './documentBranding';
 
 function escapeCsvField(value: any): string {
   if (value == null || value === undefined) return '';
@@ -45,6 +46,7 @@ export function buildHtmlTable(headers: string[], rows: string[][], title: strin
     <html>
     <head><style>@page { size: A4; margin: 12mm; } table { table-layout: fixed; } th, td { overflow-wrap: anywhere; white-space: pre-line; } thead { display: table-header-group; } tr { break-inside: avoid; } body { max-width: 100%; } @media print { body { padding: 0 !important; } table { font-size: 9px !important; } th, td { padding: 4px !important; } }</style><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
     <body style="font-family: -apple-system, Helvetica, Arial, sans-serif; padding: 24px; color: #1E293B;">
+      <img src="${SPADES_ATLAS_LOGO}" alt="Spades Atlas logo" style="max-width:220px;max-height:60px;object-fit:contain;" />
       <h1 style="color: #1B2A4A; margin-bottom: 4px;">Trucks Sphere</h1>
       <h2 style="color: #475569; font-size: 18px; margin-top: 0; margin-bottom: 24px;">${escapeHtml(title)}</h2>
       <p style="color: #94A3B8; font-size: 12px;">Exported on ${new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' })}</p>

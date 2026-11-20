@@ -26,7 +26,7 @@ import { formatCapturedGeoLocation, reverseGeocode, reverseGeocodeRich } from '.
 import { useAuthStore } from '../../store/authStore';
 import { normalizeRole } from '../../utils/access';
 
-const SPADES_ATLAS_LOGO = Image.resolveAssetSource(require('../../assets/spades-atlas-logo.jpg')).uri;
+const SPADES_ATLAS_LOGO = Image.resolveAssetSource(require('../../assets/spades-atlas-logo.png')).uri;
 
 /* ─────────── Helper: escape HTML special characters ─────────── */
 const escapeHtml = (str: string | null | undefined): string => {

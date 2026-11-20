@@ -33,6 +33,7 @@ import { useAuthStore } from '@/store/authStore';
 import { formatEAT } from '../../utils/helpers';
 import { isActiveJob } from '../../utils/jobStatus';
 import { uploadDriverPhotoWeighOut } from '../../services/uploadService';
+import { SPADES_ATLAS_LOGO } from '../../utils/documentBranding';
 import { getCurrentLocation, reverseGeocodeRich, getLocationFromIP } from '../../services/geolocation';
 import { buildCsvContent, shareCsvAsFile } from '../../utils/exportData';
 import {
@@ -393,6 +394,7 @@ export default function OperatorQuarryWeighOutScreen() {
       </head>
       <body>
         <div class="header">
+          <div class="logo-box"><img src="${e(SPADES_ATLAS_LOGO)}" alt="Spades Atlas logo" /></div>
           <h1>Trucks Sphere</h1>
           <div class="subtitle">Delivery Note (Quarry Weigh-Out)</div>
         </div>
